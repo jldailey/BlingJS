@@ -75,33 +75,38 @@ var $ = (function() {
 		return s.replace(/(?:\r|\n)+/g,"<br>").replace(/\t/g,"&nbsp;&nbsp;");
 	}
 
-	Bling.rgb = function(expr) { // accepts any color in css format
-		// returns a 3-item bling with the floating point rgb values
-		var d = document.createElement("div");
-		d.style.color = expr;
-		var rgb = d.style.getPropertyValue('color');
-		if( rgb )
-			return new Bling( rgb.slice(rgb.indexOf('(')+1, rgb.indexOf(')')) .split(", ")).floats()
-		return new Bling();
-	}
-
 	Bling.extend = function(a, b) {
 		for( var i in b ) {
 			a[i] = b[i];
 		}
 	}
 
+	// the operator we will give out publicly will appear to handle everything
+	// i.e., the constructor ($)
+	Bling.op = function(e,c) { return new Bling(e,c); }
+	// export all the static methods like $.dump so far
+	Bling.extend(Bling.op, Bling);
+
 	Bling.plugins = [];
-	Bling.plugin = function (name, methods) { 
+	Bling.plugin = function (name, globals, methods) { 
+		if( methods == undefined ) {
+			methods = globals;
+			globals = undefined
+		}
 		if( Bling.plugins.indexOf(name) == -1 ) {
-			Bling.plugins.push(name);
-			Bling.extend(Bling.prototype, methods);
+			Bling.plugins.push(name)
+			if( globals ) {
+				Bling.extend(Bling, globals)
+				Bling.extend(Bling.op, globals)
+			}
+			if( methods ) {
+				Bling.extend(Bling.prototype, methods)
+			}
 		}
 	}
 
 	Bling.plugin("core", /// Core ///
 	{
-
 		// define a functional basis: each, map, and reduce
 		// these act like the native forEach, map, and reduce, except they respect the context of the Bling
 		// so the 'this' value in the callback f is always set to the item being processed
@@ -181,14 +186,6 @@ var $ = (function() {
 		magnitude: function()  { return Math.sqrt(this.squares().sum()) },
 		scale:     function(n) { return this.map(function() { return n * this })},
 
-		// returns a css color string
-		rgb: function() {
-			if( this.length == 4 )
-				return "rgba("+this.join(", ")+")"
-			else if( this.length == 3 )
-				return "rgb("+this.join(", ")+")"
-			// else return undefined
-		},
 
 		// try to continue using f in the same scope after about n milliseconds
 		future: function(n, f) {
@@ -196,24 +193,49 @@ var $ = (function() {
 			if( f ) setTimeout(function() { f.call(t); }, n);
 			return this;
 		},
-
 	})
 
-	Bling.plugin("dom", /// DOM Manipulation ///
-	{
-		// get/set the .innerHTML of all elements in list
+	Bling.plugin("html", /// HTML/DOM Manipulation ///
+	{ // add $.rgb as a global
+		// accepts a color in any css format
+		// returns a 3-item bling with the floating point rgb values
+		// or the empty-set if it doesn't parse as a css color
+		rgb: function(expr) { 
+			var d = document.createElement("div");
+			d.style.color = expr;
+			var rgb = d.style.getPropertyValue('color');
+			if( rgb )
+				return new Bling( rgb.slice(rgb.indexOf('(')+1, rgb.indexOf(')')) .split(", ")).floats()
+			return new Bling();
+		},
+	},
+	{ // add node methods
+		// .html() gets/sets the .innerHTML of all elements in list
 		html: function(h) { return h ? this.zap('innerHTML', h) : this.zip('innerHTML') },
-		// get/set the .innerText of all elements
+		// .text() gets/sets the .innerText of all elements
 		text: function(t) { return t ? this.zap('innerText', t) : this.zip('innerText') },
-		// get/set the values of the nodes in the list
+		// .val() gets/sets the values of the nodes in the list
 		val: function(v) { return v ? this.zap('value', v) : this.zip('value') },
+		// .height() gets the height of the tallest item in the set [RO]
 		height: function() { return this.zip('scrollHeight').max(); },
+		// .width() gets the width of the widest item in the set [RO]
 		width: function() { return this.zip('scrollWidth').max(); },
-		// css gets/sets css properties for every node in the list
+		// .css(k,v) gets/sets css properties for every node in the list
 		css: function(k,v) { 
 			return v ? this.each(function() { this.style.setProperty(k, v); })
 				: this.map(function() { return this.style.getPropertyValue(k) })
 		},
+		// .rgb() returns a css color string... 
+		// ex: $.rgb("#343434").scale(2).rgb() returns "rgb(104, 104, 104)"
+		rgb: function() {
+			return this.length == 4 ? "rgba("+this.join(", ")+")"
+				: this.length == 3 ? "rgb("+this.join(", ")+")"
+				: undefined;
+		},
+	})
+
+	Bling.plugin("events",
+	{ // no globals
 		// bind an event handler, evt is a string, like 'click'
 		bind: function(evt, f) {
 			return this.each(function() {
@@ -226,10 +248,18 @@ var $ = (function() {
 				this.removeEventListener(evt, f);
 			})
 		},
+		// fire a fake event on each node
+		trigger: function(evt) {
+			var e = document.createEvent("Events");
+			e.initEvent(evt);
+			return this.each(function() {
+				this.dispatchEvent(e);
+			})
+		},
 	})
 
 	Bling.plugin("transform", /// Transformations and Animations ///
-	{
+	{ // no globals
 		// how long are various speeds
 		duration: function(speed) {
 			var speeds = {
@@ -311,14 +341,8 @@ var $ = (function() {
 		fadeRight: function(speed, callback) { return this.transform({opacity:"0.0", translate3d:[this.width()+"px",0.0,0.0     ]}, speed, function() { this.hide(); if( callback ) callback.call(this) })},
 		fadeUp:    function(speed, callback) { return this.transform({opacity:"0.0", translate3d:[0.0,"-"+this.height()+"px",0.0]}, speed, function() { this.hide(); if( callback ) callback.call(this) })},
 		fadeDown:  function(speed, callback) { return this.transform({opacity:"0.0", translate3d:[0.0,this.height()+"px",0.0    ]}, speed, function() { this.hide(); if( callback ) callback.call(this) })},
-
 	})
 
-	// the operator we will give out publicly will handle everything
-	// i.e., the constructor $(nodes), etc
-	var operator = function(e,c) { return new Bling(e,c); }
-	// all the static methods like $.dump
-	Bling.extend(operator, Bling);
 	// if you want to add more functionality, anyone can use $.plugin(name, methods) to add more
-	return operator;
+	return Bling.op;
 })()

@@ -21,9 +21,7 @@
 		</div>
 		<script type="text/javascript">
 			$("#animate").bind('click', function() {
-				$("input").animate(
-					{width:"300px", "font-size":"20px"},
-					{width:"100px", "font-size":"10px"});
+				$("input").transform({width:"300px", "font-size":"20px"}, "slow");
 			});
 
 			$("#submit").bind('click', function() {

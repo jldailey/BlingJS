@@ -17,7 +17,6 @@ var $ = (function() {
 			if( expr[0] == "<" ) {
 				var d = document.createElement("div");
 				d.innerHTML = expr;
-				console.log("d",d);
 				Array.apply(this, [d.childNodes.length]);
 				for( var i = 0; i < d.childNodes.length; i++ ) {
 					this.push( d.childNodes[i] )
@@ -217,9 +216,7 @@ var $ = (function() {
 		},
 		// bind an event handler, evt is a string, like 'click'
 		bind: function(evt, f) {
-			console.log("bind", this, this.each, evt, f);
 			return this.each(function() {
-				console.log(this.addEventListener, evt, f);
 				this.addEventListener(evt, f, false);
 			})
 		},

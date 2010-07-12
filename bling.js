@@ -48,65 +48,78 @@ var $ = (function() {
 	}
 	Bling.inheritsFrom(Array);
 	Bling.version = "0.0";
+	// public is the operator we give out, as $ usually
+	// it can also be thought of as the public scope,
+	// as it is the only thing that survives the script
+	Bling.public = function(e,c) { return new Bling(e,c); }
 
-	Bling.dump = function(obj, indent) {
-		var s = "";
-		indent = indent || "";
-		if( typeof(obj) == "object" ) {
-			var s = "{\n";
-			indent = indent + "\t";
-			for( var k in obj ) {
-				var v = undefined;
-				try {
-					v = obj[k];
-				} catch ( err ) { console.log(k, err); }
-				s += indent + k + ":" + " " + Bling.dump(v, indent) + ",\n";
-			}
-			indent = indent.slice(1);
-			s += indent + "}";
-		} else if( typeof(obj) == "string" ) {
-			s += indent + '"' + obj + '"';
-		} else if( typeof(obj) == "function" ) {
-			var t = "" + obj;
-			s += t.slice(0, t.indexOf("\n")) + " ... }";
-		} else {
-			s += "" + obj;
-		}
-		return s.replace(/(?:\r|\n)+/g,"<br>").replace(/\t/g,"&nbsp;&nbsp;");
-	}
-
-	Bling.extend = function(a, b) {
+	// .extend() extend will merge values from b into a
+	// if c is present, it should be a list of the field names to limit the merging to
+	Bling.extend = function(a, b, c) {
 		for( var i in b ) {
-			a[i] = b[i];
+			if( c && a[i] != undefined )
+				for( var j in c )
+					a[i][j] = b[i][j]
+			else
+				a[i] = b[i];
 		}
 	}
 
-	// the operator we will give out publicly will appear to handle everything
-	// i.e., the constructor ($)
-	Bling.op = function(e,c) { return new Bling(e,c); }
-	// export all the static methods like $.dump so far
-	Bling.extend(Bling.op, Bling);
-
-	Bling.plugins = [];
-	Bling.plugin = function (name, globals, methods) { 
+	// .plugin() is how you add functionality to Bling
+	// arguments: globals (optional) - a dict, each value will be available as $.key
+	//	methods - a dict, each value should be a method used in a chain: $(nodes).key()
+	Bling.plugin = function (globals, methods) { 
 		if( methods == undefined ) {
 			methods = globals;
 			globals = undefined
 		}
-		if( Bling.plugins.indexOf(name) == -1 ) {
-			Bling.plugins.push(name)
-			if( globals ) {
-				Bling.extend(Bling, globals)
-				Bling.extend(Bling.op, globals)
-			}
-			if( methods ) {
-				Bling.extend(Bling.prototype, methods)
-			}
+		if( globals ) {
+			Bling.extend(Bling, globals)
+			Bling.extend(Bling.public, globals)
+		}
+		if( methods ) {
+			Bling.extend(Bling.prototype, methods)
 		}
 	}
 
-	Bling.plugin("core", /// Core ///
-	{
+	// expose some static methods to the public
+	Bling.extend(Bling.public, Bling, ['version', 'extend', 'plugin']);
+
+	/// Core ///
+	Bling.plugin(
+	{ // globals
+		// .dumpText() produces a human readable plain-text view of an object
+		dumpText: function(obj, indent) {
+			var s = "";
+			indent = indent || "";
+			if( typeof(obj) == "object" ) {
+				var s = "{\n";
+				indent = indent + "\t";
+				for( var k in obj ) {
+					var v = undefined;
+					try {
+						v = obj[k];
+					} catch ( err ) { console.log(k, err); }
+					s += indent + k + ":" + " " + Bling.dumpText(v, indent) + ",\n";
+				}
+				indent = indent.slice(1);
+				s += indent + "}";
+			} else if( typeof(obj) == "string" ) {
+				s += indent + '"' + obj + '"';
+			} else if( typeof(obj) == "function" ) {
+				var t = "" + obj;
+				s += t.slice(0, t.indexOf("\n")) + " ... }";
+			} else {
+				s += "" + obj;
+			}
+			return s;
+		},
+		// .dump() produces a human readable html view of an object
+		dump: function(obj) {
+			return Bling.dumpText(obj).replace(/(?:\r|\n)+/g,"<br>").replace(/\t/g,"&nbsp;&nbsp;");
+		},
+	}, // end globals
+	{ // instance methods
 		// define a functional basis: each, map, and reduce
 		// these act like the native forEach, map, and reduce, except they respect the context of the Bling
 		// so the 'this' value in the callback f is always set to the item being processed
@@ -129,36 +142,44 @@ var $ = (function() {
 				return f.apply(x, [a, x]);
 			})
 		},
-
 		// zip(p) returns a list of the values of property p from each node
 		zip: function(p) { return this.map(function() { return this[p] }); },
 		// zap(p, v) sets property p to value v on all nodes in the list
 		zap: function(p, v) { return this.each(function() { this[p] = v }); },
 		// take(n) trims the list to only the first n elements
 		take: function(n) {
-			var a = new Bling(Math.min(n, this.length));
-			for( var i = 0; i < a.length; i++) {
-				a[i] = this[i]
-			}
+			n = Math.min(n, this.length);
+			var a = new Bling(n);
+			for( var i = 0; i < n; i++)
+				a.push( this[i] )
 			return a;
 		},
 		// skip(n) skips the first n elements in the list
 		skip: function(n) {
-			var a = new Bling(Math.max(0,this.length - n));
+			var a = new Bling( Math.max(0,this.length - n) );
 			for( var i = 0; i < this.length - n; i++)
 				a.push(this[i+n])
 			return a;
 		},
-		// join all elements into a sep-separated string
+		// .last(n) returns the last n elements in the list
+		// if n is not passed, returned just the item (no bling)
+		last: function(n) { return n ? this.skip(Math.max(0,this.length - n))
+			: this.skip(this.length - 1)[0] },
+		// .first(n) returns the first n elements in the list
+		// if n is not passed, returned just the item (no bling)
+		first: function(n) { return n ? this.take(n)
+			: this[0] },
+		// .join() concatenates all items in the list using sep
 		join: function(sep) {
 			return this.reduce(function(j) {
 				return j + sep + this;
 			});
 		},
-		// slice(start, end) returns a contiguous subset of elements
+		// .slice(start, end) returns a contiguous subset of elements
 		// the end-th item will not be included - the slice(0,2) will contain items 0, and 1.
 		slice: function(start, end) { return this.take(end).skip(start); },
-		// mash takes the given array and interleaves it in this array
+
+		// .mash() takes the given array and interleaves it in this array
 		mash: function(a) {
 			var b = new Bling(this.length + a.length);
 			// first spread out this list, from back to front
@@ -176,6 +197,7 @@ var $ = (function() {
 		},
 
 		// various common ways to map/reduce things
+		toString:  function()  { return "["+this.join(", ")+"]" },
 		floats:    function()  { return this.map(parseFloat) },
 		ints:      function()  { return this.map(parseInt) },
 		squares:   function()  { return this.map(function() { return this * this })},
@@ -186,18 +208,18 @@ var $ = (function() {
 		magnitude: function()  { return Math.sqrt(this.squares().sum()) },
 		scale:     function(n) { return this.map(function() { return n * this })},
 
-
 		// try to continue using f in the same scope after about n milliseconds
 		future: function(n, f) {
 			var t = this;
 			if( f ) setTimeout(function() { f.call(t); }, n);
 			return this;
 		},
-	})
+	}) // end instance methods
 
-	Bling.plugin("html", /// HTML/DOM Manipulation ///
-	{ // add $.rgb as a global
-		// accepts a color in any css format
+	/// HTML/DOM Manipulation ///
+	Bling.plugin(
+	{ // globals
+		// $.rgb() accepts a color in any css format
 		// returns a 3-item bling with the floating point rgb values
 		// or the empty-set if it doesn't parse as a css color
 		rgb: function(expr) { 
@@ -208,8 +230,8 @@ var $ = (function() {
 				return new Bling( rgb.slice(rgb.indexOf('(')+1, rgb.indexOf(')')) .split(", ")).floats()
 			return new Bling();
 		},
-	},
-	{ // add node methods
+	}, // end globals
+	{ //  instance methods
 		// .html() gets/sets the .innerHTML of all elements in list
 		html: function(h) { return h ? this.zap('innerHTML', h) : this.zip('innerHTML') },
 		// .text() gets/sets the .innerText of all elements
@@ -232,10 +254,25 @@ var $ = (function() {
 				: this.length == 3 ? "rgb("+this.join(", ")+")"
 				: undefined;
 		},
-	})
+		// .parent() returns the parentNodes of all items in the set
+		parent: function() { return this.zip('parentNode') },
+		// .parents() returns all the parentNodes up to the owner for each item
+		parents: function() {
+			return this.map(function() {
+				var b = $([]);
+				var p = this.parentNode;
+				while( p != null ) {
+					b.push(p);
+					p = p.parentNode;
+				}
+				return b;
+			})
+		},
+	}) // end instance methods
 
-	Bling.plugin("events",
-	{ // no globals
+	/// Events ///
+	Bling.plugin(
+	{ // instance methods
 		// bind an event handler, evt is a string, like 'click'
 		bind: function(evt, f) {
 			return this.each(function() {
@@ -256,10 +293,11 @@ var $ = (function() {
 				this.dispatchEvent(e);
 			})
 		},
-	})
+	}) // end instance methods
 
-	Bling.plugin("transform", /// Transformations and Animations ///
-	{ // no globals
+	/// Transformations and Animations ///
+	Bling.plugin(
+	{ // instance methods
 		// how long are various speeds
 		duration: function(speed) {
 			var speeds = {
@@ -341,8 +379,7 @@ var $ = (function() {
 		fadeRight: function(speed, callback) { return this.transform({opacity:"0.0", translate3d:[this.width()+"px",0.0,0.0     ]}, speed, function() { this.hide(); if( callback ) callback.call(this) })},
 		fadeUp:    function(speed, callback) { return this.transform({opacity:"0.0", translate3d:[0.0,"-"+this.height()+"px",0.0]}, speed, function() { this.hide(); if( callback ) callback.call(this) })},
 		fadeDown:  function(speed, callback) { return this.transform({opacity:"0.0", translate3d:[0.0,this.height()+"px",0.0    ]}, speed, function() { this.hide(); if( callback ) callback.call(this) })},
-	})
+	}) // end instance methods
 
-	// if you want to add more functionality, anyone can use $.plugin(name, methods) to add more
-	return Bling.op;
+	return Bling.public;
 })()

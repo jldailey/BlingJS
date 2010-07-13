@@ -6,31 +6,52 @@
 		<style type="text/css">
 			body {
 				font-family: Helvetica, sans;
-				font-size: 14px;
+				font-size: 16px;
 				font-weight: normal;
+				color: white;
 				overflow:hidden;
 				background-color:grey;
 				display:block;
 				width:320px;
 				max-width:320px;
-				border-right:1px dashed red;
-				height:420px;
-				max-height:420px;
-				border-bottom:1px dashed red;
+				border-right:1px dashed #eaeaea;
 				padding:0;
 				margin:0;
 				overflow: hidden;
 			}
 			* {
-				float: left;
+				margin: 0;
+				padding: 0;
+			}
+			button {
+				padding: 4px;
+				min-height:40px;
+				min-width:120px;
+			}
+			input {
+				font-size:18px;
+				min-height:30px;
+				line-height:30px;
+				display: block;
+				width: 300px;
+				margin-left: auto;
+				margin-right: auto;
+				margin-top: 2px;
+				margin-bottom: 2px;
+				padding: 0px 6px;
+				text-align: center;
+				border-width: 1px;
+				-webkit-border-radius: 5px;
 			}
 		</style>
 	</head>
 	<body>
-		<input type="text" name="Email" id="Email" value="jesse.dailey@gmail.com">
+		<input type="text" name="Email" id="Email" placeholder="username/email" value="">
 		<input type="password" name="Passwd" id="Passwd" value="">
-		<button id="submit">Submit</button>
-		<button id="animate">Animate</button>
+		<center>
+			<button id="submit">Submit</button>
+			<button id="animate">Animate</button>
+		</center>
 		<div id="read-items">
 		</div>
 		<script type="text/javascript">
@@ -61,6 +82,5 @@
 				xhr.send(data);
 			});
 		</script>
-
 	</body>
 </html>

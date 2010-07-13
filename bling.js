@@ -548,7 +548,9 @@ var $ = (function() {
 					this.parentNode = null;
 				}
 			});
-		},
+		}
+			.test(function() { assertEqual(new Bling("<p>").insertInto("<div>").remove().zip('parentNode').first(), null) })
+		,
 
 	})
 

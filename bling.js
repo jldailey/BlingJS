@@ -10,6 +10,7 @@ var $ = (function() {
 	Function.prototype.inheritsFrom = function(b) {
 		this.prototype = new b();
 		this.prototype.constructor = this;
+		return this;
 	}
 
 	// define testing hooks
@@ -27,12 +28,6 @@ var $ = (function() {
 		return this;
 	}
 
-	var runAllTests = function() {
-		var i = tests.length
-		for(; tests.length; tests.shift()() ) {}
-		return i
-	}
-
 	// define our asserts for use in tests
 	function assert(a, msg) {
 		assertEqual(!(a), false, msg)
@@ -45,9 +40,10 @@ var $ = (function() {
 	}
 	function isString(a) { return isType(a, String); }
 	function isNumber(a) { return isType(a, Number); }
+	function isNode(a)   { return a.nodeType < 13 && a.nodeType > 0; }
 	function isBling(a)  { return isType(a, Bling); }
 
-	function Bling(expr, context) {
+	var Bling = function (expr, context) {
 		context = context || document;
 		this.initFrom = function(s) {
 			Array.apply(this, [s.length])
@@ -97,29 +93,25 @@ var $ = (function() {
 			Array.apply(this, []);
 		}
 	}
-	Bling.inheritsFrom(Array);
-	Bling.version = "0.0";
+	.test(function() { assertEqual(new Bling("<a /><a /><a />").length, 3) })
+	.test(function() { assertEqual(new Bling("<div><div /><div /></div>").length, 1) })
+	.test(function() { assertEqual(new Bling([1, 2, 3]).length, 3) })
+	.test(function() { assertEqual(new Bling(100).length, 0) })
+	.test(function() { assertEqual(new Bling({a:'b'}).length, 1) })
+	.test(function() { assertEqual(new Bling("<div id='a'><div id='b' /><div id='c' /></div>").zip('id').toString(), '["a"]') })
+	.test(function() { assertEqual(new Bling("div", new Bling("<div id='a'><div id='b' /><div id='c' /></div>")).zip('id').toString(), '["b", "c"]') })
+	.inheritsFrom(Array);
+
+	Bling.version = "0";
 	// public is the operator we give out, as $ usually
 	// it can also be thought of as the public scope,
 	// as it is the only namespace that survives the script
 	Bling.public = function(e,c) { return new Bling(e,c); }
-	Bling.public.runAllTests = runAllTests;
-	Bling.test(function() {
-		// test creating blings from html, from css expr, from list, and from misc item
-		assertEqual(new Bling("<a /><a /><a />").length, 3, "three as: " + new Bling("<a /><a /><a />").toString());
-	}).test(function() {
-		assertEqual(new Bling("<div><div /><div /></div>").length, 1, "one div");
-	}).test(function() {
-		assertEqual(new Bling([1, 2, 3]).length, 3, "three nums");
-	}).test(function() {
-		assertEqual(new Bling(100).length, 0, "a size");
-	}).test(function() {
-		assertEqual(new Bling({a:'b'}).length, 1, "an object");
-	}).test(function() {
-		assertEqual(new Bling("<div id='a'><div id='b' /><div id='c' /></div>").zip('id').toString(), '["a"]');
-	}).test(function() {
-		assertEqual(new Bling("div", new Bling("<div id='a'><div id='b' /><div id='c' /></div>")).zip('id').toString(), '["b", "c"]');
-	});
+	Bling.public.runAllTests = function() {
+		var i = tests.length
+		for(; tests.length; tests.shift()() ) {}
+		return i
+	}
 
 	// .extend() extend will merge values from b into a
 	// if c is present, it should be a list of the field names to limit the merging to
@@ -134,13 +126,16 @@ var $ = (function() {
 	}
 
 	// .plugin() is how you add functionality to Bling
-	// arguments: globals (optional) - a dict, each value will be available as $.key
-	//	methods - a dict, each value should be a method used in a chain: $(nodes).key()
+	// methods - a dict, each key is a method name,
+	// each value should be a method that takes a bling as 'this'
+	// and returns a bling
 	Bling.plugin = function (methods) { 
 		if( methods ) {
 			Bling.extend(Bling.prototype, methods)
 		}
 	}
+	// .globals() is how a plugin provides new global functions
+	// like $.rgb
 	Bling.globals = function (globals) {
 		if( globals ) {
 			Bling.extend(Bling, globals)
@@ -240,7 +235,11 @@ var $ = (function() {
 			})
 		,
 		// zip(p) returns a list of the values of property p from each node
-		zip: function(p) { return this.map(function() { return this[p] }); }
+		zip: function(p) { // zip("a.b") -> zip("a").zip("b")
+			var i = p.indexOf(".")
+			return i > -1 ? this.zip(p.substr(0, i)).zip(p.substr(i+1))
+			: this.map(function() { return this[p] }); 
+		}
 			.test(function() {
 				var b = new Bling(["one", "two", "three"]);
 				var c = this.call(b, 'length');
@@ -250,7 +249,11 @@ var $ = (function() {
 			})
 		,
 		// zap(p, v) sets property p to value v on all nodes in the list
-		zap: function(p, v) { return this.each(function() { this[p] = v }); }
+		zap: function(p, v) { // zap("a.b") -> zip("a").zap("b")
+			var i = p.indexOf(".")
+			return i > -1 ? this.zip(p.substr(0, i)).zap(p.substr(i+1))
+				: this.each(function() { this[p] = v }) 
+		}
 			.test(function() {
 				var b = new Bling([{a:0}, {a:1}, {a:2}]);
 				b.zap('a',3);
@@ -433,27 +436,51 @@ var $ = (function() {
 				var b = new Bling("<div>"+h+"</div>");
 				assertEqual(b.html().first(), h);
 			}),
+		// .append() puts some content (bling,html,etc) at the end of each's children
+		append: function(x) { 
+			return isBling(x) ? this.each(function(ti){ x.each(function(xi){ ti.appendChild(xi) }) })
+			: isNode(x) ? this.each(function(){ this.appendChild(x) })
+			: this.append(new Bling(x))
+		}
+			.test(function() { assertEqual(new Bling("<div></div>").append(new Bling("<p>")).child(0).zip('nodeName').join(" "), "P") })
+			.test(function() { assertEqual(new Bling("<div></div>").append("<p>").child(0).zip('nodeName').join(" "), "P") })
+		,
+		// .insertInto() is the other side of .append(), the only difference is which set is returned
+		insertInto: function(x) { 
+			var t = this;
+			isBling(x) ? x.append(this)
+				: new Bling(x).append(this)
+			return this;
+		}
+			.test(function() { 
+				assertEqual(new Bling("<p>").insertInto(new Bling("<div id='a'></div>")).zip('parentNode.id').join(" "), "a") 
+			})
+		,
 		// .text() gets/sets the .innerText of all elements
 		text: function(t) { return t ? this.zap('innerText', t) : this.zip('innerText') }
 			.test(function() {
 				var h = "<p class='foo'>This is a paragraph.</p>";
 				var b = new Bling("<div>"+h+"</div>");
 				assertEqual(b.text().first(), "This is a paragraph.");
-			}),
+			})
+		,
 		// .val() gets/sets the values of the nodes in the list
 		val: function(v) { return v ? this.zap('value', v) : this.zip('value') }
 			.test(function() {
 				var b = new Bling("<input value='1'><input value='2'><select><option>3</option><option>4</option></select>");
 				assertEqual(b.val().join(", "), "1, 2, 3");
-			}),
+			})
+		,
 		// .height() gets the height of the tallest item in the set [RO]
 		height: function() { return this.zip('scrollHeight').max(); }
 			.test(function() {
-			}),
+			})
+		,
 		// .width() gets the width of the widest item in the set [RO]
 		width: function() { return this.zip('scrollWidth').max(); }
 			.test(function() {
-			}),
+			})
+		,
 		// .css(k,v) gets/sets css properties for every node in the list
 		css: function(k,v) { return v ? this.each(function() { this.style.setProperty(k, v); })
 			: this.map(function() { return this.style.getPropertyValue(k) })
@@ -463,7 +490,8 @@ var $ = (function() {
 				assertEqual(d.css('background-color').first(), undefined);
 				d.css('background-color', '#ffffff');
 				assertEqual(d.css('background-color').first(), 'rgb(255, 255, 255)');
-			}),
+			})
+		,
 		// .rgb() returns a css color string... 
 		rgb: function() {
 			return this.length == 4 ? "rgba("+this.join(", ")+")"
@@ -481,14 +509,16 @@ var $ = (function() {
 				var d = new Bling("<div><p><span>here.</span></p></div>");
 				assertEqual(d.child(0).zip('nodeName').join(", "), "P");
 				assertEqual(d.child(0).child(0).zip('nodeName').join(", "), "SPAN");
-			}),
+			})
+		,
 		// .parent() returns the parentNodes of all items in the set
 		parent: function() { return this.zip('parentNode') }
 			.test(function() {
 				var d = new Bling("<div><p><span>here.</span></p></div>");
 				assertEqual(d.parent().first(), null);
 				assertEqual(d.child(0).parent().first().nodeName, "DIV");
-			}),
+			})
+		,
 		// .parents() returns all the parentNodes up to the owner for each item
 		parents: function() {
 			return this.map(function() {
@@ -508,7 +538,18 @@ var $ = (function() {
 						.zip('nodeName')
 						.join(", "), 
 					"P, DIV");
-			}),
+			})
+		,
+		// .remove() removes each node from the DOM
+		remove: function() {
+			return this.each(function(){
+				if( this.parentNode ) {
+					this.parentNode.removeChild(this);
+					this.parentNode = null;
+				}
+			});
+		},
+
 	})
 
 	/// Events ///

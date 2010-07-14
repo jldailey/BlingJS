@@ -13,6 +13,16 @@ var $ = (function() {
 		return this;
 	}
 
+	// define function binding
+	// this lets you make an f.call() or f.apply() with a regular function call f()
+	// by supplying the 'this' argument ahead of time
+	Function.prototype.bound = function(t) {
+		var f = this
+		var r = function() { return f.apply(t, arguments) }
+		r.toString = function() { return "bound-method of "+t+"."+f.name+"(...)" }
+		return r
+	}
+
 	// define testing hooks
 	// any function can be tested inline
 	// function f() { ... }.test(function() { ... }) === f
@@ -35,25 +45,32 @@ var $ = (function() {
 	function assertEqual(a, b, msg) {
 		if( a != b ) throw new Error("assertion error: "+escape(a)+" != "+escape(b)+" "+ msg)
 	}
-	function isType(a,b) {
-		return a.__proto__.constructor == b
-	}
-	function isString(a) { return isType(a, String); }
-	function isNumber(a) { return isType(a, Number); }
-	function isNode(a)   { return a.nodeType < 13 && a.nodeType > 0; }
-	function isBling(a)  { return isType(a, Bling); }
+	function isType(a,T) { return a != undefined && a.__proto__.constructor == T }
+	function isString(a) { return isType(a, String) }
+	function isNumber(a) { return isType(a, Number) }
+	function isNode(a)   { return a.nodeType < 13 && a.nodeType > 0 }
+	function isBling(a)  { return isType(a, Bling) }
 
+	// define the Bling constructor
+	// accepts strings, as css expression to select, as html to create (must start with "<")
+	// accepts existing Bling (returns the argument, no copying)
+	// accepts arrays of anything
+	// accepts a single number, used as the argument in new Array(n), to pre-allocate space
 	var Bling = function (expr, context) {
 		context = context || document;
-		this.initFrom = function(s) {
-			Array.apply(this, [s.length])
-			this.copyFrom(s)
-		}
+		// copy data from some indexable source into our array
 		this.copyFrom = function(s, n) {
 			for( var i = 0; i < (n ? Math.min(s.length,n) : s.length); i++)
 				this.push(s[i])
 		}
+		// call the Array constructor based on some other array-like thing
+		this.initFrom = function(s) {
+			Array.apply(this, [s.length])
+			this.copyFrom(s)
+		}
 		if( typeof(expr) == "string" ) {
+			// accept two different kinds of strings: html, and css expression
+			// html begins with "<", and we create a set of nodes by parsing it
 			if( expr[0] == "<" ) {
 				var d = document.createElement("div");
 				d.innerHTML = expr;
@@ -64,42 +81,50 @@ var $ = (function() {
 						x.parentNode = null; 
 					}
 				});
-			} else {
-				if( context.each != undefined ) {
-					Array.apply(this, [])
+			} else { // anything else is a css expression, for querySelectorAll
+				// if we are searching inside another Bling
+				//  then search each item in the bling, and accumulate in one list
+				if( isBling(context) ) {
+					this.initFrom([])
 					var t = this;
 					context.each(function() {
 						t.copyFrom(this.querySelectorAll(expr))
 					});
-				} else {
+				} else if( context.querySelectorAll != undefined ) {
+					// if the context is directly searchable, search it
 					this.initFrom(context.querySelectorAll(expr))
+				} else {
+					// otherwise, this is not a valid context
+					throw new Error("invalid context "+context+")")
 				}
 			}
 		} else if( typeof(expr) == "number" ) {
+			// accept a single number, to pre-allocate space
 			Array.apply(this, [expr]);
+		} else if( isBling(expr) ) {
+			// accept Bling objects, but do nothing
+			return expr;
 		} else if( expr ) {
-			if( isBling(expr) )
-				return expr;
+			// anything array-like we can use directly
 			if( expr.length != undefined ) {
-				Array.apply(this, [expr.length]);
-				for( var i = 0; i < expr.length; i++) {
-					this.push( expr[i] )
-				}
+				this.initFrom(expr);
 			} else {
-				Array.apply(this, [1]);
-				this.push( expr );
+				// otherwise assume we just want to bling out the one item, whatever it is
+				this.initFrom([ expr ])
 			}
 		} else {
-			Array.apply(this, []);
+			// if there was no expr, just create an empty set
+			this.initFrom([])
 		}
 	}
-	.test(function() { assertEqual(new Bling("<a /><a /><a />").length, 3) })
-	.test(function() { assertEqual(new Bling("<div><div /><div /></div>").length, 1) })
-	.test(function() { assertEqual(new Bling([1, 2, 3]).length, 3) })
-	.test(function() { assertEqual(new Bling(100).length, 0) })
-	.test(function() { assertEqual(new Bling({a:'b'}).length, 1) })
-	.test(function() { assertEqual(new Bling("<div id='a'><div id='b' /><div id='c' /></div>").zip('id').toString(), '["a"]') })
-	.test(function() { assertEqual(new Bling("div", new Bling("<div id='a'><div id='b' /><div id='c' /></div>")).zip('id').toString(), '["b", "c"]') })
+		.test(function() { assertEqual(new Bling().length, 0) }) // bling can be empty
+		.test(function() { assertEqual(new Bling("<a /><a /><a />").length, 3) })
+		.test(function() { assertEqual(new Bling("<div><div /><div /></div>").length, 1) })
+		.test(function() { assertEqual(new Bling([1, 2, 3]).length, 3) })
+		.test(function() { assertEqual(new Bling(100).length, 0) })
+		.test(function() { assertEqual(new Bling({a:'b'}).length, 1) })
+		.test(function() { assertEqual(new Bling("<div id='a'><div id='b' /><div id='c' /></div>").zip('id').toString(), '["a"]') })
+		.test(function() { assertEqual(new Bling("div", new Bling("<div id='a'><div id='b' /><div id='c' /></div>")).zip('id').toString(), '["b", "c"]') })
 	.inheritsFrom(Array);
 
 	Bling.version = "0";
@@ -204,7 +229,10 @@ var $ = (function() {
 		,
 		map: function(f) {
 			return new Bling(Array.prototype.map.call(this, function(t) {
-				return f.call(t, t);
+				try { return f.call(t, t) }
+				catch( e ) {
+					if( isType(e, TypeError) ) return f(t) // certain special globals dont work if you reapply this
+				}
 			}));
 		}
 			.test(function() {
@@ -223,7 +251,7 @@ var $ = (function() {
 			// along with respecting the context, we pass only the accumulation + 1 item
 			// so you can use functions like Math.min directly $(numbers).reduce(Math.min)
 			// this fails with the default reduce, since Math.min(a,x,i,items) is NaN
-			if( this.length == 0 ) return null;
+			if( (!f) || this.length == 0 ) return null
 			return Array.prototype.reduce.call(this, function(a, x) {
 				return f.apply(x, [a, x]);
 			})
@@ -235,35 +263,32 @@ var $ = (function() {
 			})
 		,
 		// zip(p) returns a list of the values of property p from each node
-		zip: function(p) { // zip("a.b") -> zip("a").zip("b")
+		zip: function(p) {
+			if( !p ) return this
 			var i = p.indexOf(".")
-			return i > -1 ? this.zip(p.substr(0, i)).zip(p.substr(i+1))
-			: this.map(function() { return this[p] }); 
+			return i > -1 ? this.zip(p.substr(0, i)).zip(p.substr(i+1)) // zip("a.b") -> zip("a").zip("b")
+				: this.map(function() { // zip('someMemberFunction').call() -> this.map( { return this() } )
+					return typeof(this[p]) == "function" ?  this[p].bound(this, p)
+						: this[p]
+				}); 
 		}
-			.test(function() {
-				var b = new Bling(["one", "two", "three"]);
-				var c = this.call(b, 'length');
-				assertEqual(c[0], 3);
-				assertEqual(c[1], 3);
-				assertEqual(c[2], 5);
-			})
+			.test(function() { assertEqual(new Bling(["one", "two", "three"]).zip('length').join(" "), "3 3 5"); })
 		,
 		// zap(p, v) sets property p to value v on all nodes in the list
 		zap: function(p, v) { // zap("a.b") -> zip("a").zap("b")
+			if( !p ) return this
 			var i = p.indexOf(".")
-			return i > -1 ? this.zip(p.substr(0, i)).zap(p.substr(i+1))
+			return i > -1 ? this.zip(p.substr(0, i)).zap(p.substr(i+1), v)
 				: this.each(function() { this[p] = v }) 
 		}
 			.test(function() {
-				var b = new Bling([{a:0}, {a:1}, {a:2}]);
-				b.zap('a',3);
-				assertEqual(b[0].a, 3);
-				assertEqual(b[1].a, 3);
-				assertEqual(b[2].a, 3);
+				assertEqual(new Bling([{a:0}, {a:1}, {a:2}]).zap('a', 3).zip('a').join(" "), "3 3 3")
 			})
 		,
 		// take(n) trims the list to only the first n elements
+		// if n == this.length, returns a shallow copy of the whole list
 		take: function(n) {
+			n = n || 1
 			n = Math.min(n, this.length);
 			var a = new Bling(n);
 			for( var i = 0; i < n; i++)
@@ -278,6 +303,7 @@ var $ = (function() {
 		,
 		// skip(n) skips the first n elements in the list
 		skip: function(n) {
+			n = n || 1
 			var a = new Bling( Math.max(0,this.length - n) );
 			for( var i = 0; i < this.length - n; i++)
 				a.push(this[i+n])
@@ -318,21 +344,24 @@ var $ = (function() {
 				return j + sep + this;
 			});
 		}
-			.test(function() {
-				var b = new Bling([1,2,3,4,5]);
-				assertEqual(b.join(", "), "1, 2, 3, 4, 5");
-			})
+			.test(function() { assertEqual(new Bling([1,2,3,4,5]).join(", "), "1, 2, 3, 4, 5") } )
 		,
 		// .slice(start, end) returns a contiguous subset of elements
 		// the end-th item will not be included - the slice(0,2) will contain items 0, and 1.
 		slice: function(start, end) { return this.take(end).skip(start); }
 			.test(function() {
 				var b = new Bling([1,2,3,4,5,6,7,8]);
-				var c = b.slice(2,4).join("");
-				var d = b.slice(4,6).join("");
-				assertEqual(c, "34");
-				assertEqual(d, "56");
+				assertEqual(b.slice(2,4).join(""), "34");
+				assertEqual(b.slice(4,6).join(""), "56");
 			})
+		,
+		// .concat(b) inserts all items from b into this array
+		concat: function(b) {
+			for( var i = 0; i < b.length; i++)
+				this.push(b[i])
+			return this
+		}
+			.test(function(){ assertEqual(new Bling([1,2,3]).concat(new Bling([4,5,6])).join(""), "123456") })
 		,
 
 		// .weave() takes the given array and interleaves it in this array
@@ -362,32 +391,39 @@ var $ = (function() {
 			.test(function() { assertEqual(new Bling([1,2,3,4,5]).toString(), "[1, 2, 3, 4, 5]") })
 			.test(function() { assertEqual(new Bling(["a","b"]).toString(), '["a", "b"]') })
 		,
-		floats:    function()  { return this.map(parseFloat) }
+		floats: function()  { return this.map(parseFloat) }
 			.test(function() { assertEqual(new Bling([1, "3.5", "200px"]).floats().join(", "), "1, 3.5, 200"); })
 		,
-		ints:      function()  { return this.map(parseInt) }
+		ints: function()  { return this.map(parseInt) }
 			.test(function() { assertEqual(new Bling([1, "3.5", "200px"]).ints().join(", "), "1, 3, 200"); })
 		,
-		squares:   function()  { return this.map(function() { return this * this })}
+		squares: function()  { return this.map(function() { return this * this })}
 			.test(function() { assertEqual(new Bling([1, 2, 3]).squares().join(", "), "1, 4, 9"); })
 		,
-		sum:       function()  { return this.reduce(function(x) { return x + this })}
+		sum: function()  { return this.reduce(function(x) { return x + this })}
 			.test(function() { assertEqual(new Bling([1, 2, 3, 4]).sum(), 10); })
 		,
-		max:       function()  { return this.reduce(Math.max) }
+		max: function()  { return this.reduce(Math.max) }
 			.test(function() { assertEqual(new Bling([1, 2, 3, 4]).max(), 4); })
 		,
-		min:       function()  { return this.reduce(Math.min) }
+		min: function()  { return this.reduce(Math.min) }
 			.test(function() { assertEqual(new Bling([1, 2, 3, 4]).min(), 1); })
 		,
-		average:   function()  { return this.sum() / this.length }
+		average: function()  { return this.sum() / this.length }
 			.test(function() { assertEqual(new Bling([1, 2, 3, 4]).average(), 2.5); })
 		,
 		magnitude: function()  { return Math.sqrt(this.squares().sum()) }
 			.test(function() { assertEqual(new Bling([1, 2, 3]).magnitude(), Math.sqrt(14)); })
 		,
-		scale:     function(n) { return this.map(function() { return n * this })}
+		scale: function(n) { return this.map(function() { return n * this })}
 			.test(function() { assertEqual(new Bling([1, 2, 3]).scale(2).join(", "), "2, 4, 6") })
+		,
+		call: function() { 
+			var args = arguments; 
+			return this.map(function() { return this.apply(null, args); }) 
+		}
+			.test(function() { assertEqual(new Bling(["a","b","c"]).zip('toUpperCase').call().join(""), "ABC") })
+			.test(function() { assertEqual(new Bling(["a","b","c"]).zip('concat').call(".").join(""), "a.b.c.") })
 		,
 
 		// try to continue using f in the same scope after about n milliseconds
@@ -471,25 +507,21 @@ var $ = (function() {
 				assertEqual(b.val().join(", "), "1, 2, 3");
 			})
 		,
-		// .height() gets the height of the tallest item in the set [RO]
-		height: function() { return this.zip('scrollHeight').max(); }
-			.test(function() {
-			})
-		,
-		// .width() gets the width of the widest item in the set [RO]
-		width: function() { return this.zip('scrollWidth').max(); }
-			.test(function() {
-			})
-		,
 		// .css(k,v) gets/sets css properties for every node in the list
-		css: function(k,v) { return v ? this.each(function() { this.style.setProperty(k, v); })
-			: this.map(function() { return this.style.getPropertyValue(k) })
+		css: function(k,v) { 
+			if( v ) {
+				this.zip('style.setProperty').call(k,v) // if v is present set the value on each element
+				return this
+			}
+			return this.map(window.getComputedStyle)
+				.zip('getPropertyValue').call(k) // return the computed value
 		}
 			.test(function() {
-				var d = new Bling("<div />");
-				assertEqual(d.css('background-color').first(), undefined);
-				d.css('background-color', '#ffffff');
-				assertEqual(d.css('background-color').first(), 'rgb(255, 255, 255)');
+				new Bling("<div style='background-color:transparent;' />")
+					.insertInto("body")
+					.future(0, function() { assertEqual(this.css('background-color').first(), 'rgba(0, 0, 0, 0)') })
+					.future(1, function() { assertEqual(this.css('background-color', "#ffffff").css("background-color").first(), "rgb(255, 255, 255)") })
+					.future(2, function() { this.remove() })
 			})
 		,
 		// .rgb() returns a css color string... 
@@ -550,6 +582,13 @@ var $ = (function() {
 			});
 		}
 			.test(function() { assertEqual(new Bling("<p>").insertInto("<div>").remove().zip('parentNode').first(), null) })
+		,
+		// .find(expr) maps querySelectorAll(expr) over each element in the set
+		find: function(expr) { 
+			return this.map(function() { return new Bling(expr, this) }) 
+				.reduce(function(a) { return a.concat(this) })
+		}
+			.test(function(){ assertEqual(new Bling("<div><p><span id='a'>text</span></div>").find("span").zip('id').join(" "), "a") })
 		,
 
 	})

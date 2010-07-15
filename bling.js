@@ -3,15 +3,31 @@
  * Named after the bling! operator ($), this is a jQuery-like framework,
  * using any and all WebKit specific hacks that we can.
  * All other browsers play at your own risk.
+ * Blame: Jesse Dailey <jesse.dailey@gmail.com>
  */
 
-// define simple inheritance
-Function.prototype.inheritsFrom = function(b) {
-	this.prototype = new b();
-	this.prototype.constructor = this;
-	return this;
+// first things first, javascript is missing some features
+
+/* Inheritance
+ * -----------
+ * A.inheritsFrom(T) will make A inherit members from type T.
+ * function MyType(){ Array.apply(this, arguments); }.inheritsFrom(Array)
+ */
+Function.prototype.inheritsFrom = function(T) {
+	this.prototype = new T()
+	return this.prototype.constructor = this
 }
-function isType(a,T) { return a ? a.__proto__.constructor == T : a == T }
+
+/* Type Checking
+ * -------------
+ * Since we have a clear definition of inheritance, we can clearly detect
+ * types and sub-types.
+ */
+function isType(a,T) { 
+	return !a ? T === a
+		: typeof(T) === "string" ? a.__proto__.constructor.name == T
+			: a.__proto__.constructor === T 
+}
 function isSubtype(a, T) {
 	return a == undefined ? a == T
 		: a.__proto__ == undefined ? false
@@ -20,26 +36,56 @@ function isSubtype(a, T) {
 }
 function isString(a) { return isSubtype(a, String) }
 function isNumber(a) { return isSubtype(a, Number) }
+function isFunc(a)   { return isType(a, Function) }
 function isNode(a)   { return isSubtype(a, Node) }
 
-// define function binding
-// this lets you make an f.apply() with a regular function call f()
-// by supplying the 'this' argument ahead of time
-// function num_of_stars() { return this.length; }.bound(stars)
-Function.prototype.bound = function(t) {
+/* Function Binding
+ * ----------------
+ * This lets you bind the 'this' argument to a function at a separate time
+ * from the actual call.
+ *
+ *   var stars = ["Ricky","Martin"]
+ *   var num_stars = function () { return this.length; }.bound(stars)
+ *   num_stars() == 2
+ *
+ * Where it can be most useful is extracting member functions from an instance
+ * so you can call them directly, but they still act on the original instance.
+ *
+ *   var all_stars = stars.join.bound(stars)
+ *   all_stars(", ") == "Ricky, Martin"
+ *
+ * You can also bind the arguments ahead of time if you know them:
+ *
+ *   all_stars = stars.join.bound(stars, [", "])
+ *   all_stars() == "Ricky, Martin"
+ *
+ */
+Function.prototype.bound = function(t, args) {
 	var f = this
-	var r = function() { return f.apply(t, arguments) }
-	r.toString = function() { return "bound-method of "+t+"."+f.name+"(...)" }
+	var r = function() { return f.apply(t, args ? args: arguments) }
+	r.toString = function() { return "bound-method of "+t+"."+f.name+"(...) { [code] }" }
 	return r
 }
+// a must useful example: just call log(...) instead of console.log(...)
+// var log = window.console ? console.log.bound(console) : function(){}
 
-// define the Bling constructor
-// accepts strings, as css expression to select, as html to create (must start with "<")
-// accepts existing Bling (returns the argument, no copying)
-// accepts arrays of anything
-// accepts a single number, used as the argument in new Array(n), to pre-allocate space
+var Empty = Function.__proto__ // the empty function is the prototype of all Function objects
+
+/* Bling!, the constructor.
+ * ------------------------
+ * new Bling(expression, context):
+ * expression -
+ *   accepts strings, as css expression to select, ("body div + p", etc.)
+ *     or as html to create (must start with "<")
+ *   accepts existing Bling
+ *   accepts arrays of anything
+ *   accepts a single number, used as the argument in new Array(n), to pre-allocate space
+ * context - optional, the item to consider the root of the search when using a css expression
+ *
+ * always returns a Bling object, full of stuff
+ */
 var Bling = function (expr, context) {
-	context = context || document;
+	context = context || document
 	// copy data from some indexable source onto the end of our array
 	this.copyFrom = function(s, n) {
 		for( var i = 0; i < (n ? Math.min(s.length,n) : s.length); i++)
@@ -54,24 +100,24 @@ var Bling = function (expr, context) {
 		// accept two different kinds of strings: html, and css expression
 		// html begins with "<", and we create a set of nodes by parsing it
 		if( expr[0] == "<" ) {
-			var d = document.createElement("div");
-			d.innerHTML = expr;
+			var d = document.createElement("div")
+			d.innerHTML = expr
 			this.initFrom(d.childNodes)
-			this.forEach(function(x) { 
+			this.forEach(function(x) {
 				if( x.parentNode ) {
-					x.parentNode.removeChild(x);
-					x.parentNode = null; 
+					x.parentNode.removeChild(x)
+					x.parentNode = null
 				}
-			});
+			})
 		} else { // anything else is a css expression, for querySelectorAll
 			// if we are searching inside another Bling
 			//  then search each item in the bling, and accumulate in one list
 			if( isBling(context) ) {
 				this.initFrom([])
-				var t = this;
+				var t = this
 				context.each(function() {
 					t.copyFrom(this.querySelectorAll(expr))
-				});
+				})
 			} else if( context.querySelectorAll != undefined ) {
 				// if the context is directly searchable, search it
 				this.initFrom(context.querySelectorAll(expr))
@@ -82,57 +128,64 @@ var Bling = function (expr, context) {
 		}
 	} else if( typeof(expr) == "number" ) {
 		// accept a single number, to pre-allocate space
-		Array.apply(this, [expr]);
+		Array.apply(this, [expr])
 	} else if( isBling(expr) ) {
 		// accept Bling objects, but do nothing
-		return expr;
-	} else if( expr ) {
-		// anything array-like we can use directly
-		if( expr.length != undefined ) {
-			this.initFrom(expr);
-		} else {
-			// otherwise assume we just want to bling out the one item, whatever it is
-			this.initFrom([ expr ])
-		}
-	} else {
-		// if there was no expr, just create an empty set
+		return expr
+	} else if( expr == undefined ) { // if there was no expr, just create an empty set
 		this.initFrom([])
+	} else if( expr == window || isSubtype(expr, Node) ) { // load DOM nodes into a new array
+		this.initFrom([ expr ])
+	} else if( expr.length != undefined ) { // anything array-like we can use directly
+		this.initFrom(expr)
+	} else {
+		this.initFrom([ expr ])
 	}
 }
-Bling.inheritsFrom(Array);
-
+// finish defining the Bling type
+Bling.inheritsFrom(Array)
 function isBling(a)  { return isType(a, Bling) }
 
-// .operator is the shorthand constructor, assign it to $ or something
+/* The Bling! Operator
+ * -------------------
+ * Bound to $ by default, this is the handy constructor of Bling objects.
+ * It also holds references to the global Bling functions:
+ * $.extend === Bling.extend
+ * $("body")[0] === new Bling("body")[0]
+ * isBling($) == false
+ * isBling($()) == true
+ */
 Bling.operator = function(e,c) { return new Bling(e,c) }
 
-
-// .extend() extend will merge values from b into a
-// if c is present, it should be a list of the field names to limit the merging to
+/* Simple object extension:
+ * .extend() will merge values from b into a
+ * if c is present, it should be a list of the properties to limit to
+ */
 Bling.extend = function(a, b, c) {
 	for( var i in b ) {
 		if( c && a[i] != undefined )
 			for( var j in c )
 				a[i][j] = b[i][j]
 		else
-			a[i] = b[i];
+			a[i] = b[i]
 	}
+	return a
 }
 
-// define the basic extension mechanism: .addMethods and .addGlobals
+// define the basic modular mechanics: .addMethods and .addGlobals
 
-// .addMethods() is how you add Bling instances
+// .addMethods() is how you add Bling instance methods
 // ex. Bling.addMethods({nop:function(){ return this; })
 //     Bling.addMethods({etc:function(){ return "..." })
-//     new Bling("body").nop().find("div").etc() -> "..."
-Bling.addMethods = function (methods) { 
+//     new Bling("body").nop().find("div").etc() == "..."
+Bling.addMethods = function (methods) {
 	Bling.extend(Bling.prototype, methods)
 }
-// .globals() is how a plugin provides new global functions
+// .addGlobals() is how a plugin provides new global functions
 // these are attached to the Bling namespace, and to the operator
 // ex. Bling.addGlobals({hello:function(){ return "hello"; })
-//     Bling.hello() -> "hello"
-//     $.hello() -> "hello"
+//     Bling.hello() == "hello"
+//     $.hello() == "hello"
 Bling.addGlobals = function (globals) {
 	if( globals ) {
 		Bling.extend(Bling, globals)
@@ -140,96 +193,42 @@ Bling.addGlobals = function (globals) {
 	}
 }
 
+// the privatescope variable is never set to a value
+// but an inner function like this will not be evaluated
+// if its results dont go anywhere
 Bling.privatescope = (function () {
 
-	// define a unit testing framework:
-	// any function can be tested inline
-	// function f() { ... }.test(function() { ... }) === f
-	// f.test().test() === f
-	var tests = []
-	Function.prototype.test = function(t) {
-		var f = this
-		tests.push(function() { 
-			try { t.call(f) } catch ( e ) {
-				throw new Error(["test",t,"failed on",f,"with error",unescape(e)].join(" "))
-			}
-		})
-		return this;
-	}
-	Function.runAllTests = function() {
-		while(tests.length)
-			tests.shift()()
-	}.test(function(){
-		/* this test always passes */ 
-		if( window.console )
-			console.log("running",tests.length,"tests") 
-	})
-
-	// define our asserts for use in tests
-	function assert(a, msg) {
-		assertEqual(!(a), false, msg)
-	}
-	function assertEqual(a, b, msg) {
-		if( a != b ) throw new Error("assertion error: "+escape(a)+" != "+escape(b)+" "+ msg)
-	}
-
-	// register some tests for basic Bling creation
-	Bling.test(function() { /* bling can be empty */ 
-		assertEqual(new Bling().length, 0)
-	})
-	.test(function() { /* bling can create new html */ 
-		assertEqual(new Bling("<a /><a /><a />").length, 3)
-	})
-	.test(function() { 
-		assertEqual(new Bling("<div><div /><div /></div>").length, 1)
-	})
-	.test(function() { /* blings can hold anything if you give a list */ 
-		assertEqual(new Bling([1, 2, 3]).length, 3)
-	})
-	.test(function() { /* just a number: pre-allocate but dont fill */ 
-		assertEqual(new Bling(100).length, 0)
-	})
-	.test(function() { /* wrap a single object of unknown type */ 
-		assertEqual(new Bling({a:'b'}).zip('a').join(""), "b")
-	})
-	.test(function() { /* make sure the _right_ div is the one returned */ 
-		assertEqual(new Bling("<div id='a'><div id='b' /><div id='c' /></div>").zip('id').toString(), '["a"]')
-	})
-	.test(function() { /* create a bling using a context */ 
-		assertEqual(new Bling("div", new Bling("<div id='a'><div id='b' /><div id='c' /></div>")).zip('id').toString(), '["b", "c"]') 
-	})
 
 	/// Core Module ///
+	// jquery-complete
+	// TODO: .zap(k,v) should accept v as a list, one value for each node to be set
 	Bling.addGlobals({
 		// .dumpText() produces a human readable plain-text view of an object
 		dumpText: function(obj, indent) {
-			var s = "";
-			indent = indent || "";
+			var s = ""
+			indent = indent || ""
 			if( typeof(obj) == "object" ) {
-				var s = "{\n";
-				indent = indent + "\t";
+				var s = "{\n"
+				indent = indent + "\t"
 				for( var k in obj ) {
-					var v = undefined;
+					var v = undefined
 					try {
-						v = obj[k];
+						v = obj[k]
 					} catch ( err ) { console.log(k, err); }
-					s += indent + k + ":" + " " + Bling.dumpText(v, indent) + ",\n";
+					s += indent + k + ":" + " " + Bling.dumpText(v, indent) + ",\n"
 				}
-				indent = indent.slice(1);
-				s += indent + "}";
+				indent = indent.slice(1)
+				s += indent + "}"
 			} else if( typeof(obj) == "string" ) {
-				s += '"' + obj + '"';
+				s += '"' + obj + '"'
 			} else if( typeof(obj) == "function" ) {
-				var t = "" + obj;
-				s += t.slice(0, t.indexOf("\n")) + " ... }";
+				var t = "" + obj
+				s += t.slice(0, t.indexOf("\n")) + " ... }"
 			} else {
-				s += "" + obj;
+				s += "" + obj
 			}
 			return s;
-		}
-			.test(function() { assertEqual( this({a: 'b'}), '{\n\ta: "b",\n}'); })
-			.test(function() { assertEqual( this("a"), '"a"') })
-		,
+		},
 		// .dump() produces a human readable html view of an object
 		dump: function(obj) {
 			return Bling.dumpText(obj).replace(/(?:\r|\n)+/g,"<br>").replace(/\t/g,"&nbsp;&nbsp;");
@@ -244,18 +243,8 @@ Bling.privatescope = (function () {
 				f.call(t, t);
 			});
 			return this;
-		}
-			.test(function() {
-				var visit = {3: 2, 2: 3, 1: 1};
-				var b = new Bling([1,2,3,2,3,2]);
-				this.call(b, function() {
-					visit[this] -= 1;
-				});
-				assertEqual(visit[1], 0);
-				assertEqual(visit[2], 0);
-				assertEqual(visit[3], 0);
-			})
-		,
+		},
+
 		map: function(f) {
 			return new Bling(Array.prototype.map.call(this, function(t) {
 				try { return f.call(t, t) }
@@ -263,19 +252,8 @@ Bling.privatescope = (function () {
 					if( isType(e, TypeError) ) return f(t) // certain special globals dont work if you reapply this
 				}
 			}));
-		}
-			.test(function() {
-				var b = new Bling([1,2,3,4,5]);
-				var c = this.call(b, function() {
-					return this * this;
-				});
-				assertEqual(b.length, c.length);
-				for( var i = 0; i < c.length; i++) {
-					assertEqual(b[i],i+1);
-					assertEqual(c[i],(i+1)*(i+1));
-				}
-			})
-		,
+		},
+
 		reduce: function(f) {
 			// along with respecting the context, we pass only the accumulation + 1 item
 			// so you can use functions like Math.min directly $(numbers).reduce(Math.min)
@@ -284,36 +262,47 @@ Bling.privatescope = (function () {
 			return Array.prototype.reduce.call(this, function(a, x) {
 				return f.apply(x, [a, x]);
 			})
-		}
-			.test(function() {
-				var b = new Bling(["a", "b", "c"]);
-				assertEqual(b.reduce(function(a){ return this + a; }), "cba");
-				assertEqual(new Bling().reduce(function(a){ return this + a; }), undefined);
+		},
+
+		filter: function(f) {
+			var b = new Bling(this.length);
+			for(var i = 0; i < this.length; i++ ) {
+				var it = this[i];
+				if( f.call( it ) ) b.push(it);
+			}
+			return b
+		},
+
+		distinct: function() {
+			var bucket = {}
+			this.each(function() {
+				bucket[this] = 1;
 			})
-		,
+			var ret = new Bling();
+			for( var i in bucket )
+				ret.push(i)
+			return ret
+		},
+
 		// zip(p) returns a list of the values of property p from each node
 		zip: function(p) {
 			if( !p ) return this
 			var i = p.indexOf(".")
 			return i > -1 ? this.zip(p.substr(0, i)).zip(p.substr(i+1)) // zip("a.b") -> zip("a").zip("b")
 				: this.map(function() { // zip('someMemberFunction').call() -> this.map( { return this() } )
-					return typeof(this[p]) == "function" ?  this[p].bound(this, p)
+					return typeof(this[p]) == "function" ?  this[p].bound(this)
 						: this[p]
-				}); 
-		}
-			.test(function() { assertEqual(new Bling(["one", "two", "three"]).zip('length').join(" "), "3 3 5"); })
-		,
+				});
+		},
+
 		// zap(p, v) sets property p to value v on all nodes in the list
 		zap: function(p, v) { // zap("a.b") -> zip("a").zap("b")
 			if( !p ) return this
 			var i = p.indexOf(".")
 			return i > -1 ? this.zip(p.substr(0, i)).zap(p.substr(i+1), v)
-				: this.each(function() { this[p] = v }) 
-		}
-			.test(function() {
-				assertEqual(new Bling([{a:0}, {a:1}, {a:2}]).zap('a', 3).zip('a').join(" "), "3 3 3")
-			})
-		,
+				: this.each(function() { this[p] = v })
+		},
+
 		// take(n) trims the list to only the first n elements
 		// if n == this.length, returns a shallow copy of the whole list
 		take: function(n) {
@@ -323,13 +312,8 @@ Bling.privatescope = (function () {
 			for( var i = 0; i < n; i++)
 				a.push( this[i] )
 			return a;
-		}
-			.test(function() {
-				var c = new Bling([1,2,3,4,5]).take(3);
-				assertEqual(c.length, 3);
-				assertEqual(c[3], undefined);
-			})
-		,
+		},
+
 		// skip(n) skips the first n elements in the list
 		skip: function(n) {
 			n = n || 1
@@ -337,61 +321,33 @@ Bling.privatescope = (function () {
 			for( var i = 0; i < this.length - n; i++)
 				a.push(this[i+n])
 			return a;
-		}
-			.test(function() {
-				var b = new Bling([1,2,3,4,5]).skip(2);
-				assertEqual(b.length, 3);
-				assertEqual(b[0], 3);
-				assertEqual(b[2], 5);
-				assertEqual(b[3], undefined);
-			})
-		,
+		},
+
 		// .last(n) returns the last n elements in the list
 		// if n is not passed, returned just the item (no bling)
-		last: function(n) { return n ? this.skip(Math.max(0,this.length - n)) : this.skip(this.length - 1)[0] }
-			.test(function() {
-				var b = new Bling([1,2,3,4,5]);
-				assertEqual(b.last(), 5);
-				var c = b.last(2);
-				assertEqual(c.length, 2);
-				assertEqual(c[0], 4);
-				assertEqual(c[1], 5);
-			})
-		,
+		last: function(n) { return n ? this.skip(Math.max(0,this.length - n)) : this.skip(this.length - 1)[0] },
+
 		// .first(n) returns the first n elements in the list
 		// if n is not passed, returned just the item (no bling)
-		first: function(n) { return n ? this.take(n) : this[0] }
-			.test(function() {
-				var b = new Bling([1,2,3,4,5]);
-				assertEqual(b.first(), 1);
-				assertEqual(b.first(2).join(", "), "1, 2");
-			})
-		,
+		first: function(n) { return n ? this.take(n) : this[0] },
+
 		// .join() concatenates all items in the list using sep
 		join: function(sep) {
 			return this.reduce(function(j) {
 				return j + sep + this;
 			});
-		}
-			.test(function() { assertEqual(new Bling([1,2,3,4,5]).join(", "), "1, 2, 3, 4, 5") } )
-		,
+		},
+
 		// .slice(start, end) returns a contiguous subset of elements
 		// the end-th item will not be included - the slice(0,2) will contain items 0, and 1.
-		slice: function(start, end) { return this.take(end).skip(start); }
-			.test(function() {
-				var b = new Bling([1,2,3,4,5,6,7,8]);
-				assertEqual(b.slice(2,4).join(""), "34");
-				assertEqual(b.slice(4,6).join(""), "56");
-			})
-		,
+		slice: function(start, end) { return this.take(end).skip(start); },
+
 		// .concat(b) inserts all items from b into this array
 		concat: function(b) {
 			for( var i = 0; i < b.length; i++)
 				this.push(b[i])
 			return this
-		}
-			.test(function(){ assertEqual(new Bling([1,2,3]).concat(new Bling([4,5,6])).join(""), "123456") })
-		,
+		},
 
 		// .weave() takes the given array and interleaves it in this array
 		weave: function(a) {
@@ -409,177 +365,171 @@ Bling.privatescope = (function () {
 			// and only interleave equal length arrays, then append any leftovers
 			// so that unequal length arguments will not create 'undefined' items
 			return b;
-		}
-			.test(function() { 
-				assertEqual(new Bling([1,2,3]).weave(new Bling(["a","b","c"])).join(""), "a1b2c3") 
-			})
-		,
+		},
 
 		// various common ways to map/reduce blings
-		toString: function() { return "["+this.map(Bling.dumpText).join(", ")+"]" }
-			.test(function() { assertEqual(new Bling([1,2,3,4,5]).toString(), "[1, 2, 3, 4, 5]") })
-			.test(function() { assertEqual(new Bling(["a","b"]).toString(), '["a", "b"]') })
-		,
-		floats: function()  { return this.map(parseFloat) }
-			.test(function() { assertEqual(new Bling([1, "3.5", "200px"]).floats().join(", "), "1, 3.5, 200"); })
-		,
-		ints: function()  { return this.map(parseInt) }
-			.test(function() { assertEqual(new Bling([1, "3.5", "200px"]).ints().join(", "), "1, 3, 200"); })
-		,
-		squares: function()  { return this.map(function() { return this * this })}
-			.test(function() { assertEqual(new Bling([1, 2, 3]).squares().join(", "), "1, 4, 9"); })
-		,
-		sum: function()  { return this.reduce(function(x) { return x + this })}
-			.test(function() { assertEqual(new Bling([1, 2, 3, 4]).sum(), 10); })
-		,
-		max: function()  { return this.reduce(Math.max) }
-			.test(function() { assertEqual(new Bling([1, 2, 3, 4]).max(), 4); })
-		,
-		min: function()  { return this.reduce(Math.min) }
-			.test(function() { assertEqual(new Bling([1, 2, 3, 4]).min(), 1); })
-		,
-		average: function()  { return this.sum() / this.length }
-			.test(function() { assertEqual(new Bling([1, 2, 3, 4]).average(), 2.5); })
-		,
-		magnitude: function()  { return Math.sqrt(this.squares().sum()) }
-			.test(function() { assertEqual(new Bling([1, 2, 3]).magnitude(), Math.sqrt(14)); })
-		,
-		scale: function(n) { return this.map(function() { return n * this })}
-			.test(function() { assertEqual(new Bling([1, 2, 3]).scale(2).join(", "), "2, 4, 6") })
-		,
-		call: function() { 
-			var args = arguments; 
-			return this.map(function() { return this.apply(null, args); }) 
-		}
-			.test(function() { assertEqual(new Bling(["a","b","c"]).zip('toUpperCase').call().join(""), "ABC") })
-			.test(function() { assertEqual(new Bling(["a","b","c"]).zip('concat').call(".").join(""), "a.b.c.") })
-		,
+		toString: function() { return "["+this.map(Bling.dumpText).join(", ")+"]" },
+		floats: function()  { return this.map(parseFloat) },
+		ints: function()  { return this.map(parseInt) },
+		squares: function()  { return this.map(function() { return this * this })},
+		sum: function()  { return this.reduce(function(x) { return x + this })},
+		max: function()  { return this.reduce(Math.max) },
+		min: function()  { return this.reduce(Math.min) },
+		average: function()  { return this.sum() / this.length },
+		magnitude: function()  { return Math.sqrt(this.squares().sum()) },
+		scale: function(n) { return this.map(function() { return n * this })},
+		call: function() {
+			var args = arguments;
+			return this.map(function() { return this.apply(null, args); })
+		},
 
 		// try to continue using f in the same scope after about n milliseconds
 		future: function(n, f) {
 			var t = this;
 			if( f ) setTimeout(function() { f.call(t); }, n);
 			return this;
-		}
-			.test(function() {
-				var b = new Bling([1,2,3,4,5])
-					// spawn a future chain, pointed at b's current state
-					.future(0, function() { 
-						// in the future, we will see the old b
-						assertEqual(this.length, 5);
-					})
-					// back in the past, modify b
-					.last(2);
-				// and before the future, verify that our local b has changed
-				assertEqual(b.length, 2);
-			})
-		,
+		},
+
+		merge: function( ) {
+			var b = new Bling()
+			for( var i = 0; i < this.length; i++)
+				b.concat(this[i])
+			return b
+		},
 	})
 
 	/// HTML/DOM Manipulation Module ///
-	Bling.addGlobals({ 
+	// TODO // html:
+	Bling.addGlobals({
 		// $.rgb() accepts a color in any css format
 		// returns a 3-item bling with the floating point rgb values
 		// or the empty-set if it doesn't parse as a css color
-		rgb: function(expr) { 
+		rgb: function(expr) {
 			var d = document.createElement("div");
 			d.style.color = expr;
 			var rgb = d.style.getPropertyValue('color');
 			if( rgb )
 				return new Bling( rgb.slice(rgb.indexOf('(')+1, rgb.indexOf(')')) .split(", ")).floats()
 			return new Bling();
-		}
-			.test(function() { assert(isBling(this("#aaa"))) })
-			.test(function() { assertEqual(this("#aaa").rgb(), "rgb(170, 170, 170)") })
-		,
+		},
 	})
 	Bling.addMethods({
 		// .html() gets/sets the .innerHTML of all elements in list
-		html: function(h) { return h ? this.zap('innerHTML', h) : this.zip('innerHTML') }
-			.test(function() {
-				var h = '<p class="foo">This is a paragraph.</p>';
-				var b = new Bling("<div>"+h+"</div>");
-				assertEqual(b.html().first(), h);
-			}),
+		html: function(h) { return h ? this.zap('innerHTML', h) : this.zip('innerHTML') },
 		// .append() puts some content (bling,html,etc) at the end of each's children
-		append: function(x) { 
+		append: function(x) {
 			return isBling(x) ? this.each(function(ti){ x.each(function(xi){ ti.appendChild(xi) }) })
 			: isNode(x) ? this.each(function(){ this.appendChild(x) })
 			: this.append(new Bling(x))
-		}
-			.test(function() { assertEqual(new Bling("<div></div>").append(new Bling("<p>")).child(0).zip('nodeName').join(" "), "P") })
-			.test(function() { assertEqual(new Bling("<div></div>").append("<p>").child(0).zip('nodeName').join(" "), "P") })
-		,
-		// .insertInto() is the other side of .append(), the only difference is which set is returned
-		insertInto: function(x) { 
-			var t = this;
-			isBling(x) ? x.append(this)
+		},
+		// .appendTo() is the other side of .append(), the only difference is which set is returned
+		appendTo: function(x) {
+			return isBling(x) ? x.append(this)
 				: new Bling(x).append(this)
-			return this;
 		}
-			.test(function() { 
-				assertEqual(new Bling("<p>").insertInto(new Bling("<div id='a'></div>")).zip('parentNode.id').join(" "), "a") 
-			})
 		,
+		prepend: function(x) {
+			return this.each(function(node) {
+				if( isBling(x) ) {
+					x.each(function(xi) {
+						node.insertBefore(xi, node.childNodes[0])
+					})
+				} else if( isNode(x) ) {
+					node.insertBefore(x, node.childNodes[0])
+				}
+			})
+		},
+		prependTo: function(x) {
+			return isBling(x) ? x.prepend(this)
+				: new Bling(x).append(this)
+		},
+		before: function(x) {
+			var before = function(a,b) { a.parentNode.insertBefore(b, a) }
+			if( isBling(x) ) return this.each(function(node) {
+				x.each(function() { before(node, this) })
+			}) 
+			else return this.each(function() { 
+				before(this, x)
+			})
+		},
+		after: function(x) {
+			var after = function(a,b) { a.parentNode.insertBefore(b, a.nextSibling) }
+			if( isBling(x) ) return this.each(function(node) {
+				x.each(function() { after(node, this) })
+			}) 
+			else return this.each(function() {
+				after(this, x)
+			})
+		},
+		wrap: function(x) {
+		}
+		,
+		unwrap: function(x) {
+		}
+		,
+		attr: function(k,v) { 
+			var f = v ? "setAttribute" : "getAttribute"
+			var ret = this.zip(f).call(k,v)
+			return v ? this : ret;
+		},
+		// .addClass(x) removes and then adds class x to each node in the set
+		addClass: function(x) {
+			return this.removeClass(x).each(function() {
+				this.className = this.className.split(" ").push(x).join(" ")
+			})
+		},
+		// .removeClass(x) removes class x from each node in the set
+		removeClass: function(x) {
+			var notx = function(y){ return y != x }
+			return this.each(function() {
+				var cls = this.className.split(" ").filter(notx).join(" ")
+			})
+		},
+		// .toggleClass(x) toggles class x for each node in the set
+		toggleClass: function(x) {
+			var notx = function(y){ return y != x }
+			return this.each(function(node) {
+				var cls = node.className.split(" ")
+				if( cls.indexOf(x) > -1 )
+					node.className = cls.filter(notx).join(" ")
+				else
+					node.className = cls.push(x).join(" ")
+			})
+		},
+		// .hasClass() is slightly different from jQuery, it returns a list, a boolean for each
+		hasClass: function(x) {
+			this.zip('className.split').call(" ").zip('indexOf').call(x).map(function(){ return this > -1 })
+		},
+
 		// .text() gets/sets the .innerText of all elements
-		text: function(t) { return t ? this.zap('innerText', t) : this.zip('innerText') }
-			.test(function() {
-				var h = "<p class='foo'>This is a paragraph.</p>";
-				var b = new Bling("<div>"+h+"</div>");
-				assertEqual(b.text().first(), "This is a paragraph.");
-			})
-		,
+		text: function(t) { return t ? this.zap('innerText', t) : this.zip('innerText') },
+
 		// .val() gets/sets the values of the nodes in the list
-		val: function(v) { return v ? this.zap('value', v) : this.zip('value') }
-			.test(function() {
-				var b = new Bling("<input value='1'><input value='2'><select><option>3</option><option>4</option></select>");
-				assertEqual(b.val().join(", "), "1, 2, 3");
-			})
-		,
+		val: function(v) { return v ? this.zap('value', v) : this.zip('value') },
+
 		// .css(k,v) gets/sets css properties for every node in the list
-		css: function(k,v) { 
+		css: function(k,v) {
 			if( v ) {
 				this.zip('style.setProperty').call(k,v) // if v is present set the value on each element
 				return this
 			}
 			return this.map(window.getComputedStyle)
 				.zip('getPropertyValue').call(k) // return the computed value
-		}
-			.test(function() {
-				new Bling("<div style='background-color:transparent;' />")
-					.insertInto("body")
-					.future(0, function() { assertEqual(this.css('background-color').first(), 'rgba(0, 0, 0, 0)') })
-					.future(1, function() { assertEqual(this.css('background-color', "#ffffff").css("background-color").first(), "rgb(255, 255, 255)") })
-					.future(2, function() { this.remove() })
-			})
-		,
-		// .rgb() returns a css color string... 
+		},
+
+		// .rgb() returns a css color string...
 		rgb: function() {
 			return this.length == 4 ? "rgba("+this.join(", ")+")"
 				: this.length == 3 ? "rgb("+this.join(", ")+")"
 				: undefined;
-		}
-			.test(function() { assertEqual(Bling.rgb("#343434").scale(2).rgb(), "rgb(104, 104, 104)") })
-			.test(function() { assertEqual(new Bling([1, 2, 3]).rgb(), "rgb(1, 2, 3)") })
-			.test(function() { assertEqual(new Bling([1, 2, 3, .5]).rgb(), "rgba(1, 2, 3, 0.5)") })
-			.test(function() { assertEqual(new Bling(["foo"]).rgb(), undefined) })
-		,
+		},
+
 		// .child(n) returns the nth childNode for all items in the set
-		child: function(n) { return this.map(function() { return this.childNodes[n] })}
-			.test(function() {
-				var d = new Bling("<div><p><span>here.</span></p></div>");
-				assertEqual(d.child(0).zip('nodeName').join(", "), "P");
-				assertEqual(d.child(0).child(0).zip('nodeName').join(", "), "SPAN");
-			})
-		,
+		child: function(n) { return this.map(function() { return this.childNodes[n] })},
+
 		// .parent() returns the parentNodes of all items in the set
-		parent: function() { return this.zip('parentNode') }
-			.test(function() {
-				var d = new Bling("<div><p><span>here.</span></p></div>");
-				assertEqual(d.parent().first(), null);
-				assertEqual(d.child(0).parent().first().nodeName, "DIV");
-			})
-		,
+		parent: function() { return this.zip('parentNode') },
+
 		// .parents() returns all the parentNodes up to the owner for each item
 		parents: function() {
 			return this.map(function() {
@@ -591,16 +541,8 @@ Bling.privatescope = (function () {
 				}
 				return b;
 			})
-		}
-			.test(function() {
-				assertEqual( 
-					new Bling("span", new Bling("<div><p><span>here.</span></p></div>"))
-						.parents().first()
-						.zip('nodeName')
-						.join(", "), 
-					"P, DIV");
-			})
-		,
+		},
+
 		// .remove() removes each node from the DOM
 		remove: function() {
 			return this.each(function(){
@@ -609,45 +551,107 @@ Bling.privatescope = (function () {
 					this.parentNode = null;
 				}
 			});
-		}
-			.test(function() { assertEqual(new Bling("<p>").insertInto("<div>").remove().zip('parentNode').first(), null) })
-		,
+		},
+
 		// .find(expr) maps querySelectorAll(expr) over each element in the set
-		find: function(expr) { 
-			return this.map(function() { return new Bling(expr, this) }) 
+		find: function(expr) {
+			return this.map(function() { return new Bling(expr, this) })
 				.reduce(function(a) { return a.concat(this) })
-		}
-			.test(function(){ assertEqual(new Bling("<div><p><span id='a'>text</span></div>").find("span").zip('id').join(" "), "a") })
-		,
+		},
+
+		clone: function() {
+			var b = new Bling();
+			function deepClone() {
+				var n = this.cloneNode()
+				for(var i = 0; i < this.childNodes.length; i++) {
+					n.appendChild(deepClone(this.childNodes[i]))
+				}
+				return n
+			}
+			return this.map(deepClone)
+		},
+
 	})
 
 	/// Events Module: provides for binding and triggering DOM events ///
+	// TODO // event:
+	// .once() - handle an event one time only
+	// .toggle() - handle an event with a cycle of handlers
+	Bling.addGlobals({
+		ready: function(f) {
+			new Bling(window).bind('load', f)
+		}
+	})
+
+	// quick bind helper
+	function binder(e) {
+		return function (f) {
+			return isFunc(f) ? this.bind(e, f) : this.trigger(e, f ? f : [])
+		}
+	}
+
 	Bling.addMethods({
+
 		// bind an event handler, evt is a string, like 'click'
 		bind: function(evt, f) {
 			return this.each(function() {
 				this.addEventListener(evt, f, false);
 			})
 		},
+
 		// unbind an event handler, f is optional, evt is a string, like 'click'.
 		unbind: function(evt, f) {
 			return this.each(function() {
 				this.removeEventListener(evt, f);
 			})
 		},
+
 		// fire a fake event on each node
 		trigger: function(evt) {
 			var e = document.createEvent("Events");
 			// TODO: this should branch on evt, and use initMouseEvent, etc when appropriate
 			e.initEvent(evt);
 			return this.each(function() {
-				this.dispatchEvent(e);
+				this.dispatchEvent(e, false);
 			})
 		},
+
+		// short-cuts for bind/trigger
+		click: binder('click'),
+		mousemove: binder('mousemove'),
+		mousedown: binder('mousedown'),
+		mouseup: binder('mouseup'),
+		mouseover: binder('mouseover'),
+		mouseout: binder('mouseout'),
+		click: binder('click'),
+		blur: binder('blur'),
+		focus: binder('focus'),
+		load: binder('load'),
+		unload: binder('unload'),
+		reset: binder('reset'),
+		submit: binder('submit'),
+		change: binder('change'),
+		abort: binder('abort'),
+		cut: binder('cut'),
+		copy: binder('copy'),
+		paste: binder('paste'),
+		selection: binder('selection'),
+		drag: binder('drag'),
+		drop: binder('drop'),
+		orientationchange: binder('orientationchange'),
+		touchstart: binder('touchstart'),
+		touchmove: binder('touchmove'),
+		touchend: binder('touchend'),
+		touchcancel: binder('touchcancel'),
+		gesturestart: binder('gesturestart'),
+		gestureend: binder('gestureend'),
+		gesturecancel: binder('gesturecancel'),
+
 	})
 
+
 	/// Transformation Module: provides wrapper for using -webkit-transform ///
-	Bling.addMethods({
+	Bling.addGlobals({
 		// how long are various speeds
 		duration: function(speed) {
 			var speeds = {
@@ -659,15 +663,11 @@ Bling.privatescope = (function () {
 			var s = speeds[speed]
 			var ret = s ? s : parseFloat(speed);
 			return ret;
-		}
-			.test(function() {
-				assertEqual( this("slow"), 700 );
-				assertEqual( this("fast"), 100 );
-				assertEqual( this(1000), 1000 );
-			})
-		,
+		},
+	})
+	Bling.addMethods({
 
-		// like jquery's animate(), only we try to use webkit-transition/transform wherever possible
+		// like jquery's animate(), but using only webkit-transition/transform
 		transform: function(end_css, speed, callback) {
 			if( typeof(speed) == "function" ) {
 				callback = speed
@@ -723,11 +723,11 @@ Bling.privatescope = (function () {
 			}).future(0, callback)
 		},
 
-		fadeIn: function(speed, callback) { 
+		fadeIn: function(speed, callback) {
 			return this
 				.css('opacity','0.0')
 				.show(function(){this
-					.transform({opacity:"1.0", translate3d:[0,0,0]}, speed, callback) 
+					.transform({opacity:"1.0", translate3d:[0,0,0]}, speed, callback)
 				})
 		},
 		fadeOut:   function(speed, callback) { return this.transform({opacity:"0.0"}, speed, function() { this.hide(); if( callback ) callback.call(this) })},
@@ -737,7 +737,97 @@ Bling.privatescope = (function () {
 		fadeDown:  function(speed, callback) { return this.transform({opacity:"0.0", translate3d:[0.0,this.height()+"px",0.0    ]}, speed, function() { this.hide(); if( callback ) callback.call(this) })},
 	})
 
+	/// Database Module: provides access to the sqlite database ///
+	Bling.addGlobals({
+		// get a connection to the database
+		db: function(fileName, version, displayName, maxSize) {
+			return new Bling([window.openDatabase(
+				fileName || "bling.db",
+				version || "1.0",
+				displayName || "bling database",
+				maxSize || 1024)
+			])
+		}
+		,
+	})
+	Bling.addMethods({
+		transaction: function( f ) { 
+			this.zip('transaction').call(f)
+			return this
+		},
+
+		// short-cut for .transaction(function(t){t.executeSql(sql, values, callback)})
+		sql: function(sql, values, callback) {
+			if( sql == undefined ) return undefined
+			if( typeof(values) == "function") {
+				callback = values
+				values = undefined
+			}
+			values = values || []
+			callback = callback || Empty
+			assert( isType(this[0], "Database") )
+			return this.transaction(function(t) {
+				t.executeSql(sql, values, callback)
+			})
+		},
+
+	})
+
+	/// HTTP Request Module: provides wrappers for making http requests ///
+	// TODO // http:
+	// .get/.post
+	var formencode = function(obj) {
+		var s = []
+		for( var i in obj )
+			s.push( i + "=" + escape(obj[i]))
+		return s.join("&")
+	}
+
+	Bling.addGlobals({
+		http: function(url, opts) {
+			var xhr = new XMLHttpRequest()
+			opts = Bling.extend({
+				method: "GET",
+				data: null,
+				state: opts.state ? opts.state.bound(xhr) : Empty, // onreadystatechange
+				success: opts.success ? opts.success.bound(xhr) : Empty, // onload
+				error: opts.error ? opts.error.bound(xhr) : Empty, // onerror
+				async: true,
+			}, opts)
+			if( opts.data && opts.method == "GET" )
+				url += "?" + formencode(opts.data)
+			else if( opts.data && opts.method == "POST" )
+				opts.data = formencode(opts.data)
+			xhr.open(opts.method, url, opts.async)
+			xhr.onreadystatechange = function() {
+				if( opts.state ) opts.state()
+				if( xhr.readyState == 4 )
+					if( xhr.status == 200 )
+						opts.success(xhr.responseText)
+					else if( opts.error )
+						opts.error(xhr.status, xhr.statusText)
+			}
+			xhr.send(opts.data)
+			return new Bling([xhr])
+		},
+		post: function(url, opts) {
+			opts = opts || {}
+			opts.method = "POST"
+			return Bling.http(url, opts)
+		},
+		get: function(url, opts) {
+			opts = opts || {}
+			opts.method = "GET"
+			return Bling.http(url, opts)
+		},
+
+	})
+
+
 })()
 
-// save our shorthand operator, bling!
-$ = Bling.operator;
+// save our operator, bling!
+$ = Bling.operator
+
+
+

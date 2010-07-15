@@ -1,8 +1,8 @@
 
 <html>
 	<head>
-		<!-- <script src="http://ajax.microsoft.com/ajax/jquery/jquery-1.4.2.min.js" type="text/javascript"></script> -->
 		<script src="bling.js" type="text/javascript"> </script>
+		<script src="bling.test.js" type="text/javascript"></script>
 		<style type="text/css">
 			* {
 				font-family: Helvetica, sans;
@@ -62,32 +62,34 @@
 		<div id="read-items">
 		</div>
 		<script type="text/javascript">
-			$("#animate").bind('click', function() {
-				$("input").transform({width:"300px", "font-size":"20px"}, "slow");
-			});
+			$.ready(function() { 
+				$("#animate").bind('click', function() {
+					$("input").transform({width:"300px", "font-size":"20px"}, "slow");
+				});
 
-			$("#submit").bind('click', function() {
-				var xhr = new XMLHttpRequest();
-				xhr.open("POST", "https://www.google.com/accounts/ClientLogin");
-				xhr.withCredentials = true;
-				xhr.onreadystatechange = function() {
-					console.log('ready state:', xhr.readyState, xhr.status, xhr);
-				}
-				xhr.onerror = function (err) {
-					$("#read-items").html( $.dump(xhr) );
-				}
-				xhr.onload = function (evt, data) {
-					console.log("onload", evt, "data", data);
-				}
-				var val = $("#Email, #Passwd")
-					.zip('value')
-					.map(escape)
-					.mash(["&Email=","&Passwd="])
-					.join('');
-				var data = "accountType=HOSTED_OR_GOOGLE&service=reader&source=mobile-webkit-in-action-0.0" + val;
-				console.log("val!",val);
-				xhr.send(data);
-			});
+				$("#submit").bind('click', function() {
+					var xhr = new XMLHttpRequest();
+					xhr.open("POST", "https://www.google.com/accounts/ClientLogin");
+					xhr.withCredentials = true;
+					xhr.onreadystatechange = function() {
+						console.log('ready state:', xhr.readyState, xhr.status, xhr);
+					}
+					xhr.onerror = function (err) {
+						$("#read-items").html( $.dump(xhr) );
+					}
+					xhr.onload = function (evt, data) {
+						console.log("onload", evt, "data", data);
+					}
+					var val = $("#Email, #Passwd")
+						.zip('value')
+						.map(escape)
+						.mash(["&Email=","&Passwd="])
+						.join('');
+					var data = "accountType=HOSTED_OR_GOOGLE&service=reader&source=mobile-webkit-in-action-0.0" + val;
+					console.log("val!",val);
+					xhr.send(data);
+				});
+			})
 		</script>
 	</body>
 </html>

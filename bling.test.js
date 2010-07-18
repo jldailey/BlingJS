@@ -9,60 +9,70 @@ true == (function() {
 	var tests = []
 	Function.prototype.test = function(t) {
 		var f = this
-		tests.push(function() {
-			try { t.call(f) } catch ( e ) {
-				throw new Error(["test",t,"failed on",f,"with error",unescape(e)].join(" "))
-			}
+		tests.push({
+			run: function() {
+				try { t.call(f); } catch ( e ) {
+					this.error = e
+					return false
+				}
+				return true
+			},
+			test: t,
+			func: f,
+			error: undefined,
 		})
-		this.tested = true
-		return this
+		f.tested = true
+		return f
 	}
-	// then immediately test the test framework!
+	// first thing: test the test framework!
 	Function.prototype.test.test(function() {
 		assert(true)
 	})
-	var runAllTests = function() {
-		var pass = 0
-		var start = new Date()
+	function runAllTests() {
+		console.log("running",tests.length,"tests")
+		var stub = {pass: 0, tested: 0, total: tests.length, failed: [], untested: [], covered: 0, public: 0}
 		while(tests.length) {
-			try {
-				tests.shift()()
-				pass += 1
-			} catch( err ) {
-				console.log("test failed", err)
+			stub.tested += 1
+			var f = tests.shift()
+			if( f.run() )
+				stub.pass += 1
+			else
+				stub.failed.push(f)
+		}
+		// report on code coverage
+		var report = function(obj) {
+			for( var i in obj) {
+				if( isFunc(obj[i]) ) {
+					stub.public++
+					if( obj[i].tested ) {
+						stub.covered++
+						if( obj[i].failed )
+							stub.failed.push(i)
+					} else
+						stub.untested.push(i)
+				}
 			}
 		}
-		console.log(pass, "tests passed in", (new Date() - start), "ms")
-		var report = function(obj, label) {
-			var untested = []
-			var tested = total = 0
-			for( var i in obj)
-				if( isFunc(obj[i]) ) {
-					total++
-					if( obj[i].tested )
-						tested++
-					//else console.log("warning:",i,"untested")
-					else
-						untested.push(i)
-				}
-			console.log("test coverage:",tested,"of",total,label+",",Math.floor(tested*100/total),"percent")
-			console.log("untested", untested)
+		report(Bling)
+		report(Bling.prototype)
+		score = Math.floor((stub.pass*100/stub.tested) * (stub.covered/stub.public))
+		console.log("(covered/public * pass/tested) ("+stub.covered+"/"+stub.public+" * "+stub.pass+"/"+stub.tested+") == score:",score,"%")
+		console.log("public and untested: ", stub.untested.join(", "))
+		console.log("failed: ")
+		for( var i = 0, nn = stub.failed.length; i < nn; i++) {
+			var ii = stub.failed[i]
+			console.log('function '+ii.test.name+'(...)', ii.error)
 		}
-		report(Bling, "globals")
-		report(Bling.prototype, "methods")
+		// once all the tests are done remove the hooks, just in case
 		Function.prototype.test = undefined
-	}.test(function(){
-		/* this test always passes */
-		if( window.console )
-			console.log("running",tests.length+1,"tests")
-	})
+	}
 
 	// define our asserts for use in tests
 	function assert(a, msg) {
 		assertEqual(!(a), false, msg)
 	}
 	function assertEqual(a, b, msg) {
-		if( a != b ) throw new Error("assertion error: "+escape(a)+" != "+escape(b)+" "+ msg)
+		if( a != b ) throw new Error("assertion error: "+(a)+" != "+(b)+" "+ msg)
 	}
 
 	// register some tests for basic Bling creation
@@ -114,9 +124,8 @@ true == (function() {
 	})
 
 	Bling.bound.test(function() {
-		var b = "abc"
-		var f = b.toUpperCase.bound(b)
-		assertEqual(f(), "ABC")
+		var f = "abc".toUpperCase.bound("xyz")
+		assertEqual(f(), "XYZ")
 	})
 
 	Bling.inheritsFrom.test(function() {
@@ -138,6 +147,9 @@ true == (function() {
 	Bling.dumpText
 		.test(function() { assertEqual( this({a: 'b'}), '{\n\ta: "b",\n}'); })
 		.test(function() { assertEqual( this("a"), '"a"') })
+	
+	Bling.dump
+		.test(function() { assertEqual( this({a: 'b'}), '{<br>&nbsp;&nbsp;a: "b",<br>}' ) })
 	
 	Bling.prototype.each
 		.test(function() {
@@ -190,7 +202,7 @@ true == (function() {
 	Bling.prototype.zip
 		.test(function() { assertEqual(new Bling(["one", "two", "three"]).zip('length').join(" "), "3 3 5"); })
 	
-	Bling.prototype.zip
+	Bling.prototype.zap
 			.test(function() {
 				assertEqual(new Bling([{a:0}, {a:1}, {a:2}]).zap('a', 3).zip('a').join(" "), "3 3 3")
 			})
@@ -236,6 +248,9 @@ true == (function() {
 			var b = new Bling([1,2,3,4,5,6,7,8]);
 			assertEqual(b.slice(2,4).join(""), "34");
 			assertEqual(b.slice(4,6).join(""), "56");
+			assertEqual(b.slice(4).join(""), "5678");
+			assertEqual(b.slice(4,-1).join(""), "567");
+			assertEqual(b.slice(4,-2).join(""), "56");
 		})
 	
 	Bling.prototype.concat
@@ -283,16 +298,28 @@ true == (function() {
 
 	Bling.prototype.future
 		.test(function() {
-			var b = new Bling([1,2,3,4,5])
+			var b = new Bling(['f','u','t','u','r','e'])
 				// spawn a future chain, pointed at b's current state
 				.future(0, function() {
+					assert(isBling(this));
 					// in the future, we will see the old b
-					assertEqual(this.length, 5);
+					assertEqual(this.join(""), "future")
+					this.pop() // remove one before the next future
 				})
-				// back in the past, modify b
+				// schedule several in a row close together, to test that order is preserved
+				.future(1, function() {
+					assert(isBling(this))
+					assertEqual(this.join(""), "futur")
+					this.pop() // remove another
+				})
+				.future(2, function() {
+					assert(isBling(this))
+					assertEqual(this.join(""), "futu")
+				})
+				// back in the past, modify b, grabbing only the last 2
 				.last(2);
 			// and before the future, verify that our local b has changed
-			assertEqual(b.length, 2);
+			assertEqual(b.join(""), "re")
 		})
 
 	Bling.prototype.merge
@@ -335,9 +362,9 @@ true == (function() {
 		.test(function() {
 			new Bling("<div style='background-color:transparent;' />")
 				.appendTo("body")
-				.future(20, function() { assertEqual(this.css('background-color').first(), 'rgba(0, 0, 0, 0)') })
-				.future(40, function() { assertEqual(this.css('background-color', "#ffffff").css("background-color").first(), "rgb(255, 255, 255)") })
-				.future(60, function() { this.remove() })
+				.future(0, function() { assertEqual(this.css('background-color').first(), 'rgba(0, 0, 0, 0)') })
+				.future(1, function() { assertEqual(this.css('background-color', "#ffffff").css("background-color").first(), "rgb(255, 255, 255)") })
+				.future(2, function() { this.remove() })
 		})
 
 	Bling.prototype.rgb
@@ -378,6 +405,22 @@ true == (function() {
 
 	Bling.prototype.find
 		.test(function(){ assertEqual(new Bling("<div><p><span id='a'>text</span></div>").find("span").zip('id').join(" "), "a") })
+
+	function eventtester(e) {
+		return function eventtest() {
+			var ret = false
+			var handler = function(evt) { evt.preventDefault(); evt.stopPropagation(); ret = true }
+			new Bling("<div id='a'></div>").bind(e, handler).trigger(e)
+			assert(ret, "event: "+e+" did not fire in time")
+		}
+	}
+	var events = [
+		"click", "mousemove", "mousedown", "mouseup", "mouseover", "mouseout", "click", "blur", "focus", "load", "unload", "reset", "submit", "change", "abort", "cut", "copy", "paste", "selection", "drag", "drop", "orientationchange", "touchstart", "touchmove", "touchend", "touchcancel", "gesturestart", "gestureend", "gesturecancel", 
+	];
+	for( var i = 0; i < events.length; i++) {
+		Bling.prototype[events[i]].test(eventtester(events[i]))
+	}
+
 	
 	Bling.duration
 		.test(function() {

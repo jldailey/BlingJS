@@ -434,7 +434,7 @@ Bling.privatescope = (function () {
 		},
 
 		// various common ways to map/reduce blings
-		toString:  function toString() { return "Bling{["+this.map(Object.toString).join(", ")+"]}" },
+		toString:  function toString() { return "Bling{["+this.map(function(){return this.toString()}).join(", ")+"]}" },
 		floats:    function floats() { return this.map(parseFloat) },
 		ints:      function ints() { return this.map(parseInt) },
 		squares:   function squares()  { return this.map(function() { return this * this })},

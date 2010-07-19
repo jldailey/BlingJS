@@ -38,10 +38,11 @@ function isSubtype(a, T) {
 		: a.__proto__.constructor == T ? true
 		: isSubtype(a.__proto__, T)
 }
-function isString(a) { return isSubtype(a, String) }
-function isNumber(a) { return isSubtype(a, Number) }
-function isFunc(a)   { return isType(a, Function) }
-function isNode(a)   { return isSubtype(a, Node) }
+function isString(a)   { return isSubtype(a, String) }
+function isNumber(a)   { return isSubtype(a, Number) }
+function isFunc(a)     { return isType(a, Function) }
+function isNode(a)     { return isSubtype(a, Node) }
+function isFragment(a) { return isSubtype(a, DocumentFragment) }
 
 /* Function Binding
  * ----------------
@@ -71,10 +72,13 @@ Function.prototype.bound = function(t, args) {
 	return r
 }
 // a useful example, to just call log(...) instead of console.log(...):
-// var log = window.console ? console.log.bound(console) : Empty;
+// var log = window.console ? console.log.bound(console) : Function.Empty;
 
-var Empty = Function.__proto__ // the empty function
-
+// Define a bunch of static functions that will be consistently useful throughout the other methods
+Function.Empty = Function.__proto__ // the empty function is always here
+Function.NotNull = function notnull(x) { return x != null }
+Function.NotUndefined = function notundefined(x) { return x != undefined }
+Function.NotNullOrUndefined = function notnullorundefined(x) { return x != undefined && x != null; }
 
 
 /* Bling!, the constructor.
@@ -91,44 +95,31 @@ var Empty = Function.__proto__ // the empty function
  * always returns a Bling object, full of stuff
  */
 function Bling (expr, context) {
-	// calling "Bling(...)" is the same as calling "new Bling(...)"
+	if( isBling(expr) ) // accept Bling objects, but do nothing
+		return expr
+	// make calling "Bling(...)" is the same as calling "new Bling(...)"
 	if( this == window || this == Bling ) return new Bling(expr, context)
+	// the default context is the entire document
 	context = context || document
-	// copy data from some indexable source onto the end of our array
-	this.copyFrom = function(s, n) {
-		for( var i = 0; i < (n ? Math.min(s.length,n) : s.length); i++)
-			this.push(s[i])
-	}
-	// call the Array constructor based on some other array-like thing
-	this.initFrom = function(s) {
-		Array.apply(this, [s.length])
-		this.copyFrom(s)
-	}
-	if( typeof(expr) == "string" ) {
+	if( expr == undefined ) { // if there was no expr, just create an empty set
+		Bling.__init__(this, [])
+	} else if( typeof expr == "string" ) {
 		// accept two different kinds of strings: html, and css expression
 		// html begins with "<", and we create a set of nodes by parsing it
 		if( expr[0] == "<" ) {
-			var d = document.createElement("div")
-			d.innerHTML = expr
-			this.initFrom(d.childNodes)
-			this.forEach(function(x) {
-				if( x.parentNode ) {
-					x.parentNode.removeChild(x)
-					x.parentNode = null
-				}
-			})
+			Bling.__init__(this, [Bling.HTML.parse(expr)])
 		} else { // anything else is a css expression, for querySelectorAll
 			// if we are searching inside another Bling
 			//  then search each item in the bling, and accumulate in one list
 			if( isBling(context) ) {
-				this.initFrom([])
+				Bling.__init__(this, [])
 				var t = this
 				context.each(function() {
-					t.copyFrom(this.querySelectorAll(expr))
+					Bling.__copy__(t, this.querySelectorAll(expr))
 				})
 			} else if( context.querySelectorAll != undefined ) {
 				// if the context is directly searchable, search it
-				this.initFrom(context.querySelectorAll(expr))
+				Bling.__init__(this, context.querySelectorAll(expr))
 			} else {
 				// otherwise, this is not a valid context
 				throw new Error("invalid context "+context+")")
@@ -137,22 +128,32 @@ function Bling (expr, context) {
 	} else if( typeof(expr) == "number" ) {
 		// accept a single number, to pre-allocate space
 		Array.apply(this, [expr])
-	} else if( isBling(expr) ) {
-		// accept Bling objects, but do nothing
-		return expr
-	} else if( expr == undefined ) { // if there was no expr, just create an empty set
-		this.initFrom([])
-	} else if( expr == window || isSubtype(expr, Node) ) { // load DOM nodes into a new array
-		this.initFrom([ expr ])
-	} else if( expr.length != undefined ) { // anything array-like we can use directly
-		this.initFrom(expr)
-	} else {
-		this.initFrom([ expr ])
+	} else if( expr === window || isNode(expr) ) {
+		// a single node becomes the sole item in our array
+		Bling.__init__(this, [expr])
+	} else if( expr.length != undefined ) { 
+		// use any array-like object directly
+		// careful to check for === window _before_ this check, as window.length is defined
+		Bling.__init__(this, expr)
+	} else { // everything else, just wrap in the bling
+		Bling.__init__(this, [expr])
 	}
 }
 // finish defining the Bling type
 Bling.inheritsFrom(Array)
 function isBling(a)  { return isType(a, Bling) }
+
+// two static helpers for the constructor:
+// copy data from some indexable source onto the end of t
+Bling.__copy__ = function(t, s, n) {
+	for( var i = 0, nn = (n ? Math.min(s.length,n) : s.length); i < nn; i++)
+		t.push(s[i])
+}
+// init the Bling structure based on some other array-like thing
+Bling.__init__ = function(t, s) {
+	Array.apply(t, [s.length])
+	Bling.__copy__(t, s)
+}
 
 /* The Bling! Operator
  * -------------------
@@ -167,15 +168,17 @@ Bling.operator = Bling
 
 /* Simple object extension:
  * .extend() will merge values from b into a
- * if c is present, it should be a list of the properties to limit to
+ * if c is present, it should be a list of property names to copy
  */
 Bling.extend = function(a, b, c) {
 	for( var i in b ) {
-		if( c && a[i] != undefined )
-			for( var j in c )
+		if( c && a[i] != undefined ) {
+			for( var j in c ) {
 				a[i][j] = b[i][j]
-		else
+			}
+		} else {
 			a[i] = b[i]
+		}
 	}
 	return a
 }
@@ -200,6 +203,7 @@ Bling.addGlobals = function (globals) {
 	}
 }
 
+
 // the privatescope variable is never set to a value
 // but an inner function like this will not be evaluated
 // if its results dont go anywhere
@@ -208,6 +212,8 @@ Bling.privatescope = (function () {
 	/// Core Module ///
 	// jquery-complete
 	// TODO: .zap(k,v) should accept v as a list, one value for each node to be set
+	// .add()
+	// .detach()
 
 	// a TimeoutQueue is used by the core to preserve the proper order
 	// of setTimeout handlers scheduled by .future()
@@ -221,6 +227,9 @@ Bling.privatescope = (function () {
 		// in no particular order.  this queue will re-order them so they
 		// always fire in the order they were scheduled
 		this.queue = []
+		// private method next() consumes the next handler on the queue
+		var next = function() { this.queue.shift()() }.bound(this)
+		// public method schedule(f, n) sets f to run after n or more milliseconds
 		this.schedule = function schedule(f, n) {
 			var t = new Date().getTime(),
 				nn = this.queue.length;
@@ -229,20 +238,25 @@ Bling.privatescope = (function () {
 			if( nn == 0 || f.order > this.queue[nn-1].order )
 				this.queue[nn] = f
 			else // search the queue for the sorted position to insert f
-				for( var i = 0; i < nn; i++) // find i such that
+				for( var i = 0; i < nn-1; i++) // find i such that
 					if( this.queue[i].order > f.order ) // i is the first item > f
 						this.queue.splice(i,0,f); // insert f before i
-			setTimeout(function() { Bling.timeoutQueue.shift()() }, n)
-		}
+			setTimeout(this.next, n)
+		}.bound(this)
+		// expose the queue's shift method as if it were our own
 		this.shift = this.queue.shift.bound(this.queue)
 	}
+	var	timeoutQueue = new TimeoutQueue()
 
 	Bling.addGlobals({
 		// .dumpText() produces a human readable plain-text view of an object
-		dumpText: function dumpText(obj, indent) {
+		dumpText: function dumpText(obj, indent, visited) {
 			var s = ""
+			visited = visited || {}
 			indent = indent || ""
 			if( typeof(obj) == "object" ) {
+				if( visited[obj] ) return "{..circular ref..}"
+				visited[obj] = true
 				var s = "{\n"
 				indent = indent + "\t"
 				for( var k in obj ) {
@@ -250,32 +264,37 @@ Bling.privatescope = (function () {
 					try {
 						v = obj[k]
 					} catch ( err ) { console.log(k, err); }
-					s += indent + k + ":" + " " + Bling.dumpText(v, indent) + ",\n"
+					var inner = isNode(v) ? v.toString() : Bling.dumpText( Bling.dumpText(v, indent, visited) );
+					s += indent + k + ":" + " " + inner + ",\n"
 				}
 				indent = indent.slice(1)
 				s += indent + "}"
 			} else if( typeof(obj) == "string" ) {
-				s += '"' + obj + '"'
+				if( obj.length > 250 )
+					obj = obj.substring(0,250) + "..."
+				if( obj[0] != '"' )
+					s += '"' + obj + '"'
+				else
+					s += obj
 			} else if( typeof(obj) == "function" ) {
+				if( visited[obj] ) return "{..circular ref..}"
+				visited[obj] = true
 				var t = "" + obj
-				s += t.slice(0, t.indexOf("\n")) + " ... }"
+				s += t.slice(0, t.indexOf("{")+1) + " ... }"
 			} else {
 				s += "" + obj
 			}
 			return s;
 		},
-		// .dump() produces a human readable html view of an object
-		dump: function dump(obj) {
+		// .dumpHtml() produces a human readable html view of an object
+		dumpHtml: function dumpHtml(obj) {
 			return Bling.dumpText(obj).replace(/(?:\r|\n)+/g,"<br>").replace(/\t/g,"&nbsp;&nbsp;");
 		},
-		// used by .future() to make sure that order of the schedule is preserved,
-		// even if the browser doesn't
-		timeoutQueue: new TimeoutQueue(),
 	})
 	Bling.addMethods({
 		// define a functional basis: each, map, and reduce
 		// these act like the native forEach, map, and reduce, except they respect the context of the Bling
-		// so the 'this' value in the callback f is always set to the item being processed
+		// so the 'this' value in the callback f is always set to each item in the iteration
 		each: function each(f) {
 			this.forEach(function(t) {
 				f.call(t, t);
@@ -306,7 +325,7 @@ Bling.privatescope = (function () {
 			var b = new Bling(this.length);
 			for(var i = 0, n = this.length; i < n; i++ ) {
 				var it = this[i];
-				if( f.call( it ) ) b.push(it);
+				if( f.call( it, it ) ) b.push(it);
 			}
 			return b
 		},
@@ -362,11 +381,11 @@ Bling.privatescope = (function () {
 		},
 
 		// .last(n) returns the last n elements in the list
-		// if n is not passed, returned just the item (no bling)
+		// if n is not passed, returns just the item (no bling)
 		last: function last(n) { return n ? this.skip(Math.max(0,this.length - n)) : this.skip(this.length - 1)[0] },
 
 		// .first(n) returns the first n elements in the list
-		// if n is not passed, returned just the item (no bling)
+		// if n is not passed, returns just the item (no bling)
 		first: function first(n) { return n ? this.take(n) : this[0] },
 
 		// .join() concatenates all items in the list using sep
@@ -415,24 +434,41 @@ Bling.privatescope = (function () {
 		},
 
 		// various common ways to map/reduce blings
-		toString: function toString() { return "["+this.map(Bling.dumpText).join(", ")+"]" },
-		floats: function floats()  { return this.map(parseFloat) },
-		ints: function ints()  { return this.map(parseInt) },
-		squares: function squares()  { return this.map(function() { return this * this })},
-		sum: function sum()  { return this.reduce(function(x) { return x + this })},
-		max: function max()  { return this.reduce(Math.max) },
-		min: function min()  { return this.reduce(Math.min) },
-		average: function average()  { return this.sum() / this.length },
-		magnitude: function magnitude()  { return Math.sqrt(this.squares().sum()) },
-		scale: function scale(n) { return this.map(function() { return n * this })},
+		toString:  function toString() { return "Bling{["+this.map(Object.toString).join(", ")+"]}" },
+		floats:    function floats() { return this.map(parseFloat) },
+		ints:      function ints() { return this.map(parseInt) },
+		squares:   function squares()  { return this.map(function() { return this * this })},
+		sum:       function sum() { return this.reduce(function(x) { return x + this })},
+		max:       function max() { return this.reduce(Math.max) },
+		min:       function min() { return this.reduce(Math.min) },
+		average:   function average() { return this.sum() / this.length },
+		magnitude: function magnitude() { return Math.sqrt(this.squares().sum()) },
+		scale:     function scale(n) { return this.map(function() { return n * this })},
+
+		// .call() expects a set of function objects, and it calls each one, passing arguments directly
+		// each function is called with window as context, but most ways of building function sets
+		// like .zip('someFunction') will produce a list of bound-methods, with a context built in
 		call: function call() {
-			var args = arguments
-			return this.map(function() { return this.apply(null, args) })
+			return this.apply(null, arguments)
+		},
+		// .apply() is just like .call() except you can specify the context
+		// and the second argument should be an array of arguments to pass along
+		apply: function apply(context, args) {
+			return this.filter(Function.NotNullOrUndefined).map(function() { return this.apply(context, args) })
 		},
 
 		// try to continue using f in the same scope after about n milliseconds
 		future: function future(n, f) {
-			Bling.timeoutQueue.schedule(f.bound(this), n)
+			timeoutQueue.schedule(f.bound(this), n)
+			return this
+		},
+
+		// EXPERIMENTAL
+		// .fork() works like the system call fork()
+		// it deep-copies the current working set,
+		// then starts a different chain of operations on the new set
+		fork: function fork(g) {
+			this.future(0, g.bound(this.clone()))
 			return this
 		},
 
@@ -445,6 +481,7 @@ Bling.privatescope = (function () {
 	})
 
 	/// HTML/DOM Manipulation Module ///
+	// TODO: .empty()
 
 	// these static DOM helpers are used inside some the the html methods
 	var _before = function(a,b) { if( a && b ) a.parentNode.insertBefore(b, a) }
@@ -459,12 +496,38 @@ Bling.privatescope = (function () {
 	function deepClone(node) {
 		var n = node.cloneNode()
 		for(var i = 0; i < node.childNodes.length; i++) {
-			n.appendChild(deepClone(node.childNodes[i]))
+			var c = n.appendChild(deepClone(node.childNodes[i]))
+			c.parentNode = n // just make sure
 		}
 		return n
 	}
 
 	Bling.addGlobals({
+		// .HTML.* provide an HTML converter similar to the global JSON object
+		// method: .parse(string) and .stringify(node)
+		HTML: {
+			parse: function stringify(h) {
+				var d = document.createElement("div")
+				d.innerHTML = h
+				var df = document.createDocumentFragment()
+				for( var i = 0, n = d.childNodes.length; i < n; i++)
+					df.appendChild(d.removeChild(d.childNodes[0]))
+				if( n == 1 ) 
+					return df.removeChild(df.childNodes[0])
+				else
+					return df
+			},
+			stringify: function stringify(n) {
+				n = deepClone(n)
+				var d = document.createElement("div")
+				d.appendChild(n)
+				var ret = d.innerHTML
+				d.removeChild(n) // clean up to prevent leaks
+				n.parentNode = null
+				return ret
+			},
+		},
+
 		// $.rgb() accepts a color in any css format
 		// returns a 3-item bling with the floating point rgb values
 		// or the empty-set if it doesn't parse as a css color
@@ -532,12 +595,31 @@ Bling.privatescope = (function () {
 			x = toNode(x)
 			this.take(1).each(function() { _after(this, x) })
 			this.skip(1).each(function() { _after(this, deepClone(x)) })
+			return this
 		},
-
-		wrap: function wrap(x) {
-			x = new Bling(x)
-			this.before(x) // put x before this
-			x.take(1).append(this) // move this into the first element of x (the new parent)
+		
+		wrap: function wrap(parent) {
+			parent = toNode(parent)
+			if( isFragment(parent) )
+				throw new Error("cannot wrap something with a fragment")
+			return this.map(function(child) {
+				if( isFragment(child) ) {
+					parent.appendChild(child)
+				} else if( isNode(child) ) {
+					var p = child.parentNode
+					if( ! p ) {
+						parent.appendChild(child)
+					} else {
+						// swap out the DOM nodes using a placeholder element
+						var marker = document.createElement("dummy");
+						// put a marker in the DOM, put removed node in new parent
+						parent.appendChild( p.replaceChild(marker, child) )
+						// replace marker with new parent
+						p.replaceChild(parent, marker)
+					}
+				}
+				return parent
+			})
 		},
 
 		unwrap: function unwrap() {
@@ -610,6 +692,8 @@ Bling.privatescope = (function () {
 
 		// .child(n) returns the nth childNode for all items in the set
 		child: function child(n) { return this.map(function() { return this.childNodes[n] })},
+		// .children() returns all children of each node
+		children: function children() { return this.map(function() { return new Bling(this.childNodes) })},
 
 		// .parent() returns the parentNodes of all items in the set
 		parent: function parent() { return this.zip('parentNode') },
@@ -649,15 +733,6 @@ Bling.privatescope = (function () {
 			return this.map(deepClone)
 		},
 
-		// EXPERIMENTAL
-		// .fork() works like the system call fork()
-		// it deep-copies the current working set,
-		// then starts a different chain of operations on the new set
-		fork: function fork(g) {
-			this.future(0, g.bound(this.clone()))
-			return this
-		},
-
 
 		// FOR INTERNAL USE, or advanced users.
 		// .toFragment() converts a bling of convertible stuff: (nodes, strings, fragments, blings)
@@ -685,17 +760,17 @@ Bling.privatescope = (function () {
 					: undefined
 				)
 			})
-			return f
+			if( f.childNodes.length == 1 )
+				return f.removeChild(f.childNodes[0])
+			else
+				return f
 		},
 
 	})
 
 	/// Events Module: provides for binding and triggering DOM events ///
-	// TODO // event:
-	// .once() - handle an event one time only
-	// .cycle() - handle an event with a cycle of handlers
 
-	// construct a
+	// construct a bind helper for the .click() bind aliases
 	function binder(e) {
 		return function bindortrigger(f) {
 			return isFunc(f) ? this.bind(e, f) : this.trigger(e, f ? f : [])
@@ -711,6 +786,22 @@ Bling.privatescope = (function () {
 		// bind an event handler, evt is a string, like 'click'
 		bind: function bind(e, f) {
 			return this.each(function() { this.addEventListener(e, f) })
+		},
+		// .once() binds an event handler that will run only once
+		once: function once(e, f) {
+			var g = function(evt) {
+				f.apply(this, [evt])
+				this.unbind(e, g)
+			}
+			return this.bind(e, g);
+		},
+		// .cycle() cycles through a set of handlers, each trigger fires the next callback
+		cycle: function cycle(e/*, functions*/) {
+			var i = 0, funcs = arguments.slice(1,arguments.length)
+			return this.bind(e, function(evt) {
+				funcs[i].apply(this, [evt])
+				i = i++ % funcs.length
+			})
 		},
 
 		// unbind an event handler, f is optional, evt is a string, like 'click'.
@@ -965,6 +1056,10 @@ Bling.privatescope = (function () {
 	})
 
 	/// Database Module: provides access to the sqlite database ///
+
+	// static error handler
+	function SqlError(t, e) { throw new Error("sql error ["+e.code+"] "+e.message) }
+
 	Bling.addGlobals({
 		// get a connection to the database
 		db: function db(fileName, version, displayName, maxSize) {
@@ -974,39 +1069,43 @@ Bling.privatescope = (function () {
 				displayName || "bling database",
 				maxSize || 1024)
 			])
-		}
-		,
+		},
 	})
 	Bling.addMethods({
+		// .transaction() provides access to the db's raw transaction() method
+		// but, use .sql() instead, its friendlier
 		transaction: function transaction( f ) {
 			this.zip('transaction').call(f)
 			return this
 		},
 
-		// short-cut for .transaction(function(t){t.executeSql(sql, values, callback)})
-		sql: function sql(sql, values, callback) {
+		// short-cut for .transaction(function(t){t.executeSql(sql, values, callback, errors)})
+		// only the sql is required
+		sql: function sql(sql, values, callback, errors) {
 			if( sql == undefined ) return undefined
 			if( typeof(values) == "function") {
+				errors = callback
 				callback = values
 				values = undefined
 			}
 			values = values || []
-			callback = callback || Empty
-			assert( isType(this[0], "Database") )
+			callback = callback || Function.Empty
+			errors = errors || SqlError
+			assert( isType(this[0], "Database"), "can only call .sql() on a bling of Database" )
 			return this.transaction(function(t) {
-				t.executeSql(sql, values, callback)
+				t.executeSql(sql, values, callback, errors)
 			})
 		},
 
 	})
 
 	/// HTTP Request Module: provides wrappers for making http requests ///
-	// TODO // http:
-	// .get/.post
+
+	// static helper to create &foo=bar strings from object properties
 	var formencode = function(obj) {
-		var s = []
-		for( var i in obj )
-			s.push( i + "=" + escape(obj[i]))
+		var s = [], o = JSON.parse(JSON.stringify(obj)) // quickly remove all non-stringable items
+		for( var i in o )
+			s.push( i + "=" + escape(o[i]))
 		return s.join("&")
 	}
 
@@ -1014,21 +1113,26 @@ Bling.privatescope = (function () {
 		http: function http(url, opts) {
 			var xhr = new XMLHttpRequest()
 			if( isFunc(opts) )
-				opts = {success: opts}
+				opts = {success: opts.bound(xhr)}
 			opts = Bling.extend({
 				method: "GET",
 				data: null,
-				state: opts.state ? opts.state.bound(xhr) : Empty, // onreadystatechange
-				success: opts.success ? opts.success.bound(xhr) : Empty, // onload
-				error: opts.error ? opts.error.bound(xhr) : Empty, // onerror
+				state: Function.Empty, // onreadystatechange
+				success: Function.Empty, // onload
+				error: Function.Empty, // onerror
 				async: true,
+				withCredentials: false,
 			}, opts)
+			opts.state = opts.state.bound(xhr)
+			opts.success = opts.success.bound(xhr)
+			opts.error = opts.error.bound(xhr)
 			if( opts.data && opts.method == "GET" )
 				url += "?" + formencode(opts.data)
 			else if( opts.data && opts.method == "POST" )
 				opts.data = formencode(opts.data)
 			xhr.open(opts.method, url, opts.async)
-			xhr.onreadystatechange = function() {
+			xhr.withCredentials = opts.withCredentials
+			xhr.onreadystatechange = function onreadystatechange() {
 				if( opts.state ) opts.state()
 				if( xhr.readyState == 4 )
 					if( xhr.status == 200 )

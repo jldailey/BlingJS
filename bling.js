@@ -262,7 +262,7 @@ Bling.privatescope = (function () {
 			if( typeof(obj) == "object" ) {
 				if( visited[obj] ) return "{..circular ref..}"
 				visited[obj] = true
-				var s = "{\n"
+				s = "{\n"
 				indent = indent + "\t"
 				for( var k in obj ) {
 					var v = undefined
@@ -294,7 +294,7 @@ Bling.privatescope = (function () {
 		// .dumpHtml() produces a human readable html view of an object
 		dumpHtml: function dumpHtml(obj) {
 			return Bling.dumpText(obj).replace(/(?:\r|\n)+/g,"<br>").replace(/\t/g,"&nbsp;&nbsp;");
-		},
+		}
 	})
 	Bling.addMethods({
 		// define a functional basis: each, map, and reduce
@@ -483,7 +483,7 @@ Bling.privatescope = (function () {
 			for( var i = 0, n = this.length; i < n; i++)
 				b.concat(this[i])
 			return b
-		},
+		}
 	})
 
 	/// HTML/DOM Manipulation Module ///
@@ -531,7 +531,7 @@ Bling.privatescope = (function () {
 				d.removeChild(n) // clean up to prevent leaks
 				n.parentNode = null
 				return ret
-			},
+			}
 		},
 
 		// $.rgb() accepts a color in any css format
@@ -544,7 +544,7 @@ Bling.privatescope = (function () {
 			if( rgb )
 				return new Bling( rgb.slice(rgb.indexOf('(')+1, rgb.indexOf(')')) .split(", ")).floats()
 			return new Bling();
-		},
+		}
 	})
 
 	Bling.addMethods({
@@ -773,8 +773,7 @@ Bling.privatescope = (function () {
 				return f.removeChild(f.childNodes[0])
 			else
 				return f
-		},
-
+		}
 	})
 
 	/// Events Module: provides for binding and triggering DOM events ///
@@ -825,7 +824,7 @@ Bling.privatescope = (function () {
 			var e = undefined;
 			args = Bling.extend({
 				bubbles: true,
-				cancelable: true,
+				cancelable: true
 			}, args)
 			switch(evt) {
 				// mouse events
@@ -847,7 +846,7 @@ Bling.privatescope = (function () {
 						shiftKey: false,
 						metaKey: false,
 						button: 0,
-						relatedTarget: null,
+						relatedTarget: null
 					}, args)
 					e.initMouseEvent(evt, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
 						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
@@ -888,7 +887,7 @@ Bling.privatescope = (function () {
 						targetTouches: [],
 						changedTouches: [],
 						scale: 1.0,
-						rotation: 0.0,
+						rotation: 0.0
 					}, args)
 					e.initTouchEvent(evt, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
 						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
@@ -913,7 +912,7 @@ Bling.privatescope = (function () {
 						// gesture values:
 						target: null,
 						scale: 1.0,
-						rotation: 0.0,
+						rotation: 0.0
 					}, args)
 					e.initGestureEvent(evt, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
 						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
@@ -975,7 +974,7 @@ Bling.privatescope = (function () {
 		touchcancel: binder('touchcancel'),
 		gesturestart: binder('gesturestart'),
 		gestureend: binder('gestureend'),
-		gesturecancel: binder('gesturecancel'),
+		gesturecancel: binder('gesturecancel')
 
 	})
 
@@ -988,12 +987,12 @@ Bling.privatescope = (function () {
 				"slow": 700,
 				"medium": 500,
 				"normal": 300,
-				"fast": 100,
+				"fast": 100
 			}
 			var s = speeds[speed]
 			var ret = s ? s : parseFloat(speed);
 			return ret;
-		},
+		}
 	})
 	Bling.addMethods({
 		// like jquery's animate(), but using only webkit-transition/transform
@@ -1007,7 +1006,7 @@ Bling.privatescope = (function () {
 			// collect the list of properties to be modified
 			var props = [];
 			// what to send to the -webkit-transform
-			var transform = "";
+			var trans = "";
 			// real css values to be set (end_css minus the transform values)
 			var css = {};
 			for( var i in end_css )
@@ -1026,7 +1025,7 @@ Bling.privatescope = (function () {
 			for( var i in css )
 				props.push(i);
 			// and include -webkit-transform if we have data there
-			if( transform )
+			if( trans )
 				props.push("-webkit-transform")
 			this.css('-webkit-transition-property', props.join(', '));
 			// repeat the duration the same number of times as there are properties
@@ -1035,7 +1034,7 @@ Bling.privatescope = (function () {
 			for( var i in css )
 				this.css(i, css[i])
 			// apply the transformation
-			if( transform )
+			if( trans )
 				this.css('-webkit-transform', transform);
 			// queue the callback to be executed
 			return this.future(duration, callback);
@@ -1066,7 +1065,7 @@ Bling.privatescope = (function () {
 		fadeLeft:  function fadeLeft(speed, callback)  { return this.transform({opacity:"0.0", translate3d:["-"+this.width()+"px",0.0,0.0 ]}, speed, function hideAfterfadeLeft() { this.hide(); if( callback ) callback.call(this) })},
 		fadeRight: function fadeRight(speed, callback) { return this.transform({opacity:"0.0", translate3d:[this.width()+"px",0.0,0.0     ]}, speed, function hideAfterfadeRight() { this.hide(); if( callback ) callback.call(this) })},
 		fadeUp:    function fadeUp(speed, callback)    { return this.transform({opacity:"0.0", translate3d:[0.0,"-"+this.height()+"px",0.0]}, speed, function hideAfterfadeUp() { this.hide(); if( callback ) callback.call(this) })},
-		fadeDown:  function fadeDown(speed, callback)  { return this.transform({opacity:"0.0", translate3d:[0.0,this.height()+"px",0.0    ]}, speed, function hideAfterfadeDown() { this.hide(); if( callback ) callback.call(this) })},
+		fadeDown:  function fadeDown(speed, callback)  { return this.transform({opacity:"0.0", translate3d:[0.0,this.height()+"px",0.0    ]}, speed, function hideAfterfadeDown() { this.hide(); if( callback ) callback.call(this) })}
 	})
 
 	/// Database Module: provides access to the sqlite database ///
@@ -1083,7 +1082,7 @@ Bling.privatescope = (function () {
 				displayName || "bling database",
 				maxSize || 1024)
 			])
-		},
+		}
 	})
 	Bling.addMethods({
 		// .transaction() provides access to the db's raw transaction() method
@@ -1109,7 +1108,7 @@ Bling.privatescope = (function () {
 			return this.transaction(function(t) {
 				t.executeSql(sql, values, callback, errors)
 			})
-		},
+		}
 
 	})
 
@@ -1135,7 +1134,7 @@ Bling.privatescope = (function () {
 				success: Function.Empty, // onload
 				error: Function.Empty, // onerror
 				async: true,
-				withCredentials: false,
+				withCredentials: false
 			}, opts)
 			opts.state = opts.state.bound(xhr)
 			opts.success = opts.success.bound(xhr)
@@ -1172,7 +1171,7 @@ Bling.privatescope = (function () {
 			opts = opts || {}
 			opts.method = "GET"
 			return Bling.http(url, opts)
-		},
+		}
 
 	})
 

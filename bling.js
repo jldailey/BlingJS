@@ -389,7 +389,7 @@ Bling.privatescope = (function () {
 		// .last(n) returns the last n elements in the list
 		// if n is not passed, returns just the item (no bling)
 		last: function last(n) { return n ?  this.skip(Math.max(0,this.length - n)) 
-			: this.skip(this.length - 2)[0] },
+			: this[this.length - 1] },
 
 		// .first(n) returns the first n elements in the list
 		// if n is not passed, returns just the item (no bling)

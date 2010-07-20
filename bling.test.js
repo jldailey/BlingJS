@@ -72,6 +72,9 @@ true == (function UnitTests() {
 	function assertEqual(a, b, msg) {
 		if( a != b ) throw new Error("assertion error: "+(a)+" != "+(b)+" "+ msg)
 	}
+	function assertFloatEqual(a, b, msg) {
+		return assert( (1-(a/b)) < .001, msg)
+	}
 
 	// register some tests for basic Bling creation
 	Bling.test(function BlingEmpty() { /* bling can be empty */
@@ -266,6 +269,7 @@ true == (function UnitTests() {
 	Bling.prototype.toString
 		.test(function toString() { assertEqual(new Bling([1,2,3,4,5]).toString(), "Bling{[1, 2, 3, 4, 5]}") })
 		.test(function toString2() { assertEqual(new Bling(["a","b"]).toString(), 'Bling{[a, b]}') })
+		.test(function toString3() { assertEqual(new Bling([]).toString(), 'Bling{[]}') })
 
 	Bling.prototype.floats
 		.test(function floats() { assertEqual(new Bling([1, "3.5", "200px"]).floats().join(", "), "1, 3.5, 200"); })
@@ -297,6 +301,10 @@ true == (function UnitTests() {
 	Bling.prototype.call
 		.test(function call() { assertEqual(new Bling(["a","b","c"]).zip('toUpperCase').call().join(""), "ABC") })
 		.test(function call2() { assertEqual(new Bling(["a","b","c"]).zip('concat').call(".").join(""), "a.b.c.") })
+
+	Bling.prototype.apply
+		.test(function apply() { assertEqual(new Bling([String.prototype.toUpperCase]).apply("xyz").first(), "XYZ") })
+		.test(function apply2() { assertEqual(new Bling([Array.prototype.join]).apply(["x","y","z"], ["."]).first(), "x.y.z") })
 
 	Bling.prototype.future
 		.test(function future() {
@@ -546,7 +554,69 @@ true == (function UnitTests() {
 			})
 		})
 
-	// schedule the tests to run and clean themselves up
+	Bling.prototype.hide.test(function hide(){
+		$("body").append($("<div id='hideTestDiv'>cant see me!</div>"));
+		assertEqual($("#hideTestDiv").length, 1)
+		$("#hideTestDiv").hide(function() {
+			assertEqual(this.zip('id').join(" "), "hideTestDiv")
+			assertEqual(this.css('display').join(" "), "none")
+			this.remove()
+		})
+	})
+
+	Bling.prototype.show.test(function show(){
+		$("body").append($("<div id='showTestDiv' style='display:none'>show</div>"))
+		$("#showTestDiv").show(function() {
+			assertEqual(this.zip('id').join(" "), "showTestDiv")
+			assertEqual(this.css('display').join(" "), "block")
+			this.remove()
+		})
+	})
+
+	Bling.prototype.fadeOut.test(function fadeOut(){
+		$("body").append($("<div id='fadeOutTestDiv'>fadeOut</div>"))
+		$("#fadeOutTestDiv").fadeOut("slow", function() {
+			assertEqual(this.css('opacity').join(", "), "0")
+			this.remove()
+		})
+	})
+	Bling.prototype.fadeIn.test(function fadeIn(){
+		$("body").append($("<div id='fadeInTestDiv'>fadeIn</div>"))
+		$("#fadeInTestDiv").fadeIn("slow", function() {
+			assertFloatEqual(this.css('opacity').floats().first(), 1.0)
+			this.remove()
+		})
+	})
+	Bling.prototype.fadeLeft.test(function fadeLeft(){
+		$("body").append($("<div id='fadeLeftTestDiv'>fadeLeft</div>"))
+		$("#fadeLeftTestDiv").fadeLeft("slow", function() {
+			assertEqual(this.css('opacity').join(", "), "0")
+			this.remove()
+		})
+	})
+	Bling.prototype.fadeRight.test(function fadeRight(){
+		$("body").append($("<div id='fadeRightTestDiv'>fadeRight</div>"))
+		$("#fadeRightTestDiv").fadeRight("slow", function() {
+			assertEqual(this.css('opacity').join(", "), "0")
+			this.remove()
+		})
+	})
+	Bling.prototype.fadeUp.test(function fadeUp(){
+		$("body").append($("<div id='fadeUpTestDiv'>fadeUp</div>"))
+		$("#fadeUpTestDiv").fadeUp("slow", function() {
+			assertEqual(this.css('opacity').join(", "), "0")
+			this.remove()
+		})
+	})
+	Bling.prototype.fadeDown.test(function fadeDown(){
+		$("body").append($("<div id='fadeDownTestDiv'>fadeDown</div>"))
+		$("#fadeDownTestDiv").fadeDown("slow", function() {
+			assertEqual(this.css('opacity').join(", "), "0")
+			this.remove()
+		})
+	})
+
+	// schedule the tests to run on document load
 	new Bling(window).bind('load', runAllTests)
 
 })()

@@ -79,6 +79,9 @@ Function.Empty = Function.__proto__ // the empty function is always here
 Function.NotNull = function notnull(x) { return x != null }
 Function.NotUndefined = function notundefined(x) { return x != undefined }
 Function.NotNullOrUndefined = function notnullorundefined(x) { return x != undefined && x != null; }
+Function.ReturnNull = function returnnull() { return null }
+Function.Identity = function identity(x) { return x }
+Function.IndexFound = function found(x) { return x > -1 }
 
 
 /* Bling!, the constructor.
@@ -226,25 +229,27 @@ Bling.privatescope = (function () {
 		// during that period, then all of the due handlers will fire
 		// in no particular order.  this queue will re-order them so they
 		// always fire in the order they were scheduled
-		this.queue = []
+		var queue = []
 		// private method next() consumes the next handler on the queue
-		var next = function() { this.queue.shift()() }.bound(this)
+		var next = function() { 
+			queue.shift()() 
+		}
 		// public method schedule(f, n) sets f to run after n or more milliseconds
 		this.schedule = function schedule(f, n) {
+			if( !isFunc(f) ) return
 			var t = new Date().getTime(),
-				nn = this.queue.length;
+				nn = queue.length;
 			f.order = n < t ? n + t : n;
 			// shortcut some special cases: empty queue, or f.order greater than the last item
-			if( nn == 0 || f.order > this.queue[nn-1].order )
-				this.queue[nn] = f
+			if( nn == 0 || f.order > queue[nn-1].order )
+				queue[nn] = f
 			else // search the queue for the sorted position to insert f
-				for( var i = 0; i < nn-1; i++) // find i such that
-					if( this.queue[i].order > f.order ) // i is the first item > f
-						this.queue.splice(i,0,f); // insert f before i
-			setTimeout(this.next, n)
-		}.bound(this)
-		// expose the queue's shift method as if it were our own
-		this.shift = this.queue.shift.bound(this.queue)
+				for( var i = 0; i < nn; i++) // find i such that
+					if( queue[i].order > f.order ) // i is the first item > f
+						queue.splice(i,0,f); // insert f before i
+			// console.log("scheduling",f.order % 10000,queue.map(function(x){return x.order % 10000}))
+			setTimeout(next, n)
+		}
 	}
 	var	timeoutQueue = new TimeoutQueue()
 
@@ -390,6 +395,7 @@ Bling.privatescope = (function () {
 
 		// .join() concatenates all items in the list using sep
 		join: function join(sep) {
+			if( this.length == 0 ) return ""
 			return this.reduce(function(j) {
 				return j + sep + this;
 			});
@@ -459,7 +465,7 @@ Bling.privatescope = (function () {
 
 		// try to continue using f in the same scope after about n milliseconds
 		future: function future(n, f) {
-			timeoutQueue.schedule(f.bound(this), n)
+			if( f ) timeoutQueue.schedule(f.bound(this), n)
 			return this
 		},
 
@@ -664,7 +670,7 @@ Bling.privatescope = (function () {
 
 		// .hasClass() is slightly different from jQuery, it returns a list, a boolean for each
 		hasClass: function hasClass(x) {
-			this.zip('className.split').call(" ").zip('indexOf').call(x).map(function(){ return this > -1 })
+			this.zip('className.split').call(" ").zip('indexOf').call(x).map(Function.IndexFound)
 		},
 
 		// .text() gets/sets the .innerText of all elements
@@ -675,13 +681,16 @@ Bling.privatescope = (function () {
 
 		// .css(k,v) gets/sets css properties for every node in the list
 		css: function css(k,v) {
-			if( v ) {
+			if( v != undefined && v != null ) {
 				this.zip('style.setProperty').call(k,v) // if v is present set the value on each element
 				return this
 			}
 			return this.map(window.getComputedStyle)
+				.filter(Function.NotNull)
 				.zip('getPropertyValue').call(k) // return the computed value
 		},
+		width: function width() { return this.css('width') },
+		height: function height() { return this.css('height') },
 
 		// .rgb() returns a css color string...
 		rgb: function rgb() {
@@ -987,7 +996,6 @@ Bling.privatescope = (function () {
 		},
 	})
 	Bling.addMethods({
-
 		// like jquery's animate(), but using only webkit-transition/transform
 		transform: function transform(end_css, speed, callback) {
 			if( typeof(speed) == "function" ) {
@@ -995,7 +1003,7 @@ Bling.privatescope = (function () {
 				speed = undefined
 			}
 			speed = speed || "normal";
-			var duration = this.duration(speed);
+			var duration = Bling.duration(speed);
 			// collect the list of properties to be modified
 			var props = [];
 			// what to send to the -webkit-transform
@@ -1004,10 +1012,16 @@ Bling.privatescope = (function () {
 			var css = {};
 			for( var i in end_css )
 				// pull all the transform values out of end_css
-				if( /(?:scale|translate|rotate|scale3d|translateX|translateY|translateZ|translate3d|rotateX|rotateY|rotateZ|rotate3d)/.test(i) )
-					transform += " " + i + "(" + end_css[i].join(", ") + ")";
+				if( /(?:scale|translate|rotate|scale3d|translateX|translateY|translateZ|translate3d|rotateX|rotateY|rotateZ|rotate3d)/.test(i) ) {
+					var ii = end_css[i]
+					if( ii.join )
+						ii = ii.join(", ")
+					if( ii.toString )
+						ii = ii.toString()
+					transform += " " + i + "(" + ii + ")";
+				}
 				else // stick real css values in the css dict
-					css[i] = end_css[i];
+					css[i] = end_css[i]
 			// make a list of the properties to be modified
 			for( var i in css )
 				props.push(i);
@@ -1029,7 +1043,7 @@ Bling.privatescope = (function () {
 
 		hide: function hide(callback) {
 			return this.each(function() {
-				this._display = this.style.display != "none" ? this.style.display : undefined;
+				this._display = this.style.display == "none" ? undefined : this.style.display;
 				this.style.display = 'none';
 			}).future(0, callback);
 		},
@@ -1044,15 +1058,15 @@ Bling.privatescope = (function () {
 		fadeIn: function fadeIn(speed, callback) {
 			return this
 				.css('opacity','0.0')
-				.show(function(){this
+				.show(function fadeInAfterShow(){this
 					.transform({opacity:"1.0", translate3d:[0,0,0]}, speed, callback)
 				})
 		},
-		fadeOut: function fadeOut(speed, callback) { return this.transform({opacity:"0.0"}, speed, function() { this.hide(); if( callback ) callback.call(this) })},
-		fadeLeft: function fadeLeft(speed, callback) { return this.transform({opacity:"0.0", translate3d:["-"+this.width()+"px",0.0,0.0 ]}, speed, function() { this.hide(); if( callback ) callback.call(this) })},
-		fadeRight: function fadeRight(speed, callback) { return this.transform({opacity:"0.0", translate3d:[this.width()+"px",0.0,0.0     ]}, speed, function() { this.hide(); if( callback ) callback.call(this) })},
-		fadeUp: function fadeUp(speed, callback) { return this.transform({opacity:"0.0", translate3d:[0.0,"-"+this.height()+"px",0.0]}, speed, function() { this.hide(); if( callback ) callback.call(this) })},
-		fadeDown: function fadeDown(speed, callback) { return this.transform({opacity:"0.0", translate3d:[0.0,this.height()+"px",0.0    ]}, speed, function() { this.hide(); if( callback ) callback.call(this) })},
+		fadeOut:   function fadeOut(speed, callback)   { return this.transform({opacity:"0.0"}, speed, function hideAfterfadeOut() { this.hide(); if( callback ) callback.call(this) })},
+		fadeLeft:  function fadeLeft(speed, callback)  { return this.transform({opacity:"0.0", translate3d:["-"+this.width()+"px",0.0,0.0 ]}, speed, function hideAfterfadeLeft() { this.hide(); if( callback ) callback.call(this) })},
+		fadeRight: function fadeRight(speed, callback) { return this.transform({opacity:"0.0", translate3d:[this.width()+"px",0.0,0.0     ]}, speed, function hideAfterfadeRight() { this.hide(); if( callback ) callback.call(this) })},
+		fadeUp:    function fadeUp(speed, callback)    { return this.transform({opacity:"0.0", translate3d:[0.0,"-"+this.height()+"px",0.0]}, speed, function hideAfterfadeUp() { this.hide(); if( callback ) callback.call(this) })},
+		fadeDown:  function fadeDown(speed, callback)  { return this.transform({opacity:"0.0", translate3d:[0.0,this.height()+"px",0.0    ]}, speed, function hideAfterfadeDown() { this.hide(); if( callback ) callback.call(this) })},
 	})
 
 	/// Database Module: provides access to the sqlite database ///

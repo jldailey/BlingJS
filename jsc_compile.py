@@ -10,7 +10,9 @@ outfile = sys.argv[2]
 with open(infile, 'r') as i:
 	data = i.read()
 	params = urlencode([
-		('compilation_level', 'ADVANCED_OPTIMIZATIONS'),
+		# ('compilation_level', 'WHITESPACE_ONLY'),
+		('compilation_level', 'SIMPLE_OPTIMIZATIONS'), # only changes local names
+		# ('compilation_level', 'ADANCED_OPTIMIZATIONS'), # changes names of everything
 		('output_info', 'compiled_code'),
 		('output_format', 'text'),
 		('js_code', data),

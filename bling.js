@@ -957,6 +957,7 @@ Bling.privatescope = (function () {
 		blur: binder('blur'),
 		focus: binder('focus'),
 		load: binder('load'),
+		ready: binder('load'),
 		unload: binder('unload'),
 		reset: binder('reset'),
 		submit: binder('submit'),

@@ -230,12 +230,10 @@ true == (function UnitTests() {
 
 	Bling.prototype.last
 			.test(function last() {
-				var b = new Bling([1,2,3,4,5]);
-				assertEqual(b.last(), 5);
-				var c = b.last(2);
-				assertEqual(c.length, 2);
-				assertEqual(c[0], 4);
-				assertEqual(c[1], 5);
+				assertEqual(new Bling([1,2,3,4,5]).last(), 5);
+			})
+			.test(function last2() {
+				assertEqual(new Bling([1,2,3,4,5]).last(2).join(" "), "4 5");
 			})
 
 	Bling.prototype.first
@@ -534,21 +532,21 @@ true == (function UnitTests() {
 
 	Bling.http
 		.test(function http1() {
-			$.http("bling.test.js", function(data){ assertEqual(this.status, 200); });
+			$.http("test.bling.js", function(data){ assertEqual(this.status, 200); });
 		})
 		.test(function http2() {
 			var expectedState = 2;
-			$.http("bling.test.js", {state: function() {
+			$.http("test.bling.js", {state: function() {
 				assertEqual(this.readyState, expectedState++)
 			}})
 		})
 
 	Bling.get.test(function http_get() {
-			$.get("bling.test.js", function(data) { assertEqual(this.status, 200) })
+			$.get("test.bling.js", function(data) { assertEqual(this.status, 200) })
 		})
 
 	Bling.post.test(function http_post() {
-			$.post("bling.test.js", {
+			$.post("test.bling.js", {
 				data: {some:"fool data"},
 				success: function() { assertEqual(this.status, 200) }
 			})

@@ -96,6 +96,7 @@ Function.IndexFound = function found(x) { return x > -1 }
  * context - optional, the item to consider the root of the search when using a css expression
  *
  * always returns a Bling object, full of stuff
+ * @constructor
  */
 function Bling (expr, context) {
 	if( isBling(expr) ) // accept Bling objects, but do nothing
@@ -387,7 +388,8 @@ Bling.privatescope = (function () {
 
 		// .last(n) returns the last n elements in the list
 		// if n is not passed, returns just the item (no bling)
-		last: function last(n) { return n ? this.skip(Math.max(0,this.length - n)) : this.skip(this.length - 1)[0] },
+		last: function last(n) { return n ?  this.skip(Math.max(0,this.length - n)) 
+			: this.skip(this.length - 2)[0] },
 
 		// .first(n) returns the first n elements in the list
 		// if n is not passed, returns just the item (no bling)
@@ -956,6 +958,7 @@ Bling.privatescope = (function () {
 		blur: binder('blur'),
 		focus: binder('focus'),
 		load: binder('load'),
+		ready: binder('load'),
 		unload: binder('unload'),
 		reset: binder('reset'),
 		submit: binder('submit'),

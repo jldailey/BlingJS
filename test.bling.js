@@ -4,10 +4,11 @@ true == (function UnitTests() {
 	// any function can be tested inline
 	// function f() { ... }.test(function() { ... }) === f
 	// f.test().test() === f
-	var tests = []
+	/*var*/ tests = {} // keys are functions to test, values are lists of test functions
 	Function.prototype.test = function test(t) {
 		var f = this
-		tests.push({
+		tests[f] = tests[f] || []
+		tests[f].push({
 			run: function run() {
 				try { t.call(f); } catch ( e ) {
 					this.error = e
@@ -16,7 +17,7 @@ true == (function UnitTests() {
 				return true
 			},
 			test: t,
-			func: f,
+			func: f, // this implementation has circular references
 			error: undefined,
 		})
 		f.tested = true
@@ -27,25 +28,27 @@ true == (function UnitTests() {
 		assert(true)
 	})
 	function runAllTests() {
-		console.log("running",tests.length,"tests")
-		var stub = {pass: 0, tested: 0, total: tests.length, failed: [], untested: [], covered: 0, public: 0}
-		while(tests.length) {
-			stub.tested += 1
-			var f = tests.shift()
-			if( f.run() )
-				stub.pass += 1
-			else
-				stub.failed.push(f)
+		var body = document.body;
+		var stub = {passed:[], tested: 0, total: 0, failed: [], untested: [], covered: 0, public: 0}
+		// iterate over all functions with tests
+		for( var f in tests ) {
+			stub.tested++;
+			// get the testing set
+			var set = tests[f]
+			// run all the tests in the set
+			for( var j = 0, nn = set.length; j < nn; j++ ) {
+				stub.total++;
+				var test = set[j]
+				if( test.run() ) stub.passed.push(test)
+				else stub.failed.push(test)
+			}
 		}
-		// report on code coverage
 		var report = function report(obj) {
 			for( var i in obj) {
 				if( isFunc(obj[i]) ) {
 					stub.public++
 					if( obj[i].tested ) {
 						stub.covered++
-						if( obj[i].failed )
-							stub.failed.push(i)
 					} else
 						stub.untested.push(i)
 				}
@@ -53,16 +56,28 @@ true == (function UnitTests() {
 		}
 		report(Bling)
 		report(Bling.prototype)
-		var score = Math.floor((stub.pass*100/stub.tested) * (stub.covered/stub.public))
-		console.log("(covered/public * pass/tested) ("+stub.covered+"/"+stub.public+" * "+stub.pass+"/"+stub.tested+") == score:",score,"%")
-		console.log("public and untested: ", stub.untested.join(", "))
-		console.log("failed: ")
+		var score = Math.floor((stub.passed.length*100/stub.total) * (stub.covered/stub.public))
+		var toggle = "style='cursor:pointer' onclick='event.stopPropagation();this.style.height = this.style.height == \"auto\" ? \"20px\" : \"auto\"'"
+		var report_html = "<div id='code-report'><span class='score'>Score: "+score+"%</span>"
+			+"<div>(covered/public * pass/total)</div>"
+			+"<div>("+stub.covered+"/"+stub.public+" * "+stub.passed.length+"/"+stub.total+")</div>"
+			+"<ul>"
+			+"<li "+toggle+">untested ("+stub.untested.length+"):<ul>"
+			+"<li>"
+			+ stub.untested.join("</li><li>") 
+			+ "</li></ul></li>"
+			+"<li "+toggle+">failed("+stub.failed.length+"):<ul>";
 		for( var i = 0, nn = stub.failed.length; i < nn; i++) {
 			var ii = stub.failed[i]
-			console.log('function '+ii.test.name+'(...)', ii.error)
+			report_html += "<li class='fail' "+toggle+">function "+ii.test.name+"(...)"+ii.error+"</li>"
 		}
-		// once all the tests are done remove the hooks, just in case
-		Function.prototype.test = undefined
+		report_html += "</ul></li><li "+toggle+">passed("+stub.passed.length+"):<ul>"
+		for( var i = 0, nn = stub.passed.length; i < nn; i++) {
+			var ii = stub.passed[i]
+			report_html += "<li class='pass' style='height:30px;' onclick='event.stopPropagation();this.style.height = this.style.height == \"auto\" ? \"30px\" : \"auto\"'><pre>"+Function.HtmlEscape(ii.test.toString())+"</pre></li>"
+		}
+		report_html += "</ul></li></ul></div>"
+		body.innerHTML += report_html;
 	}
 
 	// define our asserts for use in tests
@@ -419,11 +434,11 @@ true == (function UnitTests() {
 
 	Bling.prototype.css
 		.test(function css() {
-			new Bling("<div style='background-color:transparent;' />")
+			new Bling("<div id='cssTestDiv' style='background-color:transparent;' />")
 				.appendTo("body")
-				.future(0, function() { assertEqual(this.css('background-color').first(), 'rgba(0, 0, 0, 0)') })
-				.future(1, function() { assertEqual(this.css('background-color', "#ffffff").css("background-color").first(), "rgb(255, 255, 255)") })
-				.future(2, function() { this.remove() })
+				.future(190, function() { assertEqual(this.css('background-color').first(), 'rgba(0, 0, 0, 0)',this.toString()) })
+				.future(191, function() { assertEqual(this.css('background-color', "#ffffff").css("background-color").first(), "rgb(255, 255, 255)", this.toString()) })
+				.future(192, function() { this.remove() })
 		})
 
 	Bling.prototype.child
@@ -553,48 +568,78 @@ true == (function UnitTests() {
 		})
 
 	Bling.prototype.hide.test(function hide(){
-		$("body").append($("<div id='hideTestDiv'>cant see me!</div>"));
-		assertEqual($("#hideTestDiv").length, 1)
+		var d = $("<div id='hideTestDiv'>cant see me!</div>")
+		$("body").append(d)
+		assertEqual(d[0].parentNode, document.body, "hide attached, no dupes")
+		assert($("#hideTestDiv")[0] === d[0], "hide find finds the right node")
 		$("#hideTestDiv").hide(function() {
-			assertEqual(this.zip('id').join(" "), "hideTestDiv")
-			assertEqual(this.css('display').join(" "), "none")
-			this.remove()
+			console.log('in hide callback '+this.zip('guid')+" "+this.zip("parentNode.toString").call().join(" "))
+			console.log(this)
+			try {
+				assert(this[0] === d[0], "hide callback gets the right node")
+				assertEqual(this.zip('id').join(" "), "hideTestDiv")
+				assertEqual(this.parent().join(" "), "BODY", "hide test still attached 2")
+				assertEqual(this.css('display').join(" "), "none", "hide display ")
+				assertEqual(this.css('opacity').join(" "), "0", "hide opacity ")
+			} finally {
+				this.remove()
+			}
+		}).each(function() {
+			console.log("before hide callback "+this.guid+" "+this.parentNode.toString())
 		})
 	})
 
 	Bling.prototype.show.test(function show(){
-		$("body").append($("<div id='showTestDiv' style='display:none'>show</div>"))
-		$("#showTestDiv").show(function() {
-			assertEqual(this.zip('id').join(" "), "showTestDiv")
-			assertEqual(this.css('display').join(" "), "block")
-			this.remove()
+		// create an unattached div
+		var d = $("<div id='showTestDiv' style='display:none'>show</div>")
+		// attach it
+		$("body").append(d)
+		// search for an attached div
+		var e = $("body").find("#showTestDiv")
+		// verify that we found the exact node we inserted
+		assert( d[0] === e[0], "single item wont be duped")
+		// then show the node
+		e.show(function() {
+			try {
+				// verify that the callback got a Bling of the exact same node
+				assert(isBling(this), "this is bling")
+				assertEqual(this.length, 1, "this length")
+				assert( this[0] === d[0], "this callback did not recieve a duped node")
+				// and verify that it has been shown
+				console.log(this.parent())
+				assertEqual(this.css('display').join(" "), "", "show display: "+this.zip('style.display'))
+				assertEqual(this.css('opacity').join(" "), "1", "show opacity: "+this.zip('style.opacity'))
+			} finally {
+				this.remove()
+			}
 		})
 	})
 
 	Bling.prototype.fadeOut.test(function fadeOut(){
 		$("body").append($("<div id='fadeOutTestDiv'>fadeOut</div>"))
-		$("#fadeOutTestDiv").fadeOut("slow", function() {
+		$("#fadeOutTestDiv").fadeOut(function() {
 			assertEqual(this.css('opacity').join(", "), "0")
 			this.remove()
 		})
 	})
+	/*
 	Bling.prototype.fadeIn.test(function fadeIn(){
 		$("body").append($("<div id='fadeInTestDiv'>fadeIn</div>"))
-		$("#fadeInTestDiv").fadeIn("slow", function() {
+		$("#fadeInTestDiv").fadeIn(function() {
 			assertFloatEqual(this.css('opacity').floats().first(), 1.0)
 			this.remove()
 		})
 	})
 	Bling.prototype.fadeLeft.test(function fadeLeft(){
 		$("body").append($("<div id='fadeLeftTestDiv'>fadeLeft</div>"))
-		$("#fadeLeftTestDiv").fadeLeft("slow", function() {
+		$("#fadeLeftTestDiv").fadeLeft(function() {
 			assertEqual(this.css('opacity').join(", "), "0")
 			this.remove()
 		})
 	})
 	Bling.prototype.fadeRight.test(function fadeRight(){
 		$("body").append($("<div id='fadeRightTestDiv'>fadeRight</div>"))
-		$("#fadeRightTestDiv").fadeRight("slow", function() {
+		$("#fadeRightTestDiv").fadeRight(function() {
 			assertEqual(this.css('opacity').join(", "), "0")
 			this.remove()
 		})
@@ -608,11 +653,12 @@ true == (function UnitTests() {
 	})
 	Bling.prototype.fadeDown.test(function fadeDown(){
 		$("body").append($("<div id='fadeDownTestDiv'>fadeDown</div>"))
-		$("#fadeDownTestDiv").fadeDown("slow", function() {
+		$("#fadeDownTestDiv").fadeDown(function() {
 			assertEqual(this.css('opacity').join(", "), "0")
 			this.remove()
 		})
 	})
+	*/
 
 	// schedule the tests to run on document load
 	new Bling(window).bind('load', runAllTests)

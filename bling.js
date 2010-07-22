@@ -74,7 +74,8 @@ Function.prototype.bound = function(t, args) {
 // a useful example, to just call log(...) instead of console.log(...):
 // var log = window.console ? console.log.bound(console) : Function.Empty;
 
-// Define a bunch of static functions that will be consistently useful throughout the other methods
+// Define a bunch of global static functions that will be consistently useful throughout the other methods
+// used to avoid repeatedly creating closures to do these things
 Function.Empty = Function.__proto__ // the empty function is always here
 Function.NotNull = function notnull(x) { return x != null }
 Function.NotUndefined = function notundefined(x) { return x != undefined }
@@ -82,6 +83,7 @@ Function.NotNullOrUndefined = function notnullorundefined(x) { return x != undef
 Function.ReturnNull = function returnnull() { return null }
 Function.Identity = function identity(x) { return x }
 Function.IndexFound = function found(x) { return x > -1 }
+Function.HtmlEscape = function htmlescape(x) { return x.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\t/g,'&nbsp;&nbsp;') }
 
 
 /* Bling!, the constructor.
@@ -230,31 +232,40 @@ Bling.privatescope = (function () {
 		// during that period, then all of the due handlers will fire
 		// in no particular order.  this queue will re-order them so they
 		// always fire in the order they were scheduled
-		var queue = []
+		this.queue = []
 		// private method next() consumes the next handler on the queue
-		var next = function() { 
-			queue.shift()() 
-		}
+		this.next = function() { 
+			console.log("next")
+			// consume all 'due' handlers
+			// also, recompute the time everytime, because a handler might have spent a measurable amount
+			console.log("firing", this.queue.map(function(x){return x.order % 10000}).join(", "))
+			if( this.queue.length > 0 && this.queue[0].order <= new Date().getTime() ) {
+				this.queue.shift()()
+			}
+		}.bound(this)
 		// public method schedule(f, n) sets f to run after n or more milliseconds
 		this.schedule = function schedule(f, n) {
-			if( !isFunc(f) ) return
-			var t = new Date().getTime(),
-				nn = queue.length;
-			f.order = n < t ? n + t : n;
+			console.log("begin schedule? ", isFunc(f) ? "yes" : "no")
+			if( !isFunc(f) ) return;
+			var nn = this.queue.length;
+			f.order = n + new Date().getTime();
 			// shortcut some special cases: empty queue, or f.order greater than the last item
-			if( nn == 0 || f.order > queue[nn-1].order )
-				queue[nn] = f
-			else // search the queue for the sorted position to insert f
-				for( var i = 0; i < nn; i++) // find i such that
-					if( queue[i].order > f.order ) // i is the first item > f
-						queue.splice(i,0,f); // insert f before i
-			// console.log("scheduling",f.order % 10000,queue.map(function(x){return x.order % 10000}))
-			setTimeout(next, n)
+			if( nn == 0 || f.order > this.queue[nn-1].order ) {
+				this.queue[nn] = f
+			} else { // search the queue for the sorted position to insert f
+				for( var i = 0; i < nn; i++) { // find i such that
+					if( this.queue[i].order > f.order ) { // i is the first item > f
+						this.queue.splice(i,0,f) // insert f before i
+					}
+				}
+			}
+			console.log("scheduling", this.queue.map(function(x){return x.order % 10000}).join(", "))
+			setTimeout(this.next, n)
 		}
 	}
-	var	timeoutQueue = new TimeoutQueue()
 
 	Bling.addGlobals({
+		timeoutQueue: new TimeoutQueue(),
 		// .dumpText() produces a human readable plain-text view of an object
 		dumpText: function dumpText(obj, indent, visited) {
 			var s = ""
@@ -312,7 +323,7 @@ Bling.privatescope = (function () {
 			return new Bling(Array.prototype.map.call(this, function(t) {
 				try { return f.call(t, t) }
 				catch( e ) {
-					if( isType(e, TypeError) ) return f(t) // certain special globals dont work if you reapply this
+					if( isType(e, TypeError) ) return f(t) // certain special globals dont work if you reapply
 				}
 			}));
 		},
@@ -440,6 +451,18 @@ Bling.privatescope = (function () {
 			// so that unequal length arguments will not create 'undefined' items
 			return b;
 		},
+		// .fold() will always return a set with half as many items
+		// often used as a companion to weave: weave two lists together,
+		// then fold them to a list the original size
+		fold: function fold(f) {
+			if( this.length < 2 ) return this;
+			var n = new Bling(this.length/2)
+			for( var i = 0, nn = this.length; i < nn - 1; i += 2) {
+				n[i/2] = f.call(this, this[i], this[i+1])
+			}
+			return n
+		},
+
 
 		// various common ways to map/reduce blings
 		toString:  function toString() { return "Bling{["+this.map(function(){return this.toString()}).join(", ")+"]}" },
@@ -467,7 +490,8 @@ Bling.privatescope = (function () {
 
 		// try to continue using f in the same scope after about n milliseconds
 		future: function future(n, f) {
-			if( f ) timeoutQueue.schedule(f.bound(this), n)
+			console.log("future", f ? "yes": "no")
+			if( f ) Bling.timeoutQueue.schedule(f.bound(this), n)
 			return this
 		},
 
@@ -495,13 +519,19 @@ Bling.privatescope = (function () {
 	var _before = function(a,b) { if( a && b ) a.parentNode.insertBefore(b, a) }
 	var _after = function(a,b) { a.parentNode.insertBefore(b, a.nextSibling) }
 	var toNode = function(x) {
-		return isNode(x) ? x
+		console.log("toNode", x.parentNode, isFunc(x.parent) ? x.parent() : "")
+		var ret = isNode(x) ? x
 			: isBling(x) ? x.toFragment()
 			: isString(x) ? new Bling(x).toFragment()
 			: isFunc(x.toString) ? new Bling(x.toString()).toFragment()
 			: undefined
+		Bling.nextguid = Bling.nextguid || 1
+		if( ret.guid == undefined ) ret.guid = Bling.nextguid++;
+		// console.log('toNode',ret.id,ret.guid,ret.parentNode)
+		return ret
 	}
 	function deepClone(node) {
+		console.log('deepClone',node.toString())
 		var n = node.cloneNode()
 		for(var i = 0; i < node.childNodes.length; i++) {
 			var c = n.appendChild(deepClone(node.childNodes[i]))
@@ -552,6 +582,7 @@ Bling.privatescope = (function () {
 	Bling.addMethods({
 		// .html() gets/sets the .innerHTML of all elements in list
 		html: function html(h) {
+			console.log("html", h)
 			return h == undefined ? this.zip('innerHTML')
 				: isString(h) ? this.zap('innerHTML', h)
 				: isBling(h) ? this.html(h.toFragment())
@@ -687,9 +718,12 @@ Bling.privatescope = (function () {
 				this.zip('style.setProperty').call(k,v) // if v is present set the value on each element
 				return this
 			}
-			return this.map(window.getComputedStyle)
-				.filter(Function.NotNull)
-				.zip('getPropertyValue').call(k) // return the computed value
+			// collect the computed values
+			var cv = this.map(window.getComputedStyle).zip('getPropertyValue').call(k)
+			// collect the values specified directly on the node
+			var ov = this.zip('style').zip(k)
+			// weave and fold them so that object values override computes values
+			return ov.weave(cv).fold(function(x,y) { return x ? x : y })
 		},
 		width: function width() { return this.css('width') },
 		height: function height() { return this.css('height') },
@@ -727,7 +761,6 @@ Bling.privatescope = (function () {
 			return this.each(function(){
 				if( this.parentNode ) {
 					this.parentNode.removeChild(this);
-					this.parentNode = null;
 				}
 			});
 		},
@@ -762,19 +795,14 @@ Bling.privatescope = (function () {
 		// Be sure to save a reference to the fragment, or use it immediately.
 		// $("body").append($("input").toFragment())
 		toFragment: function toFragment() {
+			console.log("toFragment",this.zip('parentNode.toString').call().join(" "));
 			var f = document.createDocumentFragment()
+			if( this.length == 1 )
+				return toNode(this[0])
 			this.each(function(h) {
-				f.appendChild( isNode(h) ? h
-					: isBling(h) ? h.toFragment()
-					: isString(h) ? new Bling(h).toFragment()
-					: isFunc(h.toString) ? new Bling(h.toString()).toFragment()
-					: undefined
-				)
+				f.appendChild( toNode(h) )
 			})
-			if( f.childNodes.length == 1 )
-				return f.removeChild(f.childNodes[0])
-			else
-				return f
+			return f
 		}
 	})
 
@@ -1044,17 +1072,21 @@ Bling.privatescope = (function () {
 		},
 
 		hide: function hide(callback) {
-			return this.each(function() {
+			console.log('in hide',this.zip('parentNode.toString').call().join(" "));
+			var ret = this.each(function() {
+				console.log("hide each guid "+this.guid+" "+this.parentNode.toString());
 				this._display = this.style.display == "none" ? undefined : this.style.display;
 				this.style.display = 'none';
-			}).future(0, callback);
+			}).future(50, callback);
+			console.log('end of hide '+this.zip('guid')+" "+this.zip('parentNode.toString').call().join(" "));
+			return ret
 		},
 
 		show: function show(callback) {
 			return this.each(function() {
 				this.style.display = this._display ? this._display : "";
 				this._display = undefined;
-			}).future(0, callback)
+			}).future(50, callback)
 		},
 
 		fadeIn: function fadeIn(speed, callback) {

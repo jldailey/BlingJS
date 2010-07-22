@@ -1,9 +1,10 @@
 <html>
 	<head>
 		<title>BlingJS JavaScript framework.</title>
+		<meta name="viewport" content="initial-scale=1.0, user-scalable=yes, width=device-width" />
 		<script src="bling.js"></script>
 		<style>
-			pre { padding:10px; display: block; border:1px dashed gray; background-color:#ffc; }
+			pre { padding:10px 12px; display: inline-block; border:1px dashed gray; background-color:#ffc; }
 		</style>
 	</head>
 	<body>
@@ -17,7 +18,7 @@ $("body").append('&lt;div&gt;');
 		<h3>Download</h3>
 		<p>Get the <a href="bling.js">latest BlingJS.</a> (<a href="min.bling.js">minified</a>).
 		<h3>Documentation</h3>
-		<p>A "Bling" is an ordered set of items of any type.  This set defines functional operations to collect and manipulate just about anything.
+		<p>A "Bling" is an ordered set of items of any type.  This set defines functional operations to collect and manipulate them.
 		<p>You create Blings by wrapping up other items:
 <pre>
 $("button") // css expressions
@@ -41,7 +42,7 @@ $("button").parent().first()
 $("button").zip('parentNode').first()
 $("button").first().parentNode
 </pre>
-<p>The .zip() method is different from .attr(x), which in Bling is equivalent to .zip('getAttribute').call(x), and applies only to the Node attributes, not general object properties.
+<p>The .zip() method is different from .attr(x), which in Bling is defined as .zip('getAttribute').call(x), and applies only to the Node attributes, not general object properties.
 <p>The .zap() method is similar to .zip() except that it sets the value of the property, returning the original set of nodes.
 <pre>
 // hide all buttons on the page

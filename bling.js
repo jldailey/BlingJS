@@ -38,11 +38,11 @@ function isSubtype(a, T) {
 		: a.__proto__.constructor == T ? true
 		: isSubtype(a.__proto__, T)
 }
-function isString(a)   { return isSubtype(a, String) }
-function isNumber(a)   { return isSubtype(a, Number) }
-function isFunc(a)     { return isType(a, Function) }
-function isNode(a)     { return isSubtype(a, Node) }
-function isFragment(a) { return isSubtype(a, DocumentFragment) }
+function isString(a)   { return typeof(a) == "string" || isSubtype(a, String) }
+function isNumber(a)   { return isFinite(a) }
+function isFunc(a)     { return typeof(a) == "function" || isType(a, Function) }
+function isNode(a)     { return a.nodeType > 0 }
+function isFragment(a) { return a.nodeType == 11 }
 
 /* Function Binding
  * ----------------
@@ -76,7 +76,7 @@ Function.prototype.bound = function(t, args) {
 
 // Define a bunch of global static functions that will be consistently useful throughout the other methods
 // used to avoid repeatedly creating closures to do these things
-Function.Empty = Function.__proto__ // the empty function is always here
+Function.Empty = function(){}
 Function.NotNull = function notnull(x) { return x != null }
 Function.NotUndefined = function notundefined(x) { return x != undefined }
 Function.NotNullOrUndefined = function notnullorundefined(x) { return x != undefined && x != null; }
@@ -235,17 +235,17 @@ Bling.privatescope = (function () {
 		this.queue = []
 		// private method next() consumes the next handler on the queue
 		this.next = function() { 
-			console.log("next")
+			// console.log("next")
 			// consume all 'due' handlers
 			// also, recompute the time everytime, because a handler might have spent a measurable amount
-			console.log("firing", this.queue.map(function(x){return x.order % 10000}).join(", "))
+			// console.log("firing", this.queue.map(function(x){return x.order % 10000}).join(", "))
 			if( this.queue.length > 0 && this.queue[0].order <= new Date().getTime() ) {
 				this.queue.shift()()
 			}
 		}.bound(this)
 		// public method schedule(f, n) sets f to run after n or more milliseconds
 		this.schedule = function schedule(f, n) {
-			console.log("begin schedule? ", isFunc(f) ? "yes" : "no")
+			// console.log("begin schedule? ", isFunc(f) ? "yes" : "no")
 			if( !isFunc(f) ) return;
 			var nn = this.queue.length;
 			f.order = n + new Date().getTime();
@@ -259,7 +259,7 @@ Bling.privatescope = (function () {
 					}
 				}
 			}
-			console.log("scheduling", this.queue.map(function(x){return x.order % 10000}).join(", "))
+			// console.log("scheduling", this.queue.map(function(x){return x.order % 10000}).join(", "))
 			setTimeout(this.next, n)
 		}
 	}
@@ -329,13 +329,15 @@ Bling.privatescope = (function () {
 		},
 
 		reduce: function reduce(f) {
-			// along with respecting the context, we pass only the accumulation + 1 item
+			// along with respecting the context, we pass only the accumulation + 1 argument
 			// so you can use functions like Math.min directly $(numbers).reduce(Math.min)
 			// this fails with the default reduce, since Math.min(a,x,i,items) is NaN
 			if( (!f) || this.length == 0 ) return null
-			return Array.prototype.reduce.call(this, function(a, x) {
-				return f.apply(x, [a, x]);
+			var a = this[0];
+			this.skip(1).each(function() {
+				a = f.apply(this, [a, this])
 			})
+			return a
 		},
 
 		filter: function filter(f) {
@@ -490,8 +492,8 @@ Bling.privatescope = (function () {
 
 		// try to continue using f in the same scope after about n milliseconds
 		future: function future(n, f) {
-			console.log("future", f ? "yes": "no")
-			if( f ) Bling.timeoutQueue.schedule(f.bound(this), n)
+			// console.log("future", f ? "yes": "no")
+			if( f ) { Bling.timeoutQueue.schedule(f.bound(this), n) }
 			return this
 		},
 
@@ -519,7 +521,7 @@ Bling.privatescope = (function () {
 	var _before = function(a,b) { if( a && b ) a.parentNode.insertBefore(b, a) }
 	var _after = function(a,b) { a.parentNode.insertBefore(b, a.nextSibling) }
 	var toNode = function(x) {
-		console.log("toNode", x.parentNode, isFunc(x.parent) ? x.parent() : "")
+		// console.log("toNode", x.parentNode, isFunc(x.parent) ? x.parent() : "")
 		var ret = isNode(x) ? x
 			: isBling(x) ? x.toFragment()
 			: isString(x) ? new Bling(x).toFragment()
@@ -531,7 +533,7 @@ Bling.privatescope = (function () {
 		return ret
 	}
 	function deepClone(node) {
-		console.log('deepClone',node.toString())
+		// console.log('deepClone',node.toString())
 		var n = node.cloneNode()
 		for(var i = 0; i < node.childNodes.length; i++) {
 			var c = n.appendChild(deepClone(node.childNodes[i]))
@@ -582,7 +584,7 @@ Bling.privatescope = (function () {
 	Bling.addMethods({
 		// .html() gets/sets the .innerHTML of all elements in list
 		html: function html(h) {
-			console.log("html", h)
+			// console.log("html", h)
 			return h == undefined ? this.zip('innerHTML')
 				: isString(h) ? this.zap('innerHTML', h)
 				: isBling(h) ? this.html(h.toFragment())
@@ -795,7 +797,7 @@ Bling.privatescope = (function () {
 		// Be sure to save a reference to the fragment, or use it immediately.
 		// $("body").append($("input").toFragment())
 		toFragment: function toFragment() {
-			console.log("toFragment",this.zip('parentNode.toString').call().join(" "));
+			// console.log("toFragment",this.zip('parentNode.toString').call().join(" "));
 			var f = document.createDocumentFragment()
 			if( this.length == 1 )
 				return toNode(this[0])
@@ -1072,13 +1074,13 @@ Bling.privatescope = (function () {
 		},
 
 		hide: function hide(callback) {
-			console.log('in hide',this.zip('parentNode.toString').call().join(" "));
+			// console.log('in hide',this.zip('parentNode.toString').call().join(" "));
 			var ret = this.each(function() {
-				console.log("hide each guid "+this.guid+" "+this.parentNode.toString());
+				// console.log("hide each guid "+this.guid+" "+this.parentNode.toString());
 				this._display = this.style.display == "none" ? undefined : this.style.display;
 				this.style.display = 'none';
 			}).future(50, callback);
-			console.log('end of hide '+this.zip('guid')+" "+this.zip('parentNode.toString').call().join(" "));
+			// console.log('end of hide '+this.zip('guid')+" "+this.zip('parentNode.toString').call().join(" "));
 			return ret
 		},
 

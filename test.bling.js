@@ -28,83 +28,109 @@ true == (function UnitTests() {
 		assert(true)
 	})
 	function runAllTests() {
-		var body = document.body;
-		var stub = {passed:[], tested: 0, total: 0, failed: [], untested: [], covered: 0, public: 0}
-		// iterate over all functions with tests
-		for( var f in tests ) {
-			stub.tested++;
-			// get the testing set
-			var set = tests[f]
-			// run all the tests in the set
-			for( var j = 0, nn = set.length; j < nn; j++ ) {
-				stub.total++;
-				var test = set[j]
-				if( test.run() ) stub.passed.push(test)
-				else stub.failed.push(test)
-			}
-		}
-		var report = function report(obj) {
-			for( var i in obj) {
-				if( isFunc(obj[i]) ) {
-					stub.public++
-					if( obj[i].tested ) {
-						stub.covered++
-					} else
-						stub.untested.push(i)
+		$(document.body).future(0, function() {
+			var stub = {passed:[], tested: 0, total: 0, failed: [], untested: [], covered: 0, public: 0}
+			// iterate over all functions with tests
+			for( var f in tests ) {
+				stub.tested++;
+				// get the testing set
+				var set = tests[f]
+				// run all the tests in the set
+				for( var j = 0, nn = set.length; j < nn; j++ ) {
+					stub.total++;
+					var test = set[j]
+					if( test.run() ) stub.passed.push(test)
+					else stub.failed.push(test)
 				}
 			}
-		}
-		report(Bling)
-		report(Bling.prototype)
-		var score = Math.floor((stub.passed.length*100/stub.total) * (stub.covered/stub.public))
-		var toggle = "style='cursor:pointer' onclick='event.stopPropagation();this.style.height = this.style.height == \"auto\" ? \"20px\" : \"auto\"'"
-		var report_html = "<div id='code-report'><span class='score'>Score: "+score+"%</span>"
-			+"<div>(covered/public * pass/total)</div>"
-			+"<div>("+stub.covered+"/"+stub.public+" * "+stub.passed.length+"/"+stub.total+")</div>"
-			+"<ul>"
-			+"<li "+toggle+">untested ("+stub.untested.length+"):<ul>"
-			+"<li>"
-			+ stub.untested.join("</li><li>") 
-			+ "</li></ul></li>"
-			+"<li "+toggle+">failed("+stub.failed.length+"):<ul>";
-		for( var i = 0, nn = stub.failed.length; i < nn; i++) {
-			var ii = stub.failed[i]
-			report_html += "<li class='fail' "+toggle+">function "+ii.test.name+"(...)"+ii.error+"</li>"
-		}
-		report_html += "</ul></li><li "+toggle+">passed("+stub.passed.length+"):<ul>"
-		for( var i = 0, nn = stub.passed.length; i < nn; i++) {
-			var ii = stub.passed[i]
-			report_html += "<li class='pass' style='height:30px;' onclick='event.stopPropagation();this.style.height = this.style.height == \"auto\" ? \"30px\" : \"auto\"'><pre>"+Function.HtmlEscape(ii.test.toString())+"</pre></li>"
-		}
-		report_html += "</ul></li></ul></div>"
-		body.innerHTML += report_html;
+			var report = function report(obj) {
+				for( var i in obj) {
+					if( isFunc(obj[i]) ) {
+						stub.public++
+						if( obj[i].tested ) {
+							stub.covered++
+						} else
+							stub.untested.push(i)
+					}
+				}
+			}
+			report(Bling)
+			report(Bling.prototype)
+			var score = Math.floor((stub.passed.length*100/stub.total) * (stub.covered/stub.public))
+			var toggle = "style='cursor:pointer' onclick='event.stopPropagation();this.style.height = this.style.height == \"auto\" ? \"20px\" : \"auto\"'"
+			var report_html = "<div id='code-report'><span class='score'>Score: "+score+"%</span>"
+				+"<div>(covered/public * pass/total)</div>"
+				+"<div>("+stub.covered+"/"+stub.public+" * "+stub.passed.length+"/"+stub.total+")</div>"
+				+"<ul>"
+				+"<li "+toggle+">untested ("+stub.untested.length+"):<ul>"
+				+"<li>"
+				+ stub.untested.join("</li><li>") 
+				+ "</li></ul></li>"
+				+"<li "+toggle+">failed("+stub.failed.length+"):<ul>";
+			for( var i = 0, nn = stub.failed.length; i < nn; i++) {
+				var ii = stub.failed[i]
+				report_html += "<li class='fail' "+toggle+">function "+ii.test.name+"(...)"+ii.error+"</li>"
+			}
+			report_html += "</ul></li><li "+toggle+">passed("+stub.passed.length+"):<ul>"
+			for( var i = 0, nn = stub.passed.length; i < nn; i++) {
+				var ii = stub.passed[i]
+				report_html += "<li class='pass' style='height:30px;' onclick='event.stopPropagation();this.style.height = this.style.height == \"auto\" ? \"30px\" : \"auto\"'><pre>"+Function.HtmlEscape(ii.test.toString())+"</pre></li>"
+			}
+			report_html += "</ul></li></ul></div>"
+			this.zap('innerHTML',report_html);
+		})
 	}
 
-	// define our asserts for use in tests
-	function assert(a, msg) {
-		assertEqual(!(a), false, msg)
-	}
-	function assertEqual(a, b, msg) {
-		if( a != b ) throw new Error("assertion error: "+(a)+" != "+(b)+" "+ msg)
-	}
-	function assertFloatEqual(a, b, msg) {
-		return assert( (1-(a/b)) < .001, msg)
-	}
+		// define our asserts for use in tests
+		function assert(a, msg) {
+			assertEqual(!(a), false, msg)
+		}
+		function assertEqual(a, b, msg) {
+			if( a != b ) throw new Error("assertion error: "+(a)+" != "+(b)+" "+ msg)
+		}
+		function assertFloatEqual(a, b, msg) {
+			return assert( (1-(a/b)) < .001, msg)
+		}
 
-	// register some tests for basic Bling creation
-	Bling.test(function BlingEmpty() { /* bling can be empty */
-		assertEqual(new Bling().length, 0)
-	})
-	.test(function BlingFromHtml() { /* bling can create new html */
-		assertEqual(new Bling("<div><p><p><p></div>").zip('nodeName').join(" "), "DIV");
-	})
-	.test(function BlingFromFragment() { /* the html does not need to be well formed at all, you will just get a fragment in return */
-		var b = new Bling("<a><a><a>");
-		assertEqual(b.zip('nodeName').join(" "), "#document-fragment")
-	})
-	.test(function BlingFromList() { /* blings can hold anything if you give a list */
-		assertEqual(new Bling([1, "foo", 3.14]).join(" "), "1 foo 3.14")
-	})
+		isString.test(function isStringTest(){
+			assert(isString("foo"))
+		})
+
+		isNumber.test(function isNumberTest(){
+			assert(isNumber(1.0), "proto: " + Bling.dumpHtml((1.0).__proto__) + " <hr> " + ((1.0).__proto__ == Number.prototype))
+		})
+
+		isFunc.test(function isFuncTest() {
+			assert(isFunc(Function.Empty))
+		}).test(function isFuncTestTwo() {
+			assert(isFunc(function(){}))
+		}).test(function isFuncTestThree() {
+			assert(!isFunc("function (){}"))
+		})
+
+		isNode.test(function isNodeTest() {
+			assert(isNode(document.body))
+		})
+
+		isFragment.test(function isFragmentTest() {
+			var df = document.createDocumentFragment()
+			assert(isFragment(df))
+		})
+
+		// register some tests for basic Bling creation
+		Bling.test(function BlingEmpty() { /* bling can be empty */
+			assertEqual(new Bling().length, 0)
+		})
+		.test(function BlingFromHtml() { /* bling can create new html */
+			assertEqual(new Bling("<div><p><p><p></div>").zip('nodeName').join(" "), "DIV");
+		})
+		.test(function BlingFromFragment() { /* the html does not need to be well formed at all, you will just get a fragment in return */
+			var b = new Bling("<a><a><a>");
+			assertEqual(b.zip('nodeName').join(" "), "#document-fragment")
+		})
+		.test(function BlingFromList() { /* blings can hold anything if you give a list */
+			assertEqual(new Bling([1, "foo", 3.14]).join(" "), "1 foo 3.14")
+		})
 	.test(function BlingFromSize() { /* just a number: pre-allocate but dont fill */
 		assertEqual(new Bling(100).length, 0)
 	})
@@ -436,9 +462,9 @@ true == (function UnitTests() {
 		.test(function css() {
 			new Bling("<div id='cssTestDiv' style='background-color:transparent;' />")
 				.appendTo("body")
-				.future(190, function() { assertEqual(this.css('background-color').first(), 'rgba(0, 0, 0, 0)',this.toString()) })
-				.future(191, function() { assertEqual(this.css('background-color', "#ffffff").css("background-color").first(), "rgb(255, 255, 255)", this.toString()) })
-				.future(192, function() { this.remove() })
+				.future(10, function() { assertEqual(this.css('background-color').first(), 'transparent') })
+				.future(11, function() { assertEqual(this.css('background-color', "#ffffff").css("background-color").first(), "rgb(255, 255, 255)", this.toString()) })
+				.future(12, function() { this.remove() })
 		})
 
 	Bling.prototype.child
@@ -550,9 +576,12 @@ true == (function UnitTests() {
 			$.http("test.bling.js", function(data){ assertEqual(this.status, 200); });
 		})
 		.test(function http2() {
-			var expectedState = 2;
+			var lastState = 1, expectState = 2;
 			$.http("test.bling.js", {state: function() {
-				assertEqual(this.readyState, expectedState++)
+				if( this.readyState == expectState ) expectState++
+				else if( this.readyState == lastState ) expectState = lastState + 1
+				else throw new Error("http test failed: wrong state " + this.readyState + " expected: " + lastState + " or " + expectState)
+				lastState = this.readyState
 			}})
 		})
 
@@ -573,19 +602,17 @@ true == (function UnitTests() {
 		assertEqual(d[0].parentNode, document.body, "hide attached, no dupes")
 		assert($("#hideTestDiv")[0] === d[0], "hide find finds the right node")
 		$("#hideTestDiv").hide(function() {
-			console.log('in hide callback '+this.zip('guid')+" "+this.zip("parentNode.toString").call().join(" "))
-			console.log(this)
+			// console.log('in hide callback '+this.zip('guid')+" "+this.zip("parentNode.toString").call().join(" "))
+			// console.log(this)
 			try {
 				assert(this[0] === d[0], "hide callback gets the right node")
 				assertEqual(this.zip('id').join(" "), "hideTestDiv")
-				assertEqual(this.parent().join(" "), "BODY", "hide test still attached 2")
+				assertEqual(this.parent().join(" "), "BODY", "hide test still attached 2: " + this.zip('parentNode').join(" "))
 				assertEqual(this.css('display').join(" "), "none", "hide display ")
 				assertEqual(this.css('opacity').join(" "), "0", "hide opacity ")
 			} finally {
 				this.remove()
 			}
-		}).each(function() {
-			console.log("before hide callback "+this.guid+" "+this.parentNode.toString())
 		})
 	})
 
@@ -606,7 +633,7 @@ true == (function UnitTests() {
 				assertEqual(this.length, 1, "this length")
 				assert( this[0] === d[0], "this callback did not recieve a duped node")
 				// and verify that it has been shown
-				console.log(this.parent())
+				// console.log(this.parent())
 				assertEqual(this.css('display').join(" "), "", "show display: "+this.zip('style.display'))
 				assertEqual(this.css('opacity').join(" "), "1", "show opacity: "+this.zip('style.opacity'))
 			} finally {

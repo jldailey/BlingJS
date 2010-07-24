@@ -6,7 +6,7 @@
  * Blame: Jesse Dailey <jesse.dailey@gmail.com>
  */
 
-// first things first, javascript is missing some features
+// first things first, add some cleaner javascript features
 
 /* Inheritance
  * -----------
@@ -18,6 +18,30 @@
 Function.prototype.inheritsFrom = function(T) {
 	this.prototype = new T()
 	return this.prototype.constructor = this
+}
+Function.prototype.debug = function() {
+	var f= this;
+	return function () { console.log(f.name, arguments[1]); return f.apply(this, arguments); }
+}
+Function.prototype.errorHandler = function(f) {
+	var t = this;
+	return function() {
+		try {
+			t.apply(this, arguments);
+		} catch( err ) {
+			f.call(this, err, t)
+		}
+	}
+}
+Function.prototype.finalizer = function(f) {
+	var t = this;
+	return function() {
+		try {
+			t.apply(this, arguments);
+		} finally {
+			f.call(this, t);
+		}
+	}
 }
 
 /* Type Checking
@@ -41,8 +65,9 @@ function isSubtype(a, T) {
 function isString(a)   { return typeof(a) == "string" || isSubtype(a, String) }
 function isNumber(a)   { return isFinite(a) }
 function isFunc(a)     { return typeof(a) == "function" || isType(a, Function) }
-function isNode(a)     { return a.nodeType > 0 }
-function isFragment(a) { return a.nodeType == 11 }
+function isNode(a)     { return a ? a.nodeType > 0 : false }
+function isFragment(a) { return a ? a.nodeType == 11 : false }
+function isArray(a)    { return Object.prototype.toString.apply(a) == "[object Array]" || isSubtype(a, Array) }
 
 /* Function Binding
  * ----------------
@@ -104,12 +129,12 @@ function Bling (expr, context) {
 	if( isBling(expr) ) // accept Bling objects, but do nothing
 		return expr
 	// make calling "Bling(...)" is the same as calling "new Bling(...)"
-	if( this == window || this == Bling ) return new Bling(expr, context)
+	if( this === window || this === Bling ) return new Bling(expr, context)
 	// the default context is the entire document
 	context = context || document
 	if( expr == undefined ) { // if there was no expr, just create an empty set
 		Bling.__init__(this, [])
-	} else if( typeof expr == "string" ) {
+	} else if( typeof expr == "string" ) { // strings, search css or parse html
 		// accept two different kinds of strings: html, and css expression
 		// html begins with "<", and we create a set of nodes by parsing it
 		if( expr[0] == "<" ) {
@@ -131,13 +156,13 @@ function Bling (expr, context) {
 				throw new Error("invalid context "+context+")")
 			}
 		}
-	} else if( typeof(expr) == "number" ) {
+	} else if( typeof(expr) == "number" ) { // numbers pre-allocate
 		// accept a single number, to pre-allocate space
 		Array.apply(this, [expr])
-	} else if( expr === window || isNode(expr) ) {
+	} else if( expr === window || isNode(expr) ) { // items got stored
 		// a single node becomes the sole item in our array
 		Bling.__init__(this, [expr])
-	} else if( expr.length != undefined ) { 
+	} else if( expr.length != undefined ) {  // arrays get copied
 		// use any array-like object directly
 		// careful to check for === window _before_ this check, as window.length is defined
 		Bling.__init__(this, expr)
@@ -147,7 +172,7 @@ function Bling (expr, context) {
 }
 // finish defining the Bling type
 Bling.inheritsFrom(Array)
-function isBling(a)  { return isType(a, Bling) }
+function isBling(a)  { return (a && a.__bling__ ) || isType(a, Bling) }
 
 // two static helpers for the constructor:
 // copy data from some indexable source onto the end of t
@@ -159,6 +184,7 @@ Bling.__copy__ = function(t, s, n) {
 Bling.__init__ = function(t, s) {
 	Array.apply(t, [s.length])
 	Bling.__copy__(t, s)
+	t.__bling__ = true;
 }
 
 /* The Bling! Operator
@@ -492,8 +518,7 @@ Bling.privatescope = (function () {
 
 		// try to continue using f in the same scope after about n milliseconds
 		future: function future(n, f) {
-			// console.log("future", f ? "yes": "no")
-			if( f ) { Bling.timeoutQueue.schedule(f.bound(this), n) }
+			if( f ) { Bling.timeoutQueue.schedule(f, n) }
 			return this
 		},
 
@@ -797,13 +822,11 @@ Bling.privatescope = (function () {
 		// Be sure to save a reference to the fragment, or use it immediately.
 		// $("body").append($("input").toFragment())
 		toFragment: function toFragment() {
-			// console.log("toFragment",this.zip('parentNode.toString').call().join(" "));
-			var f = document.createDocumentFragment()
+			console.log("toFragment",this.zip('parentNode.toString').call().join(" "));
 			if( this.length == 1 )
 				return toNode(this[0])
-			this.each(function(h) {
-				f.appendChild( toNode(h) )
-			})
+			var f = document.createDocumentFragment()
+			this.map(toNode).map(f.appendChild.bound(f))
 			return f
 		}
 	})
@@ -1088,7 +1111,7 @@ Bling.privatescope = (function () {
 			return this.each(function() {
 				this.style.display = this._display ? this._display : "";
 				this._display = undefined;
-			}).future(50, callback)
+			})//.future(50, callback)
 		},
 
 		fadeIn: function fadeIn(speed, callback) {

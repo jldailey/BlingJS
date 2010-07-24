@@ -596,6 +596,7 @@ true == (function UnitTests() {
 			})
 		})
 
+/*
 	Bling.prototype.hide.test(function hide(){
 		var d = $("<div id='hideTestDiv'>cant see me!</div>")
 		$("body").append(d)
@@ -615,33 +616,41 @@ true == (function UnitTests() {
 			}
 		})
 	})
+	*/
 
-	Bling.prototype.show.test(function show(){
+	Bling.prototype.show.test(function showTest(){
 		// create an unattached div
 		var d = $("<div id='showTestDiv' style='display:none'>show</div>")
-		// attach it
-		$("body").append(d)
-		// search for an attached div
-		var e = $("body").find("#showTestDiv")
+		// find the body
+		var b = $("body")
+		// attach div to the bdy
+		b.append(d)
+		assertEqual(d.zip('parentNode').toString(), "Bling{[[object HTMLBodyElement]]}", 'd parent');
+		// search for a div attached to the body
+		var e = b.find("#showTestDiv")
 		// verify that we found the exact node we inserted
 		assert( d[0] === e[0], "single item wont be duped")
-		// then show the node
-		e.show(function() {
+		// then show the found node
+		e.show();
+		assertEqual(e.zip('parentNode').toString(), "Bling{[[object HTMLBodyElement]]}", 'e parent');
+		e.future(0, function() {
 			try {
 				// verify that the callback got a Bling of the exact same node
 				assert(isBling(this), "this is bling")
 				assertEqual(this.length, 1, "this length")
 				assert( this[0] === d[0], "this callback did not recieve a duped node")
 				// and verify that it has been shown
-				// console.log(this.parent())
+				assertEqual(this.zip('guid').toString(), "Bling{[11]}")
+				assertEqual(this.zip('parentNode').toString(), "Bling{[[object HTMLBodyElement]]}", 'e parent after show')
 				assertEqual(this.css('display').join(" "), "", "show display: "+this.zip('style.display'))
-				assertEqual(this.css('opacity').join(" "), "1", "show opacity: "+this.zip('style.opacity'))
+				assertEqual(this.css('opacity').join(" "), "1", "show opacity: ")
 			} finally {
 				this.remove()
 			}
 		})
 	})
 
+	/*
 	Bling.prototype.fadeOut.test(function fadeOut(){
 		$("body").append($("<div id='fadeOutTestDiv'>fadeOut</div>"))
 		$("#fadeOutTestDiv").fadeOut(function() {
@@ -649,7 +658,6 @@ true == (function UnitTests() {
 			this.remove()
 		})
 	})
-	/*
 	Bling.prototype.fadeIn.test(function fadeIn(){
 		$("body").append($("<div id='fadeInTestDiv'>fadeIn</div>"))
 		$("#fadeInTestDiv").fadeIn(function() {

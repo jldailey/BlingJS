@@ -35,12 +35,6 @@
 	</head>
 <body>
 <script>
-	var mask = $("<div id='mask'>&nbsp;</div>")
-		.css('position', 'absolute')
-		.css('background-color', 'rgba(0,0,0,0.3)')
-		.css('top','0px')
-		.css('left','0px')
-		.css('display','none');
 
 	$(window).ready(function(){ 
 		$("h1").concat($("h3")).each(function() {
@@ -50,37 +44,42 @@
 		$("pre").each(function(){ 
 			this.innerText = this.innerText.replace(/\t/g,"  ");
 		})
-		$("a").each(function() {
-			var h = this.getAttribute("href");
-			if( h && h.substr(0,5) == "#doc:" ) {
-				$(this).click(function(e) {
-					doc(this,e);
-				})
-			}
+		$("a[href^='#doc:Bling']").click(function(e) {
+			doc(this,e);
 		})
 
-		mask.appendTo("body")
-			.css('width',document.body.scrollWidth)
-			.css('height',document.body.scrollHeight);
 	})
 
 	function doc(a,e) {
 		var b = a.getAttribute("href").split("#doc:")[1]
 		var obj = eval(b)
-		mask.show()
-		$("<div class='doc'><a name='doc:"+b+"'></a><pre>"+obj.toString().replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\t/g,"  ")+"</pre></div>")
+		obj = obj.toString().replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\t/g,"  ")
+		// create the shadow
+		var shadow = $("<div class='shadow'>&nbsp;</div>")
+			.css("position", "absolute")
+			.css("display", "block")
+			.css("background-color", "rgba(0,0,0,0.35)")
+			.css("z-index", "9000");
+		// create and show the doc overlay
+		var d = $("<div class='doc'><pre>"+obj+"</pre></div>")
 			.css("position","absolute")
-			.css("display", "inline-block")
-			.css("width", "300px")
-			.css("top", e.pageY + 10 + "px")
+			.css("display", "block")
+			.css("padding", "0")
+			.css("margin", "0")
+			.css("top", e.pageY + 4 + "px")
 			.css("left", "0px")
-			.click(function() {
-				$(this).remove()
-				mask.hide()
-			})
+			.css("z-index", "9001")
+			.bind('click', function() { shadow.remove(); $(this).unbind('click').remove() })
 			.appendTo("body")
-			// .css('height', '0px')
-			// .transform({'height': 'auto'})
+		d.find("pre").css("margin", "0px").css('border','1px solid grey').css('-webkit-border-radius','6px')
+		// size and position the shadow
+		shadow
+			.css("height", d.height().first())
+			.css("width", d.width().first())
+			.css("top", d.css("top").floats().first() + 6 + "px")
+			.css("left", d.css("left").floats().first() + 4 + "px")
+			.css("-webkit-border-radius", "6px")
+			.appendTo("body");
 	}
 
 </script>

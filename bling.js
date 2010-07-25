@@ -342,12 +342,15 @@ Bling.privatescope = (function () {
 		},
 
 		map: function map(f) {
-			return new Bling(Array.prototype.map.call(this, function(t) {
-				try { return f.call(t, t) }
+			var a = new Bling(this.length)
+			this.each(function(t) {
+				try { a.push(f.call(t, t)) }
 				catch( e ) {
-					if( isType(e, TypeError) ) return f(t) // certain special globals dont work if you reapply
+					if( isType(e, TypeError) ) a.push(f(t))
+					else throw e
 				}
-			}));
+			})
+			return a
 		},
 
 		reduce: function reduce(f) {
@@ -386,10 +389,15 @@ Bling.privatescope = (function () {
 		zip: function zip(p) {
 			if( !p ) return this
 			var i = p.indexOf(".")
-			return i > -1 ? this.zip(p.substr(0, i)).zip(p.substr(i+1)) // zip("a.b") -> zip("a").zip("b")
-				: this.map(function() { // zip('someMemberFunction').call() -> this.map( { return this() } )
-					return typeof(this[p]) == "function" ?  this[p].bound(this)
-						: this[p]
+			// recursively split
+			// zip("a.b") -> zip("a").zip("b")
+			return i > -1 ? this.zip(p.substr(0, i)).zip(p.substr(i+1))
+				: this.map(function() {
+					var v = this[p]
+					// when zipping functions, zip a bound version
+					return isFunc(v) ? v.bound(this)
+						// else, just zip the value
+						: v
 				});
 		},
 
@@ -461,15 +469,15 @@ Bling.privatescope = (function () {
 
 		// .weave() takes the given array and interleaves it in this array
 		weave: function weave(a) {
-			var n = a.length;
-			var b = new Bling(this.length + n);
-			b.length = this.length + n;
+			var n = a.length, nn = this.length;
+			var b = new Bling(nn + n);
 			// first spread out this list, from back to front
-			for(var i = this.length - 1; i >= 0; i-- )
+			for(var i = nn - 1; i >= 0; i-- )
 				b[(i*2)+1] = this[i];
 			// then interleave the source items, from front to back
 			for(var i = 0; i < n; i++)
 				b[i*2] = a[i];
+			b.length = nn + n;
 			// this is not quite a perfect implementation, really it should check which is longer
 			// and only interleave equal length arrays, then append any leftovers
 			// so that unequal length arguments will not create 'undefined' items
@@ -479,10 +487,11 @@ Bling.privatescope = (function () {
 		// often used as a companion to weave: weave two lists together,
 		// then fold them to a list the original size
 		fold: function fold(f) {
-			if( this.length < 2 ) return this;
-			var n = new Bling(this.length/2)
-			for( var i = 0, nn = this.length; i < nn - 1; i += 2) {
-				n[i/2] = f.call(this, this[i], this[i+1])
+			var nn = this.length;
+			if( nn < 2 ) return this;
+			var n = new Bling(nn/2)
+			for( var i = 0; i < nn - 1; i += 2) {
+				n.push(f.call(this, this[i], this[i+1]))
 			}
 			return n
 		},
@@ -745,7 +754,7 @@ Bling.privatescope = (function () {
 			var cv = this.map(window.getComputedStyle).zip('getPropertyValue').call(k)
 			// collect the values specified directly on the node
 			var ov = this.zip('style').zip(k)
-			// weave and fold them so that object values override computes values
+			// weave and fold them so that object values override computed values
 			return ov.weave(cv).fold(function(x,y) { return x ? x : y })
 		},
 		width: function width() { return this.css('width') },

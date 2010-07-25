@@ -2,56 +2,186 @@
 	<head>
 		<title>BlingJS JavaScript framework.</title>
 		<meta name="viewport" content="initial-scale=1.0, user-scalable=yes, width=device-width" />
-		<script src="bling.js"></script>
-		<style>
-			pre { padding:10px 12px; display: inline-block; border:1px dashed gray; background-color:#ffc; }
+		<link href=' http://fonts.googleapis.com/css?family=Nobile' rel='stylesheet' type='text/css'>
+		<link href='http://fonts.googleapis.com/css?family=Inconsolata' rel='stylesheet' type='text/css'>
+		<script src="bling.js" type="text/javascript"></script>
+		<style type="text/css">
+			body {
+				font-family: 'Nobile', Verdana, sans;
+				width:320px;
+				border-right:1px dashed grey;
+			}
+			p {
+				width:300px;
+				text-align: justify;
+				margin-right:4px;
+			}
+			pre {
+				font-family: 'Inconsolata', courier, fixed, sans;
+				font-size:0.9em;
+				line-height:1.1em;
+				padding:6px 0px 6px 4px;
+				margin:10px 0px;
+				display: inline-block;
+				border:1px dashed gray;
+				background-color:#ffc;
+				width:300px;
+			}
+			div pre {
+				min-width:320px;
+				width: auto;
+			}
 		</style>
 	</head>
-	<body>
-		<h1>BlingJS<h1>
-		<h2>A jQuery-like JavaScript framework.</h2>
-		<sub>(only for WebKit)</sub>
-		<p>BlingJS is named after the bling operator ($) to which it is bound by default.  ex.
+<body>
+<script>
+	var mask = $("<div id='mask'>&nbsp;</div>")
+		.css('position', 'absolute')
+		.css('background-color', 'rgba(0,0,0,0.3)')
+		.css('top','0px')
+		.css('left','0px')
+		.css('display','none');
+
+	$(window).ready(function(){ 
+		$("h1").concat($("h3")).each(function() {
+			$(this).wrap("<a name='"+this.innerText+"'></a>");
+		})
+		$("h3").skip(2).before($("<a href='#BlingJS'>&#171;Back to top</a>").css('font-size','0.9em').css('float','right'))
+		$("pre").each(function(){ 
+			this.innerText = this.innerText.replace(/\t/g,"  ");
+		})
+		$("a").each(function() {
+			var h = this.getAttribute("href");
+			if( h && h.substr(0,5) == "#doc:" ) {
+				$(this).click(function(e) {
+					doc(this,e);
+				})
+			}
+		})
+
+		mask.appendTo("body")
+			.css('width',document.body.scrollWidth)
+			.css('height',document.body.scrollHeight);
+	})
+
+	function doc(a,e) {
+		var b = a.getAttribute("href").split("#doc:")[1]
+		var obj = eval(b)
+		mask.show()
+		$("<div class='doc'><a name='doc:"+b+"'></a><pre>"+obj.toString().replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\t/g,"  ")+"</pre></div>")
+			.css("position","absolute")
+			.css("display", "inline-block")
+			.css("width", "300px")
+			.css("top", e.pageY + 10 + "px")
+			.css("left", "0px")
+			.click(function() {
+				$(this).remove()
+				mask.hide()
+			})
+			.appendTo("body")
+			// .css('height', '0px')
+			// .transform({'height': 'auto'})
+	}
+
+</script>
+<h1><a name="top">BlingJS</a><h1>
+<h2>A jQuery-like JavaScript framework.</h2>
+<sub>(only for WebKit)</sub>
+<p>BlingJS is named after the bling operator ($) to which it is bound by default.  ex.
 <pre>
 $("body").append('&lt;div&gt;');
 </pre>
-		<h3>Download</h3>
-		<p>Get the <a href="bling.js">latest BlingJS.</a> (<a href="min.bling.js">minified</a>).
-		<h3>Documentation</h3>
-		<p>A "Bling" is an ordered set of items of any type.  This set defines functional operations to collect and manipulate them.
-		<p>You create Blings by wrapping up other items:
+<h3>Download</h3>
+<p>Get the <a href="bling.js">latest BlingJS.</a> (<a href="min.bling.js">minified</a>).
+<h3>Documentation</h3>
+<p><i>A Bling</i> is an ordered set of items of any type.  This set defines functional operations to collect and manipulate the members.
+<p>A Bling is a container, so you create them by wrapping up other items or sets:
 <pre>
 $("button") // css expressions
 $("&lt;button&gt;") // or html
 $([1, "foo", {a: 'b'}]) // or junk
 </pre>
-<p>Then you can use functional primitives like: each, map, reduce, filter, distinct, skip, take, etc. to manipulate this list.
-For a full list, see the <a href="docs/index.html">BlingJS Documentation</a>
+<p>Then you can use functional primitives like: <a href='#doc:Bling.prototype.each'>each</a>, <a href="#doc:Bling.prototype.map">map</a>, <a href="#doc:Bling.prototype.reduce">reduce</a>, <a href="#doc:Bling.prototype.filter">filter</a>, <a href="#doc:Bling.prototype.distinct">distinct</a>, <a href="#doc:Bling.prototype.skip">skip</a>, <a href="#doc:Bling.prototype.take">take</a>, etc. to manipulate this list.
+<p>For a full list, see the <a href="docs.html">Documentation</a>.
 <p>During all of the functional operations, the context (the 'this' value) is set to the item being iterated.
 <pre>
 $("button").each(function(){
 	alert(this.nodeName);
 })
 </pre>
-<p>This would alert once for every button on the page.  Notice that the 'this' value is the raw element, not a Bling.
+<p>This would alert once for every button on the page.  Notice that the <i>this</i> value is the raw Node, not a Bling.
 
-<p>My favorites are zip and zap. The .zip(prop) method will extract a list of the values of a certain property.  This is why .parent() is defined as simply as .zip('parentNode'), meaning, return a list of all the .parentNode properties of the items in the current set.
+<p>My favorites are <a href="#doc:Bling.prototype.zip">zip</a> and <a href="#doc:Bling.prototype.zap">zap</a>. 
+<p>The <a href="#doc:Bling.prototype.zip">.zip</a>(property) method will extract a list of the values of a certain property.  This is why <a href="#doc:Bling.prototype.parent">.parent</a>() is defined as simply as <a href="#doc:Bling.prototype.zip">.zip</a>('parentNode'), meaning, return a list of all the .parentNode properties of the items in the current set.
 <p>The following are all equivalent:
-<pre type="text/javascript" language="javascript">
+<pre>
 $("button").parent().first()
 $("button").zip('parentNode').first()
 $("button").first().parentNode
 </pre>
-<p>The .zip() method is different from .attr(x), which in Bling is defined as .zip('getAttribute').call(x), and applies only to the Node attributes, not general object properties.
-<p>The .zap() method is similar to .zip() except that it sets the value of the property, returning the original set of nodes.
+<p>The <a href="#doc:Bling.prototype.zip">.zip</a>() method is different from <a href="#doc:Bling.prototype.attr">.attr</a>(name), which uses get/setAttribute functions, and applies only to the Node attributes, not general object properties.
+<p><a href="#doc:Bling.prototype.zip">.zip</a>() also gives you some extra help if you zip up a set of function members of an object, by automatically binding that function to it's original host.
+<p>For example, if you wanted to call the same function on each of a set of items:
 <pre>
-// hide all buttons on the page
+var x = $("input").first()
+$("input").zip('isSameNode').call( x )
+</pre>
+<p>This will return a Bling{[true, false, false, ... false for every input except the first]}.
+
+<p>The <a href="#doc:Bling.prototype.zap">.zap</a>() method is similar to <a href="#doc:Bling.prototype.zip">.zip</a>() except that it sets the value of the property, returning the original set of nodes.
+<pre>
 $("button").zap("style.display","none")
 </pre>
-<p>For the full API, consult the <a href="docs/index.html">BlingJS Documentation</a>
-		
+<p class='caption'>This example would hide all buttons on the page.</p>
+<p>For the full API, see the <a href="docs.html">Documentation</a>.
+
+<h3>Extending the API</h3>
+<p>Extending the Bling API is very easy: you use two methods addGlobals, and addMethods.
+<h4>Bling.addMethods:</h4>
+<p>In a plugin file/script:
+<pre>
+Bling.addMethods({ "echo": function() {
+	console.log("context: "+this
+		+" arguments: "+arguments)
+})
+</pre>
+<p>On a page:
+<pre>
+$("body").echo()
+</pre>
+<p>This would log all of the selected nodes, and the arguments of a standard Bling method invocation.
+
+<p>But, always try to return either a new context or the existing one.
+<p>The better way:
+<pre>
+Bling.addMethods({
+	"echo": function(){
+		console.log("context: "+this
+			+" arguments: "+arguments);
+		return this // the better way
+	},
+})
+</pre>
+<pre>
+$("body").echo()
+	.css('color','yellow')
+	.fadeOut()
+</pre>
+<p>This will log the same thing to the console, and still allow you to chain other methods.
+<p>If you modify the set, try to return a new set equivalent in all other ways except your desired change. See <a href="#doc:Bling.prototype.map">.map()</a>for an example.
+<h4>Bling.addGlobals:</h4>
+<p>addGlobals is simpler, because it is not expected to be part of the chain, it will just add something available as Bling.XXX
+<pre>
+Bling.addGlobals("breakpoint", function() { 
+	debugger;
+})
+</pre>
+<pre>
+$.breakpoint()
+</pre>
+
 		<h3>Unit tests</h3>
-		<p>If you want, you can run the <a href="test.bling.html">BlingJS unit tests</a> in your browser.
+		<p>You can run the <a href="test.bling.html">BlingJS unit tests</a> in your browser.
 		<h3>jQuery</h3>
 		<p>BlingJS is very much like jQuery, and you can do just about anything in it that you can do in jQuery.  If you know jQuery, then in general you can use BlingJS by writing what you would expect to work in jQuery, then assume everything you get is a list, and end your expressions with things like .first()
 	</body>

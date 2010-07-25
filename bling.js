@@ -21,27 +21,7 @@ Function.prototype.inheritsFrom = function(T) {
 }
 Function.prototype.debug = function() {
 	var f= this;
-	return function () { console.log(f.name, arguments[1]); return f.apply(this, arguments); }
-}
-Function.prototype.errorHandler = function(f) {
-	var t = this;
-	return function() {
-		try {
-			t.apply(this, arguments);
-		} catch( err ) {
-			f.call(this, err, t)
-		}
-	}
-}
-Function.prototype.finalizer = function(f) {
-	var t = this;
-	return function() {
-		try {
-			t.apply(this, arguments);
-		} finally {
-			f.call(this, t);
-		}
-	}
+	return function () { console.log(f.name, arguments); return f.apply(this, arguments); }
 }
 
 /* Type Checking
@@ -822,7 +802,7 @@ Bling.privatescope = (function () {
 		// Be sure to save a reference to the fragment, or use it immediately.
 		// $("body").append($("input").toFragment())
 		toFragment: function toFragment() {
-			console.log("toFragment",this.zip('parentNode.toString').call().join(" "));
+			// console.log("toFragment",this.zip('parentNode.toString').call().join(" "));
 			if( this.length == 1 )
 				return toNode(this[0])
 			var f = document.createDocumentFragment()

@@ -514,7 +514,7 @@ Bling.privatescope = (function () {
 
 		// try to continue using f in the same scope after about n milliseconds
 		future: function future(n, f) {
-			if( f ) { Bling.timeoutQueue.schedule(f, n) }
+			if( f ) { Bling.timeoutQueue.schedule(f.bound(this), n) }
 			return this
 		},
 

@@ -232,7 +232,7 @@ Bling.addGlobals = function (globals) {
 }
 
 Bling.__doc_row__ = function(f) {
-	return "<li class='function'><code>"+f.toString()"</code></li"
+	return "<li class='function'><code>"+f.toString()+"</code></li"
 }
 Bling.__doc__ = function(node, rowfunc) {
 	var objs = [Bling, Bling.prototype]
@@ -1145,7 +1145,7 @@ Bling.privatescope = (function () {
 					this._display = d;
 					this.style.display = "none";
 				}
-			}
+			})
 		},
 
 		fadeIn: function fadeIn(speed, callback) {

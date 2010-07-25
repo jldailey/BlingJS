@@ -6,8 +6,6 @@
  * Blame: Jesse Dailey <jesse.dailey@gmail.com>
  */
 
-// first things first, add some cleaner javascript features
-
 /* Inheritance
  * -----------
  * A.inheritsFrom(T) will make A inherit members from type T.
@@ -105,8 +103,6 @@ Function.Empty = function(){}
 Function.NotNull = function notnull(x) { return x != null }
 Function.NotUndefined = function notundefined(x) { return x != undefined }
 Function.NotNullOrUndefined = function notnullorundefined(x) { return x != undefined && x != null; }
-Function.ReturnNull = function returnnull() { return null }
-Function.Identity = function identity(x) { return x }
 Function.IndexFound = function found(x) { return x > -1 }
 Function.HtmlEscape = function htmlescape(x) { return x.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\t/g,'&nbsp;&nbsp;') }
 
@@ -234,6 +230,26 @@ Bling.addGlobals = function (globals) {
 		Bling.extend(Bling, globals)
 	}
 }
+
+Bling.__doc_row__ = function(f) {
+	return "<li class='function'><code>"+f.toString()"</code></li"
+}
+Bling.__doc__ = function(node, rowfunc) {
+	var objs = [Bling, Bling.prototype]
+	var html = "<ul class='api'>"
+	rowfunc = rowfunc || Bling.__doc_row__
+	for(var i = 0, n = objs.length; i < n; i++) {
+		var o = objs[i]
+		for(var j in o) {
+			if( j[0] != "_" && isFunc(o[j]) ) {
+				html += rowfunc(o[j])
+			}
+		}
+	}
+	html += "</ul><script>$('ul.api li').click($.prototype.toggle)</script>"
+}
+
+
 
 
 // the privatescope variable is never set to a value
@@ -1102,23 +1118,41 @@ Bling.privatescope = (function () {
 				// console.log("hide each guid "+this.guid+" "+this.parentNode.toString());
 				this._display = this.style.display == "none" ? undefined : this.style.display;
 				this.style.display = 'none';
-			}).future(50, callback);
+			})
+			if( callback ) callback.apply(this)
 			// console.log('end of hide '+this.zip('guid')+" "+this.zip('parentNode.toString').call().join(" "));
 			return ret
 		},
 
 		show: function show(callback) {
-			return this.each(function() {
+			var ret = this.each(function() {
 				this.style.display = this._display ? this._display : "";
 				this._display = undefined;
-			})//.future(50, callback)
+			})
+			if( callback ) callback.apply(this)
+			return ret
+		},
+
+		toggle: function toggle(callback) {
+			return this.each(function() {
+				var d = this.style.display
+				if( d == "none" ) {
+					if( this._display != undefined ) {
+						this.style.display = this._display
+						this._display = undefined
+					}
+				} else {
+					this._display = d;
+					this.style.display = "none";
+				}
+			}
 		},
 
 		fadeIn: function fadeIn(speed, callback) {
 			return this
 				.css('opacity','0.0')
-				.show(function fadeInAfterShow(){this
-					.transform({opacity:"1.0", translate3d:[0,0,0]}, speed, callback)
+				.show(function fadeInAfterShow(){
+					this.transform({opacity:"1.0", translate3d:[0,0,0]}, speed, callback)
 				})
 		},
 		fadeOut:   function fadeOut(speed, callback)   { return this.transform({opacity:"0.0"}, speed, function hideAfterfadeOut() { this.hide(); if( callback ) callback.call(this) })},
@@ -1234,7 +1268,6 @@ Bling.privatescope = (function () {
 		}
 
 	})
-
 
 })()
 

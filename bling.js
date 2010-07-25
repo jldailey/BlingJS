@@ -261,7 +261,7 @@ Bling.privatescope = (function () {
 			// consume all 'due' handlers
 			// also, recompute the time everytime, because a handler might have spent a measurable amount
 			// console.log("firing", this.queue.map(function(x){return x.order % 10000}).join(", "))
-			if( this.queue.length > 0 && this.queue[0].order <= new Date().getTime() ) {
+			if( this.queue.length > 0 /*&& this.queue[0].order <= new Date().getTime()*/ ) {
 				this.queue.shift()()
 			}
 		}.bound(this)
@@ -1059,7 +1059,7 @@ Bling.privatescope = (function () {
 			var props = [];
 			// what to send to the -webkit-transform
 			var trans = "";
-			// real css values to be set (end_css minus the transform values)
+			// real css values to be set (end_css without the transform values)
 			var css = {};
 			for( var i in end_css )
 				// pull all the transform values out of end_css
@@ -1067,9 +1067,9 @@ Bling.privatescope = (function () {
 					var ii = end_css[i]
 					if( ii.join )
 						ii = ii.join(", ")
-					if( ii.toString )
+					else if( ii.toString )
 						ii = ii.toString()
-					transform += " " + i + "(" + ii + ")";
+					trans += " " + i + "(" + ii + ")";
 				}
 				else // stick real css values in the css dict
 					css[i] = end_css[i]
@@ -1078,7 +1078,7 @@ Bling.privatescope = (function () {
 				props.push(i);
 			// and include -webkit-transform if we have data there
 			if( trans )
-				props.push("-webkit-transform")
+				props.push("-webkit-transform");
 			this.css('-webkit-transition-property', props.join(', '));
 			// repeat the duration the same number of times as there are properties
 			this.css('-webkit-transition-duration', props.map(function() { return duration + "ms" }).join(', '));
@@ -1087,8 +1087,9 @@ Bling.privatescope = (function () {
 				this.css(i, css[i])
 			// apply the transformation
 			if( trans )
-				this.css('-webkit-transform', transform);
+				this.css('-webkit-transform', trans);
 			// queue the callback to be executed
+			console.log("css",css,"trans",trans,"props",props)
 			return this.future(duration, callback);
 		},
 
@@ -1105,12 +1106,10 @@ Bling.privatescope = (function () {
 		},
 
 		show: function show(callback) {
-			var ret = this.each(function() {
+			return this.each(function() {
 				this.style.display = this._display ? this._display : "";
 				this._display = undefined;
-			})
-			if( callback ) callback.apply(this)
-			return ret
+			}).future(50, callback)
 		},
 
 		toggle: function toggle(callback) {
@@ -1120,26 +1119,46 @@ Bling.privatescope = (function () {
 					if( this._display != undefined ) {
 						this.style.display = this._display
 						this._display = undefined
+					} else {
+						this.style.display = ""
 					}
 				} else {
 					this._display = d;
 					this.style.display = "none";
 				}
+				if( callback  ) callback.apply(this)
 			})
 		},
 
 		fadeIn: function fadeIn(speed, callback) {
 			return this
 				.css('opacity','0.0')
-				.show(function fadeInAfterShow(){
+				.show(function (){
 					this.transform({opacity:"1.0", translate3d:[0,0,0]}, speed, callback)
 				})
 		},
-		fadeOut:   function fadeOut(speed, callback)   { return this.transform({opacity:"0.0"}, speed, function hideAfterfadeOut() { this.hide(); if( callback ) callback.call(this) })},
-		fadeLeft:  function fadeLeft(speed, callback)  { return this.transform({opacity:"0.0", translate3d:["-"+this.width()+"px",0.0,0.0 ]}, speed, function hideAfterfadeLeft() { this.hide(); if( callback ) callback.call(this) })},
-		fadeRight: function fadeRight(speed, callback) { return this.transform({opacity:"0.0", translate3d:[this.width()+"px",0.0,0.0     ]}, speed, function hideAfterfadeRight() { this.hide(); if( callback ) callback.call(this) })},
-		fadeUp:    function fadeUp(speed, callback)    { return this.transform({opacity:"0.0", translate3d:[0.0,"-"+this.height()+"px",0.0]}, speed, function hideAfterfadeUp() { this.hide(); if( callback ) callback.call(this) })},
-		fadeDown:  function fadeDown(speed, callback)  { return this.transform({opacity:"0.0", translate3d:[0.0,this.height()+"px",0.0    ]}, speed, function hideAfterfadeDown() { this.hide(); if( callback ) callback.call(this) })}
+		fadeOut:   function fadeOut(speed, callback, _x, _y) {
+			_x = _x || 0.0
+			_y = _y || 0.0
+			return this.each(function(t) {
+				$(t).transform({
+					opacity:"0.0", 
+					translate3d:[_x,_y,0.0]
+				}, speed, function () { this.hide() })
+			}).future(Bling.duration(speed), callback)
+		},
+		fadeLeft:  function fadeLeft(speed, callback)  { 
+			return this.fadeOut(speed, callback, "-"+this.width().first(), 0.0)
+		},
+		fadeRight: function fadeRight(speed, callback) { 
+			return this.fadeOut(speed, callback, this.width().first(), 0.0)
+		},
+		fadeUp:    function fadeUp(speed, callback)    { 
+			return this.fadeOut(speed, callback, 0.0, "-"+this.height().first())
+		},
+		fadeDown:  function fadeDown(speed, callback)  { 
+			return this.fadeOut(speed, callback, 0.0, this.height().first())
+		}
 	})
 
 	/// Database Module: provides access to the sqlite database ///

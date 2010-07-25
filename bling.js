@@ -1145,7 +1145,7 @@ Bling.privatescope = (function () {
 					this._display = d;
 					this.style.display = "none";
 				}
-			}
+			})
 		},
 
 		fadeIn: function fadeIn(speed, callback) {

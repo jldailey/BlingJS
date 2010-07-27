@@ -2,6 +2,8 @@
 	<head>
 		<title>BlingJS JavaScript framework.</title>
 		<meta name="viewport" content="initial-scale=1.0, user-scalable=yes, width=device-width" />
+		<link href="prettify.css" type="text/css" rel="stylesheet" />
+		<script type="text/javascript" src="prettify.js"></script>
 		<link href=' http://fonts.googleapis.com/css?family=Nobile' rel='stylesheet' type='text/css'>
 		<link href='http://fonts.googleapis.com/css?family=Inconsolata' rel='stylesheet' type='text/css'>
 		<script src="bling.js" type="text/javascript"></script>
@@ -31,6 +33,24 @@
 				min-width:320px;
 				width: auto;
 			}
+			ol {
+				padding:0px 2em;
+			}
+			ol li {
+				padding: 0px;
+				margin:0px;
+				-webkit-border-radius:5px;
+			}
+			ol li pre { 
+				display: none; 
+				margin-left: -25px;
+			}
+			ol li a { font-size:0.7em; }
+			ol li span {
+				font-size:1.2em;
+				text-decoration:underline;
+				margin-right:.2em;
+			}
 		</style>
 	</head>
 <body>
@@ -43,9 +63,17 @@
 		$("h3").skip(2).before($("<a href='#BlingJS'>&#171;Back to top</a>").css('font-size','0.9em').css('float','right'))
 		$("pre").each(function(){ 
 			this.innerText = this.innerText.replace(/\t/g,"  ");
-		})
+		}).addClass("prettyprint")
+		prettyPrint();
 		$("a[href^='#doc:Bling']").click(function(e) {
+			e.stopPropagation()
+			e.preventDefault()
 			doc(this,e);
+		})
+		$("ol li").click(function(evt) {
+			$(this).css('background-color','#ffc')
+				.future(300, function(){ this.css('background-color','') })
+				.find("pre").toggle();
 		})
 
 	})
@@ -54,6 +82,7 @@
 		var b = a.getAttribute("href").split("#doc:")[1]
 		var obj = eval(b)
 		obj = obj.toString().replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\t/g,"  ")
+		obj = prettyPrintOne("<pre class='prettyprint'>"+obj+"</pre>")
 		// create the shadow
 		var shadow = $("<div class='shadow'>&nbsp;</div>")
 			.css("position", "absolute")
@@ -61,7 +90,7 @@
 			.css("background-color", "rgba(0,0,0,0.35)")
 			.css("z-index", "9000");
 		// create and show the doc overlay
-		var d = $("<div class='doc'><pre>"+obj+"</pre></div>")
+		var d = $("<div class='doc'>"+obj+"</div>")
 			.css("position","absolute")
 			.css("display", "block")
 			.css("padding", "0")
@@ -71,13 +100,17 @@
 			.css("z-index", "9001")
 			.bind('click', function() { shadow.remove(); $(this).unbind('click').remove() })
 			.appendTo("body")
-		d.find("pre").css("margin", "0px").css('border','1px solid grey').css('-webkit-border-radius','6px')
+		d.find("pre")
+			.css("margin", "0px")
+			.css('border','1px solid navy')
+			.css('background','#f3f3f3')
+			.css('-webkit-border-radius','6px')
 		// size and position the shadow
 		shadow
 			.css("height", d.height().first())
 			.css("width", d.width().first())
-			.css("top", d.css("top").floats().first() + 6 + "px")
-			.css("left", d.css("left").floats().first() + 4 + "px")
+			.css("top", d.css("top").floats().first() + 8 + "px")
+			.css("left", d.css("left").floats().first() + 6 + "px")
 			.css("-webkit-border-radius", "6px")
 			.appendTo("body");
 	}
@@ -86,12 +119,15 @@
 <h1><a name="top">BlingJS</a><h1>
 <h2>A jQuery-like JavaScript framework.</h2>
 <sub>(only for WebKit)</sub>
+
 <p>BlingJS is named after the bling operator ($) to which it is bound by default.  ex.
 <pre>
 $("body").append('&lt;div&gt;');
 </pre>
+
 <h3>Download</h3>
 <p>Get the <a href="bling.js">latest BlingJS.</a> (<a href="min.bling.js">minified</a>).
+
 <h3>Documentation</h3>
 <p><i>A Bling</i> is an ordered set of items of any type.  This set defines functional operations to collect and manipulate the members.
 <p>A Bling is a container, so you create them by wrapping up other items or sets:
@@ -100,15 +136,65 @@ $("button") // css expressions
 $("&lt;button&gt;") // or html
 $([1, "foo", {a: 'b'}]) // or junk
 </pre>
-<p>Then you can use functional primitives like: <a href='#doc:Bling.prototype.each'>each</a>, <a href="#doc:Bling.prototype.map">map</a>, <a href="#doc:Bling.prototype.reduce">reduce</a>, <a href="#doc:Bling.prototype.filter">filter</a>, <a href="#doc:Bling.prototype.distinct">distinct</a>, <a href="#doc:Bling.prototype.skip">skip</a>, <a href="#doc:Bling.prototype.take">take</a>, etc. to manipulate this list.
-<p>For a full list, see the <a href="docs.html">Documentation</a>.
-<p>During all of the functional operations, the context (the 'this' value) is set to the item being iterated.
+<p>During all set-like operations, the context (the 'this' value) is equal to the item being iterated.
+<h5>Operations defined on sets of anything:</h5>
+<ol>
+
+<li><span>each</span>&nbsp;&mdash;&nbsp;<a href='#doc:Bling.prototype.each'>details&#187;</a> 
+	<pre>
+	// hide all buttons (manually)
+	$("button").each(function(){
+		this.style.display = "none"
+	}) </pre>
+</li>
+<li><span>map</span>&nbsp;&mdash;&nbsp;<a href="#doc:Bling.prototype.map">details&#187;</a>
+	<pre>
+	// get a list of hrefs
+	$("a").map(function() {
+		return this.getAttribute("href");
+	}) </pre>
+</li>
+<li><span>reduce</span>&nbsp;&mdash;&nbsp;<a href="#doc:Bling.prototype.reduce">details&#187;</a>
+	<pre>
+	// compute the sum
+	$([1, 2, 3, 4]).reduce(function(a) { 
+		return a + this; 
+	}) </pre>
+</li>
+<li><span>filter</span>&nbsp;&mdash;&nbsp;<a href="#doc:Bling.prototype.filter">details&#187;</a>
+	<pre>
+	// return only elements that pass a test
+	$([-1, 0, 1]).filter(function() {
+		return this > 0;
+	}) </pre>
+</li>
+<li><span>distinct</span>&nbsp;&mdash;&nbsp;<a href="#doc:Bling.prototype.distinct">details&#187;</a>
+	<pre>
+	// reduce the set to only unique elements
+	$([1,2,3,1,5,1]).distinct() </pre>
+</li>
+<li><span>take</span>&nbsp;&mdash;&nbsp;<a href="#doc:Bling.prototype.take">details&#187;</a>
+	<pre>
+	// take the first n elements
+	$([0,1,2,-1,-1]).take(3) </pre>
+</li>
+<li><span>skip</span>&nbsp;&mdash;&nbsp;<a href="#doc:Bling.prototype.skip">details&#187;</a>
 <pre>
-$("button").each(function(){
-	alert(this.nodeName);
-})
+// skip the first n, return the rest
+$([-1,-1,0,1,2]).skip(2)
 </pre>
-<p>This would alert once for every button on the page.  Notice that the <i>this</i> value is the raw Node, not a Bling.
+</li>
+<li><span>zip</span>&nbsp;&mdash;&nbsp;<a href="#doc:Bling.prototype.zip">details&#187;</a></li>
+<li><span>zap</span>&nbsp;&mdash;&nbsp;<a href="#doc:Bling.prototype.zap">details&#187;</a></li>
+<li><span>last</span>&nbsp;&mdash;&nbsp;<a href="#doc:Bling.prototype.last">details&#187;</a></li>
+<li><span>first</span>&nbsp;&mdash;&nbsp;<a href="#doc:Bling.prototype.first">details&#187;</a></li>
+<li><span>join</span>&nbsp;&mdash;&nbsp;<a href="#doc:Bling.prototype.join">details&#187;</a></li>
+<li><span>slice</span>&nbsp;&mdash;&nbsp;<a href="#doc:Bling.prototype.slice">details&#187;</a></li>
+<li><span>concat</span>&nbsp;&mdash;&nbsp;<a href="#doc:Bling.prototype.concat">details&#187;</a></li>
+<li><span>weave</span>&nbsp;&mdash;&nbsp;<a href="#doc:Bling.prototype.weave">details&#187;</a></li>
+<li><span>fold</span>&nbsp;&mdash;&nbsp;<a href="#doc:Bling.prototype.fold">details&#187;</a></li>
+<li><span>future</span>&nbsp;&mdash;&nbsp;<a href="#doc:Bling.prototype.future">details&#187;</a></li>
+</ol>
 
 <p>My favorites are <a href="#doc:Bling.prototype.zip">zip</a> and <a href="#doc:Bling.prototype.zap">zap</a>. 
 <p>The <a href="#doc:Bling.prototype.zip">.zip</a>(property) method will extract a list of the values of a certain property.  This is why <a href="#doc:Bling.prototype.parent">.parent</a>() is defined as simply as <a href="#doc:Bling.prototype.zip">.zip</a>('parentNode'), meaning, return a list of all the .parentNode properties of the items in the current set.

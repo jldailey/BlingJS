@@ -229,9 +229,6 @@ Bling.__doc__ = function(node, rowfunc) {
 	html += "</ul><script>$('ul.api li').click($.prototype.toggle)</script>"
 }
 
-
-
-
 // the privatescope variable is never set to a value
 // but an inner function like this will not be evaluated
 // if its results dont go anywhere
@@ -240,8 +237,6 @@ Bling.privatescope = (function () {
 	/// Core Module ///
 	// jquery-complete
 	// TODO: .zap(k,v) should accept v as a list, one value for each node to be set
-	// .add()
-	// .detach()
 
 	// a TimeoutQueue is used by the core to preserve the proper order
 	// of setTimeout handlers scheduled by .future()
@@ -287,6 +282,7 @@ Bling.privatescope = (function () {
 	}
 
 	Bling.addGlobals({
+		// TODO: make private, only public for debugging temporarily
 		timeoutQueue: new TimeoutQueue(),
 		// .dumpText() produces a human readable plain-text view of an object
 		dumpText: function dumpText(obj, indent, visited) {
@@ -545,7 +541,6 @@ Bling.privatescope = (function () {
 	})
 
 	/// HTML/DOM Manipulation Module ///
-	// TODO: .empty()
 
 	// these static DOM helpers are used inside some the the html methods
 	var _before = function(a,b) { if( a && b ) a.parentNode.insertBefore(b, a) }
@@ -709,7 +704,9 @@ Bling.privatescope = (function () {
 		// .addClass(x) removes and then adds class x to each node in the set
 		addClass: function addClass(x) {
 			return this.removeClass(x).each(function() {
-				this.className = this.className.split(" ").push(x).join(" ")
+				var c = this.className.split(" ").filter(function(y){return y && y != ""})
+				c.push(x)
+				this.className = c.join(" ")
 			})
 		},
 
@@ -1116,20 +1113,20 @@ Bling.privatescope = (function () {
 
 		show: function show(callback) {
 			return this.each(function() {
-				this.style.display = this._display ? this._display : "";
+				this.style.display = this._display ? this._display : "block";
 				this._display = undefined;
 			}).future(50, callback)
 		},
 
 		toggle: function toggle(callback) {
 			return this.each(function() {
-				var d = this.style.display
+				var d = $(this).css("display").first()
 				if( d == "none" ) {
 					if( this._display != undefined ) {
 						this.style.display = this._display
 						this._display = undefined
 					} else {
-						this.style.display = ""
+						this.style.display = "block"
 					}
 				} else {
 					this._display = d;

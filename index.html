@@ -32,9 +32,6 @@
 				background-color:#ffc;
 				width:300px;
 			}
-			div.doc pre {
-				font-size:0.8em;
-			}
 			div pre {
 				min-width:320px;
 				width: auto;
@@ -58,6 +55,36 @@
 			ol.apilist li > a span {
 				font-size:1.2em;
 				margin-right:.2em;
+			}
+
+			div.doc {
+				position: absolute;
+				display: block;
+				padding: 0;
+				margin: 0;
+				z-index: 9001;
+				left: 0px;
+			}
+			div.doc pre {
+				font-size:0.8em;
+				margin: 0px;
+				border: 1px solid navy;
+				background: #f0f0f0;
+				-webkit-border-radius: 6px;
+			}
+			div.shadow {
+				position: absolute;
+				display: block;
+				background-color: rgba(0,0,0,0.35);
+				z-index: 9000;
+			}
+			div.shadow span {
+				display:block;
+				width: 200px;
+				margin-left:auto;
+				margin-right:auto;
+				color:white;
+				font-size:28px;
 			}
 		</style>
 	</head>
@@ -93,39 +120,23 @@
 			// create and show the doc overlay
 			d = $("<div class='doc'></div>")
 				.html(obj)
-				.css("position","absolute")
-				.css("display", "block")
-				.css("padding", "0")
-				.css("margin", "0")
 				.css("top", e.pageY + 4 + "px")
-				.css("left", "0px")
-				.css("z-index", "9001")
 				.bind('click', function() { d.shadow.remove(); $(this).unbind('click').remove() })
 				.appendTo("body")
-			// size and position the code block
-			d.find("pre")
-				.css("margin", "0px")
-				.css('border','1px solid navy')
-				.css('background','#f0f0f0')
-				.css('-webkit-border-radius','6px')
 			// size and position the shadow
 			d.shadow = $("<div class='shadow'>&nbsp;</div>")
-				.css("position", "absolute")
-				.css("display", "block")
-				.css("background-color", "rgba(0,0,0,0.35)")
-				.css("z-index", "9000")
 				.css("height", d.height().first())
+				.css("line-height", d.height().first())
 				.css("width", d.width().first())
 				.css("top", d.css("top").floats().first() + 8 + "px")
 				.css("left", d.css("left").floats().first() + 6 + "px")
 				.css("-webkit-border-radius", "6px")
-				.appendTo("body")
+				.html("<span>Loading...</span>")
 
 			a.__doc__ = d
-		} else {
-			a.__doc__.appendTo("body").transform({scale:1.5},"fast",function(){this.transform({scale:1.0},"fast")})
-			a.__doc__.shadow.appendTo("body")
 		}
+		a.__doc__.shadow.appendTo("body")
+		a.__doc__.appendTo("body").transform({scale:20.0,opacity:0.5},0,function(){this.transform({scale:1.0,opacity:1.0},"fast")})
 
 	}
 

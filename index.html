@@ -115,7 +115,7 @@
 			var obj = eval(b)
 			obj = obj.toString().replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\t/g,"  ")
 			obj = prettyPrintOne("<pre class='prettyprint'>"+obj+"</pre>")
-			obj = obj + "<pre class='prettyprint'>" + $(a.parentNode).find("pre").text() + "</pre>"
+			obj += prettyPrintOne("<pre class='prettyprint'>" + $(a.parentNode).find("pre").text().first() + "</pre>")
 			// create the shadow
 			// create and show the doc overlay
 			d = $("<div class='doc'></div>")
@@ -136,7 +136,7 @@
 			a.__doc__ = d
 		}
 		a.__doc__.shadow.appendTo("body")
-		a.__doc__.appendTo("body").transform({scale:20.0,opacity:0.5},0,function(){this.transform({scale:1.0,opacity:1.0},"fast")})
+		a.__doc__.appendTo("body").transform({scale:0.0,opacity:0},0,function(){this.transform({scale:1.0,opacity:1.0},"fast")})
 
 	}
 

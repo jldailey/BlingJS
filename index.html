@@ -307,31 +307,169 @@ $([1, "foo", {a: 'b'}]) // or junk </pre>
 </li>
 </ol>
 <span class='footnote'><span class='adv'>*</span> For advanced users: these are rarely needed by mortals.</span>
+<div class='discussion'>
+	<p>My favorite part of the Core Module is the pair of functions: <a href="#doc:Bling.prototype.zip">.zip(p)</a> and <a href="#doc:Bling.prototype.zap">.zap(p,v)</a>. 
 
-<p>My favorite part of the Core Module is the pair of functions: <a href="#doc:Bling.prototype.zip">.zip(p)</a> and <a href="#doc:Bling.prototype.zap">.zap(p,v)</a>. 
+	<p>The <a href="#doc:Bling.prototype.zip">.zip(p)</a> method will extract a list of the values of a certain property.  
+	This is why later in the HTML Module, you will see <a href="#doc:Bling.prototype.parent">.parent()</a> 
+	defined simply as <a href="#doc:Bling.prototype.zip">.zip</a>('parentNode'), meaning, 
+	return a list of all the values of parentNode in <i>this</i>.
 
-<p>The <a href="#doc:Bling.prototype.zip">.zip(p)</a> method will extract a list of the values of a certain property.  
-This is why later in the HTML Module, you will see <a href="#doc:Bling.prototype.parent">.parent()</a> 
-defined simply as <a href="#doc:Bling.prototype.zip">.zip</a>('parentNode'), meaning, 
-return a list of all the values of parentNode in <i>this</i>.
+	<p>To illustrate, we get a parent three equivalent ways:
+	<pre>
+	$("button").parent().first()
+	$("button").zip('parentNode').first()
+	$("button").first().parentNode </pre>
+	<p>The <a href="#doc:Bling.prototype.zip">.zip(p)</a> method is different from <a href="#doc:Bling.prototype.attr">.attr(n)</a> in the HTML Module, which uses get/setAttribute, and only applies to DOM Nodes, not general objects.
+	<p><a href="#doc:Bling.prototype.zip">.zip(p)</a> also gives you some extra help if <b>x</b>.<b>p</b> results in a function, by automatically binding that function to it's original context.
+	<p>For example, if you wanted to call the same function on every item:
+	<pre>
+	var x = $("input").first()
+	$("input").zip('isSameNode').call( x ) </pre>
+	<p>This will return a Bling{[true, false ...]} with only one true and the rest false. The <a href="#doc:Bling.prototype.zip">.zip('isSameNode')</a> results in a set of bound functions, 
 
-<p>To illustrate, we get a parent three equivalent ways:
-<pre>
-$("button").parent().first()
-$("button").zip('parentNode').first()
-$("button").first().parentNode </pre>
-<p>The <a href="#doc:Bling.prototype.zip">.zip(p)</a> method is different from <a href="#doc:Bling.prototype.attr">.attr(n)</a> in the HTML Module, which uses get/setAttribute, and only applies to DOM Nodes, not general objects.
-<p><a href="#doc:Bling.prototype.zip">.zip(p)</a> also gives you some extra help if <b>x</b>.<b>p</b> results in a function, by automatically binding that function to it's original context.
-<p>For example, if you wanted to call the same function on every item:
-<pre>
-var x = $("input").first()
-$("input").zip('isSameNode').call( x ) </pre>
-<p>This will return a Bling{[true, false ...]} with only one true and the rest false. The <a href="#doc:Bling.prototype.zip">.zip('isSameNode')</a> results in a set of bound functions, 
+	<p>The <a href="#doc:Bling.prototype.zap">.zap(p,v)</a> method sets the value of the property <b>p</b> to <b>v</b>, returning the original set of nodes.
+	<pre>
+	// hide all buttons
+	$("button").zap("style.display","none") </pre>
+</div>
 
-<p>The <a href="#doc:Bling.prototype.zap">.zap(p,v)</a> method sets the value of the property <b>p</b> to <b>v</b>, returning the original set of nodes.
-<pre>
-// hide all buttons
-$("button").zap("style.display","none") </pre>
+<h4>Html Module:</h4>
+<ol class="apilist">
+<li><a href="#doc:Bling.prototype.html"><span>.html([h])</span></a>&nbsp;&mdash;&nbsp;collect [or set] the values of <b>x</b>.innerHTML [= <b>h</b>]
+	<pre>
+		$("#target").html("<p>Hello</p>");
+		$("#target").html() == "<p>Hello</p>";
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.append"><span>.append(b)</span></a>&nbsp;&mdash;&nbsp;insert each <b>b</b> as the <u>last</u> child of each of <i>this</i>
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.appendTo"><span>.appendTo(b)</span></a>&nbsp;&mdash;&nbsp;insert each of <i>this</i> as the <u>last</u> child of each <b>b</b>
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.prepend"><span>.prepend(b)</span></a>&nbsp;&mdash;&nbsp;insert each <b>b</b> as the <u>first</u> child of each of <i>this</i>
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.prependTo"><span>.prependTo(b)</span></a>&nbsp;&mdash;&nbsp;insert each of <i>this</i> as the <u>first</u> child of each <b>b</b>
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.before"><span>.before(b)</span></a>&nbsp;&mdash;&nbsp;all nodes in <b>b</b> are inserted before each of <i>this</i>
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.after"><span>.after(b)</span></a>&nbsp;&mdash;&nbsp;all nodes in <b>b</b> are inserted after each of <i>this</i>
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.wrap"><span>.wrap(b)</span></a>&nbsp;&mdash;&nbsp;<b>b</b> becomes the new parent of each of <i>this</i>
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.unwrap"><span>.unwrap()</span></a>&nbsp;&mdash;&nbsp;each <b>x</b> in <i>this</i> replaces its parentNode
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.attr"><span>.attr(n,[v])</span></a>&nbsp;&mdash;&nbsp;collect [or set] with get/setAttribute(<b>n</b>,[<b>v</b>])
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.addClass"><span>.addClass(c)</span></a>&nbsp;&mdash;&nbsp;each of <i>this</i> has <b>c</b> added to it's className
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.removeClass"><span>.removeClass(c)</span></a>&nbsp;&mdash;&nbsp;remove <b>c</b> from <b>x</b>.className for <b>x</b> in <i>this</i>
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.toggleClass"><span>.toggleClass(c)</span></a>&nbsp;&mdash;&nbsp;add/remove class <b>c</b> from each of <i>this</i>
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.hasClass"><span>.hasClass(c)</span></a>&nbsp;&mdash;&nbsp;collect true if <b>x</b>.className contains <b>c</b>, or false
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.text"><span>.text([t])</span></a>&nbsp;&mdash;&nbsp;collect [or set] the value of <b>x</b>.innerText [= <b>t</b>]
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.val"><span>.val([v])</span></a>&nbsp;&mdash;&nbsp;collect [or set] the value of <b>x</b>.value [= <b>v</b>]
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.css"><span>.css(k,[v])</span></a>&nbsp;&mdash;&nbsp;collect computed [or set element] styles
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.width"><span>.width()</span></a>&nbsp;&mdash;&nbsp;collect the computed widths
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.height"><span>.height()</span></a>&nbsp;&mdash;&nbsp;collect the computed heights
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.rgb"><span>.rgb()</span></a>&nbsp;&mdash;&nbsp;convert a color value to a css string (see rgb global)
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.child"><span>.child(n)</span></a>&nbsp;&mdash;&nbsp;collect childNodes[<b>n</b>] from each of <i>this</i>
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.children"><span>.children()</span></a>&nbsp;&mdash;&nbsp;collect <u>all</u> childNodes from each of <i>this</i>
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.parent"><span>.parent()</span></a>&nbsp;&mdash;&nbsp;collect parentNode from each of <i>this</i>
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.parents"><span>.parents()</span></a>&nbsp;&mdash;&nbsp;collect a full ancestry from each of <i>this</i>
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.remove"><span>.remove()</span></a>&nbsp;&mdash;&nbsp;detach each node in <i>this</i> from it's parent
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.find"><span>.find(e)</span></a>&nbsp;&mdash;&nbsp;collect all nodes matching css expression e
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.clone"><span>.clone()</span></a>&nbsp;&mdash;&nbsp;collect a copy of each node in this (w/o events)
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.toFragment"><span>.toFragment()</span></a><span class='adv'>*</span>&nbsp;&mdash;&nbsp;convert <i>this</i> to a Node (or Fragment)
+	<pre>
+	</pre>
+</li>
+</ol>
+<span class='footnote'><span class='adv'>*</span> For advanced users: these are rarely needed by mortals.</span>
+<p>Globals:
+<ol class="apilist">
+<li><a href="#doc:Bling.rgb"><span>$.rgb(s)</span></a>&nbsp;&mdash;&nbsp;parses any CSS color strnig <b>s</b> to a color value (see .rgb())
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.HTML.parse"><span>$.HTML.parse(s)</span></a>&nbsp;&mdash;&nbsp;parse any HTML string <b>s</b> into a Node or Fragment
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.HTML.stringify"><span>$.HTML.stringify(n)</span></a>&nbsp;&mdash;&nbsp;reduce any Node <b>n</b> to a string of HTML
+	<pre>
+	</pre>
+</li>
+</ol>
+
+	
+
 
 <h3>Extending the API</h3>
 <p>Extending the Bling API is very easy: you use two methods addGlobals, and addMethods.

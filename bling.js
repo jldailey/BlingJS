@@ -479,10 +479,10 @@ Bling.privatescope = (function () {
 			// so that unequal length arguments will not create 'undefined' items
 			return b;
 		},
-		// .fold() will always return a set with half as many items
-		// often used as a companion to weave: weave two lists together,
-		// then fold them to a list the original size
 		fold: function fold(f) {
+			// .fold() will always return a set with half as many items
+			// used as a companion to weave: weave two lists together,
+			// then fold them to a list the original size
 			var nn = this.length;
 			if( nn < 2 ) return this;
 			var n = new Bling(nn/2)

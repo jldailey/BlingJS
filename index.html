@@ -48,12 +48,12 @@
 				display: none; 
 				margin-left: -25px;
 			}
-			ol.apilist li > a {
+			ol.apilist li > a, a[href^='#doc:Bling'] {
+				font-size:1.2em;
 				text-decoration:none;
 				color:black;
 			}
 			ol.apilist li > a span {
-				font-size:1.2em;
 				margin-right:.2em;
 			}
 
@@ -86,6 +86,13 @@
 				color:white;
 				font-size:28px;
 			}
+
+			span.adv {
+				color:blue;
+			}
+			span.footnote {
+				font-size:0.7em;
+			}
 		</style>
 	</head>
 <body>
@@ -115,7 +122,9 @@
 			var obj = eval(b)
 			obj = obj.toString().replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\t/g,"  ")
 			obj = prettyPrintOne("<pre class='prettyprint'>"+obj+"</pre>")
-			obj += prettyPrintOne("<pre class='prettyprint'>" + $(a.parentNode).find("pre").text().first() + "</pre>")
+			var ex = $(a.parentNode).find("pre")
+			if( ex.length > 0 )
+				obj += prettyPrintOne("<pre class='prettyprint'>" + ex.text().first() + "</pre>")
 			// create the shadow
 			// create and show the doc overlay
 			d = $("<div class='doc'></div>")
@@ -124,20 +133,24 @@
 				.bind('click', function() { d.shadow.remove(); $(this).unbind('click').remove() })
 				.appendTo("body")
 			// size and position the shadow
+			var h = d.height().first()
+			var w = d.width().first()
 			d.shadow = $("<div class='shadow'>&nbsp;</div>")
-				.css("height", d.height().first())
-				.css("line-height", d.height().first())
-				.css("width", d.width().first())
-				.css("top", d.css("top").floats().first() + 8 + "px")
+				.css("height", h)
+				.css("line-height", h)
+				.css("width", w)
+				.css("top", d.css("top").floats().first() + 6 + "px")
 				.css("left", d.css("left").floats().first() + 6 + "px")
 				.css("-webkit-border-radius", "6px")
-				.html("<span>Loading...</span>")
 
 			a.__doc__ = d
 		}
-		a.__doc__.shadow.appendTo("body")
-		a.__doc__.appendTo("body").transform({scale:0.0,opacity:0},0,function(){this.transform({scale:1.0,opacity:1.0},"fast")})
-
+		a.__doc__.shadow.appendTo("body").html("<span>Loading...</span>")
+		a.__doc__.appendTo("body")
+			.transform({scale:0.0,opacity:0},0,function(){
+				this.transform({scale:1.0,opacity:1.0},"fast")
+				a.__doc__.shadow.html("")
+			})
 	}
 
 </script>
@@ -159,8 +172,7 @@ $("button") // css expressions
 $("&lt;button&gt;") // or html
 $([1, "foo", {a: 'b'}]) // or junk </pre>
 <p>During all set-like operations, the context (the 'this' value) is equal to the item being iterated.
-<h5>Operations defined on sets of anything:</h5>
-<p>Core Module:
+<h4>Core Module:</h4>
 <ol class='apilist'>
 <li><a href='#doc:Bling.prototype.each'><span>.each(f)</span></a>&nbsp;&mdash;&nbsp;applies <b>f</b> to every <b>x</b> in <i>this</i>
 	<pre>
@@ -246,22 +258,19 @@ $([1, "foo", {a: 'b'}]) // or junk </pre>
 	// puts all items from b into this
 	$("input").concat($("select")) </pre>
 </li>
-<li><a href="#doc:Bling.prototype.weave"><span>.weave(b)</span></a>&nbsp;&mdash;&nbsp;interleave the items of <i>this</i> and the items of <b>b</b>.
+<li><a href="#doc:Bling.prototype.call"><span>.call(...)</span></a>&nbsp;&mdash;&nbsp;call every <b>x</b> in <i>this</i>, with the <b>...</b> arguments.
 	<pre>
-	// interleaves the items from this bling 
-	// with the items from any other list
-	$(["foo=","bar="]).weave($("input").val())
-		== ["foo=","value1","bar=","value2"] 
-	$([1,1,1]).weave($([2,3,4]))
-	 == [1,2,1,3,1,4] </pre>
+	// select a test node to use as argument
+	var n = $("input").first()
+	// select a group of functions
+	$("input").zip("isSameNode")
+		// and call each one
+		.call(n); 
+	// returns [true, false ... ] </pre>
 </li>
-<li><a href="#doc:Bling.prototype.fold"><span>.fold(f)</span></a>&nbsp;&mdash;&nbsp;use <b>f</b> to reduce this to half as many values.
+<li><a href="#doc:Bling.prototype.apply"><span>.apply(c, a)</span></a><span class='adv'>*</span>&nbsp;&mdash;&nbsp;apply all <b>x</b> in <i>this</i> to context <b>c</b>, with args <b>a</b>.
 	<pre>
-	// fold is like reduce only it iterates two items at a time
-	// always returning a list about half the length of the input
-	$([1,1,1]).weave([2,3,4]).fold(function(x) { return this + x })
-		== $([3,4,5])
-	// for a non-trival example see the source of .css() </pre>
+	// no example yet, see: .call() example </pre>
 </li>
 <li><a href="#doc:Bling.prototype.future"><span>.future(n,f)</span></a>&nbsp;&mdash;&nbsp;apply <b>f</b> to <i>this</i>, approx. <b>n</b> ms in the future.
 	<pre>
@@ -274,28 +283,50 @@ $([1, "foo", {a: 'b'}]) // or junk </pre>
 		// back in the past
 		.zap('value','hamburger') </pre>
 </li>
+<li><a href="#doc:Bling.prototype.weave"><span>.weave(b)</span></a><span class='adv'>*</span>&nbsp;&mdash;&nbsp;interleave the items of <i>this</i> and the items of <b>b</b>.
+	<pre>
+	// interleaves the items from this bling 
+	// with the items from any other list
+	$(["foo=","bar="]).weave($("input").val())
+		== ["foo=","value1","bar=","value2"] 
+	$([1,1,1]).weave($([2,3,4]))
+	 == [1,2,1,3,1,4] </pre>
+</li>
+<li><a href="#doc:Bling.prototype.fold"><span>.fold(f)</span></a><span class='adv'>*</span>&nbsp;&mdash;&nbsp;use <b>f</b> to reduce this to half as many values.
+	<pre>
+	// fold is like reduce only it iterates two items at a time
+	// always returning a list about half the length of the input
+	$([1,1,1]).weave([2,3,4]).fold(function(x) { return this + x })
+		== $([3,4,5])
+	// for a non-trival example see the source of .css() </pre>
+</li>
 </ol>
+<span class='footnote'><span class='adv'>*</span> For advanced users: these are rarely needed by mortals.</span>
 
-<p>My favorites are <a href="#doc:Bling.prototype.zip">zip</a> and <a href="#doc:Bling.prototype.zap">zap</a>. 
-<p>The <a href="#doc:Bling.prototype.zip">.zip</a>(property) method will extract a list of the values of a certain property.  This is why <a href="#doc:Bling.prototype.parent">.parent</a>() is defined as simply as <a href="#doc:Bling.prototype.zip">.zip</a>('parentNode'), meaning, return a list of all the .parentNode properties of the items in the current set.
-<p>The following are all equivalent:
+<p>My favorite part of the Core Module is the pair of functions: <a href="#doc:Bling.prototype.zip">.zip(p)</a> and <a href="#doc:Bling.prototype.zap">.zap(p,v)</a>. 
+
+<p>The <a href="#doc:Bling.prototype.zip">.zip(p)</a> method will extract a list of the values of a certain property.  
+This is why later in the HTML Module, you will see <a href="#doc:Bling.prototype.parent">.parent()</a> 
+defined simply as <a href="#doc:Bling.prototype.zip">.zip</a>('parentNode'), meaning, 
+return a list of all the values of parentNode in <i>this</i>.
+
+<p>To illustrate, we get a parent three equivalent ways:
 <pre>
 $("button").parent().first()
 $("button").zip('parentNode').first()
 $("button").first().parentNode </pre>
-<p>The <a href="#doc:Bling.prototype.zip">.zip</a>() method is different from <a href="#doc:Bling.prototype.attr">.attr</a>(name), which uses get/setAttribute functions, and applies only to the Node attributes, not general object properties.
-<p><a href="#doc:Bling.prototype.zip">.zip</a>() also gives you some extra help if you zip up a set of function members of an object, by automatically binding that function to it's original host.
-<p>For example, if you wanted to call the same function on each of a set of items:
+<p>The <a href="#doc:Bling.prototype.zip">.zip(p)</a> method is different from <a href="#doc:Bling.prototype.attr">.attr(n)</a> in the HTML Module, which uses get/setAttribute, and only applies to DOM Nodes, not general objects.
+<p><a href="#doc:Bling.prototype.zip">.zip(p)</a> also gives you some extra help if <b>x</b>.<b>p</b> results in a function, by automatically binding that function to it's original context.
+<p>For example, if you wanted to call the same function on every item:
 <pre>
 var x = $("input").first()
 $("input").zip('isSameNode').call( x ) </pre>
-<p>This will return a Bling{[true, false, false, ... false for every input except the first]}.
+<p>This will return a Bling{[true, false ...]} with only one true and the rest false. The <a href="#doc:Bling.prototype.zip">.zip('isSameNode')</a> results in a set of bound functions, 
 
-<p>The <a href="#doc:Bling.prototype.zap">.zap</a>() method is similar to <a href="#doc:Bling.prototype.zip">.zip</a>() except that it sets the value of the property, returning the original set of nodes.
+<p>The <a href="#doc:Bling.prototype.zap">.zap(p,v)</a> method sets the value of the property <b>p</b> to <b>v</b>, returning the original set of nodes.
 <pre>
+// hide all buttons
 $("button").zap("style.display","none") </pre>
-<p class='caption'>This example would hide all buttons on the page.</p>
-<p>For the full API, see the <a href="docs.html">Documentation</a>.
 
 <h3>Extending the API</h3>
 <p>Extending the Bling API is very easy: you use two methods addGlobals, and addMethods.

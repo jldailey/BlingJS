@@ -37,10 +37,6 @@
 				width:300px;
 				margin:0px 0px 0px 10px;
 			}
-			div pre {
-				min-width:320px;
-				width: auto;
-			}
 			ol.apilist {
 				padding:0px 2em;
 			}
@@ -98,6 +94,33 @@
 			span.footnote {
 				font-size:0.7em;
 			}
+
+			div.dialog {
+				padding:10px;
+				min-width:200px;
+				max-width:320px;
+				min-height:60px;
+				margin-left:auto;
+				margin-right:auto;
+				background-color: rgba(175,175,175,0.9);
+				border-radius: 5px;
+			}
+			div.dialog pre {
+				margin-left: auto;
+				margin-right: auto;
+			}
+			div.dialog .buttons {
+				width: 100%;
+				position:absolute;
+				bottom:1px;
+				border-top:1px solid #ab7b7b;
+			}
+			div.dialog .buttons button {
+				float:left;
+				margin: 4px 3px;
+			}
+
+
 		</style>
 	</head>
 <body>
@@ -467,7 +490,90 @@ $([1, "foo", {a: 'b'}]) // or junk </pre>
 	</pre>
 </li>
 </ol>
+<div class='discussion'>
+	<p>The HTML Module mirrors virtually all of jQuery's functionality for collecting and manipulating DOM Nodes,
+as well as adding in a couple tricks along the way.
+</div>
 
+
+<h4>Math Module</h4>
+<ol class="apilist">
+<li><a href="#doc:Bling.prototype.floats"><span>floats()</span></a>&nbsp;&mdash;&nbsp;convert each of this to a float value
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.ints"><span>ints()</span></a>&nbsp;&mdash;&nbsp;convert each of this to an int value
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.min"><span>min()</span></a>&nbsp;&mdash;&nbsp;collect the smallest x in this
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.max"><span>max()</span></a>&nbsp;&mdash;&nbsp;collect the largest x in this
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.average"><span>average()</span></a>&nbsp;&mdash;&nbsp;compute the average of all x in this
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.sum"><span>sum()</span></a>&nbsp;&mdash;&nbsp;compute the sum of all x in this
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.squares"><span>squares()</span></a>&nbsp;&mdash;&nbsp;compute x*x for all x in this
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.magnitude"><span>magnitude()</span></a>&nbsp;&mdash;&nbsp;compute the vector length of this
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.scale"><span>scale(r)</span></a>&nbsp;&mdash;&nbsp;scale each x in this to x * r
+	<pre>
+	</pre>
+</li>
+<li><a href="#doc:Bling.prototype.normalize"><span>normalize()</span></a>&nbsp;&mdash;&nbsp;scale each x in this, so that magnitude == 1.0
+	<pre>
+	</pre>
+</li>
+
+<div class='discussion'>If you are coming from the world of jQuery, these functions might seem useless.
+But you can often use them to accomplish interesting things quickly.  For instance, let's leverage the .rgb() functions from the HTML module.
+<pre class="prettyprint">
+$("input[type=submit]").css("background-color")
+	= $("input[type=submit]").css("background-color").rgb().scale(1.5).rgb()
+</pre>
+Or, let's show how to use the HTML Module's rgb() function, along with the Math Module's normalize(),
+to produce a real color palette for the current page.
+<pre class="prettyprint" id="palette">
+var palette = {}; // unique colors
+$("*").each(function() {
+	var k = $(this).css("background-color").first();
+	var v = $(this).css("color").first();
+	palette[k] = v;
+})
+var block = $("&lt;div class='palette'&gt;&amp;nbsp;&lt;div&gt;");
+for(var bg in palette) { 
+	block.append("&lt;div class='swatch'&gt;&amp;nbsp;&lt;/div&gt;")
+}
+block.dialog('open', function OK(){ this.hide() }, function Center(){ this.center() })
+</pre>
+<button id="palette-btn">Try It!</button>
+<script type="text/javascript">
+	$("#palette-btn").click(function(){
+		alert(unescape($("pre#palette").text()));
+	})
+</script>
+
+</ol>
+<h4>Events Module</h4>
+<ol class="apilist">
+</ol>
+<h4>Transform Module</h4>
+<ol class="apilist">
+</ol>
 
 <h3>Extending the API</h3>
 <p>Extending the Bling API is very easy: you use two methods addGlobals, and addMethods.

@@ -85,6 +85,7 @@ Function.NotUndefined = function notundefined(x) { return x != undefined }
 Function.NotNullOrUndefined = function notnullorundefined(x) { return x != undefined && x != null; }
 Function.IndexFound = function found(x) { return x > -1 }
 Function.HtmlEscape = function htmlescape(x) { return x.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\t/g,'&nbsp;&nbsp;') }
+Function.ReduceAnd = function(x) { return x && this; }
 
 
 /* Bling!, the constructor.
@@ -191,48 +192,43 @@ Bling.extend = function(a, b, c) {
 	return a
 }
 
-// define the basic modular mechanics: .addMethods and .addGlobals
-
-// .addMethods() is how you add Bling instance methods
-// ex. Bling.addMethods({nop:function(){ return this; })
-//     Bling.addMethods({etc:function(){ return "..." })
-//     new Bling("body").nop().find("div").etc() == "..."
-Bling.addMethods = function (methods) {
-	Bling.extend(Bling.prototype, methods)
-}
-// .addGlobals() is how a plugin provides new global functions
-// these are attached to the Bling namespace, and to the operator
-// ex. Bling.addGlobals({hello:function(){ return "hello"; })
-//     Bling.hello() == "hello"
-//     $.hello() == "hello"
-Bling.addGlobals = function (globals) {
-	if( globals ) {
-		Bling.extend(Bling, globals)
-	}
-}
-
-Bling.__doc_row__ = function(f) {
-	return "<li class='function'><code>"+f.toString()+"</code></li"
-}
-Bling.__doc__ = function(node, rowfunc) {
-	var objs = [Bling, Bling.prototype]
-	var html = "<ul class='api'>"
-	rowfunc = rowfunc || Bling.__doc_row__
-	for(var i = 0, n = objs.length; i < n; i++) {
-		var o = objs[i]
-		for(var j in o) {
-			if( j[0] != "_" && isFunc(o[j]) ) {
-				html += rowfunc(o[j])
-			}
+Bling.addMethods = function (/*arguments*/) {
+	// .addMethods() is a plugin provides Bling instance methods
+	// ex. Bling.addMethods({nop:function(){ return this; })
+	// ex. Bling.addMethods({etc:function(){ return "..." })
+	// ex. Bling.addMethods(function identity(){ return this })
+	//     new Bling("body").nop().identity().find("div").etc() == "..."
+	for(var i = 0, n = arguments.length; i < n; i++) {
+		var a = arguments[i];
+		if( isFunc(a) ) {
+			if( ! a.name ) throw new Error("cannot extend with an anonymous method");
+			Bling.prototype[a.name] = a
+		} else {
+			Bling.extend(Bling.prototype, a)
 		}
 	}
-	html += "</ul><script>$('ul.api li').click($.prototype.toggle)</script>"
 }
 
-// the privatescope variable is never set to a value
-// but an inner function like this will not be evaluated
-// if its results dont go anywhere
-Bling.privatescope = (function () {
+Bling.addGlobals = function (/*arguments*/) {
+	// .addGlobals() is how a plugin provides new global functions
+	// these are attached to the Bling namespace, and to the operator
+	// ex. Bling.addGlobals({hello:function(){ return "hello"; })
+	// ex. Bling.addGlobals(function hello_sir(){ return "hello, sir" })
+	//     Bling.hello() == "hello"
+	//     $.hello() == "hello"
+	//     $.hello_sir() == "hello, sir"
+	for(var i = 0, n = arguments.length; i < n; i++) {
+		var a = arguments[i];
+		if( isFunc(a) ) {
+			if( ! a.name ) throw new Error("cannot extend with an anonymous method");
+			Bling[a.name] = a
+		} else {
+			Bling.extend(Bling, a)
+		}
+	}
+}
+
+;(function () {
 
 	/// Core Module ///
 	// jquery-complete
@@ -252,14 +248,11 @@ Bling.privatescope = (function () {
 		this.queue = []
 		// private method next() consumes the next handler on the queue
 		this.next = function() {
-			// console.log("next")
 			// consume all 'due' handlers
-			// also, recompute the time everytime, because a handler might have spent a measurable amount
-			// console.log("firing", this.queue.map(function(x){return x.order % 10000}).join(", "))
-			if( this.queue.length > 0 /*&& this.queue[0].order <= new Date().getTime()*/ ) {
+			if( this.queue.length > 0 )
+				// shift and call
 				this.queue.shift()()
-			}
-		}.bound(this)
+		}.bound(this) // you cant fuck with next, it wont be re-bound!
 		// public method schedule(f, n) sets f to run after n or more milliseconds
 		this.schedule = function schedule(f, n) {
 			// console.log("begin schedule? ", isFunc(f) ? "yes" : "no")
@@ -378,20 +371,40 @@ Bling.privatescope = (function () {
 			return ret
 		},
 
-		zip: function zip(p) {
+		zip: function zip() {
 			// return a list of the values of property p from each node
-			if( !p ) return this
-			var i = p.indexOf(".")
 			// recursively split names like "foo.bar"
-			// zip("foo.bar") -> zip("foo").zip("bar")
-			return i > -1 ? this.zip(p.substr(0, i)).zip(p.substr(i+1))
-				: this.map(function() {
-					var v = this[p]
-					// when zipping functions, zip a bound version
-					return isFunc(v) ? v.bound(this)
-						// else, just zip the value
-						: v
-				});
+			// zip("foo.bar") == zip("foo").zip("bar")
+			function _zip(p) {
+				var i = p.indexOf(".")
+				return i > -1 ? this.zip(p.substr(0, i)).zip(p.substr(i+1))
+					: this.map(function() {
+						var v = this[p]
+						// when zipping functions, zip a bound version
+						return isFunc(v) ? v.bound(this)
+							// else, just zip the value
+							: v
+					})
+			}
+			if( arguments.length == 0 ) return this;
+			if( arguments.length == 1 ) return _zip.call(this, arguments[0])
+			// if more than one argument is passed, new objects
+			// with only those properties, will be returned
+			if( arguments.length > 1 ) {
+				var master = {}
+				var b = new Bling()
+				for(var i = 0, n = arguments.length; i < n; i++) {
+					if( master[i] == undefined ) master[i] = []
+					master[i] = _zip.call(this, arguments[i])
+				}
+				for(var i = 0, n = this.length; i < n; i++) {
+					var o = {}
+					for(var k in master)
+						o[k] = master[k].shift()
+					b.push(o)
+				}
+				return b
+			}
 		},
 
 		zap: function zap(p, v) { // zap("a.b") -> zip("a").zap("b")
@@ -546,19 +559,33 @@ Bling.privatescope = (function () {
 	Bling.addMethods({
 		floats: function floats() { 
 			// convert all x in this to floats
-			return this.map(parseFloat)
+			// or sets of floats
+			return this.map(function() {
+				if( isBling(this) ) return this.floats()
+				return parseFloat(this);
+			})
 		},
 		ints: function ints() {
 			// convert all x in this to ints
-			return this.map(parseInt) 
+			// or sets of ints
+			return this.map(function() {
+				if( isBling(this) ) return this.ints()
+				return parseInt(this);
+			})
 		},
 		min: function min() {
 			// select the smallest x in this
-			return this.reduce(Math.min)
+			return this.reduce(function(a) {
+				if( isBling(this) ) return this.min()
+				return Math.min(this,a)
+			})
 		},
 		max: function max() { 
 			// select the largest x in this
-			return this.reduce(Math.max) 
+			return this.reduce(function(a) {
+				if( isBling(this) ) return this.max()
+				return Math.max(this,a)
+			})
 		},
 		average: function average() { 
 			// compute the average of all x in this
@@ -566,29 +593,40 @@ Bling.privatescope = (function () {
 		},
 		sum: function sum() { 
 			// add all x in this
-			return this.reduce(function(x) { return x + this })
+			return this.reduce(function(a) { 
+				if( isBling(this) ) return a + this.sum()
+				return a + this 
+			})
 		},
-		squares:   function squares()  { 
+		squares: function squares()  { 
 			// square all x in this
-			return this.map(function() { return this * this })
+			return this.map(function() { 
+				if( isBling(this) ) return this.squares();
+				return this * this 
+			})
 		},
 		magnitude: function magnitude() { 
 			// compute the magnitude (the vector length) of this
-			return Math.sqrt(this.squares().sum()) 
+			return this.map(function() {
+				if( isBling(this) ) return this.magnitude();
+				return Math.sqrt(this.squares().sum()) 
+			})
 		},
 		scale: function scale(r) {
 			// scale all x in this by the factor r
-			return this.map(function() { return r * this })
+			return this.map(function() {
+				if( isBling(this) ) return this.scale(r);
+				return r * this 
+			})
 		},
 		normalize: function normalize() {
-			// scale this so that magnitude == 1.0
-			return this.scale(this.magnitude())
+			return this.scale(1/this.magnitude())
 		}
 	})
 
 	/// HTML/DOM Manipulation Module ///
 
-	// these static DOM helpers are used inside some the the html methods
+	// these static DOM helpers are used inside some of the html methods
 	var _before = function(a,b) { if( a && b ) a.parentNode.insertBefore(b, a) }
 	var _after = function(a,b) { a.parentNode.insertBefore(b, a.nextSibling) }
 	var toNode = function(x) {
@@ -643,17 +681,6 @@ Bling.privatescope = (function () {
 			}
 		},
 
-		rgb: function rgb(expr) {
-			// $.rgb() accepts a color in any css format
-			// returns a 3-item bling with the floating point rgb values
-			// or the empty-set if it doesn't parse as a css color
-			var d = document.createElement("div");
-			d.style.color = expr;
-			var rgb = d.style.getPropertyValue('color');
-			if( rgb )
-				return new Bling( rgb.slice(rgb.indexOf('(')+1, rgb.indexOf(')')) .split(", ")).floats()
-			return new Bling();
-		}
 	})
 
 	Bling.addMethods({
@@ -738,7 +765,7 @@ Bling.privatescope = (function () {
 						p.replaceChild(parent, marker)
 					}
 				}
-				return parent
+				return child
 			})
 		},
 
@@ -746,7 +773,7 @@ Bling.privatescope = (function () {
 			// replace the parent with the child
 			return this.each(function() {
 				if( this.parentNode && this.parentNode.parentNode )
-					this.parentNode.parentNode.replaceChild(this.parentNode, this)
+					this.parentNode.parentNode.replaceChild(this, this.parentNode)
 			})
 		},
 
@@ -823,11 +850,59 @@ Bling.privatescope = (function () {
 		width: function width() { return this.css('width') },
 		height: function height() { return this.css('height') },
 
-		// .rgb() returns a css color string...
-		rgb: function rgb() {
-			return this.length == 4 ? "rgba("+this.join(", ")+")"
-				: this.length == 3 ? "rgb("+this.join(", ")+")"
-				: undefined;
+		center: function center(mode) {
+			// move the elements to the center of the screen
+			mode = mode || "viewport"
+			var vh = document.body.clientHeight,
+				vw = document.body.clientWidth
+			return this.each(function() {
+				var t = $(this),
+					h = t.height().floats().first(),
+					w = t.width().floats().first(),
+					x = (mode == "viewport" || mode == "horizontal" 
+						? document.body.scrollLeft + (vw/2) - (w/2)
+						:  NaN)
+					y = (mode == "viewport" || mode == "vertical"
+						? document.body.scrollTop + (vh/2) - (h/2)
+						: NaN)
+				t.css("position", "absolute");
+				if( isNumber(x) )
+					t.css("left", x + "px")
+				if( isNumber(y) )
+					t.css("top", y + "px")
+			})
+		},
+
+		toColors: function toColors() {
+			// convert any css color strings to numbers
+			if( this.length == 0 ) return this;
+			return this.map(function() {
+				if( isString(this) ) {
+					var d = document.createElement("div");
+					d.style.color = expr;
+					var rgb = d.style.getPropertyValue('color');
+					if( rgb ) {
+						// grab between the parens
+						rgb = rgb.slice(rgb.indexOf('(')+1, rgb.indexOf(')'))
+							// make an array
+							.split(", ")
+						// return floats
+						return new Bling( rgb ).floats()
+					}
+				}
+			})
+		},
+
+		toRGBAs: function toRGBAs() {
+			// convert numbers to an rgb string
+			if( this.length == 0 ) return this;
+			return this.map(function() {
+				if( isArray(this) ) {
+					return this.length == 4 ? "rgba("+this.join(", ")+")"
+						: this.length == 3 ? "rgb("+this.join(", ")+")"
+						: undefined;
+				}
+			})
 		},
 
 		// .child(n) returns the nth childNode for all items in this
@@ -1339,6 +1414,67 @@ Bling.privatescope = (function () {
 		}
 
 	})
+
+	/// Dialog Module: pop any content up as an optionally modal dialog
+
+	function addButton(d, name, f) {
+		var b = d.find(".buttons")
+		if( b.length == 0 )
+			b = d.append("<div class='buttons'></div>").find(".buttons")
+
+		name = name || "undefined"
+		name = name.replace(/_/g, " ")
+
+		return $("<button>"+name+"</button>")
+			.bind('click', f.bound(d))
+			.appendTo(b)
+	}
+	function checkDialog(t) {
+		if( !t.isDialog ) { throw new Error("dialog expected") }
+	}
+
+	Bling.addMethods(
+		function dialog(/*cmd, buttons... */) {
+			var i = 0, n = arguments.length, cmd = 'create';
+			if( isString(arguments[0]) ) { 
+				cmd = arguments[0];
+				i++;
+			}
+
+			if( 'create' == cmd ) {
+				if( this.isDialog ) return this;
+				var d = $("<div class='dialog' style='display:none'/>")
+				d.isDialog = true
+				this.wrap(d)
+				// save this in case it moves later
+				d.contentNode = d[0].childNodes[0]
+				if( i == n )
+					addButton(d, "OK", function(){ this.hide() })
+				for(; i < n; i++) {
+					var a = arguments[i];
+					if( a == null || isString(a) ) { } // ignore
+					else if( isFunc(a) ) addButton(d, a.name, a) // add funcs by name
+					else // add object property funcs
+						for(var name in a)
+							if( isFunc(a[name]) )
+								addButton(d, name, a[name]);
+				}
+				if( d[0].parentNode == null )
+					d.appendTo("body")
+				// save its current position if it has one
+				var top = d.css("top").first(),
+					left = d.css("left").first()
+				// and float it above the same spot
+				return d.css("position","absolute")
+					.css("top",top).css("left",left)
+
+			} else if( 'destroy' == cmd ) {
+				checkDialog(this);
+				this.isDialog = false
+				return $(this.contentNode).unwrap()
+			}
+		}
+	)
 
 })()
 

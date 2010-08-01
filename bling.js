@@ -46,6 +46,8 @@ function isFunc(a)     { return typeof(a) == "function" || isType(a, Function) }
 function isNode(a)     { return a ? a.nodeType > 0 : false }
 function isFragment(a) { return a ? a.nodeType == 11 : false }
 function isArray(a)    { return Object.prototype.toString.apply(a) == "[object Array]" || isSubtype(a, Array) }
+function isObject(a)   { return typeof(a) == "object" }
+function hasValue(a)   { return a != undefined && a != null }
 
 /* Function Binding
  * ----------------
@@ -834,10 +836,17 @@ Bling.addGlobals = function (/*arguments*/) {
 				: this.zip('value')
 		},
 
-		// .css(k,v) gets/sets css properties for every node in the list
 		css: function css(k,v) {
-			if( v != undefined && v != null ) {
-				this.zip('style.setProperty').call(k,v) // if v is present set the value on each element
+			// get/set css properties for nodes in the list
+			// called with string k and undefd v -> return value of k
+			// called with string k and string v -> set property k = v
+			// called with object k and undefd v -> set css(x, k[x]) for x in k
+			if( hasValue(v) || isObject(k) ) {
+				var setter = this.zip('style.setProperty')
+				if( isString(k) )
+					setter.call(k, v) // if v is present set the value on each element
+				else for(var x in k)
+					setter.call(x, k[x])
 				return this
 			}
 			// collect the computed values
@@ -847,29 +856,32 @@ Bling.addGlobals = function (/*arguments*/) {
 			// weave and fold them so that object values override computed values
 			return ov.weave(cv).fold(function(x,y) { return x ? x : y })
 		},
-		width: function width() { return this.css('width') },
-		height: function height() { return this.css('height') },
+		width: function width() { 
+			return this.css('width')
+		},
+		height: function height() {
+			return this.css('height')
+		},
 
 		center: function center(mode) {
 			// move the elements to the center of the screen
 			mode = mode || "viewport"
-			var vh = document.body.clientHeight,
-				vw = document.body.clientWidth
+			var vh = document.body.clientHeight/2,
+				vw = document.body.clientWidth/2
 			return this.each(function() {
 				var t = $(this),
-					h = t.height().floats().first(),
-					w = t.width().floats().first(),
+					h = parseFloat(t.height().first()),
+					w = parseFloat(t.width().first()),
 					x = (mode == "viewport" || mode == "horizontal" 
-						? document.body.scrollLeft + (vw/2) - (w/2)
+						? document.body.scrollLeft + vw - (w/2)
 						:  NaN)
 					y = (mode == "viewport" || mode == "vertical"
-						? document.body.scrollTop + (vh/2) - (h/2)
+						? document.body.scrollTop + vh - (h/2)
 						: NaN)
-				t.css("position", "absolute");
-				if( isNumber(x) )
-					t.css("left", x + "px")
-				if( isNumber(y) )
-					t.css("top", y + "px")
+				t.css({ position: "absolute",
+					left: (isNumber(x) ? x+"px" : undefined),
+					top: (isNumber(y) ? y+"px" : undefined)
+				})
 			})
 		},
 

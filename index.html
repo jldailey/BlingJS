@@ -120,7 +120,6 @@
 				margin: 4px 3px;
 			}
 
-
 		</style>
 	</head>
 <body>
@@ -538,36 +537,50 @@ as well as adding in a couple tricks along the way.
 	<pre>
 	</pre>
 </li>
+</ol>
 
-<div class='discussion'>If you are coming from the world of jQuery, these functions might seem useless.
-But you can often use them to accomplish interesting things quickly.  For instance, let's leverage the .rgb() functions from the HTML module.
-<pre class="prettyprint">
-$("input[type=submit]").css("background-color")
-	= $("input[type=submit]").css("background-color").rgb().scale(1.5).rgb()
-</pre>
-Or, let's show how to use the HTML Module's rgb() function, along with the Math Module's normalize(),
-to produce a real color palette for the current page.
+<p class='disc'>If you are coming from the world of jQuery, these functions might seem useless.
+But you can often use them to accomplish interesting things with a little know-how.
+<p>For instance, here's how to use the rgb() method, to produce a real color palette for the current page.
+<p>Then we can use the Math Module to produce procedural variants of these colors.</p>
 <pre class="prettyprint" id="palette">
 var palette = {}; // unique colors
 $("*").each(function() {
-	var k = $(this).css("background-color").first();
-	var v = $(this).css("color").first();
-	palette[k] = v;
+	x = $(this)
+	var f = x.css("color").first()
+	var b = x.css("background-color").first()
+	palette[b + ":" + f] = 1
 })
-var block = $("&lt;div class='palette'&gt;&amp;nbsp;&lt;div&gt;");
-for(var bg in palette) { 
-	block.append("&lt;div class='swatch'&gt;&amp;nbsp;&lt;/div&gt;")
+var block = $("&lt;div id='palette'/&gt;")
+var a = 'A';
+function label() { 
+	var b = a
+	a = String.fromCharCode(a.charCodeAt(0) + 1)
+	return b
 }
-block.dialog('open', function OK(){ this.hide() }, function Center(){ this.center() })
+for(var bg in palette) { 
+	var swatch = $("&lt;div class='swatch'/&gt;")
+	swatch.css({
+			"background-color": bg,
+			color: palette[bg],
+			float: "left",
+			width: "20px",
+			height: "20px",
+			margin: "2px",
+			border: "1px dashed red"
+		})
+		.text(label())
+	block.append(swatch)
+}
+block.dialog().show().center()
 </pre>
 <button id="palette-btn">Try It!</button>
 <script type="text/javascript">
 	$("#palette-btn").click(function(){
-		alert(unescape($("pre#palette").text()));
+		eval(unescape($("pre#palette").text().first()));
 	})
 </script>
 
-</ol>
 <h4>Events Module</h4>
 <ol class="apilist">
 </ol>

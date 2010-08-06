@@ -18,7 +18,7 @@ Function.prototype.inheritsFrom = function(T) {
 	return this.prototype.constructor = this
 }
 Function.prototype.debug = function() {
-	var f= this;
+	var f = this;
 	return function () { console.log(f.name, arguments); return f.apply(this, arguments); }
 }
 
@@ -45,7 +45,7 @@ function isNumber(a)   { return isFinite(a) }
 function isFunc(a)     { return typeof(a) == "function" || isType(a, Function) }
 function isNode(a)     { return a ? a.nodeType > 0 : false }
 function isFragment(a) { return a ? a.nodeType == 11 : false }
-function isArray(a)    { return Object.prototype.toString.apply(a) == "[object Array]" || isSubtype(a, Array) }
+function isArray(a)    { return Object.prototype.toString.call(a) == "[object Array]" || isSubtype(a, Array) }
 function isObject(a)   { return typeof(a) == "object" }
 function hasValue(a)   { return a != undefined && a != null }
 
@@ -137,7 +137,7 @@ function Bling (expr, context) {
 		}
 	} else if( typeof(expr) == "number" ) { // numbers pre-allocate
 		// accept a single number, to pre-allocate space
-		Array.apply(this, [expr])
+		Array.call(this, expr)
 	} else if( expr === window || isNode(expr) ) { // items got stored
 		// a single node becomes the sole item in our array
 		Bling.__init__(this, [expr])
@@ -161,7 +161,7 @@ Bling.__copy__ = function(t, s, n) {
 }
 // init the Bling structure based on some other array-like thing
 Bling.__init__ = function(t, s) {
-	Array.apply(t, [s.length])
+	Array.call(t, s.length)
 	Bling.__copy__(t, s)
 	t.__bling__ = true;
 }
@@ -342,13 +342,13 @@ Bling.addGlobals = function (/*arguments*/) {
 		},
 
 		reduce: function reduce(f) {
-			// along with respecting the context, we pass only the accumulation + 1 argument
-			// so you can use functions like Math.min directly $(numbers).reduce(Math.min)
+			// along with respecting the context, we pass only the accumulation and one argument
+			// so you can use functions like Math.min directly $([1,2,3]).reduce(Math.min)
 			// this fails with the default reduce, since Math.min(a,x,i,items) is NaN
 			if( (!f) || this.length == 0 ) return null
-			var a = this[0];
+			var a = this[0]
 			this.skip(1).each(function() {
-				a = f.apply(this, [a, this])
+				a = f.call(this, a, this)
 			})
 			return a
 		},
@@ -388,24 +388,30 @@ Bling.addGlobals = function (/*arguments*/) {
 							: v
 					})
 			}
-			if( arguments.length == 0 ) return this;
-			if( arguments.length == 1 ) return _zip.call(this, arguments[0])
-			// if more than one argument is passed, new objects
-			// with only those properties, will be returned
-			if( arguments.length > 1 ) {
-				var master = {}
-				var b = new Bling()
-				for(var i = 0, n = arguments.length; i < n; i++) {
-					if( master[i] == undefined ) master[i] = []
-					master[i] = _zip.call(this, arguments[i])
-				}
-				for(var i = 0, n = this.length; i < n; i++) {
-					var o = {}
-					for(var k in master)
-						o[k] = master[k].shift()
-					b.push(o)
-				}
-				return b
+			switch( arguments.length ) {
+				case 0:
+					return this;
+				case 1:
+					return _zip.call(this, arguments[0])
+				default: // > 1
+					// if more than one argument is passed, new objects
+					// with only those properties, will be returned
+					// like a "select" query in SQL
+					var master = {}
+					var b = new Bling()
+					// first collect a set of lists
+					for(var i = 0, n = arguments.length; i < n; i++) {
+						if( master[i] == undefined ) master[i] = []
+						master[i] = _zip.call(this, arguments[i])
+					}
+					// then convert to a list of sets
+					for(var i = 0, n = this.length; i < n; i++) {
+						var o = {}
+						for(var k in master)
+							o[k] = master[k].shift()
+						b.push(o)
+					}
+					return b
 			}
 		},
 
@@ -528,9 +534,10 @@ Bling.addGlobals = function (/*arguments*/) {
 		apply: function apply(context, args) {
 			// apply every function in this to the given context and arguments
 			return this
-				.filter(isFunc)
 				.map(function() { 
-					return this.apply(context, args) 
+					if( isFunc(this) )
+						return this.apply(context, args) 
+					return this
 				})
 		},
 
@@ -555,6 +562,12 @@ Bling.addGlobals = function (/*arguments*/) {
 			return this
 		},
 
+		log: function log(label) {
+			// output the current bling to the console.log and continue
+			if( label ) console.log(label, this);
+			else console.log(this);
+			return this;
+		}
 	})
 
 	/// Math Module ///
@@ -856,11 +869,13 @@ Bling.addGlobals = function (/*arguments*/) {
 			// weave and fold them so that object values override computed values
 			return ov.weave(cv).fold(function(x,y) { return x ? x : y })
 		},
-		width: function width() { 
-			return this.css('width')
+		width: function width(w) { 
+			// sugar
+			return this.css('width', w)
 		},
-		height: function height() {
-			return this.css('height')
+		height: function height(h) {
+			// sugar
+			return this.css('height', h)
 		},
 
 		center: function center(mode) {
@@ -885,19 +900,58 @@ Bling.addGlobals = function (/*arguments*/) {
 			})
 		},
 
+
+		trueColor: function trueColor(prop, reducer) {
+			// getComputedStyle won't tell us what the actual visible
+			// color of an element is, if there is transparency involved
+			// so we manually calculate the elements visible color
+			// NOTE: does not handle elements that are absolutely positioned
+			// outside of their parent
+			// by default, compute the background color, but call with 'color'
+			// to compute the foreground color
+			prop = prop || "background-color";
+			function reducer(a) {
+				// combine two rgba color arrays
+				a[0] += (this[0] - a[0]) * this[3];
+				a[1] += (this[1] - a[1]) * this[3];
+				a[2] += (this[2] - a[2]) * this[3];
+				a[3] = Math.min(1, a[3] + this[3]);
+				return a;
+			}
+			// collect the full ancestry
+			return this.parents()
+				.map(function() {
+					return this
+						// get the computed style of each ancestor
+						.map(window.getComputedStyle)
+						// get the indicated property
+						.zip('getPropertyValue')
+						.call(prop)
+						// remove junk results (nulls, etc)
+						.filter(isString)
+						// parse to [r,g,b,a]
+						.toColors()
+						// then collapse each list of [r,g,b,a]
+						.reduce(reducer)
+						// and output a css string
+						.toRGBAString()
+				})
+		},
+
 		toColors: function toColors() {
 			// convert any css color strings to numbers
 			if( this.length == 0 ) return this;
 			return this.map(function() {
 				if( isString(this) ) {
 					var d = document.createElement("div");
-					d.style.color = expr;
+					d.style.color = this;
 					var rgb = d.style.getPropertyValue('color');
 					if( rgb ) {
 						// grab between the parens
 						rgb = rgb.slice(rgb.indexOf('(')+1, rgb.indexOf(')'))
 							// make an array
 							.split(", ")
+						if( rgb.length == 3 ) rgb[3] = 1.0;
 						// return floats
 						return new Bling( rgb ).floats()
 					}
@@ -905,16 +959,12 @@ Bling.addGlobals = function (/*arguments*/) {
 			})
 		},
 
-		toRGBAs: function toRGBAs() {
+		toRGBAString: function toRGBAString() {
 			// convert numbers to an rgb string
 			if( this.length == 0 ) return this;
-			return this.map(function() {
-				if( isArray(this) ) {
-					return this.length == 4 ? "rgba("+this.join(", ")+")"
-						: this.length == 3 ? "rgb("+this.join(", ")+")"
-						: undefined;
-				}
-			})
+			return this.length == 4 ? "rgba("+this.join(", ")+")"
+				: this.length == 3 ? "rgb("+this.join(", ")+")"
+				: undefined;
 		},
 
 		// .child(n) returns the nth childNode for all items in this
@@ -1008,7 +1058,7 @@ Bling.addGlobals = function (/*arguments*/) {
 		// .once() binds an event handler that will run only once
 		once: function once(e, f) {
 			var g = function(evt) {
-				f.apply(this, [evt])
+				f.call(this, evt)
 				this.unbind(e, g)
 			}
 			return this.bind(e, g);
@@ -1017,7 +1067,7 @@ Bling.addGlobals = function (/*arguments*/) {
 		cycle: function cycle(e/*, functions*/) {
 			var i = 0, funcs = arguments.slice(1,arguments.length)
 			return this.bind(e, function(evt) {
-				funcs[i].apply(this, [evt])
+				funcs[i].call(this, evt)
 				i = i++ % funcs.length
 			})
 		},
@@ -1259,7 +1309,7 @@ Bling.addGlobals = function (/*arguments*/) {
 				this._display = this.style.display == "none" ? undefined : this.style.display;
 				this.style.display = 'none';
 			})
-			if( callback ) callback.apply(this)
+			if( callback ) callback.call(this)
 			// console.log('end of hide '+this.zip('guid')+" "+this.zip('parentNode.toString').call().join(" "));
 			return ret
 		},
@@ -1285,7 +1335,7 @@ Bling.addGlobals = function (/*arguments*/) {
 					this._display = d;
 					this.style.display = "none";
 				}
-				if( callback  ) callback.apply(this)
+				if( callback  ) callback.call(this)
 			})
 		},
 

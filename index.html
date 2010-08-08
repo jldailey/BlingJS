@@ -96,7 +96,7 @@
 			}
 
 			div.dialog {
-				padding:30px;
+				padding:20px;
 				min-width:200px;
 				max-width:320px;
 				min-height:60px;
@@ -113,6 +113,8 @@
 				position:absolute;
 				bottom:1px;
 				border-top:1px solid #ab7b7b;
+				clear: both;
+				padding:4px 10px;
 			}
 			div.dialog .buttons button {
 				float:left;
@@ -545,24 +547,23 @@ But you can often use them to accomplish interesting things with a little know-h
 <p>Then we can use the Math Module to produce procedural variants of these colors.</p>
 <pre class="prettyprint" id="palette">
 var palette = {};
-$("*").each(function() {
-	x = $(this)
-	// ignore the source formatting colors
-	if( x.hasClass("prettyprint") ) return;
-	// get the foreground
-	var f = x.css("color").first()
-	// get the background
-	var b = x.css("background-color").first()
-	palette[b + ":" + f] = 1
-})
 // create a new div
 var block = $("&lt;div id='palette'/&gt;")
+	// open it as a dialog
+	.dialog().show().center()
+$("*").each(function() {
+	x = $(this)
+	var bg = x.trueColor().first(),
+		fg = x.css("color").first()
+		key = bg + ":" + fg;
+	palette[key] = 1
+})
 // create a label generator
-var a = ('A').charCodeAt(0)
 function label() { 
-	return String.fromCharCode( ++a )
+	return String.fromCharCode( label.c++ )
 }
-// create a swatch for each palette entry
+label.c = ('A').charCodeAt(0)
+// generate a swatch for each palette entry
 for(var bf in palette) { 
 	bf = bf.split(':')
 	var swatch = $("&lt;div class='swatch'/&gt;")
@@ -576,7 +577,6 @@ for(var bf in palette) {
 	block.append(swatch)
 }
 block.append("&lt;div style='clear:both'/&gt;")
-block.dialog().show().center()
 </pre>
 <button id="palette-btn">Try It!</button>
 <script type="text/javascript">

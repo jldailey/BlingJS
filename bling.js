@@ -17,10 +17,6 @@ Function.prototype.inheritsFrom = function(T) {
 	this.prototype = new T()
 	return this.prototype.constructor = this
 }
-Function.prototype.debug = function() {
-	var f = this;
-	return function () { console.log(f.name, arguments); return f.apply(this, arguments); }
-}
 
 /* Type Checking
  * -------------
@@ -341,13 +337,18 @@ Bling.addGlobals = function (/*arguments*/) {
 			return a
 		},
 
-		reduce: function reduce(f) {
+		reduce: function reduce(f, init) {
 			// along with respecting the context, we pass only the accumulation and one argument
 			// so you can use functions like Math.min directly $([1,2,3]).reduce(Math.min)
 			// this fails with the default reduce, since Math.min(a,x,i,items) is NaN
-			if( (!f) || this.length == 0 ) return null
-			var a = this[0]
-			this.skip(1).each(function() {
+			if( !f ) return this
+			var a = init, 
+				t = this;
+			if( ! hasValue(init) ) {
+				a = this[0]
+				t = this.skip(1)
+			}
+			t.each(function() {
 				a = f.call(this, a, this)
 			})
 			return a
@@ -541,11 +542,11 @@ Bling.addGlobals = function (/*arguments*/) {
 				})
 		},
 
-
-		// various common ways to map/reduce blings
-		toString:  function toString() { return "Bling{["+this.map(function(){return this.toString()}).join(", ")+"]}" },
-
-
+		toString: function toString() {
+			return "Bling{["+this.map(function(){
+				return this.toString()
+			}).join(", ")+"]}"
+		},
 
 		// try to continue using f in the same scope after about n milliseconds
 		future: function future(n, f) {
@@ -564,8 +565,8 @@ Bling.addGlobals = function (/*arguments*/) {
 
 		log: function log(label) {
 			// output the current bling to the console.log and continue
-			if( label ) console.log(label, this);
-			else console.log(this);
+			if( label ) console.log(label, this, this.length + " items");
+			else console.log(this, this.length + " items");
 			return this;
 		}
 	})
@@ -919,11 +920,13 @@ Bling.addGlobals = function (/*arguments*/) {
 				return a;
 			}
 			// collect the full ancestry
-			return this.parents()
+			return this
+				.parents()
 				.map(function() {
 					return this
 						// get the computed style of each ancestor
 						.map(window.getComputedStyle)
+						.filter(hasValue)
 						// get the indicated property
 						.zip('getPropertyValue')
 						.call(prop)
@@ -931,8 +934,10 @@ Bling.addGlobals = function (/*arguments*/) {
 						.filter(isString)
 						// parse to [r,g,b,a]
 						.toColors()
+						// reverse the order so we add colors from back to fore
+						.reverse()
 						// then collapse each list of [r,g,b,a]
-						.reduce(reducer)
+						.reduce(reducer, new Bling([0,0,0,0]))
 						// and output a css string
 						.toRGBAString()
 				})

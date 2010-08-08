@@ -695,7 +695,7 @@ Bling.addGlobals = function (/*arguments*/) {
 				n.parentNode = null
 				return ret
 			}
-		},
+		}
 
 	})
 

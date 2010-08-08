@@ -371,20 +371,11 @@ true == (function UnitTests() {
 			assertEqual(b.join(""), "re")
 		})
 
-	Bling.prototype.merge
-		.test(function merge() {
-			assertEqual(new Bling([ new Bling("<div>"), new Bling("<p>") ]).merge().zip('nodeName').join(" "), "DIV P")
-		})
-
-	Bling.rgb
-		.test(function rgb() { assert(isBling(this("#aaa"))) })
-		.test(function rgb2() { assertEqual(this("#aaa").rgb(), "rgb(170, 170, 170)") })
-
-	Bling.prototype.rgb
-		.test(function rgb3() { assertEqual(Bling.rgb("#343434").scale(2).rgb(), "rgb(104, 104, 104)") })
-		.test(function rgb4() { assertEqual(new Bling([1, 2, 3]).rgb(), "rgb(1, 2, 3)") })
-		.test(function rgb5() { assertEqual(new Bling([1, 2, 3, .5]).rgb(), "rgba(1, 2, 3, 0.5)") })
-		.test(function rgb6() { assertEqual(new Bling(["foo"]).rgb(), undefined) })
+	// Bling.prototype.rgb
+		// .test(function rgb3() { assertEqual(Bling.rgb("#343434").scale(2).rgb(), "rgb(104, 104, 104)") })
+		// .test(function rgb4() { assertEqual(new Bling([1, 2, 3]).rgb(), "rgb(1, 2, 3)") })
+		// .test(function rgb5() { assertEqual(new Bling([1, 2, 3, .5]).rgb(), "rgba(1, 2, 3, 0.5)") })
+		// .test(function rgb6() { assertEqual(new Bling(["foo"]).rgb(), undefined) })
 
 	Bling.prototype.html
 		.test(function html() {

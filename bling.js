@@ -623,10 +623,11 @@ Bling.addGlobals = function (/*arguments*/) {
 		},
 		magnitude: function magnitude() { 
 			// compute the magnitude (the vector length) of this
-			return this.map(function() {
+			var n = this.map(function() {
 				if( isBling(this) ) return this.magnitude();
-				return Math.sqrt(this.squares().sum()) 
+				return parseFloat(this);
 			})
+			return Math.sqrt(n.squares().sum()) 
 		},
 		scale: function scale(r) {
 			// scale all x in this by the factor r
@@ -646,16 +647,13 @@ Bling.addGlobals = function (/*arguments*/) {
 	var _before = function(a,b) { if( a && b ) a.parentNode.insertBefore(b, a) }
 	var _after = function(a,b) { a.parentNode.insertBefore(b, a.nextSibling) }
 	var toNode = function(x) {
-		// console.log("toNode", x.parentNode, isFunc(x.parent) ? x.parent() : "")
 		var ret = isNode(x) ? x
 			: isBling(x) ? x.toFragment()
 			: isString(x) ? new Bling(x).toFragment()
 			: isFunc(x.toString) ? new Bling(x.toString()).toFragment()
 			: undefined
-		// TODO: guids are for debugging
-		Bling.nextguid = Bling.nextguid || 1
-		if( ret.guid == undefined ) ret.guid = Bling.nextguid++;
-		// console.log('toNode',ret.id,ret.guid,ret.parentNode)
+		Bling.nextguid = Bling.nextguid || 1;
+		if( !hasValue(ret.guid) ) ret.guid = Bling.nextguid++;
 		return ret
 	}
 	function deepClone(node) {
@@ -814,7 +812,7 @@ Bling.addGlobals = function (/*arguments*/) {
 			// remove class x from each node's .className property
 			var notx = function(y){ return y != x }
 			return this.each(function() {
-				var cls = this.className.split(" ").filter(notx).join(" ")
+				this.className = this.className.split(" ").filter(notx).join(" ")
 			})
 		},
 
@@ -833,7 +831,7 @@ Bling.addGlobals = function (/*arguments*/) {
 		hasClass: function hasClass(x) {
 			// collect a boolean for each item in this
 			// note: different from jQuery, we always return sets when possible
-			this.zip('className.split').call(" ")
+			return this.zip('className.split').call(" ")
 				.zip('indexOf').call(x)
 				.map(Function.IndexFound)
 		},

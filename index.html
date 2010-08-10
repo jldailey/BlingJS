@@ -365,116 +365,178 @@ Even methods that return values (like width() or height()) will return a set of 
 <ol class="apilist">
 <li><a name="#Bling.prototype.html" href="#doc:Bling.prototype.html"><span>.html([h])</span></a>&nbsp;&mdash;&nbsp;collect [or set] the values of <b>x</b>.innerHTML [= <b>h</b>]
 	<pre>
-		$("#target").html("<p>Hello</p>");
-		$("#target").html() == "<p>Hello</p>";
-	</pre>
+		$("#target").html("&lt;p&gt;Hello&lt;/p&gt;");
+		$("#target").html() == "&lt;p&gt;Hello&lt;/p&gt;"; </pre>
 </li>
 <li><a name="#Bling.prototype.append" href="#doc:Bling.prototype.append"><span>.append(b)</span></a>&nbsp;&mdash;&nbsp;insert each <b>b</b> as the <u>last</u> child of each of <i>this</i>
 	<pre>
-	</pre>
+		$("#target").html("<p>Hello</p>").append("<hr>");
+		$("#target").html() == "<p>Hello<hr></p>"; 
+		</pre>
 </li>
 <li><a name="#Bling.prototype.appendTo" href="#doc:Bling.prototype.appendTo"><span>.appendTo(b)</span></a>&nbsp;&mdash;&nbsp;insert each of <i>this</i> as the <u>last</u> child of each <b>b</b>
 	<pre>
+		$("#target").html("<p>Hello</p>").appendTo("<div>World</div>");
+		$("#target").html() == "<div>World<p>Hello</p></div>";
 	</pre>
 </li>
 <li><a name="#Bling.prototype.prepend" href="#doc:Bling.prototype.prepend"><span>.prepend(b)</span></a>&nbsp;&mdash;&nbsp;insert each <b>b</b> as the <u>first</u> child of each of <i>this</i>
 	<pre>
+		$("#target").html("<p>Hello</p>").append("<hr>");
+		$("#target").html() == "<p><hr>Hello</p>"; 
 	</pre>
 </li>
 <li><a name="#Bling.prototype.prependTo" href="#doc:Bling.prototype.prependTo"><span>.prependTo(b)</span></a>&nbsp;&mdash;&nbsp;insert each of <i>this</i> as the <u>first</u> child of each <b>b</b>
 	<pre>
+		$("#target").html("<p>Hello</p>").prependTo("<div>World</div>");
+		$("#target").html() == "<div><p>Hello</p>World</div>";
 	</pre>
 </li>
 <li><a name="#Bling.prototype.before" href="#doc:Bling.prototype.before"><span>.before(b)</span></a>&nbsp;&mdash;&nbsp;all nodes in <b>b</b> are inserted before each of <i>this</i>
 	<pre>
+		$("<p>Hello</p>").before("<div>World</div>")
+			.html() == "<p>Hello</p><div>World</div>";
 	</pre>
 </li>
 <li><a name="#Bling.prototype.after" href="#doc:Bling.prototype.after"><span>.after(b)</span></a>&nbsp;&mdash;&nbsp;all nodes in <b>b</b> are inserted after each of <i>this</i>
 	<pre>
+		$("<p>Hello</p>").after("<div>World</div>")
+			.html() == "<div>World</div><p>Hello</p>";
 	</pre>
 </li>
 <li><a name="#Bling.prototype.wrap" href="#doc:Bling.prototype.wrap"><span>.wrap(b)</span></a>&nbsp;&mdash;&nbsp;<b>b</b> becomes the new parent of each of <i>this</i>
 	<pre>
+		$("<p>Hello</p>").wrap("<div></div>")
+			.html() == "<div><p>Hello</p></div>"
 	</pre>
 </li>
 <li><a name="#Bling.prototype.unwrap" href="#doc:Bling.prototype.unwrap"><span>.unwrap()</span></a>&nbsp;&mdash;&nbsp;each <b>x</b> in <i>this</i> replaces its parentNode
 	<pre>
+		$("<p>Hello</p>").unwrap().html() == "Hello";
 	</pre>
 </li>
 <li><a name="#Bling.prototype.attr" href="#doc:Bling.prototype.attr"><span>.attr(n,[v])</span></a>&nbsp;&mdash;&nbsp;collect [or set] with get/setAttribute(<b>n</b>,[<b>v</b>])
 	<pre>
+		$("<p nodenum=21>Hello</p>").attr("nodenum") == 21;
 	</pre>
 </li>
 <li><a name="#Bling.prototype.addClass" href="#doc:Bling.prototype.addClass"><span>.addClass(c)</span></a>&nbsp;&mdash;&nbsp;each of <i>this</i> has <b>c</b> added to it's className
 	<pre>
+		$("<p>Hello</p>").addClass("para");
 	</pre>
 </li>
 <li><a name="#Bling.prototype.removeClass" href="#doc:Bling.prototype.removeClass"><span>.removeClass(c)</span></a>&nbsp;&mdash;&nbsp;remove <b>c</b> from <b>x</b>.className for <b>x</b> in <i>this</i>
 	<pre>
+		$("<p class='para'>Hello</p>").removeClass("para");
 	</pre>
 </li>
 <li><a name="#Bling.prototype.toggleClass" href="#doc:Bling.prototype.toggleClass"><span>.toggleClass(c)</span></a>&nbsp;&mdash;&nbsp;add/remove class <b>c</b> from each of <i>this</i>
 	<pre>
+		$("<p class='para'>Hello</p>").toggleClass("para");
 	</pre>
 </li>
 <li><a name="#Bling.prototype.hasClass" href="#doc:Bling.prototype.hasClass"><span>.hasClass(c)</span></a>&nbsp;&mdash;&nbsp;collect true if <b>x</b>.className contains <b>c</b>, or false
 	<pre>
+		$("<p class='para'>Hello</p>").hasClass("para");
 	</pre>
 </li>
 <li><a name="#Bling.prototype.text" href="#doc:Bling.prototype.text"><span>.text([t])</span></a>&nbsp;&mdash;&nbsp;collect [or set] the value of <b>x</b>.innerText [= <b>t</b>]
 	<pre>
+		$("<p>Hello<hr></p>").text() == "Hello";
 	</pre>
 </li>
 <li><a name="#Bling.prototype.val" href="#doc:Bling.prototype.val"><span>.val([v])</span></a>&nbsp;&mdash;&nbsp;collect [or set] the value of <b>x</b>.value [= <b>v</b>]
 	<pre>
+		// add one to the value of every text input
+		$("input[type=text]").val( $("input[type=text]").val() + 1 )
 	</pre>
 </li>
 <li><a name="#Bling.prototype.css" href="#doc:Bling.prototype.css"><span>.css(k,[v])</span></a>&nbsp;&mdash;&nbsp;collect computed [or set element] styles
 	<pre>
+		// set each input's line-height equal to it's height
+		$("input[type=text]").each(function() {
+			this.css('line-height', this.css('height').first())
+		})
 	</pre>
 </li>
 <li><a name="#Bling.prototype.width" href="#doc:Bling.prototype.width"><span>.width()</span></a>&nbsp;&mdash;&nbsp;collect the computed widths
 	<pre>
+		$("#target").css("width") == $("#target").width()
 	</pre>
 </li>
 <li><a name="#Bling.prototype.height" href="#doc:Bling.prototype.height"><span>.height()</span></a>&nbsp;&mdash;&nbsp;collect the computed heights
 	<pre>
+		$("#target").css("height") == $("#target").height()
 	</pre>
 </li>
-<li><a name="#Bling.prototype.rgb" href="#doc:Bling.prototype.rgb"><span>.rgb()</span></a>&nbsp;&mdash;&nbsp;convert a color value to a css string (see rgb global)
+<li><a name="#Bling.prototype.toColors" href="#doc:Bling.prototype.toColors"><span>.toColors()</span></a>&nbsp;&mdash;&nbsp;convert a css string to a color value
 	<pre>
+		$("#target").css('color', "#fffefd")
+			.css('color').toColors().first() == [255,254,253,1]
+	</pre>
+</li>
+<li><a name="#Bling.prototype.toRGBAString" href="#doc:Bling.prototype.toRGBAString"><span>.toRGBAString()</span></a>&nbsp;&mdash;&nbsp;convert a color value to a css string
+	<pre>
+		$("#target").css('color', "#fffefd")
+			.css('color').toColors().first() // see: .toColors() above
+			.scale(.5) // see: .scale() in Math Module
+			.toRGBAString() == "rgba(127.5, 127, 126.5, 0.5)";
 	</pre>
 </li>
 <li><a name="#Bling.prototype.child" href="#doc:Bling.prototype.child"><span>.child(n)</span></a>&nbsp;&mdash;&nbsp;collect childNodes[<b>n</b>] from each of <i>this</i>
 	<pre>
+		$("<p><span>1st</span><div>2nd</div></p>")
+			.child(1).text() == "2nd"
 	</pre>
 </li>
 <li><a name="#Bling.prototype.children" href="#doc:Bling.prototype.children"><span>.children()</span></a>&nbsp;&mdash;&nbsp;collect <u>all</u> childNodes from each of <i>this</i>
 	<pre>
+		$("<p><span>1st</span><div>2nd</div></p>")
+			.children().first()
+			.zip('nodeName').join(" ") == "SPAN DIV";
 	</pre>
 </li>
 <li><a name="#Bling.prototype.parent" href="#doc:Bling.prototype.parent"><span>.parent()</span></a>&nbsp;&mdash;&nbsp;collect parentNode from each of <i>this</i>
 	<pre>
+		$("<p><span>1st</span><div>2nd</div></p>")
+			.children().first()
+			.parent()
+			// one parent for each child
+			// even if same parent twice
+			.zip('nodeName').join(" ") == "P P";
 	</pre>
 </li>
 <li><a name="#Bling.prototype.parents" href="#doc:Bling.prototype.parents"><span>.parents()</span></a>&nbsp;&mdash;&nbsp;collect a full ancestry from each of <i>this</i>
 	<pre>
+		$("<p>Hello</p>").appendTo("body")
+			.parents().first() == [<body>, <html>, #document]
 	</pre>
 </li>
 <li><a name="#Bling.prototype.remove" href="#doc:Bling.prototype.remove"><span>.remove()</span></a>&nbsp;&mdash;&nbsp;detach each node in <i>this</i> from it's parent
 	<pre>
+		$("<p>Hello</p>").appendTo("body")
+			.remove()
+			.parents().first() == []
 	</pre>
 </li>
 <li><a name="#Bling.prototype.find" href="#doc:Bling.prototype.find"><span>.find(e)</span></a>&nbsp;&mdash;&nbsp;collect all nodes matching css expression e
 	<pre>
+		$("body").find(".foo") == $("body .foo")
 	</pre>
 </li>
 <li><a name="#Bling.prototype.clone" href="#doc:Bling.prototype.clone"><span>.clone()</span></a>&nbsp;&mdash;&nbsp;collect a copy of each node in this (w/o events)
 	<pre>
+		$("<p class='hi'>Hello</p>").appendTo("body")
+			.clone().appendTo("body");
+		$("body .hi").length == 2
 	</pre>
 </li>
 <li><a name="#Bling.prototype.toFragment" href="#doc:Bling.prototype.toFragment"><span>.toFragment()</span></a><span class='adv'>*</span>&nbsp;&mdash;&nbsp;convert <i>this</i> to a Node (or Fragment)
 	<pre>
+		$("<b>Hello</b><p>I am not well-formed.</p>")
+			.toFragment().nodeType == 11
+		$("<p><b>I am</b> well-formed.")
+			.toFragment().nodeType == 1
 	</pre>
 </li>
 </ol>

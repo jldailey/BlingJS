@@ -2,9 +2,9 @@
 	<head>
 		<title>BlingJS Framework.</title>
 		<meta name="viewport" content="initial-scale=1.0, user-scalable=yes, width=device-width" />
-		<link rel="icon" href="bling.png" type="image/png" />
-		<link rel="stylesheet" href="prettify.css" type="text/css" />
-		<script type="text/javascript" src="prettify.js"></script>
+		<link rel="icon" href="content/bling.png" type="image/png" />
+		<link rel="stylesheet" href="content/prettify.css" type="text/css" />
+		<script type="text/javascript" src="content/prettify.js"></script>
 		<link href='http://fonts.googleapis.com/css?family=Nobile' rel='stylesheet' type='text/css'>
 		<link href='http://fonts.googleapis.com/css?family=Inconsolata' rel='stylesheet' type='text/css'>
 		<script src="bling.js" type="text/javascript"></script>
@@ -191,7 +191,7 @@
 $("body").append('&lt;div&gt;'); </pre>
 
 <h3>Download</h3>
-<p>Get the <a href="bling.js">latest BlingJS.</a> (<a href="min.bling.js">minified</a>).
+<p>Get the <a href="bling.js">latest BlingJS.</a> (<a href="content/min.bling.js">minified</a>).
 
 <h3>Documentation</h3>
 <p><i>A Bling</i> is an ordered set of items of any type.  This set defines functional operations to collect and manipulate the members.
@@ -201,7 +201,9 @@ $("button") // css expressions
 $("&lt;button&gt;") // or html
 $([1, "foo", {a: 'b'}]) // or junk </pre>
 <p>During all set-like operations, the context (the 'this' value) is equal to the item being iterated.
-<p>While similar to jQuery, the biggest difference is that BlingJS methods always try to return sets, rather than first elements, unless specifically requested by first(), or last().  Even methods that return values (like width() or height()) will typically return a set of values (one for each node in the source set), and if there is only one, you access it using first().
+<p>While similar to jQuery, the biggest difference is that BlingJS methods always try to return sets, 
+rather than first elements, unless specifically requested by first(), or last().  
+Even methods that return values (like width() or height()) will return a set of values (one for each node in the source set), and if there is only one, you access it using first().
 <h4>Core Module:</h4>
 <ol class='apilist'>
 <li><a name="#Bling.prototype.each" href="#doc:Bling.prototype.each"><span>.each(f)</span></a>&nbsp;&mdash;&nbsp;applies <b>f</b> to every <b>x</b> in <i>this</i>
@@ -634,7 +636,7 @@ Bling.addGlobals("breakpoint", function() {
 $.breakpoint() </pre>
 
 		<h3>Unit tests</h3>
-		<p>You can run the <a href="test.bling.html">BlingJS unit tests</a> in your browser.
+		<p>You can run the <a href="content/test.bling.html">BlingJS unit tests</a> in your browser.
 		<h3>jQuery</h3>
 		<p>BlingJS is very much like jQuery, and you can do just about anything in it that you can do in jQuery.  If you know jQuery, then in general you can use BlingJS by writing what you would expect to work in jQuery, then assume everything you get is a list, and end your expressions with things like .first()
 	</body>

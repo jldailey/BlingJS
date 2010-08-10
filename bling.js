@@ -65,6 +65,18 @@ function hasValue(a)   { return a != undefined && a != null }
  *   all_stars = stars.join.bound(stars, [", "])
  *   all_stars() == "Ricky, Martin"
  *
+ * Once a function is bound, it cannot be re-bound, called, or applied,
+ * in any other context than the one it was first bound to.
+ *
+ *   more_stars = ["Janet", "Micheal", "Latoya"];
+ *   more_stars.num_stars = num_stars; // normally this would cause binding
+ *   more_stars.num_stars() == 2
+ *   num_stars.call(more_stars) == 2
+ *   num_stars.apply(more_stars, []) == 2
+ *
+ * Why 2?  Because num_stars will always act on its original binding, not the
+ * binding to more_stars. 
+ *
  */
 Function.prototype.bound = function(t, args) {
 	var f = this
@@ -75,7 +87,7 @@ Function.prototype.bound = function(t, args) {
 // a useful example, to just call log(...) instead of console.log(...):
 // var log = window.console ? console.log.bound(console) : Function.Empty;
 
-// Define a bunch of global static functions that will be consistently useful throughout the other methods
+// Define a bunch of global static functions that will be consistently useful
 // used to avoid repeatedly creating closures to do these things
 Function.Empty = function(){}
 Function.NotNull = function notnull(x) { return x != null }
@@ -150,13 +162,13 @@ Bling.inheritsFrom(Array)
 function isBling(a)  { return (a && a.__bling__ ) || isType(a, Bling) }
 
 // two static helpers for the constructor:
-// copy data from some indexable source onto the end of t
 Bling.__copy__ = function(t, s, n) {
+	// copy data from some indexable source onto the end of t
 	for( var i = 0, nn = (n ? Math.min(s.length,n) : s.length); i < nn; i++)
 		t.push(s[i])
 }
-// init the Bling structure based on some other array-like thing
 Bling.__init__ = function(t, s) {
+	// init the Bling structure based on some other array-like thing
 	Array.call(t, s.length)
 	Bling.__copy__(t, s)
 	t.__bling__ = true;
@@ -170,6 +182,7 @@ Bling.__init__ = function(t, s) {
  * $("body")[0] === new Bling("body")[0]
  * isBling($) == false
  * isBling($()) == true
+ * isFunc($) == true
  */
 Bling.operator = Bling
 
@@ -190,8 +203,25 @@ Bling.extend = function(a, b, c) {
 	return a
 }
 
+/* Extend the API
+ *
+ * addMethods accepts an object full of functions, or a list of named functions
+ * ex. Bling.addMethods({"echo": function echo() { ... }});
+ *     Bling.addMethods(function echo() { ... });
+ *
+ * Both of the above will result in $().echo() being defined.
+ *
+ * addGlobals acts exactly the same, only it acts on the global Bling object directly,
+ * rather than on the prototype for new instances.
+ * ex. Bling.addGlobals({"echo": function () { ... } })
+ *     Bling.addGlobals(function echo() { ... });
+ * Both of these will result in $.echo() being defined.
+ *
+ * (Note the difference: addMethods applies to Bling _instances_, 
+ *  addGlobals applies to Bling direactly)
+ */
 Bling.addMethods = function (/*arguments*/) {
-	// .addMethods() is a plugin provides Bling instance methods
+	// .addMethods() is how a plugin provides Bling instance methods
 	// ex. Bling.addMethods({nop:function(){ return this; })
 	// ex. Bling.addMethods({etc:function(){ return "..." })
 	// ex. Bling.addMethods(function identity(){ return this })
@@ -230,7 +260,6 @@ Bling.addGlobals = function (/*arguments*/) {
 
 	/// Core Module ///
 	// jquery-complete
-	// TODO: add tests for .zap(k,v) where v is a list
 
 	// a TimeoutQueue is used by the core to preserve the proper order
 	// of setTimeout handlers scheduled by .future()

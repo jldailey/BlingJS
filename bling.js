@@ -92,10 +92,12 @@ Function.prototype.bound = function(t, args) {
 Function.Empty = function(){}
 Function.NotNull = function notnull(x) { return x != null }
 Function.NotUndefined = function notundefined(x) { return x != undefined }
-Function.NotNullOrUndefined = function notnullorundefined(x) { return x != undefined && x != null; }
+Function.NotNullOrUndefined = function notnullorundefined(x) { return x != undefined && x != null }
 Function.IndexFound = function found(x) { return x > -1 }
 Function.HtmlEscape = function htmlescape(x) { return x.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\t/g,'&nbsp;&nbsp;') }
-Function.ReduceAnd = function(x) { return x && this; }
+Function.ReduceAnd = function(x) { return x && this }
+Function.UpperLimit = function(x) { return function(y) { return Math.min(x, y) }}
+Function.LowerLimit = function(x) { return function(y) { return Math.max(x, y) }}
 
 
 /* Bling!, the constructor.
@@ -137,7 +139,11 @@ function Bling (expr, context) {
 				})
 			} else if( context.querySelectorAll != undefined ) {
 				// if the context is directly searchable, search it
-				Bling.__init__(this, context.querySelectorAll(expr))
+				try {
+					Bling.__init__(this, context.querySelectorAll(expr))
+				} catch( err ) {
+					throw new Error("expr failed: " + expr, err)
+				}
 			} else {
 				// otherwise, this is not a valid context
 				throw new Error("invalid context "+context+")")
@@ -670,7 +676,7 @@ Bling.addGlobals = function (/*arguments*/) {
 		}
 	})
 
-	/// HTML/DOM Manipulation Module ///
+	/// HTML Module ///
 
 	// these static DOM helpers are used inside some of the html methods
 	var _before = function(a,b) { if( a && b ) a.parentNode.insertBefore(b, a) }
@@ -695,6 +701,7 @@ Bling.addGlobals = function (/*arguments*/) {
 		return n
 	}
 
+	// add the HTML parser (needed in order to construct new blings from html strings)
 	Bling.addGlobals({
 		// .HTML.* provide an HTML converter similar to the global JSON object
 		// method: .parse(string) and .stringify(node)
@@ -816,8 +823,31 @@ Bling.addGlobals = function (/*arguments*/) {
 			// replace the parent with the child
 			return this.each(function() {
 				if( this.parentNode && this.parentNode.parentNode )
-					this.parentNode.parentNode.replaceChild(this, this.parentNode)
+					this.parentNode.parentNode
+						.replaceChild(this, this.parentNode)
 			})
+		},
+
+		replace: function replace(n) {
+			n = toNode(n)
+			var b = new Bling()
+			// first one gets the real node
+			this.take(1).each(function() {
+				if( this.parentNode ) {
+					this.parentNode.replaceChild(n, this)
+					b.push(n)
+				}
+			})
+			// rest get clones
+			this.skip(1).each(function() {
+				if( this.parentNode ) {
+					var c = deepClone(n)
+					this.parentNode.replaceChild(c, this)
+					b.push(c)
+				}
+			})
+			// return the set of inserted nodes
+			return b;
 		},
 
 		attr: function attr(a,v) {
@@ -992,23 +1022,41 @@ Bling.addGlobals = function (/*arguments*/) {
 		},
 
 		toRGBAString: function toRGBAString() {
-			// convert numbers to an rgb string
-			if( this.length == 0 ) return this;
-			return this.length == 4 ? "rgba("+this.join(", ")+")"
-				: this.length == 3 ? "rgb("+this.join(", ")+")"
-				: undefined;
+			function doit(t) {
+				var r = t.map(Function.UpperLimit(255))
+					.map(Function.LowerLimit(0));
+				r[3] = Math.min(1, r[3]);
+				return "rgba(" + r.join(", ") + ")"
+			}
+			// accept either a Bling of Blings
+			// or a single Bling of numbers
+			if( isBling(this[0]) ) {
+				return this.map(doit);
+			} else {
+				return doit(this);
+			}
 		},
 
-		// .child(n) returns the nth childNode for all items in this
-		child: function child(n) { return this.map(function() { return this.childNodes[n] })},
-		// .children() returns all children of each node
-		children: function children() { return this.map(function() { return new Bling(this.childNodes) })},
+		child: function child(n) {
+			// .child(n) returns the nth childNode for all items in this
+			return this.map(function() { return this.childNodes[n] })
+		},
 
-		// .parent() returns the parentNodes of all items in this
-		parent: function parent() { return this.zip('parentNode') },
+		children: function children() { 
+			// .children() returns all children of each node
+			return this.map(function() { 
+				return new Bling(this.childNodes) 
+			})
+		},
 
-		// .parents() returns all the parentNodes up to the owner for each item in this
+		parent: function parent() {
+			// .parent() returns the parentNode of each item in this
+			return this.zip('parentNode')
+		},
+
 		parents: function parents() {
+			// .parents() returns the full ancestry 
+			// up to the owner, for each item in this
 			return this.map(function() {
 				var b = $([]);
 				var p = this.parentNode;
@@ -1020,8 +1068,8 @@ Bling.addGlobals = function (/*arguments*/) {
 			})
 		},
 
-		// .remove() removes each node from the DOM
 		remove: function remove() {
+			// .remove() removes each node from the DOM
 			return this.each(function(){
 				if( this.parentNode ) {
 					this.parentNode.removeChild(this);
@@ -1029,43 +1077,57 @@ Bling.addGlobals = function (/*arguments*/) {
 			});
 		},
 
-		// .find(expr) maps querySelectorAll(expr) over each element in this
 		find: function find(expr) {
+			// .find(expr) maps querySelectorAll(expr) over each element in this
 			return this.map(function() { return new Bling(expr, this) })
 				.reduce(function(a) { return a.concat(this) })
 		},
 
-		// .clone() deep copies a set of DOM nodes
-		// note: does not copy event handlers
 		clone: function clone() {
+			// .clone() deep copies a set of DOM nodes
+			// note: does not copy event handlers
 			return this.map(deepClone)
 		},
 
-
-		// FOR INTERNAL USE, or advanced users.
-		// .toFragment() converts a bling of convertible stuff: (nodes, strings, fragments, blings)
-		// into a single DocumentFragment, mostly useful for moving junk around cleanly.
-		// note: DocumentFragment are a sub-class of Node: isNode(fragment) === true
-		// so you can node.appendChild() them directly, etc
-		// but this MOVES THE NODES into the fragment, if they were in the DOM already
-		// so be sure to put them back someplace or you will lose them:
-		// ex.:
-		// $("input").length === 2
-		// $("input").toFragment().childNodes.length === 2
-		// $("input").length === 0
-		// Where did the inputs go?!
-		// The third search is searching the DOM, to which the inputs are no longer attached.
-		// They are attached to the fragment, whose reference we discarded.
-		// Be sure to save a reference to the fragment, or use it immediately.
-		// $("body").append($("input").toFragment())
 		toFragment: function toFragment() {
-			// console.log("toFragment",this.zip('parentNode.toString').call().join(" "));
+			// FOR ADVANCED USERS.
+			// .toFragment() converts a bling of convertible stuff:
+			// (nodes, strings, fragments, blings) into a single Node if well-formed,
+			// or a DocumentFragment if not.
+			// note: DocumentFragments are a sub-class of Node.
+			//   isNode(fragment) == true
+			//   fragment.nodeType == 11
+			// This means you can node.appendChild() them directly, like DOM nodes.
+			// But, unlike regular DOM nodes, if you insert a fragment, it disappears
+			// and it's children are all inserted, and the fragment will be empty.
+			// In the other direction, if you insert nodes into a fragment,
+			// they are DETACHED from the DOM, and attached to the fragment.
+			// So be sure to re-attach them, or save a reference, or you will lose them.
+			// explanation:
+			//   $("input").length === 2
+			//   $("input").toFragment().childNodes.length === 2
+			//   $("input").length === 0 // !?
+			// Where did the inputs go?!
+			// The first search finds 2 nodes.
+			// The second searchs finds 2 nodes and DETACHES them.
+			// Both inputs nodes now have .parentNode == the fragment.
+			// The third search is searching the document object, 
+			// to which the inputs are no longer attached, and it finds 0.
+			// They are attached to the fragment, whose reference we discarded.
 			if( this.length == 1 )
 				return toNode(this[0])
 			var f = document.createDocumentFragment()
 			this.map(toNode).map(f.appendChild.bound(f))
 			return f
 		}
+	})
+
+	// add escapeHTML
+	var escaper = new Bling("<div>&nbsp;</div>").child(0);
+	Bling.addGlobals(function escapeHTML(h) {
+		// converts things like '<' to their &lt; form
+		escaper.zap('data', h)
+		return escaper.parent().html().first()
 	})
 
 	/// Events Module: provides for binding and triggering DOM events ///
@@ -1077,42 +1139,56 @@ Bling.addGlobals = function (/*arguments*/) {
 		}
 	}
 
+	function slice(obj, i, j) { // slice any indexable object
+		var a = [];
+		for(; i < j; i++)
+			a.push(obj[i])
+		return a
+	}
+
 	Bling.addGlobals({
 		ready: function ready(f) {
 			new Bling(window).bind('load', f)
 		}
 	})
 	Bling.addMethods({
-		// bind an event handler, evt is a string, like 'click'
 		bind: function bind(e, f) {
-			return this.each(function() { this.addEventListener(e, f) })
+			// .bind(e, f) adds handler f to event type e
+			return this.each(function() { 
+				this.addEventListener(e, f) 
+			})
 		},
-		// .once() binds an event handler that will run only once
 		once: function once(e, f) {
+			// .once(e, f) adds a handler f that will be called only once
 			var g = function(evt) {
 				f.call(this, evt)
 				this.unbind(e, g)
 			}
 			return this.bind(e, g);
 		},
-		// .cycle() cycles through a set of handlers, each trigger fires the next callback
-		cycle: function cycle(e/*, functions*/) {
-			var i = 0, funcs = arguments.slice(1,arguments.length)
+		cycle: function cycle(e/*, handlers */) {
+			// .cycle() adds a handler for event e that
+			// calls each handler argument in turn.
+			var i = 0, 
+				funcs = slice(arguments, 1,arguments.length)
 			return this.bind(e, function(evt) {
 				funcs[i].call(this, evt)
-				i = i++ % funcs.length
+				i = ++i % funcs.length
 			})
 		},
 
-		// unbind an event handler, f is optional, evt is a string, like 'click'.
 		unbind: function unbind(e, f) {
+			// .unbind(e, [f]) removes handler f from event e
+			// if f is not present, removes all handlers from e
 			return this.each(function() { this.removeEventListener(e,f) })
 		},
 
-		// fire a fake event on each node
-		// evt is the type, 'click', etc.
-		// args is an optional mapping of properties to set, {screenX: 10, screenY: 10}
 		trigger: function trigger(evt, args) {
+			// .trigger(e, a) initiates a fake event
+			// evt is the type, 'click'
+			// args is an optional mapping of properties to set, 
+			//   {screenX: 10, screenY: 10}
+			// note: not all browsers support manually creating all event types
 			var e = undefined;
 			args = Bling.extend({
 				bubbles: true,
@@ -1321,7 +1397,7 @@ Bling.addGlobals = function (/*arguments*/) {
 			if( trans )
 				props.push("-webkit-transform");
 			this.css('-webkit-transition-property', props.join(', '));
-			// repeat the duration the same number of times as there are properties
+			// repeat the same duration for each properties
 			this.css('-webkit-transition-duration', props.map(function() { return duration + "ms" }).join(', '));
 			// apply the real css
 			for( var i in css )
@@ -1329,21 +1405,15 @@ Bling.addGlobals = function (/*arguments*/) {
 			// apply the transformation
 			if( trans )
 				this.css('-webkit-transform', trans);
-			// console.log("css",css,"trans",trans,"props",props)
 			// queue the callback to be executed
 			return this.future(duration, callback);
 		},
 
 		hide: function hide(callback) {
-			// console.log('in hide',this.zip('parentNode.toString').call().join(" "));
-			var ret = this.each(function() {
-				// console.log("hide each guid "+this.guid+" "+this.parentNode.toString());
+			return this.each(function() {
 				this._display = this.style.display == "none" ? undefined : this.style.display;
 				this.style.display = 'none';
-			})
-			if( callback ) callback.call(this)
-			// console.log('end of hide '+this.zip('guid')+" "+this.zip('parentNode.toString').call().join(" "));
-			return ret
+			}).future(50, callback)
 		},
 
 		show: function show(callback) {
@@ -1367,8 +1437,7 @@ Bling.addGlobals = function (/*arguments*/) {
 					this._display = d;
 					this.style.display = "none";
 				}
-				if( callback  ) callback.call(this)
-			})
+			}).future(50, callback)
 		},
 
 		fadeIn: function fadeIn(speed, callback) {

@@ -573,43 +573,43 @@ as well as adding in a couple tricks along the way.  Keep in mind that BlingJS m
 
 <h4>Math Module</h4>
 <ol class="apilist">
-<li><a name="#Bling.prototype.floats" href="#doc:Bling.prototype.floats"><span>floats()</span></a>&nbsp;&mdash;&nbsp;convert each of this to a float value
+<li><a name="#Bling.prototype.floats" href="#doc:Bling.prototype.floats"><span>.floats()</span></a>&nbsp;&mdash;&nbsp;convert each of this to a float value
 	<pre>
 	</pre>
 </li>
-<li><a name="#Bling.prototype.ints" href="#doc:Bling.prototype.ints"><span>ints()</span></a>&nbsp;&mdash;&nbsp;convert each of this to an int value
+<li><a name="#Bling.prototype.ints" href="#doc:Bling.prototype.ints"><span>.ints()</span></a>&nbsp;&mdash;&nbsp;convert each of this to an int value
 	<pre>
 	</pre>
 </li>
-<li><a name="#Bling.prototype.min" href="#doc:Bling.prototype.min"><span>min()</span></a>&nbsp;&mdash;&nbsp;collect the smallest x in this
+<li><a name="#Bling.prototype.min" href="#doc:Bling.prototype.min"><span>.min()</span></a>&nbsp;&mdash;&nbsp;collect the smallest x in this
 	<pre>
 	</pre>
 </li>
-<li><a name="#Bling.prototype.max" href="#doc:Bling.prototype.max"><span>max()</span></a>&nbsp;&mdash;&nbsp;collect the largest x in this
+<li><a name="#Bling.prototype.max" href="#doc:Bling.prototype.max"><span>.max()</span></a>&nbsp;&mdash;&nbsp;collect the largest x in this
 	<pre>
 	</pre>
 </li>
-<li><a name="#Bling.prototype.average" href="#doc:Bling.prototype.average"><span>average()</span></a>&nbsp;&mdash;&nbsp;compute the average of all x in this
+<li><a name="#Bling.prototype.average" href="#doc:Bling.prototype.average"><span>.average()</span></a>&nbsp;&mdash;&nbsp;compute the average of all x in this
 	<pre>
 	</pre>
 </li>
-<li><a name="#Bling.prototype.sum" href="#doc:Bling.prototype.sum"><span>sum()</span></a>&nbsp;&mdash;&nbsp;compute the sum of all x in this
+<li><a name="#Bling.prototype.sum" href="#doc:Bling.prototype.sum"><span>.sum()</span></a>&nbsp;&mdash;&nbsp;compute the sum of all x in this
 	<pre>
 	</pre>
 </li>
-<li><a name="#Bling.prototype.squares" href="#doc:Bling.prototype.squares"><span>squares()</span></a>&nbsp;&mdash;&nbsp;compute x*x for all x in this
+<li><a name="#Bling.prototype.squares" href="#doc:Bling.prototype.squares"><span>.squares()</span></a>&nbsp;&mdash;&nbsp;compute x*x for all x in this
 	<pre>
 	</pre>
 </li>
-<li><a name="#Bling.prototype.magnitude" href="#doc:Bling.prototype.magnitude"><span>magnitude()</span></a>&nbsp;&mdash;&nbsp;compute the vector length of this
+<li><a name="#Bling.prototype.magnitude" href="#doc:Bling.prototype.magnitude"><span>.magnitude()</span></a>&nbsp;&mdash;&nbsp;compute the vector length of this
 	<pre>
 	</pre>
 </li>
-<li><a name="#Bling.prototype.scale" href="#doc:Bling.prototype.scale"><span>scale(r)</span></a>&nbsp;&mdash;&nbsp;scale each x in this to x * r
+<li><a name="#Bling.prototype.scale" href="#doc:Bling.prototype.scale"><span>.scale(r)</span></a>&nbsp;&mdash;&nbsp;scale each x in this to x * r
 	<pre>
 	</pre>
 </li>
-<li><a name="#Bling.prototype.normalize" href="#doc:Bling.prototype.normalize"><span>normalize()</span></a>&nbsp;&mdash;&nbsp;scale each x in this, so that magnitude == 1.0
+<li><a name="#Bling.prototype.normalize" href="#doc:Bling.prototype.normalize"><span>.normalize()</span></a>&nbsp;&mdash;&nbsp;scale each x in this, so that magnitude == 1.0
 	<pre>
 	</pre>
 </li>
@@ -624,46 +624,77 @@ var palette = {};
 // create a new div
 var block = $("&lt;div id='palette'/&gt;")
 	// open it as a dialog
-	.dialog().show().center()
-$("*").each(function() {
-	x = $(this)
-	var bg = x.trueColor().first(),
-		fg = x.css("color").first()
-		key = bg + ":" + fg;
-	palette[key] = 1
-})
-// create a label generator
-function label() {
-	return String.fromCharCode( label.c++ )
-}
-label.c = ('A').charCodeAt(0)
-// generate a swatch for each palette entry
-for(var bf in palette) {
-	bf = bf.split(':')
-	var swatch = $("&lt;div class='swatch'/&gt;")
-		.css({
-			"background-color": bf[0],
-			color: bf[1],
-			float: "left",
-			width: "20px", height: "20px",
+	.dialog().show(function() {
+		// touch every element
+		$("*").each(function() {
+			var fg = this.style.color,
+				bg = $(this).trueColor().first(),
+				key = bg + ":" + fg;
+			palette[key] = true
 		})
-		.text(label())
-	block.append(swatch)
-}
-block.append("&lt;div style='clear:both'/&gt;")
+		// create a label generator
+		function label() {
+			return String.fromCharCode( label.c++ )
+		}
+		label.c = ('A').charCodeAt(0)
+		// generate swatches
+		for(var bf in palette) {
+			bf = bf.split(':')
+			$("&lt;div/&gt;")
+				.css({
+					"background-color": bf[0],
+					color: bf[1],
+					float: "left",
+					width: "20px", height: "20px"
+				})
+				.text(label())
+				.appendTo(this)
+		}
+	}).center()
 </pre>
-<button id="palette-btn">Try It!</button>
+<button id="try-palette">Try It!</button>
+<button id="edit-palette">Edit It!</button>
 <script type="text/javascript">
-	$("#palette-btn").click(function(){
+	$("#try-palette").click(function(){
 		eval(unescape($("pre#palette").text().first()));
+	})
+	$("#edit-palette").cycle('click',function EditIt(){
+		var b = $(this),
+			p = $("pre#palette"),
+			text = p.text().first(),
+			w = p.width(), h = p.height(),
+			input = $("<textarea id='palette'>")
+				.css({ width: w + "px", height: h + "px" })
+				.val(text);
+		p.replace(input);
+		b.text("Save It!")
+	}, function SaveIt() {
+		var b = $(this),
+			t = $("textarea#palette"),
+			p = prettyPrintOne("<pre id='palette' class='prettyprint'>" + $.escapeHTML(t.val().first()) + "</pre>")
+		t.replace(p)
+		b.text("Edit It!")
 	})
 </script>
 
 <h4>Events Module</h4>
 <ol class="apilist">
+<li><a name="#Bling.prototype.bind" href="#doc:Bling.prototype.bind"><span>.bind(e, f)</span></a>&nbsp;&mdash;&nbsp;add f as a listener for event e, e.g. 'click'
+	<pre>
+	</pre>
+</li>
+<li><a name="#Bling.prototype.once" href="#doc:Bling.prototype.once"><span>.once(e, f)</span></a>&nbsp;&mdash;&nbsp;add f as a listener that will only fire once
+	<pre>
+	</pre>
+</li>
+<li><a name="#Bling.prototype.cycle" href="#doc:Bling.prototype.cycle"><span>.cycle(e, [...])</span></a>&nbsp;&mdash;&nbsp;each trigger of e, executes the next handler
+	<pre>
+	</pre>
+</li>
 </ol>
 <h4>Transform Module</h4>
 <ol class="apilist">
+	<li>TODO</li>
 </ol>
 
 <h3>Extending the API</h3>

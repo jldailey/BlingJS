@@ -371,20 +371,11 @@ true == (function UnitTests() {
 			assertEqual(b.join(""), "re")
 		})
 
-	Bling.prototype.merge
-		.test(function merge() {
-			assertEqual(new Bling([ new Bling("<div>"), new Bling("<p>") ]).merge().zip('nodeName').join(" "), "DIV P")
-		})
-
-	Bling.rgb
-		.test(function rgb() { assert(isBling(this("#aaa"))) })
-		.test(function rgb2() { assertEqual(this("#aaa").rgb(), "rgb(170, 170, 170)") })
-
-	Bling.prototype.rgb
-		.test(function rgb3() { assertEqual(Bling.rgb("#343434").scale(2).rgb(), "rgb(104, 104, 104)") })
-		.test(function rgb4() { assertEqual(new Bling([1, 2, 3]).rgb(), "rgb(1, 2, 3)") })
-		.test(function rgb5() { assertEqual(new Bling([1, 2, 3, .5]).rgb(), "rgba(1, 2, 3, 0.5)") })
-		.test(function rgb6() { assertEqual(new Bling(["foo"]).rgb(), undefined) })
+	// Bling.prototype.rgb
+		// .test(function rgb3() { assertEqual(Bling.rgb("#343434").scale(2).rgb(), "rgb(104, 104, 104)") })
+		// .test(function rgb4() { assertEqual(new Bling([1, 2, 3]).rgb(), "rgb(1, 2, 3)") })
+		// .test(function rgb5() { assertEqual(new Bling([1, 2, 3, .5]).rgb(), "rgba(1, 2, 3, 0.5)") })
+		// .test(function rgb6() { assertEqual(new Bling(["foo"]).rgb(), undefined) })
 
 	Bling.prototype.html
 		.test(function html() {
@@ -422,7 +413,7 @@ true == (function UnitTests() {
 		.test(function before() {
 			var b = new Bling("<div><span>text</span></div>");
 			b.find("span").before("<a>");
-			assertEqual(b.children().merge().zip('nodeName').join(" "), "A SPAN")
+			assertEqual(b.children().first().zip('nodeName').join(" "), "A SPAN")
 		})
 
 	Bling.prototype.after
@@ -430,7 +421,7 @@ true == (function UnitTests() {
 			var b = new Bling("<div><span>text</span></div>");
 			var d = b.find("span").after("<a>");
 			// check ordering
-			assertEqual(b.children().merge().zip('nodeName').join(" "), "SPAN A");
+			assertEqual(b.children().first().zip('nodeName').join(" "), "SPAN A");
 			// check return value
 			assertEqual(d.zip('nodeName').join(" "), "SPAN");
 		})
@@ -442,7 +433,7 @@ true == (function UnitTests() {
 			// check the return value
 			assertEqual(d.zip('nodeName').join(" "), "DIV")
 			// check that the children are attached
-			assertEqual(d.zip('childNodes').merge().zip('nodeName').join(" "), "A SPAN")
+			assertEqual(d.zip('childNodes').first().zip('nodeName').join(" "), "A SPAN")
 		})
 
 	Bling.prototype.text
@@ -455,7 +446,7 @@ true == (function UnitTests() {
 	Bling.prototype.val
 		.test(function val() {
 			var b = new Bling("<input value='1'><input value='2'><select><option>3</option><option>4</option></select>");
-			assertEqual(b.children().merge().val().join(", "), "1, 2, 3");
+			assertEqual(b.children().first().val().join(", "), "1, 2, 3");
 		})
 
 	Bling.prototype.css
@@ -477,7 +468,7 @@ true == (function UnitTests() {
 	Bling.prototype.children
 		.test(function children() {
 			var d = new Bling("<div><a></a><p></p><span></span></div>");
-			assertEqual(d.children().merge().zip('nodeName').join(" "), "A P SPAN");
+			assertEqual(d.children().first().zip('nodeName').join(" "), "A P SPAN");
 		})
 
 	Bling.prototype.parent
@@ -595,6 +586,27 @@ true == (function UnitTests() {
 				success: function() { assertEqual(this.status, 200) }
 			})
 		})
+	
+	Bling.prototype.addClass.test(function addClass_test() {
+		var b = $("body");
+		b.addClass("foo");
+		assert( b.hasClass("foo").first() )
+	})
+	Bling.prototype.removeClass.test(function removeClass_test() {
+		var b = $("body");
+		b.removeClass("foo");
+		assert( ! b.hasClass("foo").first() )
+	})
+	Bling.prototype.toggleClass.test(function toggleClass_test() {
+		var b = $("body");
+		b.toggleClass("foo");
+		assert( b.hasClass("foo").first() )
+		b.toggleClass("foo");
+		assert( ! b.hasClass("foo").first() )
+	})
+	Bling.prototype.hasClass.test(function hasClass_test() {
+		// already tested above
+	})
 
 /*
 	Bling.prototype.hide.test(function hide(){

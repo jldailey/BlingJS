@@ -156,8 +156,13 @@ function isBling(a)  { return (a && a.__bling__ ) || isType(a, Bling) }
 // two static helpers for the constructor:
 // copy data from some indexable source onto the end of t
 Bling.__copy__ = function(t, s, n) {
-	for( var i = 0, nn = (n ? Math.min(s.length,n) : s.length); i < nn; i++)
-		t.push(s[i])
+	// 8/1/2010: extensive benchmarks reveal that the iPhone doesn't .push() well
+	// but it does extend arrays by inserting at length very well
+	var i = t.length, // an insert marker
+		j = 0, // source marker
+		nn = (n ? Math.min(s.length,n) : s.length) // op count
+	while(j < nn)
+		t[i++] = s[j++]
 }
 // init the Bling structure based on some other array-like thing
 Bling.__init__ = function(t, s) {

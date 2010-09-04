@@ -623,13 +623,15 @@ But you can often use them to accomplish interesting things with a little know-h
 var palette = {};
 // create a new div
 var block = $("&lt;div id='palette'/&gt;")
+	.text("Calculating...")
 	// open it as a dialog
 	.dialog().show(function() {
 		// touch every element
 		$("*").each(function() {
-			var fg = this.style.color,
-				bg = $(this).trueColor().first(),
-				key = bg + ":" + fg;
+			var t = $(this),
+				fg = t.css('color').first(),
+				bg = t.trueColor().first(),
+				key = bg + ":" + fg
 			palette[key] = true
 		})
 		// create a label generator
@@ -637,6 +639,7 @@ var block = $("&lt;div id='palette'/&gt;")
 			return String.fromCharCode( label.c++ )
 		}
 		label.c = ('A').charCodeAt(0)
+		$(this.contentNode).text("");
 		// generate swatches
 		for(var bf in palette) {
 			bf = bf.split(':')
@@ -648,7 +651,7 @@ var block = $("&lt;div id='palette'/&gt;")
 					width: "20px", height: "20px"
 				})
 				.text(label())
-				.appendTo(this)
+				.appendTo(this.contentNode)
 		}
 	}).center()
 </pre>

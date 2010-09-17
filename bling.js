@@ -624,6 +624,12 @@ Bling.addGlobals = function (/*arguments*/) {
 				return parseInt(this);
 			})
 		},
+		px: function (delta) {
+			delta = delta || 0
+			return this.ints().map(function() {
+				return (this + delta) + "px";
+			})
+		},
 		min: function min() {
 			// select the smallest x in this
 			return this.reduce(function(a) {

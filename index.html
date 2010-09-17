@@ -44,16 +44,17 @@
 			ol.apilist li {
 				padding: 0px;
 				margin:0px;
-				border-bottom:1px solid black;
+				border-bottom:0px dashed black;
 			}
 			ol.apilist li pre {
 				display: none;
 				margin-left: -25px;
 			}
 			ol.apilist li > a, a[href^='#doc:Bling'] {
-				font-size:1.2em;
+				font-size: 20px;
 				text-decoration:none;
 				color:black;
+				border-bottom: 1px solid black;
 			}
 			ol.apilist li > a span {
 				margin-right:.2em;
@@ -74,11 +75,18 @@
 				background: #f0f0f0;
 				-webkit-border-radius: 6px;
 			}
+			div.doc h5 {
+				margin: 4px;
+				color: white;
+			}
 			div.shadow {
 				position: absolute;
 				display: block;
-				background-color: rgba(0,0,0,0.35);
+				background-color: rgba(0,0,0,.35);
 				z-index: 9000;
+			}
+			div.shadow.solid {
+				background-color: rgba(89,89,89,1);
 			}
 			div.shadow span {
 				display:block;
@@ -128,14 +136,22 @@
 <script>
 
 	$(window).ready(function(){
+		// wrap all h1's and h3's into named anchors
 		$("h1").concat($("h3")).each(function() {
 			$(this).wrap("<a name='"+this.innerText+"'></a>");
 		})
-		$("h3").skip(2).before($("<a href='#BlingJS'>&#171;Back to top</a>").css('font-size','0.9em').css('float','right'))
+		// add 'Back to top' links to all h3's
+		$("h3").skip(2)
+			.before($("<a href='#BlingJS'>&#171;Back to top</a>")
+			.css('font-size','0.9em').css('float','right'))
+		// replace tabs with spaces in <pre>'s
+		// make all <pre>'s pretty-printable
 		$("pre").each(function(){
 			this.innerText = this.innerText.replace(/\t/g,"  ");
 		}).addClass("prettyprint")
+		// apply pretty print styling
 		prettyPrint();
+		// all documentation links are made active
 		$("a[href^='#doc:Bling']").click(function(e) {
 			e.stopPropagation()
 			e.preventDefault()
@@ -145,40 +161,57 @@
 	})
 
 	function doc(a,e) {
-		var b = a.getAttribute("href").split("#doc:")[1]
 		var d = a.__doc__
 		if( d == undefined ) {
-			var obj = eval(b)
-			// get, clean, and color-code the source of the function
-			obj = obj.toString().replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\t/g,"  ")
+			// extract the name from the href
+			var obj_name = a.getAttribute("href").split("#doc:")[1]
+			// get the value of the name (should be a valid function name)
+			var obj = eval(obj_name)
+			// get, escape, and color-code, the source of the function
+			obj = obj.toString()
+				.replace(/\n\t\t/g, "\n")
+				.replace(/</g,"&lt;")
+				.replace(/>/g,"&gt;")
+				.replace(/\t/g,"  ")
 			obj = prettyPrintOne("<pre class='prettyprint'>"+obj+"</pre>")
 			var ex = $(a.parentNode).find("pre")
+			obj = "<h5>Implementation:</h5>" + obj
 			// prepend the example if there is one
-			if( ex.length > 0 )
-				obj = prettyPrintOne("<pre class='prettyprint'>" + ex.text().first() + "</pre>")
+			if( ex.length > 0 ) {
+				var ex_src = ex.text().first();
+				ex_src = ex_src.replace(/\n\t/g,"\n")
+				obj = "<h5>Example:</h5>" + prettyPrintOne("<pre class='prettyprint'>" 
+						+ ex_src
+						+ "</pre>")
 					+ obj
+			}
 			// create and show the doc overlay
 			d = $("<div class='doc'></div>")
 				.html(obj)
-				.css("top", e.pageY + 4 + "px")
-				.bind('click', function() { d.shadow.remove(); $(this).unbind('click').remove() })
+				.click(function() {
+					d.shadow.remove(); 
+					$(this).unbind('click').remove() 
+				})
 				.appendTo("body")
+				.center()
 			// get size and position for the shadow
-			var h = d.height().first()
-			var w = d.width().first()
+			var h = d.height()
+			var w = d.width()
 			// create the shadow
 			d.shadow = $("<div class='shadow'>&nbsp;</div>")
-				.css("height", h)
-				.css("line-height", h)
-				.css("width", w)
-				.css("top", d.css("top").floats().first() + 6 + "px")
-				.css("left", d.css("left").floats().first() + 6 + "px")
-				.css("-webkit-border-radius", "6px")
+				.css("height", h.px(+12).first())
+				.css("line-height", h.px(+12).first())
+				.css("width", w.px(+12).first())
+				.css("top", d.css("top").px(-6).first())
+				.css("left", d.css("left").px(-6).first())
+				.css("border-radius", "6px");
 
 			a.__doc__ = d
 		}
 		// show the shadow, with loading text
-		a.__doc__.shadow.appendTo("body").html("<span>Loading...</span>")
+		a.__doc__.shadow.appendTo("body")
+			.removeClass("solid")
+			.html("<span>Loading...</span>")
 		// show the dialog scaled instantly to 0.0
 		a.__doc__.appendTo("body")
 			.transform({scale:0.0,opacity:0},0,function(){
@@ -186,6 +219,7 @@
 				this.transform({scale:1.0,opacity:1.0},"fast")
 				// clear loading text
 				a.__doc__.shadow.html("")
+					.addClass("solid")
 			})
 	}
 

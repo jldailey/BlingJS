@@ -4,41 +4,33 @@
 		<link rel="stylesheet" href="content/prettify.css" type="text/css" />
 		<script type="text/javascript" src="content/prettify.js"></script>
 		<style>
+			.template { display: none; }
 		</style>
 		<script>
-			function ProgressBar(node, opts) {
-				opts = $.extend({ 
-					change: Function.Empty,
-					color: "green",
-					title: "&nbsp;",
-				}, opts)
-				node = $(node)
-				var slide = node
-					.css("overflow", "hidden")
-					.css("background-color", "grey")
-					.html("<div>"+opts.title+"</div>")
-					.find("div")
-					.css("text-align", "right")
-					.css("width", node.width().px().first())
-					.css("background-color", opts.color)
-
-				node.update = function(percent) {
-					if( percent < 0.0 ) percent *= -1.0
-					while( percent > 1.0 ) percent /= 100.0
-					percent = (1.0 - percent)
-					slide.css("margin-left", node.width().scale(-percent).px().first())
-				}
-				node.update(0.0)
-
-				return node
-
-			}
 			$.ready(function() {
 				var $body = $("body"),
 					$docroot = $("#docroot"),
 					i = 0, j = 0, module = null
 
-				var progressBar = ProgressBar("#progress-bar", {title: "Generating Documenation..."})
+				var progressBar = $.UI.ProgressBar("#progress-bar")
+
+				var funcTemplate = $("#func-template").template()
+
+				window.PR_TAB_WIDTH = 2
+				function getSource(func) {
+					var source = func.toString().replace(/\n\t\t/g,'\n')
+					return $(prettyPrintOne("<pre class='prettyprint'>"+source+"</pre>"))
+				}
+				function getDescription(node) {
+					// var source = func.toString().replace(/\t/g,'T').replace(/\r/g,'R').replace(/\n/g,'N')
+					var desc = node.find(".com").take(1).text().first();
+					desc = desc ? desc
+						.replace(/^\/\/ /,'')
+						.replace(/\/(\w+)\//g, "<i>$1</i>")
+						.replace(/_(\w+)_/g, "<b>$1</b>")
+						: "unknown - unknown"
+					return desc.split(" - ")
+				}
 
 				function oneIteration() {
 					if( name = Bling.module.order[i++] ) {
@@ -46,22 +38,33 @@
 						var ul = $("<ul class='module' module='"+name+"'></ul>")
 						var h3 = $("<h3>"+name+"</h3>")
 						for( var k in module ) {
-							ul.append("<li class='func'><h4>"+k+"</h4></li>")
+							var source = getSource(module[k]),
+								desc = getDescription(source)
+							ul.append(funcTemplate.render({
+								coderef: "Bling.prototype."+k, 
+								funcdef: desc[0], 
+								funcdesc: desc[1]
+							}))
 						}
 						h3.click(function() {
 							ul.toggle()
 						}).click()
-						ul.find("h4").click(function() {
+						ul.find("a").cycle('click', function() {
+							var $this = $(this),
+								name = $this.attr('name').first(),
+								func = eval(name),
+								source = getSource(func)
+							$this.parent().append(source)
+							return false
+						}, function() {
 							var $this = $(this)
-							console.log($this.text()[0])
-							// console.log(Bling.prototype
-							console.log(Bling.prototype[$this.text()[0]])
+							$this.parent().find("pre").remove()
 						})
 						$docroot.append(h3)
 							.append(ul) 
 						// update progress bar
 						progressBar.update(i/Bling.module.order.length)
-						setTimeout(oneIteration, 1000)
+						setTimeout(oneIteration, 0)
 					} else {
 						// hide the progress bar, fade the docs in
 						progressBar.hide()
@@ -81,9 +84,11 @@
 		</script>
 	</head>
 	<body>
-		<div id="progress-bar">
-		</div>
+		<div id="progress-bar"> </div>
 		<div id="docroot">
+		</div>
+		<div id="func-template" class="template">
+			<li><a name="%(coderef)s" href="#doc:%(coderef)s"><span>%(funcdef)s</span></a>&nbsp;&mdash;&nbsp;%(funcdesc)s</li>
 		</div>
 	</body>
 </html>

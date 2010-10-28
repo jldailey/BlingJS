@@ -153,6 +153,8 @@ function Bling (selector, context) {
 	if( typeof selector === "string" ) { // strings, search css or parse html
 		// accept two different kinds of strings: html, and css expression
 		// html begins with "<", and we create a set of nodes by parsing it
+		
+		selector = selector.trimLeft()
 
 		if( selector[0] == "<" )
 			return Bling.__init__(selector, context, [Bling.HTML.parse(selector)])
@@ -167,7 +169,11 @@ function Bling (selector, context) {
 
 		if( context.querySelectorAll != undefined )
 			// if the context is directly searchable, search it
-			return Bling.__init__(selector, context, context.querySelectorAll(selector))
+			try {
+				return Bling.__init__(selector, context, context.querySelectorAll(selector))
+			} catch ( err ) {
+				console.log("err",err,selector,context)
+			}
 
 		// otherwise, this is not a valid context
 		throw new Error("invalid context object: "+context+")")
@@ -257,7 +263,7 @@ Bling.module = function module(name, Module) {
 }
 Bling.module.order = []
 
-Bling.module('core', function () {
+Bling.module('Core', function () {
 	/// Core Module ///
 
 	// a TimeoutQueue is used by the core to preserve the proper order
@@ -309,6 +315,9 @@ Bling.module('core', function () {
 	return {
 
 		len: function len() {
+			// .len() - returns the last defined index + 1
+			// the .length of an array is more like capacity than length
+			// this counts backward from .length, looking for a valid item
 			var i = this.length
 			while( i > -1 && this[--i] == undefined) { 
 				// spin
@@ -317,7 +326,7 @@ Bling.module('core', function () {
 		},
 
 		each: function each(f) {
-			// applies /f/ to every /x/ in _this_
+			// .each(f) - applies /f/ to every /x/ in _this_
 			this.forEach(function(t) {
 				f.call(t, t);
 			});
@@ -325,7 +334,7 @@ Bling.module('core', function () {
 		},
 
 		map: function map(f) {
-			// collects /f/(/x/) for /x/ in _this_
+			// .map(f) - collects /f/(/x/) for /x/ in _this_
 			var a = Bling(this.length),
 				i = 0
 			this.each(function(t) {
@@ -374,6 +383,7 @@ Bling.module('core', function () {
 		},
 
 		matches: function matches(expr) {
+			// .matches(expr) - collects true if /x/.matchesSelector(/expr/) for /x/ in _this_
 			return this.map(function() {
 				if( this.webkitMatchesSelector )
 					return this.webkitMatchesSelector(expr)
@@ -536,7 +546,7 @@ Bling.module('core', function () {
 		},
 
 		skip: function skip(n) {
-			// .skip([n]) collect all but the first /n/ elements of _this_
+			// .skip([n]) - collect all but the first /n/ elements of _this_
 			// if n == 0, returns a shallow copy of the whole bling
 			n = Math.min(this.len(), Math.max(0, (n|0)))
 			var a = Bling( n )
@@ -622,8 +632,8 @@ Bling.module('core', function () {
 			return b
 		},
 
-		call: function call(/*arguments*/) {
-			// .call([args]) - call all functions in _this_
+		call: function call() {
+			// .call([args]) - call all functions in _this_ [with args]
 			return this.apply(null, arguments)
 		},
 
@@ -637,6 +647,7 @@ Bling.module('core', function () {
 		},
 
 		toString: function toString() {
+			// .toString() - maps and joins toString across all elements
 			return Bling.symbol+"(["+this.map(function(){
 				return this.toString()
 			}).join(", ")+"])"
@@ -658,7 +669,7 @@ Bling.module('core', function () {
 
 })
 
-Bling.module('html', function () {
+Bling.module('Html', function () {
 	/// HTML Module ///
 
 	// these static DOM helpers are used inside some of the html methods
@@ -720,6 +731,59 @@ Bling.module('html', function () {
 			escaper.zap('data', h)
 			// then get escaped html from the parent's .innerHTML
 			return escaper.parent().html().first()
+		}
+	}
+
+	Bling.Color = {
+		fromCss: function(css) {
+			// .fromCss(css) - convert any css color strings to numbers
+			// .fromCss("#ffffff") -> $([255, 255, 255, 1.0])
+			// $(nodes).css("color").map(Bling.Color.fromCss) -> $([$([255,255,255,1.0]), ...])
+			css = css || this
+			if( isString(css) ) {
+				var d = document.createElement("div");
+				d.style.display = 'none'
+				d.style.color = css
+				$(document.body).append(d)
+				var rgb = window.getComputedStyle(d).getPropertyValue('color');
+				$(d).remove()
+				if( rgb ) {
+					// grab between the parens
+					rgb = rgb.slice(rgb.indexOf('(')+1, rgb.indexOf(')'))
+						// make an array
+						.split(", ")
+					if( rgb.length == 3 ) rgb[3] = 1.0;
+					// return floats
+					return Bling( rgb ).floats()
+				}
+			}
+		},
+		toCss: function(b) {
+			// .toCss(b) - convert a color array to a css string
+			// $([255, 255, 255, 1.0]) -> "rgba(255, 255, 255, 1.0)"
+			// $([$([255,255,255,1.0]),]) -> $(["rgba(255, 255, 255, 1.0)"])
+			function f(t) {
+				var r = t.map(Function.UpperLimit(255))
+					.map(Function.LowerLimit(0));
+				r[3] = Math.min(1, r[3]);
+				return "rgba(" + r.join(", ") + ")"
+			}
+			// accept either a Bling of Blings
+			// or a single Bling of numbers
+			b = b || this
+			if( isBling(b[0]) ) {
+				return b.map(f);
+			} else {
+				return f(b);
+			}
+		},
+		invert: function(c) {
+			var b = Bling(4)
+			b[0] = 255 - c[0]
+			b[1] = 255 - c[1]
+			b[2] = 255 - c[2]
+			b[3] = c[3]
+			return b
 		}
 	}
 
@@ -902,7 +966,7 @@ Bling.module('html', function () {
 		},
 
 		css: function css(k,v) {
-			// get/set css properties for nodes in the list
+			// .css(k, [v]) - get/set css properties for each node
 			// called with string k and undefd v -> return value of k
 			// called with string k and string v -> set property k = v
 			// called with object k and undefd v -> set css(x, k[x]) for x in k
@@ -953,7 +1017,7 @@ Bling.module('html', function () {
 		},
 
 		center: function center(mode) {
-			// move the elements to the center of the screen
+			// .center([mode]) - move the elements to the center of the screen
 			// mode is "viewport" (default), "horizontal" or "vertical"
 			mode = mode || "viewport"
 			var vh = document.body.clientHeight/2,
@@ -976,6 +1040,7 @@ Bling.module('html', function () {
 		},
 
 		trueColor: function trueColor(prop, reducer) {
+			// .trueColor() - compute the visible background-color for each node.
 			// getComputedStyle won't tell us what the actual visible
 			// color of an element is, if there is transparency involved
 			// so we manually calculate the elements visible color
@@ -1006,73 +1071,35 @@ Bling.module('html', function () {
 						// remove junk results (nulls, etc)
 						.filter(isString)
 						// parse to [r,g,b,a]
-						.toColors()
+						.map(Bling.Color.fromCss)
 						// reverse the order so we add colors from back to fore
 						.reverse()
 						// then collapse each list of [r,g,b,a]
 						.reduce(reducer, Bling([0,0,0,0]))
 						// and output a css string
-						.toRGBAString()
+						.map(Bling.Color.toCss)
 				})
 		},
 
-		toColors: function toColors() {
-			// convert any css color strings to numbers
-			if( this.length == 0 ) return this;
-			return this.map(function() {
-				if( isString(this) ) {
-					var d = document.createElement("div");
-					d.style.color = this;
-					var rgb = d.style.getPropertyValue('color');
-					if( rgb ) {
-						// grab between the parens
-						rgb = rgb.slice(rgb.indexOf('(')+1, rgb.indexOf(')'))
-							// make an array
-							.split(", ")
-						if( rgb.length == 3 ) rgb[3] = 1.0;
-						// return floats
-						return Bling( rgb ).floats()
-					}
-				}
-			})
-		},
-
-		toRGBAString: function toRGBAString() {
-			function doit(t) {
-				var r = t.map(Function.UpperLimit(255))
-					.map(Function.LowerLimit(0));
-				r[3] = Math.min(1, r[3]);
-				return "rgba(" + r.join(", ") + ")"
-			}
-			// accept either a Bling of Blings
-			// or a single Bling of numbers
-			if( isBling(this[0]) ) {
-				return this.map(doit);
-			} else {
-				return doit(this);
-			}
-		},
-
 		child: function child(n) {
-			// .child(n) returns the nth childNode for all items in this
+			// .child(n) - returns the nth childNode for all items in this
 			return this.map(function() { return this.childNodes[n] })
 		},
 
 		children: function children() {
-			// .children() returns all children of each node
+			// .children() - returns all children of each node
 			return this.map(function() {
 				return Bling(this.childNodes)
 			})
 		},
 
 		parent: function parent() {
-			// .parent() returns the parentNode of each item in this
+			// .parent() - collects the parentNode of each item in this
 			return this.zip('parentNode')
 		},
 
 		parents: function parents() {
-			// .parents() returns the full ancestry
-			// up to the owner, for each item in this
+			// .parents() - collects the full ancestry up to the owner
 			return this.map(function() {
 				var b = Bling(), j = -1,
 					p = this
@@ -1083,7 +1110,7 @@ Bling.module('html', function () {
 		},
 
 		remove: function remove() {
-			// .remove() removes each node from the DOM
+			// .remove() - removes each node from the DOM
 			return this.each(function(){
 				if( this.parentNode ) {
 					this.parentNode.removeChild(this);
@@ -1092,21 +1119,20 @@ Bling.module('html', function () {
 		},
 
 		find: function find(expr) {
-			// .find(expr) maps querySelectorAll(expr) over each element in this
+			// .find(expr) - collects nodes matching expr, using each node in this as context
 			return this.map(function() { return Bling(expr, this) })
 				.reduce(function(a) { return a.concat(this) })
 		},
 
-
 		clone: function clone() {
-			// .clone() deep copies a set of DOM nodes
+			// .clone() - deep copies a set of DOM nodes
 			// note: does not copy event handlers
 			return this.map(deepClone)
 		},
 
 		toFragment: function toFragment() {
+			// .toFragment() - converts a bling of convertible stuff to a Node or DocumentFragment.
 			// FOR ADVANCED USERS.
-			// .toFragment() converts a bling of convertible stuff:
 			// (nodes, strings, fragments, blings) into a single Node if well-formed,
 			// or a DocumentFragment if not.
 			// note: DocumentFragments are a sub-class of Node.
@@ -1139,7 +1165,7 @@ Bling.module('html', function () {
 
 })
 
-Bling.module('math', function () {
+Bling.module('Math', function () {
 	/// Math Module ///
 	return {
 		floats: function floats() {
@@ -1228,13 +1254,13 @@ Bling.module('math', function () {
 
 })
 
-Bling.module('event', function () {
+Bling.module('Event', function () {
 	/// Events Module: provides for binding and triggering DOM events ///
 
 	function binder(e) {
-		// alias for binding and triggering
+		// .event([f]) - trigger [or bind] event
 		return function bindortrigger(f) {
-			return isFunc(f) ? this.bind(e, f) : this.trigger(e, f ? f : [])
+			return isFunc(f) ? this.bind(e, f) : this.trigger(e, f ? f : {})
 		}
 	}
 
@@ -1244,22 +1270,29 @@ Bling.module('event', function () {
 
 	return {
 		bind: function bind(e, f) {
-			// .bind(e, f) adds handler f to event type e
+			// .bind(e, f) - adds handler f for event type e
+			// e is a string like 'click', 'mouseover', etc.
 			return this.each(function() {
 				this.addEventListener(e, f)
 			})
 		},
+		unbind: function unbind(e, f) {
+			// .unbind(e, [f]) - removes handler f from event e
+			// if f is not present, removes all handlers from e
+			return this.each(function() { this.removeEventListener(e,f) })
+		},
 		once: function once(e, f) {
-			// .once(e, f) adds a handler f that will be called only once
+			// .once(e, f) - adds a handler f that will be called only once
 			var g = function(evt) {
 				f.call(this, evt)
 				this.unbind(e, g)
 			}
 			return this.bind(e, g);
 		},
-		cycle: function cycle(e/*, handlers */) {
-			// .cycle() adds a handler for event e that
-			// calls each handler argument in turn.
+		cycle: function cycle(e) {
+			// .cycle(e, ...) - bind handlers for e that trigger in a cycle
+			// one call per trigger. when the last handler is executed
+			// the next trigger will call the first handler again
 			var i = 0,
 				funcs = Function.Slice(arguments, 1, arguments.length)
 			return this.bind(e, function(evt) {
@@ -1268,23 +1301,18 @@ Bling.module('event', function () {
 			})
 		},
 
-		unbind: function unbind(e, f) {
-			// .unbind(e, [f]) removes handler f from event e
-			// if f is not present, removes all handlers from e
-			return this.each(function() { this.removeEventListener(e,f) })
-		},
-
 		trigger: function trigger(evt, args) {
-			// .trigger(e, a) initiates a fake event
+			// .trigger(e, a) - initiates a fake event
 			// evt is the type, 'click'
 			// args is an optional mapping of properties to set,
 			//   {screenX: 10, screenY: 10}
 			// note: not all browsers support manually creating all event types
-			var e = undefined;
+			var e = undefined
 			args = Bling.extend({
 				bubbles: true,
 				cancelable: true
 			}, args)
+
 			switch(evt) {
 				// mouse events
 				case "click":
@@ -1379,6 +1407,7 @@ Bling.module('event', function () {
 					break;
 
 				// iphone events that are not supported yet
+				// (dont know how to create yet, needs research)
 				case "drag":
 				case "drop":
 				case "selection":
@@ -1406,6 +1435,7 @@ Bling.module('event', function () {
 		},
 
 		live: function live(e, f) {
+			// .live(e, f) - handle events for nodes that will exist in the future
 			var selector = this.selector,
 				context = this.context
 			// wrap f
@@ -1430,7 +1460,7 @@ Bling.module('event', function () {
 		},
 
 		die: function die(e, f) {
-			// die(e, [f]) - unbind f [or all] from event e
+			// die(e, [f]) - stop f [or all] from living for event e
 			var selector = this.selector,
 				context = this.context,
 				c = Bling(context)
@@ -1456,8 +1486,9 @@ Bling.module('event', function () {
 
 		// short-cuts for calling bind or trigger
 		click: function(f) {
-			if( this.css("cursor").first() == "auto" ) this.css("cursor", "pointer")
-			return isFunc(f) ? this.bind('click', f) : this.trigger('click', [])
+			// .click(e, [f]) - trigger [or bind] event e
+			if( this.css("cursor").intersect(["auto",""]).len() > 0 ) this.css("cursor", "pointer")
+			return isFunc(f) ? this.bind('click', f) : this.trigger('click', f ? f : {})
 		},
 		mousemove: binder('mousemove'),
 		mousedown: binder('mousedown'),
@@ -1491,7 +1522,7 @@ Bling.module('event', function () {
 
 })
 
-Bling.module('transform', function () {
+Bling.module('Transform', function () {
 	Bling.duration = function duration(speed) {
 		// given a speed description, return milliseconds
 		var speeds = {
@@ -1508,6 +1539,7 @@ Bling.module('transform', function () {
 	return {
 		// like jquery's animate(), but using only webkit-transition/transform
 		transform: function transform(end_css, speed, callback) {
+			// .transform(end_css, [speed], [callback]) - animate css properties on each node
 			// animate css properties over a duration
 			// accelerated: scale, translate, rotate, scale3d, translateX, translateY, translateZ, translate3d, rotateX, rotateY, rotateZ, rotate3d
 			if( typeof(speed) == "function" ) {
@@ -1558,6 +1590,7 @@ Bling.module('transform', function () {
 		},
 
 		hide: function hide(callback) {
+			// .hide() - each node gets display:none
 			return this.each(function() {
 				this._display = this.style.display == "none" ? undefined : this.style.display;
 				this.style.display = 'none';
@@ -1565,6 +1598,7 @@ Bling.module('transform', function () {
 		},
 
 		show: function show(callback) {
+			// .show() - show each node
 			return this.each(function() {
 				this.style.display = this._display ? this._display : "block";
 				this._display = undefined;
@@ -1572,6 +1606,7 @@ Bling.module('transform', function () {
 		},
 
 		toggle: function toggle(callback) {
+			// .toggle() - show each hidden node, hide each visible one
 			return this.each(function() {
 				var d = Bling(this).css("display").first()
 				if( d == "none" ) {
@@ -1589,6 +1624,7 @@ Bling.module('transform', function () {
 		},
 
 		fadeIn: function fadeIn(speed, callback) {
+			// .fadeIn() - fade each node to opacity:1.0
 			return this
 				.css('opacity','0.0')
 				.show(function (){
@@ -1596,6 +1632,7 @@ Bling.module('transform', function () {
 				})
 		},
 		fadeOut:   function fadeOut(speed, callback, _x, _y) {
+			// .fadeOut() - fade each node to opacity:0.0
 			_x = _x || 0.0
 			_y = _y || 0.0
 			return this.each(function(t) {
@@ -1606,22 +1643,26 @@ Bling.module('transform', function () {
 			}).future(Bling.duration(speed), callback)
 		},
 		fadeLeft:  function fadeLeft(speed, callback)  {
+			// .fadeLeft() - fadeOut and move offscreen to the left
 			return this.fadeOut(speed, callback, "-"+this.width().first(), 0.0)
 		},
 		fadeRight: function fadeRight(speed, callback) {
+			// .fadeRight() - fadeOut and move offscreen to the right
 			return this.fadeOut(speed, callback, this.width().first(), 0.0)
 		},
 		fadeUp:    function fadeUp(speed, callback)    {
+			// .fadeUp() - fadeOut and move offscreen off the top
 			return this.fadeOut(speed, callback, 0.0, "-"+this.height().first())
 		},
 		fadeDown:  function fadeDown(speed, callback)  {
+			// .fadeDown() - fadeOut and move offscreen off the bottom
 			return this.fadeOut(speed, callback, 0.0, this.height().first())
 		}
 	}
 
 })
 
-Bling.module('http', function() {
+Bling.module('Http', function() {
 	/// HTTP Request Module: provides wrappers for making http requests ///
 
 	// static helper to create &foo=bar strings from object properties
@@ -1689,7 +1730,7 @@ Bling.module('http', function() {
 
 })
 
-Bling.module('database', function () {
+Bling.module('Database', function () {
 	/// Database Module: provides access to the sqlite database ///
 
 	// static error handler
@@ -1706,16 +1747,15 @@ Bling.module('database', function () {
 	}
 
 	return {
-		// .transaction() provides access to the db's raw transaction() method
-		// but, use .sql() instead, its friendlier
 		transaction: function transaction( f ) {
+			// .transaction() - provides access to the db's raw transaction() method
+			// but, use .sql() instead, its friendlier
 			this.zip('transaction').call(f)
 			return this
 		},
 
-		// short-cut for .transaction(function(t){t.executeSql(sql, values, callback, errors)})
-		// only the sql is required
 		sql: function sql(sql, values, callback, errors) {
+			// .sql(sql, values, callback, errors) - shortcut for using transaction
 			if( sql == undefined ) return undefined
 			if( typeof(values) == "function") {
 				errors = callback
@@ -1734,72 +1774,177 @@ Bling.module('database', function () {
 
 })
 
-Bling.module('dialog', function() {
-	/// Dialog Module: pop any content up as an optionally modal dialog
+Bling.module('UI', function() {
+	Bling.UI = {}
 
-	function addButton(d, name, f) {
-		var b = d.find(".buttons")
-		if( b.length == 0 )
-			b = d.append("<div class='buttons'></div>").find(".buttons")
-
-		name = name || "undefined"
-		name = name.replace(/_/g, " ")
-
-		return Bling("<button>"+name+"</button>")
-			.bind('click', f.bound(d))
-			.appendTo(b)
+	Bling.UI.Dialog = function Dialog(selector, opts) {
+		var dialog = Bling(selector)
+			.addClass("dialog")
+			.center()
+		opts = Bling.extend({
+			autoOpen: false,
+		}, opts)
+		dialog.open = dialog.show
+		dialog.close = dialog.hide
+		if( opts.autoOpen ) dialog.open()
+		return dialog
 	}
-	function checkDialog(t) {
-		if( !t.isDialog ) { throw new Error("dialog expected") }
+
+	Bling.UI.ProgressBar = function ProgressBar(selector, opts) {
+		opts = Bling.extend({ 
+			change: Function.Empty,
+			color: "green",
+		}, opts)
+		var node = Bling(selector),
+			slide = node
+				.addClass('progress-bar')
+				.css("overflow", "hidden")
+				.css("border", "1px solid black")
+				.html("<div>&nbsp;</div>")
+				.find("div")
+				.css("text-align", "right")
+				.css("padding-right", "4px")
+				.css("color", "white")
+				.css("width", node.width().px(-4).first())
+				.css("background-color", opts.color)
+
+		node.update = function(percent) {
+			if( percent < 0.0 ) percent *= -1.0
+			while( percent > 1.0 ) percent /= 100.0
+			slide.text((percent * 100).toFixed(0) + "%")
+			percent = (1.0 - percent)
+			slide.css("margin-left", node.width().scale(-percent).px()[0])
+		}
+		node.update(0.0)
+
+		return node
+	}
+
+	Bling.UI.Tabs = function Tabs(selector, opts) {
+		// TODO
+		return selector
 	}
 
 	return {
-		dialog: function (/*cmd, buttons... */) {
-			var i = 0,
-				n = arguments.length,
-				cmd = 'create';
-			if( isString(arguments[0]) ) {
-				cmd = arguments[0];
-				i++;
-			}
+		dialog: function dialog(opts) {
+			// .dialog([opts]) - create a dialog from each node
+			return Bling.UI.Dialog(this, opts)
+		},
+		progressBar: function progressBar(opts) {
+			// .progressBar([opts]) - create a progress bar in each node
+			return Bling.UI.ProgressBar(this, opts)
+		},
+		tabs: function tabs(opts) {
+			// .tabs([opts]) - create a tab set from this collection
+			// (one tab per node in the set?)
+			return Bling.UI.Tabs(this, opts)
+		}
+	}
 
-			if( 'create' == cmd ) {
-				if( this.isDialog ) return this;
-				var d = Bling("<div class='dialog' style='display:none'/>")
-				d.isDialog = true
-				this.wrap(d)
-				// save this in case it moves later
-				d.contentNode = d[0].childNodes[0]
-				if( i == n ) { // if no buttons were passed
-					// add only the one button
-					addButton(d, "OK", function(){ this.hide() })
-				}
-				// for each button
-				for(; i < n; i++) {
-					var a = arguments[i];
-					if( a == null || isString(a) ) { } // ignore
-					else if( isFunc(a) ) addButton(d, a.name, a) // add funcs by name
-					else // add object property funcs
-						for(var name in a)
-							if( isFunc(a[name]) )
-								addButton(d, name, a[name]);
-				}
-				if( d[0].parentNode == null )
-					d.appendTo("body")
-				// save its current position if it has one
-				var top = d.css("top").first(),
-					left = d.css("left").first()
-				// and float it above the same spot
-				return d.css("position","absolute")
-					.css("top",top).css("left",left)
+})
 
-			} else if( 'destroy' == cmd ) {
-				if( this.isDialog ) {
-					this.isDialog = false
-					return Bling(this.contentNode).unwrap()
-				}
-				return this;
+Bling.module('Template', function() {
+
+	function match_forward(text, find, against, start, stop) {
+		var count = 1;
+		if( stop == null || stop == -1 ) {
+			stop = text.length;
+		}
+		for( var i = start; i < stop; i++ ) {
+			if( text.charAt(i) == against )
+				count += 1
+			else if( text.charAt(i) == find )
+				count -= 1
+			if( count == 0 )
+				return i
+		}
+		return -1
+	}
+
+	var type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])(.*)/
+
+	var compile = function (text) {
+		var ret = [],
+			chunks = text.split(/%[\(\/]/),
+			end = -1, i = 1, n = chunks.length
+		ret.push(chunks[0])
+		for( ; i < n; i++) {
+			end = match_forward(chunks[i], ')', '(', 0, -1)
+			if( end == -1 )
+				return "Template syntax error: unmatched '%(' in chunk starting at: "+chunks[i].substring(0,15)
+			key = chunks[i].substring(0,end)
+			rest = chunks[i].substring(end)
+			match = type_re.exec(rest)
+			if( match == null )
+				return "Template syntax error: invalid type specifier starting at '"+rest+"'"
+			// the |0 operation coerces to a number, anything that doesnt map becomes 0, so "3" -> 3, "" -> 0, null -> 0, etc.
+			type = [ match[1]|0, match[2]|0, match[3] ]
+			rest = match[4]
+			ret.push(key)
+			ret.push(type)
+			ret.push(rest)
+		}
+		return ret
+	}
+
+	var render = function(text, values) {
+		// get the cached compiled version
+		var cache = arguments.callee.cache[text] 
+			|| (arguments.callee.cache[text] = compile(text)),
+			// the first block is always just text
+			output = [cache[0]],
+			// j is an insert marker into output
+			j = 1 // (because .push() is slow on an iphone, but inserting at length is fast everywhere)
+			// (and because building up this list is the bulk of what render does)
+
+		// then the rest of the cache items are: [key, format, remainder] triplets
+		for( var i = 1, n = cache.length; i < n-2; i += 3) {
+			var key = cache[i],
+				format = cache[i+1],
+				// format has 3 fields: precision, fixed, type
+				precision = format[0],
+				fixed = format[1],
+				type = format[2],
+				// the text after the end of the format
+				rest = cache[i+2],
+				// the value to render for this key
+				value = values[key]
+
+			// require the value
+			if( value == null ) 
+				return "Template missing required value: "+key
+
+			// TODO: the format is used for all kinds of options like padding, etc
+			// right now this only really supports %s, %d, and %N.Nf
+			// everything else is equivalent to %s
+			switch( type ) {
+				case 'd':
+					output[j++] = "" + parseInt(value)
+					break
+				case 'f':
+					output[j++] = parseFloat(value).toFixed(fixed)
+					break
+				// output unsupported formats as strings
+				// TODO: add support for more types
+				case 's':
+				default:
+					output[j++] = "" + value
 			}
+			output[j++] = rest
+		}
+		return output.join('')
+	}
+	render.cache = {}
+
+	return {
+		template: function(defaults) {
+			// .template() - compiles each node into a template object
+			// subsequent calls to .render(values) will produce text
+			defaults = defaults || {}
+			this.render = function(args) {
+				return render(this.html().first(), Bling.extend(defaults,args))
+			}
+			return this.hide()
 		}
 	}
 

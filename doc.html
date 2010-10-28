@@ -1,0 +1,89 @@
+<html>
+	<head>
+		<script src="bling.js"></script>
+		<link rel="stylesheet" href="content/prettify.css" type="text/css" />
+		<script type="text/javascript" src="content/prettify.js"></script>
+		<style>
+		</style>
+		<script>
+			function ProgressBar(node, opts) {
+				opts = $.extend({ 
+					change: Function.Empty,
+					color: "green",
+					title: "&nbsp;",
+				}, opts)
+				node = $(node)
+				var slide = node
+					.css("overflow", "hidden")
+					.css("background-color", "grey")
+					.html("<div>"+opts.title+"</div>")
+					.find("div")
+					.css("text-align", "right")
+					.css("width", node.width().px().first())
+					.css("background-color", opts.color)
+
+				node.update = function(percent) {
+					if( percent < 0.0 ) percent *= -1.0
+					while( percent > 1.0 ) percent /= 100.0
+					percent = (1.0 - percent)
+					slide.css("margin-left", node.width().scale(-percent).px().first())
+				}
+				node.update(0.0)
+
+				return node
+
+			}
+			$.ready(function() {
+				var $body = $("body"),
+					$docroot = $("#docroot"),
+					i = 0, j = 0, module = null
+
+				var progressBar = ProgressBar("#progress-bar", {title: "Generating Documenation..."})
+
+				function oneIteration() {
+					if( name = Bling.module.order[i++] ) {
+						module = Bling.module[name]
+						var ul = $("<ul class='module' module='"+name+"'></ul>")
+						var h3 = $("<h3>"+name+"</h3>")
+						for( var k in module ) {
+							ul.append("<li class='func'><h4>"+k+"</h4></li>")
+						}
+						h3.click(function() {
+							ul.toggle()
+						}).click()
+						ul.find("h4").click(function() {
+							var $this = $(this)
+							console.log($this.text()[0])
+							// console.log(Bling.prototype
+							console.log(Bling.prototype[$this.text()[0]])
+						})
+						$docroot.append(h3)
+							.append(ul) 
+						// update progress bar
+						progressBar.update(i/Bling.module.order.length)
+						setTimeout(oneIteration, 1000)
+					} else {
+						// hide the progress bar, fade the docs in
+						progressBar.hide()
+						$docroot.fadeIn()
+					}
+				}
+				$docroot.hide()
+				setTimeout(oneIteration, 0)
+
+				$body.find(".func").click(function() {
+					var $this = $(this),
+						module_name = $this.parents().filter(function() { this.className = 'module' }).attr('module'),
+						span = $this.find("span").take(1),
+						name = span.text().first()
+				})
+			})
+		</script>
+	</head>
+	<body>
+		<div id="progress-bar">
+		</div>
+		<div id="docroot">
+		</div>
+	</body>
+</html>

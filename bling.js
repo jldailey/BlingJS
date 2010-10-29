@@ -173,6 +173,7 @@ function Bling (selector, context) {
 				return Bling.__init__(selector, context, context.querySelectorAll(selector))
 			} catch ( err ) {
 				console.log("err",err,selector,context)
+				return null
 			}
 
 		// otherwise, this is not a valid context
@@ -320,10 +321,15 @@ Bling.module('Core', function () {
 				f.call(t, t);
 			});
 			return this;
+			/* Example:
+				$("input[type=text]").each(function() {
+					this.value = "HI!"
+				})
+			*/
 		},
 
 		map: function map(f) {
-			// .map(f) - collects /f/(/x/) for /x/ in _this_
+			// .map(f) - collects /x/./f/(/x/) for /x/ in _this_
 			var a = Bling(this.length),
 				i = 0
 			this.each(function(t) {
@@ -335,6 +341,13 @@ Bling.module('Core', function () {
 				i++
 			})
 			return a
+			/* Example:
+				$([1, 2, 3]).map(function() {
+					return this * 2
+				})
+				Output: $([2, 4, 6])
+			*/
+
 		},
 
 		reduce: function reduce(f, init) {
@@ -353,10 +366,26 @@ Bling.module('Core', function () {
 				a = f.call(this, a, this)
 			})
 			return a
+			/* Example:
+				$([12, 14, 9, 37]).reduce(Math.min)
+
+				Output: 9
+
+				But, you can accumulate anything easily, given an initial value.
+
+				$([ [1,2,3], [3,6,9] ]).reduce(function(a, x) {
+					a[0] += x[0]
+					a[1] += x[1]
+					a[2] += x[2]
+				}, [0, 0, 0])
+
+				Output: $([4, 8, 12])
+			*/
 		},
 
 		filter: function filter(f) {
-			// .filter(f) - collect all /x/ from _this_ where /f/(/x/) is true
+			// .filter(f) - collect all /x/ from _this_ where /x/./f/(/x/) is true
+			// or if f is a selector string, collects nodes that match the selector
 			var i = 0, j = -1, n = this.length,
 				b = Bling(n), it = null
 			for(; i < n; i++ ) {
@@ -369,6 +398,19 @@ Bling.module('Core', function () {
 				}
 			}
 			return b
+			/* Example:
+				$([1,2,3,4,5,6]).filter(function() {
+					return this % 2 == 0
+				})
+
+				Output: $([2,4,6])
+
+				Or, you can filter by a selector.
+
+				$("pre").filter(".prettyprint")
+
+				Output: $([... some pre nodes ...])
+			*/
 		},
 
 		matches: function matches(expr) {
@@ -378,21 +420,10 @@ Bling.module('Core', function () {
 					return this.webkitMatchesSelector(expr)
 				return false
 			})
-		},
-
-		distinct: function distinct() {
-			// .distinct() - get a shallow copy of _this_ with duplicates removed.
-			var bucket = {},
-				i = 0, k = null,
-				ret = Bling()
-
-			this.each(function() {
-				bucket[this] = 1
-			})
-			for( k in bucket ) {
-				ret[i++] = k
-			}
-			return ret
+			/* Example:
+				$("pre").matches(".prettyprint")
+				Output: $([true, false, false, true, etc...])
+			*/
 		},
 
 		union: function union(other) {
@@ -436,9 +467,22 @@ Bling.module('Core', function () {
 			return ret
 		},
 
+		distinct: function distinct() {
+			// .distinct() - get a shallow copy of _this_ with duplicates removed.
+			return this.union(this)
+			/* Example:
+				$([1, 2, 3, 1, 4, 5]).distinct()
+				Output: $([1,2,3,4,5])
+			*/
+		},
+
 		contains: function contains(item) {
 			// .contains(item) - true if /item/ is in _this_, false otherwise
 			return this.count(item) > 0
+			/* Example:
+				$("body").contains(document.body)
+				Output: true
+			*/
 		},
 
 		count: function count(item) {
@@ -457,6 +501,10 @@ Bling.module('Core', function () {
 				if( t == item ) ret++;
 			})
 			return ret;
+			/* Example:
+				$([1, 2, 3, 1, 2, 3, 1, 2, 3]).count(1)
+				Output: 3
+			*/
 		},
 
 		zip: function zip() {
@@ -504,6 +552,29 @@ Bling.module('Core', function () {
 					}
 					return b
 			}
+			/* Example:
+				$(["foo", "bar", "bank"]).zip("length")
+				Output: $([3, 3, 4])
+
+				You can use compound property names.
+
+				$("pre").first(3).zip("style.display")
+				Output: $(["block", "block", "block"])
+
+				If you request many properties at once,
+				you get back raw objects with only those properties.
+				Similar to specifying columns on a SQL select query.
+
+				$("pre").first(1).zip("style.display", "style.color")
+				Output: $([ {'display': 'block', 'color': 'black'}, ])
+
+				If the property value is a function, 
+				a bound-method is returned in its place.
+
+				$("pre").first(1).zip("getAttribute")
+				Output: $(["bound-method getAttribute of HTMLPreElement"])	
+				See: .call, .apply
+			*/
 		},
 
 		zap: function zap(p, v) {
@@ -522,6 +593,10 @@ Bling.module('Core', function () {
 				})
 				// accept a single value v, even if v is undefined
 				: this.each(function() { this[p] = v })
+			/* Example:
+				// set a property on all nodes at once
+				$("pre").zap("style.display", "none")
+			*/
 		},
 
 		take: function take(n) {
@@ -637,9 +712,18 @@ Bling.module('Core', function () {
 
 		toString: function toString() {
 			// .toString() - maps and joins toString across all elements
-			return Bling.symbol+"(["+this.map(function(){
-				return this.toString()
-			}).join(", ")+"])"
+			return Bling.symbol
+				+"(["
+				+this.map(function(){
+					return this == undefined || this == window ? "undefined"
+						: this == null ? "null"
+						: this.toString().replace(/\[object (\w+)\]/,"$1")
+				}).join(", ")
+				+"])"
+			/* Example:
+				$("body").toString()
+				Output: "$([HTMLBodyElement])"
+			*/
 		},
 
 		future: function future(n, f) {
@@ -653,17 +737,35 @@ Bling.module('Core', function () {
 			if( label ) console.log(label, this, this.length + " items");
 			else console.log(this, this.length + " items");
 			return this;
+			/* Example:
+				$("a + pre").text().log("example")
+				// this will log: "example: some text content"
+				// for every matching node
+			*/
 		},
 
 		len: function len() {
-			// .len() - returns the last defined index + 1
+			// .len() - returns the largest not-undefined index + 1
 			// the .length of an array is more like capacity than length
 			// this counts backward from .length, looking for a valid item
+			// returns the found index + 1
 			var i = this.length
 			while( i > -1 && this[--i] == undefined) { 
 				// spin
 			}
 			return i+1
+			/* Example:
+				// create an empty array with spare capacity
+				var b = new Array(10)
+				// b.length === 10
+				// but .length isnt where .push, .forEach, etc will operate
+				// b[0] === undefined
+				b.push("foo")
+				// b[0] === "foo"
+				// .len() tells you where .push will insert and how many times .forEach will loop
+				// $(b).len() === 1 && b.length == 10
+			*/
+
 		}
 
 	}
@@ -738,8 +840,6 @@ Bling.module('Html', function () {
 	Bling.Color = {
 		fromCss: function(css) {
 			// .fromCss(css) - convert any css color strings to numbers
-			// .fromCss("#ffffff") -> $([255, 255, 255, 1.0])
-			// $(nodes).css("color").map(Bling.Color.fromCss) -> $([$([255,255,255,1.0]), ...])
 			css = css || this
 			if( isString(css) ) {
 				var d = document.createElement("div");
@@ -758,6 +858,16 @@ Bling.module('Html', function () {
 					return Bling( rgb ).floats()
 				}
 			}
+			/* Example:
+
+				.fromCss("#ffffff") 
+
+				Output: $([255, 255, 255, 1.0])
+			
+				$(nodes).css("color").map(Bling.Color.fromCss) 
+
+				Output: $([$([255,255,255,1.0]), ...])
+			*/
 		},
 		toCss: function(b) {
 			// .toCss(b) - convert a color array to a css string
@@ -790,7 +900,7 @@ Bling.module('Html', function () {
 
 	return {
 		html: function html(h) {
-			// .html([h]) - get [or set] the .innerHTML of each node
+			// .html([h]) - get [or set] /x/.innerHTML for each node
 			return h == undefined ? this.zip('innerHTML')
 				: isString(h) ? this.zap('innerHTML', h)
 				: isBling(h) ? this.html(h.toFragment())
@@ -805,6 +915,7 @@ Bling.module('Html', function () {
 
 		append: function append(x) {
 			// .append(n) - insert content [or a clone] as the last child of each node
+			if( x == null ) return this;
 			x = toNode(x) // parse, cast, do whatever it takes to get a Node or Fragment
 			var a = this.zip('appendChild')
 			a.take(1).call(x);
@@ -816,12 +927,14 @@ Bling.module('Html', function () {
 
 		appendTo: function appendTo(x) {
 			// .appendTo(n) - each node [or a fragment] will become the last child of n
+			if( x == null ) return this;
 			Bling(x).append(this)
 			return this
 		},
 
 		prepend: function prepend(x) {
 			// .prepend(n) - insert n [or a clone] as the first child of each node
+			if( x == null ) return this;
 			x = toNode(x)
 			this.take(1).each(function() { _before(this.childNodes[0], x) })
 			this.skip(1).each(function() { _before(this.childNodes[0], deepClone(x)) })
@@ -830,12 +943,14 @@ Bling.module('Html', function () {
 
 		prependTo: function prependTo(x) {
 			// .prependTo(n) - each node [or a fragment] will become the first child of n
+			if( x == null ) return this;
 			Bling(x).prepend(this)
 			return this
 		},
 
 		before: function before(x) {
 			// .before(n) - insert content n before each node
+			if( x == null ) return this;
 			x = toNode(x)
 			this.take(1).each(function() { _before(this, x) })
 			this.skip(1).each(function() { _before(this, deepClone(x)) })
@@ -844,6 +959,7 @@ Bling.module('Html', function () {
 
 		after: function after(x) {
 			// .after(n) - insert content n after each node
+			if( x == null ) return this;
 			x = toNode(x)
 			this.take(1).each(function() { _after(this, x) })
 			this.skip(1).each(function() { _after(this, deepClone(x)) })
@@ -1105,6 +1221,28 @@ Bling.module('Html', function () {
 				var b = Bling(), j = -1,
 					p = this
 				while( p = p.parentNode )
+					b[++j] = p
+				return b
+			})
+		},
+
+		previousSiblings: function previousSiblings() {
+			// .previousSiblings() - collects the full chain of .previousSibling nodes
+			return this.map(function() {
+				var b = Bling, j = -1,
+					p = this
+				while( p = p.previousSibling )
+					b[++j] = p
+				return b
+			})
+		},
+
+		nextSiblings: function nextSiblings() {
+			// .nextSiblings() - collects the full chain of .nextSibling nodes
+			return this.map(function() {
+				var b = Bling, j = -1,
+					p = this
+				while( p = p.previousSibling )
 					b[++j] = p
 				return b
 			})
@@ -1483,6 +1621,17 @@ Bling.module('Event', function () {
 					i--;
 				}
 			}
+		},
+		liveCycle: function cycle(e) {
+			// .liveCycle(e, ...) - bind each /f/ in /.../ to /e/
+			// one call per trigger. when the last handler is executed
+			// the next trigger will call the first handler again
+			var i = 0,
+				funcs = Function.Slice(arguments, 1, arguments.length)
+			return this.live(e, function(evt) {
+				funcs[i].call(this, evt)
+				i = ++i % funcs.length
+			})
 		},
 
 		// short-cuts for calling bind or trigger

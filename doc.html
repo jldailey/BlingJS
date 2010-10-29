@@ -28,19 +28,15 @@
 			$.ready(function() {
 				var $body = $("body"),
 					$docroot = $("#docroot"),
-					i = 0, j = 0, module = null
-
-				var progressBar = $.UI.ProgressBar("#progress-bar")
-
-				var funcTemplate = $("#func-template").template()
-
+					i = 0, j = 0, module = null,
+					progressBar = $.UI.ProgressBar("#progress-bar")
 				window.PR_TAB_WIDTH = 2
+
 				function getSource(func) {
 					var source = func.toString().replace(/\n\t\t/g,'\n')
 					return $(prettyPrintOne("<pre class='prettyprint'>"+source+"</pre>"))
 				}
 				function getDescription(node) {
-					// var source = func.toString().replace(/\t/g,'T').replace(/\r/g,'R').replace(/\n/g,'N')
 					var desc = node.find(".com").take(1).text().first();
 					desc = desc ? desc
 						.replace(/^\/\/ /,'')
@@ -49,48 +45,79 @@
 						: "unknown - unknown"
 					return desc.split(" - ")
 				}
+				function getExample(node) {
+					var example = node.find(".com").last(1).text().first()
+					if( example ) {
+						example = example
+							.replace(/^\/\/ */,'')
+							.replace(/^\/\* */,'')
+							.replace(/\s*\*\/\s*$/,'')
+							.replace(/\n\s{4}/g,'\n')
+							// .replace(/\s*[Ee]xample:\s*/,'')
+						if( example.indexOf("Example:") == 0 ) {
+							return $(prettyPrintOne("<pre class='prettyprint'>"+example+"</pre>")).addClass("example")
+						}
+					}
+				}
 
-				function oneIteration() {
+				function generateModuleDocs(module, template) {
+					var ul = $("<ol class='apilist' module='"+name+"'></ol>")
+					for( var k in module ) {
+						var source = getSource(module[k]),
+							desc = getDescription(source),
+							example = getExample(source)
+						ul.append(template.render({
+							coderef: "Bling.prototype."+k, 
+							funcdef: desc[0], 
+							funcdesc: desc[1]
+						}))
+						.find("li")
+						.last(1)
+						.append(example)
+					}
+					ul.find("a").cycle('click', function() {
+						var $this = $(this),
+							name = $this.attr('name').first(),
+							func = eval(name),
+							source = getSource(func)
+						source.find(".com").filter(function() {
+							return this.innerText.indexOf("Example:") > -1
+						}).remove()
+						$this.parent()
+							.append("<h6>Implementation:</h6>")
+							.append(source)
+							.find("h6, h6 + pre").click(function () {
+								$(this).parent().find("h6, pre").remove()
+							})
+						return false
+					}, function() {
+						var $this = $(this)
+						$this.parent().find("h6, h6 + pre").remove()
+					})
+					return ul
+				}
+
+				var funcTemplate = $("#func-template").template()
+				setTimeout(function () {
 					if( name = Bling.module.order[i++] ) {
 						module = Bling.module[name]
-						var ul = $("<ol class='module' module='"+name+"'></ol>")
-						var h3 = $("<h3>"+name+"</h3>")
-						for( var k in module ) {
-							var source = getSource(module[k]),
-								desc = getDescription(source)
-							ul.append(funcTemplate.render({
-								coderef: "Bling.prototype."+k, 
-								funcdef: desc[0], 
-								funcdesc: desc[1]
-							}))
-						}
+						var h3 = $("<h3>"+name+"</h3>"),
+							ul = generateModuleDocs(module, funcTemplate)
 						h3.click(function() {
 							ul.toggle()
 						})
-						ul.find("a").cycle('click', function() {
-							var $this = $(this),
-								name = $this.attr('name').first(),
-								func = eval(name),
-								source = getSource(func)
-							$this.parent().append(source)
-							return false
-						}, function() {
-							var $this = $(this)
-							$this.parent().find("pre").remove()
-						})
-						$docroot.append(h3)
-							.append(ul) 
+						$docroot.append(h3).append(ul)
 						// update progress bar
 						progressBar.update(i/Bling.module.order.length)
-						setTimeout(oneIteration, 0)
+						setTimeout(arguments.callee, 0)
 					} else {
 						// hide the progress bar, fade the docs in
-						progressBar.hide()
-						$docroot.fadeIn()
+						progressBar.hide(function() {
+							$docroot.fadeIn()
+						})
 					}
-				}
+				}, 0)
 				$docroot.hide()
-				setTimeout(oneIteration, 0)
 
 				$body.find(".func").click(function() {
 					var $this = $(this),

@@ -664,7 +664,7 @@ Bling.module('Core', function () {
 				// spin
 			}
 			return i+1
-		},
+		}
 
 	}
 
@@ -1783,7 +1783,7 @@ Bling.module('UI', function() {
 			.addClass("dialog")
 			.center()
 		opts = Bling.extend({
-			autoOpen: false,
+			autoOpen: false
 		}, opts)
 		dialog.open = dialog.show
 		dialog.close = dialog.hide
@@ -1794,7 +1794,7 @@ Bling.module('UI', function() {
 	Bling.UI.ProgressBar = function ProgressBar(selector, opts) {
 		opts = Bling.extend({ 
 			change: Function.Empty,
-			color: "green",
+			color: "green"
 		}, opts)
 		var node = Bling(selector),
 			slide = node

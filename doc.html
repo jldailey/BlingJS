@@ -3,8 +3,26 @@
 		<script src="bling.js"></script>
 		<link rel="stylesheet" href="content/prettify.css" type="text/css" />
 		<script type="text/javascript" src="content/prettify.js"></script>
+		<link href='http://fonts.googleapis.com/css?family=Nobile' rel='stylesheet' type='text/css'>
 		<style>
 			.template { display: none; }
+			body {
+				font-family: 'Nobile', Verdana, sans;
+			}
+			b { color:#911; }
+			i { color:#822; }
+			p {
+				width:300px;
+				text-align: justify;
+				margin-left:auto;
+				margin-right:auto;
+			}
+			a[href^='#doc:Bling'] {
+				font-size: 20px;
+				text-decoration:none;
+				color:black;
+				border-bottom: 1px solid black;
+			}
 		</style>
 		<script>
 			$.ready(function() {
@@ -26,8 +44,8 @@
 					var desc = node.find(".com").take(1).text().first();
 					desc = desc ? desc
 						.replace(/^\/\/ /,'')
-						.replace(/\/(\w+)\//g, "<i>$1</i>")
-						.replace(/_(\w+)_/g, "<b>$1</b>")
+						.replace(/\/(\w+)\//g, "<b>$1</b>")
+						.replace(/_(\w+)_/g, "<i>$1</i>")
 						: "unknown - unknown"
 					return desc.split(" - ")
 				}
@@ -35,7 +53,7 @@
 				function oneIteration() {
 					if( name = Bling.module.order[i++] ) {
 						module = Bling.module[name]
-						var ul = $("<ul class='module' module='"+name+"'></ul>")
+						var ul = $("<ol class='module' module='"+name+"'></ol>")
 						var h3 = $("<h3>"+name+"</h3>")
 						for( var k in module ) {
 							var source = getSource(module[k]),
@@ -48,7 +66,7 @@
 						}
 						h3.click(function() {
 							ul.toggle()
-						}).click()
+						})
 						ul.find("a").cycle('click', function() {
 							var $this = $(this),
 								name = $this.attr('name').first(),

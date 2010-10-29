@@ -314,17 +314,6 @@ Bling.module('Core', function () {
 
 	return {
 
-		len: function len() {
-			// .len() - returns the last defined index + 1
-			// the .length of an array is more like capacity than length
-			// this counts backward from .length, looking for a valid item
-			var i = this.length
-			while( i > -1 && this[--i] == undefined) { 
-				// spin
-			}
-			return i+1
-		},
-
 		each: function each(f) {
 			// .each(f) - applies /f/ to every /x/ in _this_
 			this.forEach(function(t) {
@@ -471,7 +460,7 @@ Bling.module('Core', function () {
 		},
 
 		zip: function zip() {
-			// .zip([p, ...]) - collects /x/[/p/] for all /x/ in _this_
+			// .zip([p, ...]) - collects /x/./p/ for all /x/ in _this_
 			// recursively split names like "foo.bar"
 			// zip("foo.bar") == zip("foo").zip("bar")
 			// you can pass multiple properties, e.g.
@@ -518,7 +507,7 @@ Bling.module('Core', function () {
 		},
 
 		zap: function zap(p, v) {
-			// .zap(p, v) - set /x/[/p/] = /v/ for all /x/ in _this_
+			// .zap(p, v) - set /x/./p/ = /v/ for all /x/ in _this_
 			// just like zip, zap("a.b") == zip("a").zap("b")
 			// but unlike zip, you cannot assign to many /p/ at once
 			if( !p ) return this
@@ -579,7 +568,7 @@ Bling.module('Core', function () {
 		},
 
 		slice: function slice(start, end) {
-			// .slice(i, [j]) - get a subset of _this_ including [/i/../j-1/]
+			// .slice(i, [j]) - get a subset of _this_ including [/i/../j/-1]
 			// the j-th item will not be included - slice(0,2) will contain items 0, and 1.
 			// negative indices work like in python: -1 is the last item, -2 is second-to-last
 			// undefined start or end become 0, or this.length, respectively
@@ -638,7 +627,7 @@ Bling.module('Core', function () {
 		},
 
 		apply: function apply(context, args) {
-			// .apply(context, args) - collect /f/.apply(/contenxt/,/args/) for /f/ in _this_
+			// .apply(context, args) - collect /f/.apply(/context/,/args/) for /f/ in _this_
 			return this.map(function() {
 				if( isFunc(this) )
 					return this.apply(context, args)
@@ -660,11 +649,23 @@ Bling.module('Core', function () {
 		},
 
 		log: function log(label) {
-			// .log([label]) - log([label] + /x/) for /x/ in _this_
+			// .log([label]) - console.log([label] + /x/) for /x/ in _this_
 			if( label ) console.log(label, this, this.length + " items");
 			else console.log(this, this.length + " items");
 			return this;
-		}
+		},
+
+		len: function len() {
+			// .len() - returns the last defined index + 1
+			// the .length of an array is more like capacity than length
+			// this counts backward from .length, looking for a valid item
+			var i = this.length
+			while( i > -1 && this[--i] == undefined) { 
+				// spin
+			}
+			return i+1
+		},
+
 	}
 
 })
@@ -1539,7 +1540,7 @@ Bling.module('Transform', function () {
 	return {
 		// like jquery's animate(), but using only webkit-transition/transform
 		transform: function transform(end_css, speed, callback) {
-			// .transform(end_css, [speed], [callback]) - animate css properties on each node
+			// .transform(css, [speed], [callback]) - animate css properties on each node
 			// animate css properties over a duration
 			// accelerated: scale, translate, rotate, scale3d, translateX, translateY, translateZ, translate3d, rotateX, rotateY, rotateZ, rotate3d
 			if( typeof(speed) == "function" ) {
@@ -1938,9 +1939,8 @@ Bling.module('Template', function() {
 
 	return {
 		template: function(defaults) {
-			// .template() - compiles each node into a template object
-			// subsequent calls to .render(values) will produce text
-			defaults = defaults || {}
+			// .template([defaults]) - create a template from each node, call .render(v) to use
+			defaults = Bling.extend({}, defaults)
 			this.render = function(args) {
 				return render(this.html().first(), Bling.extend(defaults,args))
 			}

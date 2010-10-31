@@ -153,7 +153,7 @@ function Bling (selector, context) {
 	if( typeof selector === "string" ) { // strings, search css or parse html
 		// accept two different kinds of strings: html, and css expression
 		// html begins with "<", and we create a set of nodes by parsing it
-		
+
 		selector = selector.trimLeft()
 
 		if( selector[0] == "<" )
@@ -487,6 +487,7 @@ Bling.module('Core', function () {
 
 		count: function count(item) {
 			// .count(x) - returns the number of times /x/ is in _this_
+			if( item == undefined ) return this.len()
 			item = unmask(item)
 			if( isObject(item) && isNumber(item) ) {
 				// numbers masqueraded as an object should be unmasked
@@ -568,11 +569,11 @@ Bling.module('Core', function () {
 				$("pre").first(1).zip("style.display", "style.color")
 				Output: $([ {'display': 'block', 'color': 'black'}, ])
 
-				If the property value is a function, 
+				If the property value is a function,
 				a bound-method is returned in its place.
 
 				$("pre").first(1).zip("getAttribute")
-				Output: $(["bound-method getAttribute of HTMLPreElement"])	
+				Output: $(["bound-method getAttribute of HTMLPreElement"])
 				See: .call, .apply
 			*/
 		},
@@ -607,6 +608,12 @@ Bling.module('Core', function () {
 			for(; i < n; i++)
 				a[i] = this[i]
 			return a
+			/* Example:
+				$("p").take(3).length == 3
+
+				$([1, 2, 3, 4, 5, 6]).take(2)
+				Output: $([1, 2])
+			*/
 		},
 
 		skip: function skip(n) {
@@ -618,6 +625,10 @@ Bling.module('Core', function () {
 			for(; i < nn; i++)
 				a[i] = this[i+n]
 			return a
+			/* Example:
+				$([1, 2, 3, 4, 5, 6]).skip(2)
+				Output: $([3, 4, 5, 6])
+			*/
 		},
 
 		last: function last(n) {
@@ -625,6 +636,14 @@ Bling.module('Core', function () {
 			// if n is not passed, returns just the last item (no bling)
 			return n ? this.skip(this.len() - n)
 				: this[this.length - 1]
+			/* Example:
+				$([1, 2, 3, 4, 5]).last()
+				Output: 5
+
+				$([1, 2, 3, 4, 5]).last(2)
+				Output: $([4, 5])
+
+			*/
 		},
 
 		first: function first(n) {
@@ -632,6 +651,13 @@ Bling.module('Core', function () {
 			// if n is not passed, returns just the item (no bling)
 			return n ? this.take(n)
 				: this[0]
+			/* Example:
+				$([1, 2, 3, 4, 5]).first()
+				Output: 1
+
+				$([1, 2, 3, 4, 5]).first(2)
+				Output: $([1, 2])
+			*/
 		},
 
 		join: function join(sep) {
@@ -640,6 +666,10 @@ Bling.module('Core', function () {
 			return this.reduce(function(j) {
 				return j + sep + this;
 			});
+			/* Example:
+				$([1, 2, 3, 4, 5]).join(", ")
+				Output: "1, 2, 3, 4, 5"
+			*/
 		},
 
 		slice: function slice(start, end) {
@@ -648,16 +678,37 @@ Bling.module('Core', function () {
 			// negative indices work like in python: -1 is the last item, -2 is second-to-last
 			// undefined start or end become 0, or this.length, respectively
 			return Bling(Function.Slice(this, start, end))
+			/* Example:
+				var a = $([1, 2, 3, 4, 5])
+
+				a.slice(0,1)
+				Output: $([1])
+
+				a.slice(0,-1)
+				Output: $([1, 2, 3, 4])
+
+				a.slice(0)
+				Output: $([1, 2, 3, 4, 5])
+
+				a.slice(-2)
+				Output: $([4, 5])
+			*/
 		},
 
 		concat: function concat(b) {
 			// .concat(b) - insert all items from /b/ into _this_
 			// note: different from union, allows duplicates
 			// note: also, does not create a new array, extends _this_
-			var i = this.len() - 1, j = -1, n = b.length
+			var i = this.len() - 1,
+				j = -1,
+				n = b.length
 			while( j < n )
 				this[++i] = b[++j]
 			return this
+			/* Example:
+				$([1, 2, 3]).concat([3, 4, 5])
+				Output: $([1, 2, 3, 3, 4, 5])
+			*/
 		},
 
 		weave: function weave(b) {
@@ -678,6 +729,12 @@ Bling.module('Core', function () {
 			while( ++i < n )
 				c[i*2] = b[i]
 			return c
+			/* Example:
+				var a = $([0, 0, 0, 0])
+				var b = $([1, 1, 1, 1])
+				a.weave(b)
+				Output: $([1, 0, 1, 0, 1, 0, 1, 0])
+			*/
 		},
 
 		fold: function fold(f) {
@@ -694,20 +751,58 @@ Bling.module('Core', function () {
 				b[j++] = f.call(this, this[i], this[i+1])
 			}
 			return b
+			/* Example:
+				var a = $([1, 1, 1, 1])
+				var b = $([2, 2, 2, 2])
+				a.weave(b) // == $([2, 1, 2, 1, 2, 1, 2, 1])
+					.fold(function(x,y) {
+						return x + y
+					})
+				Output: $([3, 3, 3, 3])
+			*/
 		},
 
 		call: function call() {
 			// .call([args]) - call all functions in _this_ [with args]
 			return this.apply(null, arguments)
+			/* Example:
+				$("pre").zip("getAttribute").call("class")
+				Output: $([... x.getAttribute("class") for each ...])
+			*/
 		},
 
 		apply: function apply(context, args) {
-			// .apply(context, args) - collect /f/.apply(/context/,/args/) for /f/ in _this_
+			// .apply(context, [args]) - collect /f/.apply(/context/,/args/) for /f/ in _this_
 			return this.map(function() {
 				if( isFunc(this) )
 					return this.apply(context, args)
 				return this
 			})
+			/* Example:
+				var a = {
+					x: 1,
+					get1: function() {
+						return this.x
+					}
+				}
+				var b = {
+					x: 2,
+					get2: function() {
+						return this.x
+					}
+				}
+				b.get2() == 2
+				a.get1() == 1
+				$([a.get1, b.get2]).apply(a)
+				Output: $([1, 1])
+
+				This happens because both functions are called
+				with a as their 'this' value, since it is the
+				context argument to apply.
+
+				(IOW, it happens because b.get2.apply(a) == 1)
+			*/
+
 		},
 
 		toString: function toString() {
@@ -730,13 +825,28 @@ Bling.module('Core', function () {
 			// .future(n, f) -  continue with /f/ on _this_ after /n/ milliseconds
 			if( f ) { timeoutQueue.schedule(f.bound(this), n) }
 			return this
+			/* Example:
+				$("pre").future(50, function sometimeLater() {
+					console.log(this.length)
+				})
+				console.log($("pre").length)
+
+				Output: The same number to the log twice, one 50 milliseconds
+				or more after the other.
+
+				.future() is nearly identical to setTimeout(),
+				except for two key differences: perserving context,
+				and most importantly, perserving order.
+				See the comments on TimeoutQueue for a detailed explanation.
+			*/
+
 		},
 
 		log: function log(label) {
 			// .log([label]) - console.log([label] + /x/) for /x/ in _this_
 			if( label ) console.log(label, this, this.length + " items");
 			else console.log(this, this.length + " items");
-			return this;
+			return this
 			/* Example:
 				$("a + pre").text().log("example")
 				// this will log: "example: some text content"
@@ -750,7 +860,7 @@ Bling.module('Core', function () {
 			// this counts backward from .length, looking for a valid item
 			// returns the found index + 1
 			var i = this.length
-			while( i > -1 && this[--i] == undefined) { 
+			while( i > -1 && this[--i] == undefined) {
 				// spin
 			}
 			return i+1
@@ -765,7 +875,6 @@ Bling.module('Core', function () {
 				// .len() tells you where .push will insert and how many times .forEach will loop
 				// $(b).len() === 1 && b.length == 10
 			*/
-
 		}
 
 	}
@@ -831,9 +940,12 @@ Bling.module('Html', function () {
 		escape: function(h) {
 			escaper = escaper || Bling("<div>&nbsp;</div>").child(0)
 			// insert html using the text's .data property
-			escaper.zap('data', h)
-			// then get escaped html from the parent's .innerHTML
-			return escaper.parent().html().first()
+			var ret = escaper.zap('data', h)
+				// then get escaped html from the parent's .innerHTML
+				.zip("parentNode.innerHTML").first()
+			// clean up so escaped content isn't leaked into the DOM
+			escaper.zap('data', '')
+			return ret
 		}
 	}
 
@@ -860,11 +972,11 @@ Bling.module('Html', function () {
 			}
 			/* Example:
 
-				.fromCss("#ffffff") 
+				.fromCss("#ffffff")
 
 				Output: $([255, 255, 255, 1.0])
-			
-				$(nodes).css("color").map(Bling.Color.fromCss) 
+
+				$(nodes).css("color").map(Bling.Color.fromCss)
 
 				Output: $([$([255,255,255,1.0]), ...])
 			*/
@@ -1226,8 +1338,8 @@ Bling.module('Html', function () {
 			})
 		},
 
-		previousSiblings: function previousSiblings() {
-			// .previousSiblings() - collects the full chain of .previousSibling nodes
+		prev: function prev() {
+			// .prev() - collects the full chain of .previousSibling nodes
 			return this.map(function() {
 				var b = Bling, j = -1,
 					p = this
@@ -1237,8 +1349,8 @@ Bling.module('Html', function () {
 			})
 		},
 
-		nextSiblings: function nextSiblings() {
-			// .nextSiblings() - collects the full chain of .nextSibling nodes
+		next: function next() {
+			// .next() - collects the full chain of .nextSibling nodes
 			return this.map(function() {
 				var b = Bling, j = -1,
 					p = this
@@ -1403,41 +1515,84 @@ Bling.module('Event', function () {
 		}
 	}
 
-	Bling.ready = function ready(f) {
-		return Bling(window).bind('load', f)
+	Bling.ready = function(f) {
+		return Bling(document).ready(f)
 	}
 
+	// detect and fire the document.ready event
+	setTimeout(function() {
+		if( Bling.prototype.trigger != null
+			&& document.readyState == "complete") {
+			Bling(document).trigger('ready')
+			console.log("document.ready fired")
+		} else {
+			console.log("not ready",document.readyState)
+			setTimeout(arguments.callee, 10)
+		}
+	}, 0)
+
+	var comma_sep = /, */
+
 	return {
+
 		bind: function bind(e, f) {
 			// .bind(e, f) - adds handler f for event type e
 			// e is a string like 'click', 'mouseover', etc.
+			// e can be comma-separated to bind multiple events at once
+			var i = 0,
+				e = (e||"").split(comma_sep),
+				n = e.length
 			return this.each(function() {
-				this.addEventListener(e, f)
+				for(; i < n; i++) {
+					this.addEventListener(e[i], f)
+				}
 			})
 		},
+
 		unbind: function unbind(e, f) {
 			// .unbind(e, [f]) - removes handler f from event e
 			// if f is not present, removes all handlers from e
-			return this.each(function() { this.removeEventListener(e,f) })
+			var i = 0,
+				e = (e||"").split(comma_sep),
+				n = e.length
+			return this.each(function() {
+				for(; i < n; i++) {
+					this.removeEventListener(e[i],f)
+				}
+			})
 		},
+
 		once: function once(e, f) {
 			// .once(e, f) - adds a handler f that will be called only once
-			var g = function(evt) {
-				f.call(this, evt)
-				this.unbind(e, g)
+			var i = 0,
+				e = (e||"").split(comma_sep),
+				n = e.length
+			for(; i < n; i++) {
+				this.bind(e[i], function(evt) {
+					f.call(this, evt)
+					this.unbind(evt.type, arguments.callee)
+				})
 			}
-			return this.bind(e, g);
 		},
 		cycle: function cycle(e) {
 			// .cycle(e, ...) - bind handlers for e that trigger in a cycle
 			// one call per trigger. when the last handler is executed
 			// the next trigger will call the first handler again
-			var i = 0,
-				funcs = Function.Slice(arguments, 1, arguments.length)
-			return this.bind(e, function(evt) {
-				funcs[i].call(this, evt)
-				i = ++i % funcs.length
-			})
+			var j = 0,
+				funcs = Function.Slice(arguments, 1, arguments.length),
+				e = (e||"").split(comma_sep),
+				ne = e.length,
+				nf = funcs.length
+			function cycler() {
+				var i = 0
+				return function (evt) {
+					funcs[i].call(this, evt)
+					i = ++i % nf
+				}
+			}
+			while( j < ne )
+				this.bind(e[j++], cycler())
+			return this
 		},
 
 		trigger: function trigger(evt, args) {
@@ -1446,131 +1601,139 @@ Bling.module('Event', function () {
 			// args is an optional mapping of properties to set,
 			//   {screenX: 10, screenY: 10}
 			// note: not all browsers support manually creating all event types
-			var e = undefined
+			var e = undefined, i = 0,
+				evt = (evt||"").split(comma_sep),
+				n = evt.length,
+				evt_i = null
 			args = Bling.extend({
 				bubbles: true,
 				cancelable: true
 			}, args)
 
-			switch(evt) {
-				// mouse events
-				case "click":
-				case "mousemove":
-				case "mousedown":
-				case "mouseup":
-				case "mouseover":
-				case "mouseout":
-					e = document.createEvent("MouseEvents")
-					args = Bling.extend({
-						detail: 1,
-						screenX: 0,
-						screenY: 0,
-						clientX: 0,
-						clientY: 0,
-						ctrlKey: false,
-						altKey: false,
-						shiftKey: false,
-						metaKey: false,
-						button: 0,
-						relatedTarget: null
-					}, args)
-					e.initMouseEvent(evt, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
-						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-						args.button, args.relatedTarget);
-					break;
+			for(; i < n; i++) {
+				evt_i = evt[i]
+				switch(evt_i) {
+					// mouse events
+					case "click":
+					case "mousemove":
+					case "mousedown":
+					case "mouseup":
+					case "mouseover":
+					case "mouseout":
+						e = document.createEvent("MouseEvents")
+						args = Bling.extend({
+							detail: 1,
+							screenX: 0,
+							screenY: 0,
+							clientX: 0,
+							clientY: 0,
+							ctrlKey: false,
+							altKey: false,
+							shiftKey: false,
+							metaKey: false,
+							button: 0,
+							relatedTarget: null
+						}, args)
+						e.initMouseEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+							args.button, args.relatedTarget);
+						break;
 
-				// UI events
-				case "blur":
-				case "focus":
-				case "reset":
-				case "submit":
-				case "abort":
-				case "change":
-				case "load":
-				case "unload":
-					e = document.createEvent("UIEvents")
-					e.initUIEvent(evt, args.bubbles, args.cancelable, window, 1)
-					break;
+					// UI events
+					case "blur":
+					case "focus":
+					case "reset":
+					case "submit":
+					case "abort":
+					case "change":
+					case "load":
+					case "unload":
+						e = document.createEvent("UIEvents")
+						e.initUIEvent(evt_i, args.bubbles, args.cancelable, window, 1)
+						break;
 
-				// iphone touch events
-				case "touchstart":
-				case "touchmove":
-				case "touchend":
-				case "touchcancel":
-					e = document.createEvent("TouchEvents")
-					args = Bling.extend({
-						detail: 1,
-						screenX: 0,
-						screenY: 0,
-						clientX: 0,
-						clientY: 0,
-						ctrlKey: false,
-						altKey: false,
-						shiftKey: false,
-						metaKey: false,
-						// touch values:
-						touches: [],
-						targetTouches: [],
-						changedTouches: [],
-						scale: 1.0,
-						rotation: 0.0
-					}, args)
-					e.initTouchEvent(evt, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
-						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-						args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation);
-					break;
+					// iphone touch events
+					case "touchstart":
+					case "touchmove":
+					case "touchend":
+					case "touchcancel":
+						e = document.createEvent("TouchEvents")
+						args = Bling.extend({
+							detail: 1,
+							screenX: 0,
+							screenY: 0,
+							clientX: 0,
+							clientY: 0,
+							ctrlKey: false,
+							altKey: false,
+							shiftKey: false,
+							metaKey: false,
+							// touch values:
+							touches: [],
+							targetTouches: [],
+							changedTouches: [],
+							scale: 1.0,
+							rotation: 0.0
+						}, args)
+						e.initTouchEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+							args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation);
+						break;
 
-				// iphone gesture events
-				case "gesturestart":
-				case "gestureend":
-				case "gesturecancel":
-					e = document.createEvent("GestureEvents")
-					args = Bling.extend({
-						detail: 1,
-						screenX: 0,
-						screenY: 0,
-						clientX: 0,
-						clientY: 0,
-						ctrlKey: false,
-						altKey: false,
-						shiftKey: false,
-						metaKey: false,
-						// gesture values:
-						target: null,
-						scale: 1.0,
-						rotation: 0.0
-					}, args)
-					e.initGestureEvent(evt, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
-						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-						args.target, args.scale, args.rotation);
-					break;
+					// iphone gesture events
+					case "gesturestart":
+					case "gestureend":
+					case "gesturecancel":
+						e = document.createEvent("GestureEvents")
+						args = Bling.extend({
+							detail: 1,
+							screenX: 0,
+							screenY: 0,
+							clientX: 0,
+							clientY: 0,
+							ctrlKey: false,
+							altKey: false,
+							shiftKey: false,
+							metaKey: false,
+							// gesture values:
+							target: null,
+							scale: 1.0,
+							rotation: 0.0
+						}, args)
+						e.initGestureEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+							args.target, args.scale, args.rotation);
+						break;
 
-				// iphone events that are not supported yet
-				// (dont know how to create yet, needs research)
-				case "drag":
-				case "drop":
-				case "selection":
+					// iphone events that are not supported yet
+					// (dont know how to create yet, needs research)
+					case "drag":
+					case "drop":
+					case "selection":
 
-				// iphone events that we cant properly emulate
-				// (because we cant create our own Clipboard objects)
-				case "cut":
-				case "copy":
-				case "paste":
+					// iphone events that we cant properly emulate
+					// (because we cant create our own Clipboard objects)
+					case "cut":
+					case "copy":
+					case "paste":
 
-				// iphone events that are just plain events
-				case "orientationchange":
+					// iphone events that are just plain events
+					case "orientationchange":
 
-				// a general event
-				default:
-					e = document.createEvent("Events");
-					e.initEvent(evt, args.bubbles, args.cancelable);
+					// a general event
+					default:
+						e = document.createEvent("Events");
+						e.initEvent(evt_i, args.bubbles, args.cancelable);
+				}
+				if( !e ) continue
+				else this.each(function() {
+					this.dispatchEvent(e)
+					e.result = e.returnValue = undefined // clean up
+				})
 			}
 
-			if( !e ) return this;
-			else return this.each(function() {
-				this.dispatchEvent(e)
-				e.result = e.returnValue = undefined // clean up
-			})
+			return this;
+
 		},
 
 		live: function live(e, f) {
@@ -1578,7 +1741,7 @@ Bling.module('Event', function () {
 			var selector = this.selector,
 				context = this.context
 			// wrap f
-			var g = function(evt) {
+			var handler = function(evt) {
 				// when the 'live' event is fired
 				// re-execute the selector in the original context
 				// then see if the event would bubble into a match
@@ -1590,7 +1753,7 @@ Bling.module('Event', function () {
 					})
 			}
 			// bind g to the context
-			Bling(context).bind(e, g)
+			Bling(context).bind(e, handler)
 			// record f so we can 'die' it if needed
 			var livers = (context.__livers__ = context.__livers__ || {})
 			livers[selector] = livers[selector] || {}
@@ -1622,7 +1785,7 @@ Bling.module('Event', function () {
 				}
 			}
 		},
-		liveCycle: function cycle(e) {
+		liveCycle: function liveCycle(e) {
 			// .liveCycle(e, ...) - bind each /f/ in /.../ to /e/
 			// one call per trigger. when the last handler is executed
 			// the next trigger will call the first handler again
@@ -1637,8 +1800,11 @@ Bling.module('Event', function () {
 		// short-cuts for calling bind or trigger
 		click: function(f) {
 			// .click(e, [f]) - trigger [or bind] event e
-			if( this.css("cursor").intersect(["auto",""]).len() > 0 ) this.css("cursor", "pointer")
-			return isFunc(f) ? this.bind('click', f) : this.trigger('click', f ? f : {})
+			// if the cursor is just default then make it look clickable
+			if( this.css("cursor").intersect(["auto",""]).len() > 0 )
+				this.css("cursor", "pointer")
+			return isFunc(f) ? this.bind('click', f)
+				: this.trigger('click', f ? f : {})
 		},
 		mousemove: binder('mousemove'),
 		mousedown: binder('mousedown'),
@@ -1648,7 +1814,8 @@ Bling.module('Event', function () {
 		blur: binder('blur'),
 		focus: binder('focus'),
 		load: binder('load'),
-		ready: binder('load'),
+		// ready is generated by this library
+		ready: binder('ready'),
 		unload: binder('unload'),
 		reset: binder('reset'),
 		submit: binder('submit'),
@@ -1941,7 +2108,7 @@ Bling.module('UI', function() {
 	}
 
 	Bling.UI.ProgressBar = function ProgressBar(selector, opts) {
-		opts = Bling.extend({ 
+		opts = Bling.extend({
 			change: Function.Empty,
 			color: "green"
 		}, opts)
@@ -1970,12 +2137,73 @@ Bling.module('UI', function() {
 		return node
 	}
 
+	Bling.UI.ViewSet = function ViewStack(opts) {
+		opts = Bling.extend({
+			width: "320px",
+			height: "416px",
+		}, opts)
+		var box = $("<div><div></div></div>").addClass("viewstack"),
+			frame = box.find("> div")
+
+		box.scrollDownToView = function (selector) {
+			if( isNumber(selector) )
+				selector = frame.child(selector)
+			frame.css("margin-top", Bling(selector, frame).zip("offsetTop").scale(-1).px().first())
+		}
+
+		box.animateToView = function (selector) {
+			if( isNumber(selector) )
+				selector = frame.child(selector)
+			frame.css( Bling(selector, frame).zip("offsetTop", "offsetLeft") )
+		}
+
+		box.addView = function (view) {
+			view.css({
+				width: opts.width,
+				height: opts.height,
+			})
+			return frame.append(view).children().len() - 1
+		}
+
+		return box
+	}
+
 	Bling.UI.Tabs = function Tabs(selector, opts) {
-		// TODO
-		return selector
+		opts = Bling.extend({
+			width: "auto",
+			height: "auto",
+		}, opts)
+	}
+
+	Bling.UI.ListView = function ListSet(selector, opts) {
+		opts = Bling.extend({
+		}, opts)
+		var box = $("<div>").addClass('listview'),
+			lists = $(selector)
+			h = lists.height().max(), hpx = h + "px",
+			w = lists.width().max(), wpx = w + "px"
+
+
+		lists.wrap(box)
+			.css({
+				float: "left",
+				margin: 0
+			})
+		// $("li", lists).live('click, touchstart'
+		box.css({
+			width: wpx,
+			height: hpx,
+			margin: 0,
+			padding: 0,
+			border: "1px dashed black",
+			overflow: "hidden"
+		})
+
+		return box
 	}
 
 	return {
+
 		dialog: function dialog(opts) {
 			// .dialog([opts]) - create a dialog from each node
 			return Bling.UI.Dialog(this, opts)
@@ -1988,7 +2216,15 @@ Bling.module('UI', function() {
 			// .tabs([opts]) - create a tab set from this collection
 			// (one tab per node in the set?)
 			return Bling.UI.Tabs(this, opts)
+		},
+		listSet: function listSet(opts) {
+			// .listSet([opts]) - create a list set from this collection
+			// list sets are like iPhone interfaces, ol's or li's and
+			// when you click on an item it either moves to a new list
+			// back to the previous list, or launches some action
+			return Bling.UI.ListSet(this, opts)
 		}
+
 	}
 
 })
@@ -2039,7 +2275,7 @@ Bling.module('Template', function() {
 
 	var render = function(text, values) {
 		// get the cached compiled version
-		var cache = arguments.callee.cache[text] 
+		var cache = arguments.callee.cache[text]
 			|| (arguments.callee.cache[text] = compile(text)),
 			// the first block is always just text
 			output = [cache[0]],
@@ -2061,7 +2297,7 @@ Bling.module('Template', function() {
 				value = values[key]
 
 			// require the value
-			if( value == null ) 
+			if( value == null )
 				return "Template missing required value: "+key
 
 			// TODO: the format is used for all kinds of options like padding, etc

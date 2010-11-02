@@ -143,6 +143,12 @@ String.Pad = function pad(s, n, c) {
 	}
 	return s
 }
+String.Splice = function splice() {
+	// .splice(start, length, ...) - replace a substring with ...
+	var s = arguments[0], a = arguments[1], b = arguments[2],
+		repl = Array.Slice(arguments, 3).join('')
+	return s.substring(0,a) + repl + s.substring(b)
+}
 Array.Slice = function slice(o, i, j) { // a python-like slice that works on any indexable
 	var a = [], k = 0, n = o.length,
 		end = j == undefined ? n
@@ -158,7 +164,121 @@ Array.Slice = function slice(o, i, j) { // a python-like slice that works on any
 Number.Px = function px(x,d) { return (parseInt(x)+(d|0))+"px" }
 Function.Px = function(d) { return function() { return Number.Px(this,d) } }
 
-
+// Function.PrettyPrint gets its own little private namespace
+;(function() {
+	var operators =
+		/!==|!=|!|\#|\%|\%=|\&|\&\&|\&\&=|&=|\*|\*=|\+|\+=|-|-=|->|\.{1,3}|\/|\/=|:|::|;|<<=|<<|<=|<|===|==|=|>=|>>>=|>>=|>>>|>>|>|\?|@|\[|\]|}|{|\^|\^=|\^\^|\^\^=|\|=|\|\|=|\|\||\||~|\bbreak\b|\bcase\b|\bcontinue\b|\bdelete\b|\bdo\b|\bif\b|\belse\b|\bfinally\b|\binstanceof\b|\breturn\b|\bthrow\b|\btry\b|\btypeof\b/g,
+		keywords = /\b[Ff]unction\b|\bvar\b|\.prototype\b|\.__proto__\b|\bString\b|\bArray\b|\bNumber\b/,
+		singleline_comment = /\/\/.*?\n/,
+		multiline_comment = /\/\*.*?\*\//,
+		all_numbers = /\d+\.*\d*/g
+	function find_unescaped_quote(s, i, q) {
+		var r = s.indexOf(q, i)
+		while( s.charAt(r-1) == "\\" && r < s.length && r > 0)
+			r = s.indexOf(q, r+1)
+		return r
+	}
+	function find_first_quote(s, i) {
+		var a = s.indexOf('"', i),
+			b = s.indexOf("'", i)
+		if( a == -1 ) a = s.length
+		if( b == -1 ) b = s.length
+		return a == b ? [null, -1]
+			: a < b ? ['"', a] 
+			: ["'", b]
+	}
+	function extract_quoted(s) {
+		var i = 0, n = s.length, ret = [],
+			j = -1, k = -1, q = null
+		if( ! isString(s) )
+			if( ! isFunc(s.toString) )
+				throw TypeError("invalid string argument to extract_quoted")
+			else {
+				s = s.toString()
+				n = s.length
+			}
+		while( i < n ) {
+			q = find_first_quote(s, i)
+			j = q[1]
+			q = q[0]
+			if( j == -1 ) {
+				ret.push(s.substring(i))
+				break
+			}
+			ret.push(s.substring(i,j))
+			k = find_unescaped_quote(s, j+1, q)
+			if( k == -1 )
+				throw Error("unmatched "+q)
+			ret.push(s.substring(j, k+1))
+			i = k+1
+		}
+		return ret
+	}
+	function first_comment(s) {
+		var a = s.match(singleline_comment),
+			b = s.match(multiline_comment)
+			return a == b ? [-1, null]
+				: a == null && b != null ? [b.index, b[0]]
+				: a != null && b == null ? [a.index, a[0]]
+				: b.index < a.index ? [b.index, b[0]]
+				: [a.index, a[0]]
+	}
+	function extract_comments(s) {
+		var ret = [], i = 0, j = 0, 
+			n = s.length, q = null, ss = null
+		while( i < n ) {
+			ss = s.substring(i)
+			q = first_comment(ss)
+			j = q[0]
+			if( j > -1 ) {
+				ret.push(ss.substring(0,j))
+				ret.push(q[1])
+				i += j + q[1].length
+			} else {
+				ret.push(ss)
+				break
+			}
+		}
+		return ret
+	}
+	var has_injected_css = false;
+	Function.PrettyPrint = function prettyPrint(js) {
+		var i = 0, n = 0
+		if( isFunc(js) )
+			js = js.toString()
+		if( ! isString(js) )
+			throw TypeError("prettyPrint requires a function or string to format")
+		if( ! has_injected_css ) {
+			$("head").append("<style> .pretty .opr { color: #880; } .pretty .str { color: #008; } .pretty .com { color: #080; } .pretty .kwd { color: #088; } .pretty .num { color: #808; }</style>")
+			has_injected_css = true;
+		}
+		// extract comments
+		return "<pre class='pretty'>"+$(extract_comments(js))
+			.fold(function(text, comment) {
+				// extract quoted strings
+				return $(extract_quoted(text))
+					.fold(function(code, quoted) {
+						// label number constants
+						return (code
+							// label operator symbols
+							.replace(operators, "<span class='opr'>$&</span>")
+							// label numbers
+							.replace(all_numbers, "<span class='num'>$&</span>")
+							// label keywords
+							.replace(keywords, "<span class='kwd'>$&</span>")
+							.replace(/\t/g, "&nbsp;&nbsp;")
+						) + 
+						// label string constants
+						(quoted ? "<span class='str'>"+quoted+"</span>" : "")
+					})
+					.join('')
+					+
+					(comment ? "<span class='com'>"+comment+"</span>" : "")
+			})
+			.join('')
+			+"</pre>"
+	}
+})()
 
 /* Bling, the constructor.
  * ------------------------
@@ -382,7 +502,7 @@ Bling.module('Core', function () {
 				> $([1, 2, 3]).map(function() {
 				> 	return this * 2
 				> })
-				$([2, 4, 6])
+				> == $([2, 4, 6])
 			*/
 
 		},
@@ -780,13 +900,16 @@ Bling.module('Core', function () {
 			// .fold() will always return a set with half as many items
 			// tip: use as a companion to weave.  weave two blings together,
 			// then fold them to a bling the original size
-			var n = this.length, j = 0
+			var n = this.len(), j = 0
 			// at least 2 items are required in the set
-			if( n < 2 ) return this
-			var b = Bling(n/2)
-			for( var i = 0; i < n - 1; i += 2) {
+			var b = Bling(Math.ceil(n/2)),
+				 i = 0
+			for( i = 0; i < n - 1; i += 2)
 				b[j++] = f.call(this, this[i], this[i+1])
-			}
+			// if there is an odd man out, make one last call
+			if( n % 2 == 1 )
+				b[j++] = f.call(this, this[n-1], undefined)
+
 			return b
 			/* Example:
 				var a = $([1, 1, 1, 1])
@@ -2292,9 +2415,8 @@ Bling.module('Template', function() {
 		return -1
 	}
 
-	var type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])(.*)/
-
-	var compile = function (text) {
+	var type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])(.*)/,
+	compile = function (text) {
 		var ret = [],
 			chunks = text.split(/%[\(\/]/),
 			end = -1, i = 1, n = chunks.length
@@ -2317,9 +2439,8 @@ Bling.module('Template', function() {
 			ret.push(rest)
 		}
 		return ret
-	}
-
-	var render = function(text, values) {
+	},
+	render = function(text, values) {
 		// get the cached compiled version
 		var cache = arguments.callee.cache[text]
 			|| (arguments.callee.cache[text] = compile(text)),
@@ -2372,20 +2493,6 @@ Bling.module('Template', function() {
 	}
 	render.cache = {}
 
-	var operators = [
-		/!/g, /!=/g, /!==/g, /#/g, /%/g, /%=/g, /&/g, /&&/g, /&&=/g,
-		/&=/g, /\(/g, /\*/g, /\*=/g, /\+/g, /\+=/g, /g,/g, /-/g, /-=/g,
-		/->/g, /\.{1,3}/g, /\//g, /\/=/g, /:/g, /::/g, /;/g,
-		/</g, /<</g, /<<=/g, /<=/g, /=/g, /==/g, /===/g, />/g,
-		/>=/g, />>/g, />>=/g, />>>/g, />>>=/g, /\?/g, /@/g, /\[/g,
-		/\^/g, /\^=/g, /\^\^/g, /\^\^=/g, /{/g, /\|/g, /\|=/g, /\|\|/g,
-		/||=/g, /~/g,
-		/break/g, /case/g, /continue/g, /delete/g,
-		/do/g, /else/g, /finally/g, /instanceof/g,
-		/return/g, /throw/g, /try/g, /typeof/g
-	]
-
-
 
 	return {
 		template: function(defaults) {
@@ -2397,14 +2504,7 @@ Bling.module('Template', function() {
 				return render(this.html().first(), Bling.extend(defaults,args))
 			}
 			return this.hide()
-		},
-
-		prettyPrint: function(js) {
-			if( isFunc(js) )
-				js = js.toString()
-			return js
-		},
-
+		}
 	}
 
 })
@@ -2421,3 +2521,5 @@ Bling.module('Template', function() {
  */
 $ = Bling
 Bling.symbol = "$" // for display purposes
+
+

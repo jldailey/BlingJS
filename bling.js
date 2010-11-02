@@ -170,7 +170,7 @@ Function.Px = function(d) { return function() { return Number.Px(this,d) } }
 		/!==|!=|!|\#|\%|\%=|\&|\&\&|\&\&=|&=|\*|\*=|\+|\+=|-|-=|->|\.{1,3}|\/|\/=|:|::|;|<<=|<<|<=|<|===|==|=|>=|>>>=|>>=|>>>|>>|>|\?|@|\[|\]|}|{|\^|\^=|\^\^|\^\^=|\|=|\|\|=|\|\||\||~|\bbreak\b|\bcase\b|\bcontinue\b|\bdelete\b|\bdo\b|\bif\b|\belse\b|\bfinally\b|\binstanceof\b|\breturn\b|\bthrow\b|\btry\b|\btypeof\b/g,
 		keywords = /\b[Ff]unction\b|\bvar\b|\.prototype\b|\.__proto__\b|\bString\b|\bArray\b|\bNumber\b/,
 		singleline_comment = /\/\/.*?\n/,
-		multiline_comment = /\/\*.*?\*\//,
+		multiline_comment = /\/\*(?:.|\n)*?\*\//,
 		all_numbers = /\d+\.*\d*/g
 	function find_unescaped_quote(s, i, q) {
 		var r = s.indexOf(q, i)
@@ -487,22 +487,26 @@ Bling.module('Core', function () {
 
 		map: function map(f) {
 			// .map(/f/) - collects /x/./f/(/x/) for /x/ in _this_
-			var a = Bling(this.length),
-				i = 0
-			this.each(function(t) {
+			var n = this.len(),
+				a = Bling(n),
+				i = 0, t = null
+			for(; i < n; i++ ) {
+				t = this[i]
 				try { a[i] = f.call(t, t) }
 				catch( e ) {
 					if( isType(e, TypeError) ) a[i] = f(t)
 					else throw e
 				}
-				i++
-			})
+			}
 			return a
 			/* Example:
 				> $([1, 2, 3]).map(function() {
 				> 	return this * 2
 				> })
 				> == $([2, 4, 6])
+				This is a discussion paragraph.
+				> $([more, code])
+				More discussion.
 			*/
 
 		},

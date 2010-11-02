@@ -1,8 +1,6 @@
 <html>
 	<head>
 		<script src="bling.js"></script>
-		<link rel="stylesheet" href="content/prettify.css" type="text/css" />
-		<script type="text/javascript" src="content/prettify.js"></script>
 		<link href='http://fonts.googleapis.com/css?family=Nobile' rel='stylesheet' type='text/css'>
 		<style>
 			.template { display: none; }
@@ -31,7 +29,7 @@
 					i = 0, j = 0, module = null,
 					example_re = /\s*[Ee]xample:\s*/,
 					end_line = /\n/g,
-					code_line = /^\s*>\s/g,
+					code_line = /^\s*>\s/,
 					blank_line = /^\s*$/,
 					singleline_comment = /^\/\/ */,
 					multiline_comment_open = /^\/\* */,
@@ -39,11 +37,9 @@
 					b_word = /\/(\w+)\//g,
 					i_word = /_(\w+)_/g,
 					progressBar = $.UI.ProgressBar("#progress-bar")
-				window.PR_TAB_WIDTH = 2
 
 				function getSource(func) {
-					var source = func.toString().replace(/\n\t\t/g,'\n')
-					return $(prettyPrintOne("<pre class='prettyprint'>"+source+"</pre>"))
+					return $(Function.PrettyPrint(func))
 				}
 				function getDescription(node) {
 					var desc = node.find(".com").take(1).text().first();
@@ -56,24 +52,43 @@
 				}
 				function getExamples(node) {
 					// return a list of [<p>, <pre>, <p>, <pre>, ...]
-					var examples = node.find(".com").text(),
-						lines = examples.zip('split').call(end_line).flatten(),
+					var examples = node.find(".com").skip(1).text(),
 						result = $([]), codeQueue = [], paraQueue = [],
-						i = 0, j = 0, n = lines.length, line = null
+						i = 0, j = 0, n = examples.length, example = null
+						lines = null, line = null
 
-					for(; i < n; i++) {
-						line = lines[i]
-						if( code_line.test(line) ) {
-							codeQueue.push(line.replace(code_line, ''))
-						} else if( codeQueue.length > 0 ) {
-							result.push($(prettyPrintOne("<pre class='prettyprint'>"+codeQueue.join('')+"</pre>")))
+					while( example = examples[i++] ) {
+						if( example_re.test(example) ) {
+							console.log("example", example)
+							lines = example.split(end_line)
+							while( line = lines[i++] ) {
+								console.log("line", line)
+								if( code_line.test(line) ) {
+									console.log("code queue")
+									codeQueue.push(line.replace(code_line, ''))
+									if( paraQueue.length > 0 ) {
+										console.log("para flush")
+										result.push($("<p>").html(paraQueue.join('\n')))
+										paraQueue = []
+									}
+								}
+								else if( ! blank_line.test(line) ) {
+									console.log("para queue")
+									paraQueue.push(line.replace(/\*\//g,""))
+									if( codeQueue.length > 0 ) {
+										console.log("code flush")
+										result.push($(Function.PrettyPrint(codeQueue.join('\n'))))
+										codeQueue = []
+									}
+								}
+							}
 						}
-						if( ! blank_line.test(line) ) {
-							paraQueue.push(line)
-						} else if( paraQueue.length > 0 ) {
-							result.push($("<p>").html(paraQueue.join('')))
-							paraQueue = []
-						}
+					}
+					if( codeQueue.length > 0 ) {
+						result.push($(Function.PrettyPrint(codeQueue.join('\n'))))
+					}
+					if( paraQueue.length > 0 ) {
+						result.push($("<p>").html(paraQueue.join('\n')))
 					}
 					return result
 				}
@@ -139,7 +154,7 @@
 
 				$body.find(".func").click(function() {
 					var $this = $(this),
-						module_name = $this.parents().filter(function() { this.className = 'module' }).attr('module'),
+						module_name = $this.parents().filter(".module").attr('module'),
 						span = $this.find("span").take(1),
 						name = span.text().first()
 				})

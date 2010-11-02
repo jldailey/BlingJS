@@ -29,6 +29,15 @@
 				var $body = $("body"),
 					$docroot = $("#docroot"),
 					i = 0, j = 0, module = null,
+					example_re = /\s*[Ee]xample:\s*/,
+					end_line = /\n/g,
+					code_line = /^\s*>\s/g,
+					blank_line = /^\s*$/,
+					singleline_comment = /^\/\/ */,
+					multiline_comment_open = /^\/\* */,
+					multiline_comment_close = /\s*\*\/\s*$/,
+					b_word = /\/(\w+)\//g,
+					i_word = /_(\w+)_/g,
 					progressBar = $.UI.ProgressBar("#progress-bar")
 				window.PR_TAB_WIDTH = 2
 
@@ -39,25 +48,34 @@
 				function getDescription(node) {
 					var desc = node.find(".com").take(1).text().first();
 					desc = desc ? desc
-						.replace(/^\/\/ /,'')
-						.replace(/\/(\w+)\//g, "<b>$1</b>")
-						.replace(/_(\w+)_/g, "<i>$1</i>")
+						.replace(singleline_comment,'')
+						.replace(b_word, "<b>$1</b>")
+						.replace(i_word, "<i>$1</i>")
 						: "unknown - unknown"
 					return desc.split(" - ")
 				}
-				function getExample(node) {
-					var example = node.find(".com").last(1).text().first()
-					if( example ) {
-						example = example
-							.replace(/^\/\/ */,'')
-							.replace(/^\/\* */,'')
-							.replace(/\s*\*\/\s*$/,'')
-							.replace(/\n\s{4}/g,'\n')
-							// .replace(/\s*[Ee]xample:\s*/,'')
-						if( example.indexOf("Example:") == 0 ) {
-							return $(prettyPrintOne("<pre class='prettyprint'>"+example+"</pre>")).addClass("example")
+				function getExamples(node) {
+					// return a list of [<p>, <pre>, <p>, <pre>, ...]
+					var examples = node.find(".com").text(),
+						lines = examples.zip('split').call(end_line).flatten(),
+						result = $([]), codeQueue = [], paraQueue = [],
+						i = 0, j = 0, n = lines.length, line = null
+
+					for(; i < n; i++) {
+						line = lines[i]
+						if( code_line.test(line) ) {
+							codeQueue.push(line.replace(code_line, ''))
+						} else if( codeQueue.length > 0 ) {
+							result.push($(prettyPrintOne("<pre class='prettyprint'>"+codeQueue.join('')+"</pre>")))
+						}
+						if( ! blank_line.test(line) ) {
+							paraQueue.push(line)
+						} else if( paraQueue.length > 0 ) {
+							result.push($("<p>").html(paraQueue.join('')))
+							paraQueue = []
 						}
 					}
+					return result
 				}
 
 				function generateModuleDocs(module, template) {
@@ -65,7 +83,7 @@
 					for( var k in module ) {
 						var source = getSource(module[k]),
 							desc = getDescription(source),
-							example = getExample(source)
+							examples = getExamples(source)
 						ul.append(template.render({
 							coderef: "Bling.prototype."+k, 
 							funcdef: desc[0], 
@@ -73,7 +91,7 @@
 						}))
 						.find("li")
 						.last(1)
-						.append(example)
+						.append(examples)
 					}
 					ul.find("a").cycle('click', function() {
 						var $this = $(this),

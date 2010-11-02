@@ -15,8 +15,8 @@ with open(infile, 'r') as i:
 		print("Compiling %s to %s..." % (output_info, output_file))
 		params = urlencode([
 			# ('compilation_level', 'WHITESPACE_ONLY'),
-			('compilation_level', 'SIMPLE_OPTIMIZATIONS'), # only changes local names
-			# ('compilation_level', 'ADANCED_OPTIMIZATIONS'), # changes names of everything
+			# ('compilation_level', 'SIMPLE_OPTIMIZATIONS'), # only changes local names
+			('compilation_level', 'ADVANCED_OPTIMIZATIONS'), # changes names of everything
 			('output_info', output_info),
 			('output_format', 'text'),
 			('js_code', data),

@@ -271,7 +271,7 @@ Bling.extend = function(a, b, c) {
  *
  */
 Bling.addOps = function (/*arguments*/) {
-	// .addOps() adds bling operations
+	// .addOps() - adds bling operations
 	// ex. Bling.addOps({nop:function(){ return this; })
 	// ex. Bling.addOps(function nop(){ return this })
 	// $("body").nop().nop()
@@ -359,14 +359,14 @@ Bling.module('Core', function () {
 			}
 			return this
 			/* Example:
-				$("input[type=text]").each(function() {
-					this.value = "HI!"
-				})
+				> $("input[type=text]").each(function() {
+				>		this.value = "HI!"
+				>	})
 			*/
 		},
 
 		map: function map(f) {
-			// .map(f) - collects /x/./f/(/x/) for /x/ in _this_
+			// .map(/f/) - collects /x/./f/(/x/) for /x/ in _this_
 			var a = Bling(this.length),
 				i = 0
 			this.each(function(t) {
@@ -379,16 +379,16 @@ Bling.module('Core', function () {
 			})
 			return a
 			/* Example:
-				$([1, 2, 3]).map(function() {
-					return this * 2
-				})
-				Output: $([2, 4, 6])
+				> $([1, 2, 3]).map(function() {
+				> 	return this * 2
+				> })
+				$([2, 4, 6])
 			*/
 
 		},
 
 		reduce: function reduce(f, init) {
-			// .reduce(f, [initial]) - accumulates /f/(a, /x/) for /x/ in _this_
+			// .reduce(/f/, [initial]) - a = /f/(a, /x/) for /x/ in _this_
 			// along with respecting the context, we pass only the accumulation and one argument
 			// so you can use functions like Math.min directly $([1,2,3]).reduce(Math.min)
 			// this fails with the ECMA reduce, since Math.min(a,x,i,items) is NaN
@@ -404,24 +404,24 @@ Bling.module('Core', function () {
 			})
 			return a
 			/* Example:
-				$([12, 14, 9, 37]).reduce(Math.min)
 
-				Output: 9
+				> $([12, 14, 9, 37]).reduce(Math.min)
+				9
 
 				But, you can accumulate anything easily, given an initial value.
 
-				$([ [1,2,3], [3,6,9] ]).reduce(function(a, x) {
-					a[0] += x[0]
-					a[1] += x[1]
-					a[2] += x[2]
-				}, [0, 0, 0])
+				> $([ [1,2,3], [3,6,9] ]).reduce(function(a, x) {
+				> 	a[0] += x[0]
+				> 	a[1] += x[1]
+				> 	a[2] += x[2]
+				> }, [0, 0, 0])
+				$([4, 8, 12])
 
-				Output: $([4, 8, 12])
 			*/
 		},
 
 		filter: function filter(f) {
-			// .filter(f) - collect all /x/ from _this_ where /x/./f/(/x/) is true
+			// .filter(/f/) - collect all /x/ from _this_ where /x/./f/(/x/) is true
 			// or if f is a selector string, collects nodes that match the selector
 			var i = 0, j = -1, n = this.length,
 				b = Bling(n), it = null
@@ -523,7 +523,7 @@ Bling.module('Core', function () {
 		},
 
 		count: function count(item) {
-			// .count(x) - returns the number of times /x/ is in _this_
+			// .count(/x/) - returns the number of times /x/ is in _this_
 			if( item == undefined ) return this.len()
 			item = unmask(item)
 			if( isObject(item) && isNumber(item) ) {
@@ -733,7 +733,7 @@ Bling.module('Core', function () {
 		},
 
 		concat: function concat(b) {
-			// .concat(b) - insert all items from /b/ into _this_
+			// .concat(/b/) - insert all items from /b/ into _this_
 			// note: different from union, allows duplicates
 			// note: also, does not create a new array, extends _this_
 			var i = this.len() - 1,
@@ -749,7 +749,7 @@ Bling.module('Core', function () {
 		},
 
 		weave: function weave(b) {
-			// .weave(b) - interleave the items of _this_ and the items of _b_
+			// .weave(/b/) - interleave the items of _this_ and the items of _b_
 			// to produce: $([ ..., b[i], this[i], ... ])
 			// note: the items from b come first
 			// note: if b and this are different lengths, the shorter
@@ -775,7 +775,7 @@ Bling.module('Core', function () {
 		},
 
 		fold: function fold(f) {
-			// .fold(f) - call /f/ to reduce _this_ to half as many elements.
+			// .fold(/f/) - call /f/ to reduce _this_ to half as many elements.
 			// /f/ accepts two items from the set, and returns one.
 			// .fold() will always return a set with half as many items
 			// tip: use as a companion to weave.  weave two blings together,
@@ -797,6 +797,17 @@ Bling.module('Core', function () {
 					})
 				Output: $([3, 3, 3, 3])
 			*/
+		},
+
+		flatten: function flatten() {
+			// .flatten() - collect all /y/ in each /x/ in _this_
+			var b = Bling(), 
+				n = this.len(), c = null, d = 0,
+				i = 0, j = 0, k = 0;
+			for(; i < n; i++)
+				for(c = this[i], j = 0, d = c.length; j < d;)
+					b[k++] = c[j++]
+			return b
 		},
 
 		call: function call() {
@@ -1019,7 +1030,7 @@ Bling.module('Html', function () {
 			*/
 		},
 		toCss: function(b) {
-			// .toCss(b) - convert a color array to a css string
+			// .toCss(/b/) - convert a color array to a css string
 			// $([255, 255, 255, 1.0]) -> "rgba(255, 255, 255, 1.0)"
 			// $([$([255,255,255,1.0]),]) -> $(["rgba(255, 255, 255, 1.0)"])
 			function f(t) {
@@ -1063,7 +1074,7 @@ Bling.module('Html', function () {
 		},
 
 		append: function append(x) {
-			// .append(n) - insert content [or a clone] as the last child of each node
+			// .append(/n/) - insert /n/ [or a clone] as the last child of each node
 			if( x == null ) return this
 			x = toNode(x) // parse, cast, do whatever it takes to get a Node or Fragment
 			var a = this.zip('appendChild')
@@ -1075,14 +1086,14 @@ Bling.module('Html', function () {
 		},
 
 		appendTo: function appendTo(x) {
-			// .appendTo(n) - each node [or a fragment] will become the last child of n
+			// .appendTo(/n/) - each node [or a fragment] will become the last child of n
 			if( x == null ) return this
 			Bling(x).append(this)
 			return this
 		},
 
 		prepend: function prepend(x) {
-			// .prepend(n) - insert n [or a clone] as the first child of each node
+			// .prepend(/n/) - insert n [or a clone] as the first child of each node
 			if( x == null ) return this
 			x = toNode(x)
 			this.take(1).each(function() { _before(this.childNodes[0], x) })
@@ -1091,14 +1102,14 @@ Bling.module('Html', function () {
 		},
 
 		prependTo: function prependTo(x) {
-			// .prependTo(n) - each node [or a fragment] will become the first child of n
+			// .prependTo(/n/) - each node [or a fragment] will become the first child of n
 			if( x == null ) return this
 			Bling(x).prepend(this)
 			return this
 		},
 
 		before: function before(x) {
-			// .before(n) - insert content n before each node
+			// .before(/n/) - insert content n before each node
 			if( x == null ) return this
 			x = toNode(x)
 			this.take(1).each(function() { _before(this, x) })
@@ -1107,7 +1118,7 @@ Bling.module('Html', function () {
 		},
 
 		after: function after(x) {
-			// .after(n) - insert content n after each node
+			// .after(/n/) - insert content n after each node
 			if( x == null ) return this
 			x = toNode(x)
 			this.take(1).each(function() { _after(this, x) })
@@ -1116,7 +1127,7 @@ Bling.module('Html', function () {
 		},
 
 		wrap: function wrap(parent) {
-			// .wrap(p) - p becomes the new .parentNode of each node
+			// .wrap(/p/) - p becomes the new .parentNode of each node
 			// all items of this will become children of parent
 			// parent will take each child's position in the DOM
 			parent = toNode(parent)
@@ -1152,7 +1163,7 @@ Bling.module('Html', function () {
 		},
 
 		replace: function replace(n) {
-			// .replace(n) - replace each node with n [or a clone]
+			// .replace(/n/) - replace each node with n [or a clone]
 			n = toNode(n)
 			var b = Bling(), j = -1
 			// first node gets the real n
@@ -1182,7 +1193,7 @@ Bling.module('Html', function () {
 		},
 
 		addClass: function addClass(x) {
-			// .addClass(x) - add x to each node's .className
+			// .addClass(/x/) - add x to each node's .className
 			// remove the node and then add it to avoid dups
 			return this.removeClass(x).each(function() {
 				var c = this.className.split(" ").filter(function(y){return y && y != ""})
@@ -1192,7 +1203,7 @@ Bling.module('Html', function () {
 		},
 
 		removeClass: function removeClass(x) {
-			// .removeClass(x) - remove class x from each node's .className
+			// .removeClass(/x/) - remove class x from each node's .className
 			var notx = function(y){ return y != x }
 			return this.each(function() {
 				this.className = this.className.split(" ").filter(notx).join(" ")
@@ -1200,7 +1211,7 @@ Bling.module('Html', function () {
 		},
 
 		toggleClass: function toggleClass(x) {
-			// .toggleClass(x) - add, or remove if present, class x from each node
+			// .toggleClass(/x/) - add, or remove if present, class x from each node
 			var notx = function(y){ return y != x }
 			return this.each(function(node) {
 				var cls = node.className.split(" ")
@@ -1212,7 +1223,7 @@ Bling.module('Html', function () {
 		},
 
 		hasClass: function hasClass(x) {
-			// .hasClass(x) - true/false for each node: whether .className contains x
+			// .hasClass(/x/) - true/false for each node: whether .className contains x
 			// note: different from jQuery, we always return sets when possible
 			return this.zip('className.split').call(" ")
 				.zip('indexOf').call(x)
@@ -1348,7 +1359,7 @@ Bling.module('Html', function () {
 		},
 
 		child: function child(n) {
-			// .child(n) - returns the nth childNode for all items in this
+			// .child(/n/) - returns the nth childNode for all items in this
 			return this.map(function() { return this.childNodes[n] })
 		},
 
@@ -1517,7 +1528,7 @@ Bling.module('Math', function () {
 		},
 
 		magnitude: function magnitude() {
-			// .magnitude() - compute the magnitude (the vector length) of this
+			// .magnitude() - compute the vector length of _this_
 			var n = this.map(function() {
 				if( isBling(this) ) return this.magnitude();
 				return parseFloat(this);
@@ -1526,7 +1537,7 @@ Bling.module('Math', function () {
 		},
 
 		scale: function scale(r) {
-			// .scale(r) - scale all /x/ in _this_ by the factor /r/
+			// .scale(/r/) - /x/ *= /r/ for /x/ in _this_
 			return this.map(function() {
 				if( isBling(this) ) return this.scale(r);
 				return r * this
@@ -2361,6 +2372,21 @@ Bling.module('Template', function() {
 	}
 	render.cache = {}
 
+	var operators = [
+		/!/g, /!=/g, /!==/g, /#/g, /%/g, /%=/g, /&/g, /&&/g, /&&=/g,
+		/&=/g, /\(/g, /\*/g, /\*=/g, /\+/g, /\+=/g, /g,/g, /-/g, /-=/g,
+		/->/g, /\.{1,3}/g, /\//g, /\/=/g, /:/g, /::/g, /;/g,
+		/</g, /<</g, /<<=/g, /<=/g, /=/g, /==/g, /===/g, />/g,
+		/>=/g, />>/g, />>=/g, />>>/g, />>>=/g, /\?/g, /@/g, /\[/g,
+		/\^/g, /\^=/g, /\^\^/g, /\^\^=/g, /{/g, /\|/g, /\|=/g, /\|\|/g,
+		/||=/g, /~/g,
+		/break/g, /case/g, /continue/g, /delete/g,
+		/do/g, /else/g, /finally/g, /instanceof/g,
+		/return/g, /throw/g, /try/g, /typeof/g
+	]
+
+
+
 	return {
 		template: function(defaults) {
 			// .template([defaults]) - compile a template from each node, call .render(v) to use
@@ -2371,7 +2397,14 @@ Bling.module('Template', function() {
 				return render(this.html().first(), Bling.extend(defaults,args))
 			}
 			return this.hide()
-		}
+		},
+
+		prettyPrint: function(js) {
+			if( isFunc(js) )
+				js = js.toString()
+			return js
+		},
+
 	}
 
 })

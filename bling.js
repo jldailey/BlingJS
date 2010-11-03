@@ -490,6 +490,8 @@ Bling.module('Core', function () {
 			var n = this.len(),
 				a = Bling(n),
 				i = 0, t = null
+			a.context = this
+			a.selector = f
 			for(; i < n; i++ ) {
 				t = this[i]
 				try { a[i] = f.call(t, t) }
@@ -551,6 +553,8 @@ Bling.module('Core', function () {
 			// or if f is a selector string, collects nodes that match the selector
 			var i = 0, j = -1, n = this.length,
 				b = Bling(n), it = null
+			b.context = this
+			b.selector = f
 			for(; i < n; i++ ) {
 				it = this[i]
 				if( it ) {
@@ -592,6 +596,8 @@ Bling.module('Core', function () {
 			// no duplicates, use concat if you want to preserve dupes
 			var ret = Bling(),
 				i = 0, j = 0, x = null
+			ret.context = this.context
+			ret.selector = this.selector
 			this.each(function() {
 				ret[i++] = this
 			})
@@ -608,6 +614,8 @@ Bling.module('Core', function () {
 			var ret = Bling(),
 				i = 0, j = 0, x = null,
 				n = this.length, nn = other.length
+			ret.context = this.context
+			ret.selector = this.selector
 			if( isBling(other) ) {
 				for(; i < n; i++) {
 					if( other.contains(this[i]) ) {
@@ -767,6 +775,8 @@ Bling.module('Core', function () {
 			// if n >= this.length, returns a shallow copy of the whole bling
 			n = Math.min(n|0, this.len())
 			var a = Bling(n), i = -1
+			a.context = this.context
+			a.selector = this.selector
 			while( ++i < n )
 				a[i] = this[i]
 			return a
@@ -784,6 +794,8 @@ Bling.module('Core', function () {
 			n = Math.min(this.len(), Math.max(0, (n|0)))
 			var a = Bling( n )
 				i = 0, nn = this.len() - n
+			a.context = this.context
+			a.selector = this.selector
 			for(; i < nn; i++)
 				a[i] = this[i+n]
 			return a
@@ -839,7 +851,10 @@ Bling.module('Core', function () {
 			// the j-th item will not be included - slice(0,2) will contain items 0, and 1.
 			// negative indices work like in python: -1 is the last item, -2 is second-to-last
 			// undefined start or end become 0, or this.length, respectively
-			return Bling(Array.Slice(this, start, end))
+			var b = Bling(Array.Slice(this, start, end))
+			b.context = this.context
+			b.selector = this.selector
+			return b
 			/* Example:
 				> var a = $([1, 2, 3, 4, 5])
 				> a.slice(0,1) == $([1])
@@ -877,6 +892,8 @@ Bling.module('Core', function () {
 				nn = this.length,
 				c = Bling(2 * Math.max(nn, n))
 				i = nn - 1
+			c.context = this.context
+			c.selector = this.selector
 			// first spread out this bling, from back to front
 			for(; i >= 0; i-- )
 				c[(i*2)+1] = this[i]
@@ -902,6 +919,8 @@ Bling.module('Core', function () {
 			// at least 2 items are required in the set
 			var b = Bling(Math.ceil(n/2)),
 				 i = 0
+			b.context = this.context
+			b.selector = this.selector
 			for( i = 0; i < n - 1; i += 2)
 				b[j++] = f.call(this, this[i], this[i+1])
 			// if there is an odd man out, make one last call
@@ -925,6 +944,8 @@ Bling.module('Core', function () {
 			var b = Bling(), 
 				n = this.len(), c = null, d = 0,
 				i = 0, j = 0, k = 0;
+			b.context = this.context
+			b.selector = this.selector
 			for(; i < n; i++)
 				for(c = this[i], j = 0, d = c.length; j < d;)
 					b[k++] = c[j++]
@@ -1028,20 +1049,18 @@ Bling.module('Core', function () {
 			// this counts backward from .length, looking for a valid item
 			// returns the found index + 1
 			var i = this.length
-			while( i > -1 && this[--i] == undefined) {
-				// spin
-			}
+			while( i > -1 && this[--i] == undefined);
 			return i+1
 			/* Example:
-				// create an empty array with spare capacity
-				var b = new Array(10)
-				// b.length === 10
-				// but .length isnt where .push, .forEach, etc will operate
-				// b[0] === undefined
-				b.push("foo")
-				// b[0] === "foo"
-				// .len() tells you where .push will insert and how many times .forEach will loop
-				// $(b).len() === 1 && b.length == 10
+				If you create an empty array with spare capacity
+				> var b = new Array(10)
+				> b.length === 10
+				But .length isnt where .push, .forEach, etc will operate.
+				> b[0] === undefined
+				> b.push("foo")
+				> b[0] === "foo"
+				.len() tells you where .push will insert and how many times .forEach will loop
+				> $(b).len() === 1 && b.length == 10
 			*/
 		}
 
@@ -1486,7 +1505,7 @@ Bling.module('Html', function () {
 		children: function children() {
 			// .children() - returns all children of each node
 			return this.map(function() {
-				return Bling(this.childNodes)
+				return Bling(this.childNodes, this)
 			})
 		},
 
@@ -1539,9 +1558,9 @@ Bling.module('Html', function () {
 
 		find: function find(expr) {
 			// .find(expr) - collects nodes matching expr, using each node in this as context
-			return this.map(function _find() { return Bling(expr, this) })
-				.reduce(function _reduce(a) { return a.concat(this) }, 
-					Bling())
+			return this.filter("*") // limit to only nodes
+				.map(function _find() { return Bling(expr, this) })
+				.flatten()
 		},
 
 		clone: function clone() {
@@ -2074,16 +2093,20 @@ Bling.module('Transform', function () {
 		hide: function hide(callback) {
 			// .hide() - each node gets display:none
 			return this.each(function() {
-				this._display = this.style.display == "none" ? undefined : this.style.display;
-				this.style.display = 'none';
+				if( this.style ) {
+					this._display = this.style.display == "none" ? undefined : this.style.display;
+					this.style.display = 'none';
+				}
 			}).future(50, callback)
 		},
 
 		show: function show(callback) {
 			// .show() - show each node
 			return this.each(function() {
-				this.style.display = this._display ? this._display : "block";
-				this._display = undefined;
+				if( this.style ) {
+					this.style.display = this._display ? this._display : "block";
+					this._display = undefined;
+				}
 			}).future(50, callback)
 		},
 
@@ -2301,6 +2324,35 @@ Bling.module('UI', function() {
 
 		return node
 	}
+
+	Bling.UI.Accordion = function Accordionm(selector, opts) {
+		opts = Bling.extend({
+		}, opts)
+		var $node = $(selector).css("list-style", "none"),
+			selectedChild = null
+
+		function initRow(n) {
+			var t = $(n),
+				title = t.child(0),
+				body = t.child(1)
+			title.click(function() {
+				$node.children().find("*:first-child + *").hide()
+				body.show()
+			})
+			body.hide()
+		}
+
+		$node.bind("DOMNodeInserted", function(evt) {
+			if( evt.target.parentNode == $node[0] ) {
+				initRowNode(evt.target)
+			}
+		})
+
+		$node.children().map(initRow)
+
+		return $node
+	}
+
 
 	Bling.UI.ViewSet = function ViewStack(opts) {
 		opts = Bling.extend({

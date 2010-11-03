@@ -7,6 +7,13 @@
 			.template { display: none; }
 			body {
 				font-family: 'Nobile', Verdana, sans;
+				width:320px;
+				padding:10px;
+				margin-left:auto;
+				margin-right:auto;
+				border-right:1px dashed #ebebeb;
+				border-left:1px dashed #ebebeb;
+				background-color:white;
 			}
 			b { color:#911; }
 			i { color:#822; }
@@ -172,5 +179,22 @@
 		<div id="func-template" class="template">
 			<li><a name="%(coderef)s" href="#doc:Bling.prototype.%(coderef)s"><span>%(funcdef)s</span></a>&nbsp;&mdash;&nbsp;%(funcdesc)s</li>
 		</div>
+		<ul id="nav-accordion" class="accordion">
+			<li><span>Core</span><div>
+				Core Content goes here.
+			</div></li>
+			<li><span>Html</span><div>
+				Html Content goes here.
+			</div></li>
+			<li><span>Math</span><div>
+				Math Content goes here.
+			</div></li>
+		</ul>
+		<script>
+			$(document).ready(function() {
+				var $nav = $.UI.Accordion("#nav-accordion")
+					.center()
+			})
+		</script>
 	</body>
 </html>

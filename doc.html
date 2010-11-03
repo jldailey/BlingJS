@@ -1,3 +1,4 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 	<head>
 		<script src="bling.js"></script>
@@ -11,15 +12,15 @@
 			i { color:#822; }
 			p {
 				width:300px;
+				font-size:14px;
 				text-align: justify;
-				margin-left:auto;
-				margin-right:auto;
+				margin-top: 6px;
 			}
 			a[href^='#doc:Bling'] {
-				font-size: 20px;
+				font-size: 18px;
+				font-weight: bold;
+				color: #222;
 				text-decoration:none;
-				color:black;
-				border-bottom: 1px solid black;
 			}
 		</style>
 		<script>
@@ -57,29 +58,33 @@
 						i = 0, j = 0, n = examples.length, example = null
 						lines = null, line = null
 
-					while( example = examples[i++] ) {
+					while( (example = examples[i++]) != null ) {
 						if( example_re.test(example) ) {
-							console.log("example", example)
 							lines = example.split(end_line)
-							while( line = lines[i++] ) {
-								console.log("line", line)
+							j = 0
+							while( (line = lines[j++]) != null ) {
 								if( code_line.test(line) ) {
-									console.log("code queue")
 									codeQueue.push(line.replace(code_line, ''))
 									if( paraQueue.length > 0 ) {
-										console.log("para flush")
 										result.push($("<p>").html(paraQueue.join('\n')))
 										paraQueue = []
 									}
+									continue
 								}
-								else if( ! blank_line.test(line) ) {
-									console.log("para queue")
-									paraQueue.push(line.replace(/\*\//g,""))
+								else if ( ! blank_line.test(line) ) {
+									paraQueue.push(line.replace(/\/\*/g,"").replace(/\*\//g,""))
 									if( codeQueue.length > 0 ) {
-										console.log("code flush")
 										result.push($(Function.PrettyPrint(codeQueue.join('\n'))))
 										codeQueue = []
 									}
+								} 
+								else if( codeQueue.length > 0 ) {
+									result.push($(Function.PrettyPrint(codeQueue.join('\n'))))
+									codeQueue = []
+								}
+								else if ( paraQueue.length > 0 ) {
+									result.push($("<p>").html(paraQueue.join('\n')))
+									paraQueue = []
 								}
 							}
 						}
@@ -100,7 +105,7 @@
 							desc = getDescription(source),
 							examples = getExamples(source)
 						ul.append(template.render({
-							coderef: "Bling.prototype."+k, 
+							coderef: k, 
 							funcdef: desc[0], 
 							funcdesc: desc[1]
 						}))
@@ -111,7 +116,7 @@
 					ul.find("a").cycle('click', function() {
 						var $this = $(this),
 							name = $this.attr('name').first(),
-							func = eval(name),
+							func = eval("Bling.prototype."+name),
 							source = getSource(func)
 						source.find(".com").filter(function() {
 							return this.innerText.indexOf("Example:") > -1
@@ -146,18 +151,17 @@
 					} else {
 						// hide the progress bar, fade the docs in
 						progressBar.hide(function() {
-							$docroot.fadeIn()
+							$docroot.fadeIn(function() {
+								var hash = window.location.hash
+								if( hash ) {
+									$("a[name="+hash.replace(/#/,"")+"]").first().scrollIntoView()
+								}
+							})
 						})
 					}
 				}, 0)
 				$docroot.hide()
 
-				$body.find(".func").click(function() {
-					var $this = $(this),
-						module_name = $this.parents().filter(".module").attr('module'),
-						span = $this.find("span").take(1),
-						name = span.text().first()
-				})
 			})
 		</script>
 	</head>
@@ -166,7 +170,7 @@
 		<div id="docroot">
 		</div>
 		<div id="func-template" class="template">
-			<li><a name="%(coderef)s" href="#doc:%(coderef)s"><span>%(funcdef)s</span></a>&nbsp;&mdash;&nbsp;%(funcdesc)s</li>
+			<li><a name="%(coderef)s" href="#doc:Bling.prototype.%(coderef)s"><span>%(funcdef)s</span></a>&nbsp;&mdash;&nbsp;%(funcdesc)s</li>
 		</div>
 	</body>
 </html>

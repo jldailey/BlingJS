@@ -469,7 +469,7 @@ Bling.module('Core', function () {
 	return {
 
 		each: function each(f) {
-			// .each(f) - applies /f/ to every /x/ in _this_
+			// .each(/f/) - applies /f/ to every /x/ in _this_
 			var i = -1, 
 				n = this.len(), 
 				t = null
@@ -504,9 +504,6 @@ Bling.module('Core', function () {
 				> 	return this * 2
 				> })
 				> == $([2, 4, 6])
-				This is a discussion paragraph.
-				> $([more, code])
-				More discussion.
 			*/
 
 		},
@@ -530,7 +527,7 @@ Bling.module('Core', function () {
 			/* Example:
 
 				> $([12, 14, 9, 37]).reduce(Math.min)
-				9
+				> == 9
 
 				But, you can accumulate anything easily, given an initial value.
 
@@ -539,7 +536,12 @@ Bling.module('Core', function () {
 				> 	a[1] += x[1]
 				> 	a[2] += x[2]
 				> }, [0, 0, 0])
-				$([4, 8, 12])
+				> == $([4, 8, 12])
+
+				You can use any function that takes 2 arguments, including several useful built-ins.
+
+				> $([12, 13, 47, 9, 22]).reduce(Math.min)
+				> == 9
 
 			*/
 		},
@@ -560,17 +562,15 @@ Bling.module('Core', function () {
 			}
 			return b
 			/* Example:
-				$([1,2,3,4,5,6]).filter(function() {
-					return this % 2 == 0
-				})
-
-				Output: $([2,4,6])
+				> $([1,2,3,4,5,6]).filter(function() {
+				> 	return this % 2 == 0
+				> })
+				> == $([2,4,6])
 
 				Or, you can filter by a selector.
 
-				$("pre").filter(".prettyprint")
+				> $("pre").filter(".prettyprint")
 
-				Output: $([... some pre nodes ...])
 			*/
 		},
 
@@ -582,8 +582,8 @@ Bling.module('Core', function () {
 				return false
 			})
 			/* Example:
-				$("pre").matches(".prettyprint")
-				Output: $([true, false, false, true, etc...])
+				> $("pre").matches(".prettyprint")
+				> $([true, false, false, true, etc...])
 			*/
 		},
 
@@ -632,8 +632,8 @@ Bling.module('Core', function () {
 			// .distinct() - get a shallow copy of _this_ with duplicates removed.
 			return this.union(this)
 			/* Example:
-				$([1, 2, 3, 1, 4, 5]).distinct()
-				Output: $([1,2,3,4,5])
+				> $([1, 2, 3, 1, 4, 5]).distinct()
+				> == $([1,2,3,4,5])
 			*/
 		},
 
@@ -641,8 +641,8 @@ Bling.module('Core', function () {
 			// .contains(item) - true if /item/ is in _this_, false otherwise
 			return this.count(item) > 0
 			/* Example:
-				$("body").contains(document.body)
-				Output: true
+				> $("body").contains(document.body)
+				> == true
 			*/
 		},
 
@@ -664,8 +664,8 @@ Bling.module('Core', function () {
 			})
 			return ret
 			/* Example:
-				$([1, 2, 3, 1, 2, 3, 1, 2, 3]).count(1)
-				Output: 3
+				> $([1, 2, 3, 1, 2, 3, 1, 2, 3]).count(1)
+				> == 3
 			*/
 		},
 
@@ -715,26 +715,26 @@ Bling.module('Core', function () {
 					return b
 			}
 			/* Example:
-				$(["foo", "bar", "bank"]).zip("length")
-				Output: $([3, 3, 4])
+				> $(["foo", "bar", "bank"]).zip("length")
+				> == $([3, 3, 4])
 
 				You can use compound property names.
 
-				$("pre").first(3).zip("style.display")
-				Output: $(["block", "block", "block"])
+				> $("pre").first(3).zip("style.display")
+				> == $(["block", "block", "block"])
 
 				If you request many properties at once,
 				you get back raw objects with only those properties.
 				Similar to specifying columns on a SQL select query.
 
-				$("pre").first(1).zip("style.display", "style.color")
-				Output: $([ {'display': 'block', 'color': 'black'}, ])
+				> $("pre").first(1).zip("style.display", "style.color")
+				> == $([ {'display': 'block', 'color': 'black'}, ])
 
 				If the property value is a function,
 				a bound-method is returned in its place.
 
-				$("pre").first(1).zip("getAttribute")
-				Output: $(["bound-method getAttribute of HTMLPreElement"])
+				> $("pre").first(1).zip("getAttribute")
+				> == $(["bound-method getAttribute of HTMLPreElement"])
 				See: .call, .apply
 			*/
 		},
@@ -756,8 +756,9 @@ Bling.module('Core', function () {
 				// accept a single value v, even if v is undefined
 				: this.each(function() { this[p] = v })
 			/* Example:
-				// set a property on all nodes at once
-				$("pre").zap("style.display", "none")
+				Set a property on all nodes at once.
+				> $("pre").zap("style.display", "none")
+				Hides all <pre>'s.
 			*/
 		},
 
@@ -770,10 +771,10 @@ Bling.module('Core', function () {
 				a[i] = this[i]
 			return a
 			/* Example:
-				$("p").take(3).length == 3
+				> $("p").take(3).length == 3
 
-				$([1, 2, 3, 4, 5, 6]).take(2)
-				Output: $([1, 2])
+				> $([1, 2, 3, 4, 5, 6]).take(2)
+				> == $([1, 2])
 			*/
 		},
 
@@ -787,8 +788,8 @@ Bling.module('Core', function () {
 				a[i] = this[i+n]
 			return a
 			/* Example:
-				$([1, 2, 3, 4, 5, 6]).skip(2)
-				Output: $([3, 4, 5, 6])
+				> $([1, 2, 3, 4, 5, 6]).skip(2)
+				> == $([3, 4, 5, 6])
 			*/
 		},
 
@@ -798,11 +799,11 @@ Bling.module('Core', function () {
 			return n ? this.skip(this.len() - n)
 				: this[this.length - 1]
 			/* Example:
-				$([1, 2, 3, 4, 5]).last()
-				Output: 5
+				> $([1, 2, 3, 4, 5]).last()
+				> == 5
 
-				$([1, 2, 3, 4, 5]).last(2)
-				Output: $([4, 5])
+				> $([1, 2, 3, 4, 5]).last(2)
+				> == $([4, 5])
 
 			*/
 		},
@@ -813,11 +814,11 @@ Bling.module('Core', function () {
 			return n ? this.take(n)
 				: this[0]
 			/* Example:
-				$([1, 2, 3, 4, 5]).first()
-				Output: 1
+				> $([1, 2, 3, 4, 5]).first()
+				> == 1
 
-				$([1, 2, 3, 4, 5]).first(2)
-				Output: $([1, 2])
+				> $([1, 2, 3, 4, 5]).first(2)
+				> == $([1, 2])
 			*/
 		},
 
@@ -828,8 +829,8 @@ Bling.module('Core', function () {
 				return j + sep + this
 			})
 			/* Example:
-				$([1, 2, 3, 4, 5]).join(", ")
-				Output: "1, 2, 3, 4, 5"
+				> $([1, 2, 3, 4, 5]).join(", ")
+				> == "1, 2, 3, 4, 5"
 			*/
 		},
 
@@ -840,19 +841,12 @@ Bling.module('Core', function () {
 			// undefined start or end become 0, or this.length, respectively
 			return Bling(Array.Slice(this, start, end))
 			/* Example:
-				var a = $([1, 2, 3, 4, 5])
+				> var a = $([1, 2, 3, 4, 5])
+				> a.slice(0,1) == $([1])
+				> a.slice(0,-1) == $([1, 2, 3, 4])
+				> a.slice(0) == $([1, 2, 3, 4, 5])
+				> a.slice(-2) == $([4, 5])
 
-				a.slice(0,1)
-				Output: $([1])
-
-				a.slice(0,-1)
-				Output: $([1, 2, 3, 4])
-
-				a.slice(0)
-				Output: $([1, 2, 3, 4, 5])
-
-				a.slice(-2)
-				Output: $([4, 5])
 			*/
 		},
 
@@ -867,8 +861,8 @@ Bling.module('Core', function () {
 				this[++i] = b[++j]
 			return this
 			/* Example:
-				$([1, 2, 3]).concat([3, 4, 5])
-				Output: $([1, 2, 3, 3, 4, 5])
+				> $([1, 2, 3]).concat([3, 4, 5])
+				> == $([1, 2, 3, 3, 4, 5])
 			*/
 		},
 
@@ -891,10 +885,10 @@ Bling.module('Core', function () {
 				c[i*2] = b[i]
 			return c
 			/* Example:
-				var a = $([0, 0, 0, 0])
-				var b = $([1, 1, 1, 1])
-				a.weave(b)
-				Output: $([1, 0, 1, 0, 1, 0, 1, 0])
+				> var a = $([0, 0, 0, 0])
+				> var b = $([1, 1, 1, 1])
+				> a.weave(b)
+				> == $([1, 0, 1, 0, 1, 0, 1, 0])
 			*/
 		},
 
@@ -916,13 +910,13 @@ Bling.module('Core', function () {
 
 			return b
 			/* Example:
-				var a = $([1, 1, 1, 1])
-				var b = $([2, 2, 2, 2])
-				a.weave(b) // == $([2, 1, 2, 1, 2, 1, 2, 1])
-					.fold(function(x,y) {
-						return x + y
-					})
-				Output: $([3, 3, 3, 3])
+				> var a = $([1, 1, 1, 1])
+				> var b = $([2, 2, 2, 2])
+				> a.weave(b) // == $([2, 1, 2, 1, 2, 1, 2, 1])
+				>	.fold(function(x,y) {
+				>		return x + y
+				>	})
+				> == $([3, 3, 3, 3])
 			*/
 		},
 
@@ -941,8 +935,8 @@ Bling.module('Core', function () {
 			// .call([args]) - call all functions in _this_ [with args]
 			return this.apply(null, arguments)
 			/* Example:
-				$("pre").zip("getAttribute").call("class")
-				Output: $([... x.getAttribute("class") for each ...])
+				> $("pre").zip("getAttribute").call("class")
+				> == $([... x.getAttribute("class") for each ...])
 			*/
 		},
 
@@ -954,26 +948,25 @@ Bling.module('Core', function () {
 				return this
 			})
 			/* Example:
-				var a = {
-					x: 1,
-					get1: function() {
-						return this.x
-					}
-				}
-				var b = {
-					x: 2,
-					get2: function() {
-						return this.x
-					}
-				}
-				b.get2() == 2
-				a.get1() == 1
-				$([a.get1, b.get2]).apply(a)
-				Output: $([1, 1])
+				>	var a = {
+				>		x: 1,
+				>		get1: function() {
+				>			return this.x
+				>		}
+				>	}
+				>	var b = {
+				>		x: 2,
+				>		get2: function() {
+				>			return this.x
+				>		}
+				>	}
+				> b.get2() == 2
+				> a.get1() == 1
+				> $([a.get1, b.get2]).apply(a)
+				> == $([1, 1])
 
 				This happens because both functions are called
-				with a as their 'this' value, since it is the
-				context argument to apply.
+				with 'a' as 'this', since it is the context argument to apply().
 
 				(IOW, it happens because b.get2.apply(a) == 1)
 			*/
@@ -991,8 +984,8 @@ Bling.module('Core', function () {
 				}).join(", ")
 				+"])"
 			/* Example:
-				$("body").toString()
-				Output: "$([HTMLBodyElement])"
+				> $("body").toString()
+				> == "$([HTMLBodyElement])"
 			*/
 		},
 
@@ -1001,18 +994,18 @@ Bling.module('Core', function () {
 			if( f ) { timeoutQueue.schedule(f.bound(this), n) }
 			return this
 			/* Example:
-				$("pre").future(50, function sometimeLater() {
-					console.log(this.length)
-				})
-				console.log($("pre").length)
-
-				Output: The same number to the log twice, one 50 milliseconds
+				> $("pre").future(50, function sometimeLater() {
+				> 	console.log(this.length)
+				> })
+				> console.log($("pre").length)
+				
+				The same number will log twice, one 50 milliseconds
 				or more after the other.
 
-				.future() is nearly identical to setTimeout(),
-				except for two key differences: perserving context,
-				and most importantly, perserving order.
-				See the comments on TimeoutQueue for a detailed explanation.
+				.future() is nearly identical to setTimeout(), except for two key differences: perserving context, and most importantly, perserving order.
+				See the comments on TimeoutQueue for a detailed explanation, but setTimeout does not guarantee that handlers will be executed in the order they were scheduled to execute.
+
+				By adding this small guarantee, .future() becomes much more useful than a raw setTimeout.
 			*/
 
 		},
@@ -1149,11 +1142,11 @@ Bling.module('Html', function () {
 
 				.fromCss("#ffffff")
 
-				Output: $([255, 255, 255, 1.0])
+				> == $([255, 255, 255, 1.0])
 
 				$(nodes).css("color").map(Bling.Color.fromCss)
 
-				Output: $([$([255,255,255,1.0]), ...])
+				> == $([$([255,255,255,1.0]), ...])
 			*/
 		},
 		toCss: function(b) {

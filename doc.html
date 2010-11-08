@@ -2,6 +2,7 @@
 <html>
 	<head>
 		<script src="bling.js"></script>
+		<script src="bling.ui.js"></script>
 		<link href='http://fonts.googleapis.com/css?family=Nobile' rel='stylesheet' type='text/css'>
 		<style>
 			.template { display: none; }
@@ -152,8 +153,8 @@
 							ul.toggle()
 						})
 						$docroot.append(h3).append(ul)
-						// update progress bar
-						progressBar.update(i/Bling.module.order.length)
+						// update progress bar (30ms of animation)
+						progressBar.update(i/Bling.module.order.length, 0)
 						setTimeout(arguments.callee, 0)
 					} else {
 						// hide the progress bar, fade the docs in

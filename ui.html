@@ -1,0 +1,103 @@
+<html>
+	<head>
+		<script src="bling.js"></script>
+		<script src="bling.ui.js"></script>
+		<script>
+			$(document).ready(function() {
+				$(".accordion").accordion()
+				$(".tabs").tabs()
+			})
+		</script>
+	</head>
+	<body>
+
+		<div id="example-one" class="example">
+		<h3>Accordion One</h3>
+		<p>Accordion's are most naturally laid out as an un-ordered list.
+		<ul class="accordion">
+			<li><span>Row One  </span><div id=1>Content One</div></li>
+			<li><span>Row Two  </span><div id=2>Content Two</div></li>
+			<li><span>Row Three</span><div id=3>Content Three</div></li>
+		</ul>
+		</div>
+		<a href="#">View Source</a>
+		<script>
+			$("a").last(1).click(function() {
+				console.log("click!")
+				return false
+			})
+		</script>
+
+
+
+		<h3>Accordion Two</h3>
+		<p>But, any kind of nodes will do, each following the pattern:
+		&lt;item&gt;&lt;label&gt;&lt;content&gt;&lt;/item&gt;
+		<div class="accordion">
+			<div><div>Handle One</div><textarea>Content One</textarea></div>
+			<div><div>Handle Two</div><textarea>Content Two</textarea></div>
+			<div><div>Handle Three</div><textarea>Content Three</textarea></div>
+		</div>
+
+		<h3>Tabs</h3>
+		<ul class="tabs">
+			<li><span>Tab One</span><div id=4>Content One</div></li>
+			<li><span>Tab Two</span><div id=5>Content Two</div></li>
+			<li><span>Tab Three</span><div id=6>Content Three</div></li>
+		</ul>
+		<style>
+			.tabs {
+				height: 40px;
+				padding: 0px;
+			}
+			.tabs > * > *:first-child { /* the tabs */
+				border: 1px solid red;
+				border-top-right-radius: 8px;
+				margin-right: 2px;
+				padding: 4px 8px;
+			}
+			.tabs > * > *:first-child.selected {
+				color: white;
+				background-color: red;
+			}
+			.tabs > * > *:first-child + * { /* the bodies */
+				border-bottom-left-radius: 5px;
+				border-bottom-right-radius: 5px;
+			}
+		</style>
+
+		<h3>Dialog</h3>
+		<div class="dialog">
+			<button>Make Me A Dialog!</button>
+		</div>
+
+		<h3>Slider</h3>
+		<div id="slider-content">
+			<script>
+				for(var i = 0; i < 100; i++ ) {
+					document.write("<span>"+i+"</span>")
+				}
+			</script>
+			<style>
+				#slider-content {
+					width: 320px;
+					height: 54px;
+					overflow: hidden;
+				}
+				#slider-content span {
+					width: 16px;
+					height: 16px;
+					border: 1px solid black;
+					border-collapse: all;
+					float: left;
+				}
+			</style>
+		</div>
+		<div class="slider" target="#slider-content"></div>
+
+
+		<br><br><Br><br>
+
+	</body>
+</html>
+

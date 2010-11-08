@@ -28,8 +28,9 @@ with open(infile, 'r') as i:
 		# print("Status: %d" % resp.status)
 		# print(resp.getheaders())
 		data = resp.read()
-		with open(output_file, "wb") as o:
-			o.write(data)
+		if len(data) > 0:
+			with open(output_file, "wb") as o:
+				o.write(data)
 		conn.close()
 		return data
 	
@@ -45,5 +46,5 @@ with open(infile, 'r') as i:
 		sys.exit(1)
 	else:
 		z = once("compiled_code", codefile, source)
-		print("Compressed %d to %d bytes (%.2f%% of original)" % (len(source), len(z), 100*(1.0 - (len(z)/len(source)))))
+		print("Compressed %d to %d bytes (%.2f%% savings)" % (len(source), len(z), 100*(1.0 - (len(z)/len(source)))))
 

@@ -294,7 +294,7 @@ Bling.extend(String, {
 				str: "#008",
 				com: "#080",
 				kwd: "#088",
-				num: "#808",
+				num: "#808"
 			}, colors)
 			var css = "<style id='pp-injected'> "
 			for( var i in colors )
@@ -2012,7 +2012,7 @@ Bling.module('Event', function () {
 			var selector = this.selector,
 				context = this.context
 			// wrap f
-			function(evt) {
+			function _handler(evt) {
 				// when the 'live' event is fired
 				// re-execute the selector in the original context
 				Bling(selector, context)

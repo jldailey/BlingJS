@@ -153,7 +153,7 @@
 							ul.toggle()
 						})
 						$docroot.append(h3).append(ul)
-						// update progress bar (30ms of animation)
+						// update progress bar
 						progressBar.update(i/Bling.module.order.length, 0)
 						setTimeout(arguments.callee, 0)
 					} else {
@@ -178,7 +178,8 @@
 		<div id="docroot">
 		</div>
 		<div id="func-template" class="template">
-			<li><a name="%(coderef)s" href="#doc:Bling.prototype.%(coderef)s"><span>%(funcdef)s</span></a>&nbsp;&mdash;&nbsp;%(funcdesc)s</li>
+			<li><a name="%(coderef)s" href="#doc:Bling.prototype.%(coderef)s"><span>%(funcdef)s</span></a>&nbsp;&mdash;&nbsp;%(funcdesc)s
+			</li>
 		</div>
 		<ul id="nav-accordion" class="accordion">
 			<li><span>Core</span><div>

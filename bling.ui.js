@@ -23,7 +23,8 @@ Bling.module('UI', function() {
 			textColor: "black"
 		}, opts)
 		opts.invertedTextColor = Bling.Color.toCss(Bling.Color.invert(Bling.Color.fromCss))
-		var node = Bling(selector)
+		var current = 0.0,
+			node = Bling(selector)
 				.addClass('progress-bar')
 				.css({
 					position: "relative",
@@ -45,15 +46,29 @@ Bling.module('UI', function() {
 				})
 
 		node.update = function update(percent, speed) {
-			speed = speed || "instant"
-			if( percent < 0.0 ) percent *= -1.0
-			while( percent > 1.0 ) percent /= 100.0
-			label.text((percent * 100).toFixed(0) + "%")
-				.css("color", percent > 0.5 ? opts.invertedTextColor : opts.textColor)
-			percent = (1.0 - percent)
-			slide.transform({translateX: node.width().scale(-percent).px().first()}, speed)
 		}
 		node.update(0.0, "instant")
+
+		node.current = function current() {
+			return current
+		}
+
+		Bling.extend(node, {
+			update: function (percent, speed) {
+				speed = speed || "instant"
+				if( percent < 0.0 ) percent *= -1.0
+				while( percent > 1.0 ) percent /= 100.0
+				label.text((percent * 100).toFixed(0) + "%")
+					.css("color", percent > 0.5 ? opts.invertedTextColor : opts.textColor)
+				state = percent
+				percent = (1.0 - percent)
+				slide.transform({translateX: node.width().scale(-percent).px().first()}, speed)
+			},
+
+			percent: function() {
+				return state
+			}
+		})
 
 		return node
 	}

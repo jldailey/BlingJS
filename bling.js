@@ -6,8 +6,6 @@
  * Blame: Jesse Dailey <jesse.dailey@gmail.com>
  */
 
-/* Simple object extension:
- */
 Bling.extend = function extend(a, b, c) {
 	// .extend(a, b, [c]) - merge values from b into a
 	// if c is present, it should be a list of property names to copy
@@ -25,7 +23,7 @@ Bling.extend = function extend(a, b, c) {
 
 Bling.extend(Function.prototype, {
 	inherit: function (T) {
-		//  A.inherit(T) will make A inherit members from type T.
+		//  A.inherit(T) will make type A inherit members from type T.
 		this.prototype = new T() // get a copy of T's prototype (a copy!)
 		return this.prototype.constructor = this // set the copy's constructor to ours
 		/* Example:
@@ -93,6 +91,72 @@ Bling.extend(Function.prototype, {
 	}
 })
 
+/* Bling, the constructor.
+ * -----------------------
+ * Bling(expression, context):
+ * expression -
+ *   accepts strings, as css expression to select, ("body div + p", etc.)
+ *     or as html to create (must start with "<")
+ *   accepts existing Bling
+ *   accepts arrays of anything
+ *   accepts a single number, used as the argument in new Array(n), to pre-allocate space
+ * context - optional, the item to consider the root of the search when using a css expression
+ *
+ * always returns a Bling object, full of stuff
+ */
+function Bling (selector, context) {
+	if( isBling(selector) )
+		return selector
+	context = context || document
+	var set = null // the set of things to wrap
+
+	if( selector == null)
+		set = []
+	else if( typeof(selector) === "number" )
+		set = new Array(selector)
+	else if( selector === window || isNode(selector) )
+		set = [selector]
+	else if( typeof selector === "string" ) { // strings, search css or parse html
+		// accept two different kinds of strings: html, and css expression
+		// html begins with "<", and we create a set of nodes by parsing it
+		// any other string is considered css
+
+		selector = selector.trimLeft()
+
+		if( selector[0] == "<" )
+			set = [Bling.HTML.parse(selector)]
+		else if( isBling(context) )
+			// search every item in the context
+			set = context.reduce(function(a, x) {
+				var s = x.querySelectorAll(selector),
+					i = 0, n = s.length
+				for(; i < n; i++)
+					a.push(s[i])
+				return a
+			}, [])
+		else if( context.querySelectorAll != undefined )
+			try {
+				set = context.querySelectorAll(selector)
+			} catch ( err ) {
+				throw Error("invalid selector: " + selector, err)
+			}
+		else throw Error("invalid context: " + context)
+	} 
+	else
+		set = selector
+
+	set.__proto__ = Bling.prototype
+	set.selector = selector
+	set.context = context
+
+	return set
+}
+// finish defining the Bling type
+Bling.inherit(Array)
+function isBling(a)  { return isType(a, Bling) }
+$ = Bling
+Bling.symbol = "$" // for display purposes
+
 /* Type Checking
  * -------------
  * Since we have a clear definition of inheritance, we can clearly detect
@@ -105,7 +169,7 @@ Bling.extend(window, {
 		// isType(a,T) - true if object a is of type T (directly)
 		return !a ? T === a
 			: typeof(T) === "string" ? a.__proto__.constructor.name == T
-				: a.__proto__.constructor === T
+			: a.__proto__.constructor === T
 	},
 	isSubtype: function(a, T) {
 		// isSubtype(a,T) - true if object a is of type T (directly or indirectly)
@@ -148,7 +212,6 @@ Bling.extend(window, {
 	}
 })
 
-
 // cache a reference
 var OtoS = Object.prototype.toString
 
@@ -169,19 +232,6 @@ Array.Slice = function (o, i, j) {
 
 // return a number with "px" attached, suitable for css
 Number.Px = function (x,d) { return (parseInt(x)+(d|0))+"px" }
-
-// build simple closures to avoid repitition later
-Bling.extend(Function, {
-	Empty: function (){},
-	NotNull: function (x) { return x != null },
-	NotUndefined: function (x) { return x != undefined },
-	IndexFound: function (x) { return x > -1 },
-	ReduceAnd: function (x) { return x && this },
-	UpperLimit: function (x) { return function(y) { return Math.min(x, y) }},
-	LowerLimit: function (x) { return function(y) { return Math.max(x, y) }},
-	ToString: function (x) { return OtoS.apply(x) },
-	Px: function (d) { return function() { return Number.Px(this,d) } }
-})
 
 // add string functions
 Bling.extend(String, {
@@ -206,247 +256,171 @@ Bling.extend(String, {
 	}
 })
 
-// Function.PrettyPrint gets its own little private namespace
-;(function() {
-	var operators = /!==|!=|!|\#|\%|\%=|\&|\&\&|\&\&=|&=|\*|\*=|\+|\+=|-|-=|->|\.{1,3}|\/|\/=|:|::|;|<<=|<<|<=|<|===|==|=|>>>=|>>=|>=|>>>|>>|>|\?|@|\[|\]|}|{|\^|\^=|\^\^|\^\^=|\|=|\|\|=|\|\||\||~/g,
-		keywords = /\b[Ff]unction\b|\bvar\b|\.prototype\b|\.__proto__\b|\bString\b|\bArray\b|\bNumber\b|\bObject\b|\bbreak\b|\bcase\b|\bcontinue\b|\bdelete\b|\bdo\b|\bif\b|\belse\b|\bfinally\b|\binstanceof\b|\breturn\b|\bthrow\b|\btry\b|\btypeof\b/g,
-		singleline_comment = /\/\/.*?\n/,
-		multiline_comment = /\/\*(?:.|\n)*?\*\//,
-		all_numbers = /\d+\.*\d*/g
-	function find_unescaped_quote(s, i, q) {
-		var r = s.indexOf(q, i)
-		while( s.charAt(r-1) == "\\" && r < s.length && r > 0)
-			r = s.indexOf(q, r+1)
-		return r
-	}
-	function find_first_quote(s, i) {
-		var a = s.indexOf('"', i),
-			b = s.indexOf("'", i)
-		if( a == -1 ) a = s.length
-		if( b == -1 ) b = s.length
-		return a == b ? [null, -1]
-			: a < b ? ['"', a]
-			: ["'", b]
-	}
-	function extract_quoted(s) {
-		var i = 0, n = s.length, ret = [],
-			j = -1, k = -1, q = null
-		if( ! isString(s) )
-			if( ! isFunc(s.toString) )
-				throw TypeError("invalid string argument to extract_quoted")
-			else {
-				s = s.toString()
-				n = s.length
-			}
-		while( i < n ) {
-			q = find_first_quote(s, i)
-			j = q[1]
-			if( j == -1 ) {
-				ret.push(s.substring(i))
-				break
-			}
-			ret.push(s.substring(i,j))
-			k = find_unescaped_quote(s, j+1, q[0])
-			if( k == -1 )
-				throw Error("unmatched "+q[0]+" at "+j)
-			ret.push(s.substring(j, k+1))
-			i = k+1
+// build simple closures to avoid repitition later
+Bling.extend(Function, {
+	Empty: function (){},
+	NotNull: function (x) { return x != null },
+	NotUndefined: function (x) { return x != undefined },
+	IndexFound: function (x) { return x > -1 },
+	ReduceAnd: function (x) { return x && this },
+	UpperLimit: function (x) { return function(y) { return Math.min(x, y) }},
+	LowerLimit: function (x) { return function(y) { return Math.max(x, y) }},
+	ToString: function (x) { return OtoS.apply(x) },
+	Px: function (d) { return function() { return Number.Px(this,d) } },
+	PrettyPrint: (function() {
+		var operators = /!==|!=|!|\#|\%|\%=|\&|\&\&|\&\&=|&=|\*|\*=|\+|\+=|-|-=|->|\.{1,3}|\/|\/=|:|::|;|<<=|<<|<=|<|===|==|=|>>>=|>>=|>=|>>>|>>|>|\?|@|\[|\]|}|{|\^|\^=|\^\^|\^\^=|\|=|\|\|=|\|\||\||~/g,
+			keywords = /\b[Ff]unction\b|\bvar\b|\.prototype\b|\.__proto__\b|\bString\b|\bArray\b|\bNumber\b|\bObject\b|\bbreak\b|\bcase\b|\bcontinue\b|\bdelete\b|\bdo\b|\bif\b|\belse\b|\bfinally\b|\binstanceof\b|\breturn\b|\bthrow\b|\btry\b|\btypeof\b/g,
+			singleline_comment = /\/\/.*?\n/,
+			multiline_comment = /\/\*(?:.|\n)*?\*\//,
+			all_numbers = /\d+\.*\d*/g
+		function find_unescaped_quote(s, i, q) {
+			var r = s.indexOf(q, i)
+			while( s.charAt(r-1) == "\\" && r < s.length && r > 0)
+				r = s.indexOf(q, r+1)
+			return r
 		}
-		return ret
-	}
-	function first_comment(s) {
-		var a = s.match(singleline_comment),
-			b = s.match(multiline_comment)
-			return a == b ? [-1, null]
-				: a == null && b != null ? [b.index, b[0]]
-				: a != null && b == null ? [a.index, a[0]]
-				: b.index < a.index ? [b.index, b[0]]
-				: [a.index, a[0]]
-	}
-	function extract_comments(s) {
-		var ret = [], i = 0, j = 0,
-			n = s.length, q = null, ss = null
-		while( i < n ) {
-			ss = s.substring(i)
-			q = first_comment(ss)
-			j = q[0]
-			if( j > -1 ) {
-				ret.push(ss.substring(0,j))
-				ret.push(q[1])
-				i += j + q[1].length
-			} else {
-				ret.push(ss)
-				break
-			}
+		function find_first_quote(s, i) {
+			var a = s.indexOf('"', i),
+				b = s.indexOf("'", i)
+			if( a == -1 ) a = s.length
+			if( b == -1 ) b = s.length
+			return a == b ? [null, -1]
+				: a < b ? ['"', a]
+				: ["'", b]
 		}
-		return ret
-	}
-	Function.PrettyPrint = function prettyPrint(js, colors) {
-		if( isFunc(js) )
-			js = js.toString()
-		if( ! isString(js) )
-			throw TypeError("prettyPrint requires a function or string to format")
-		if( $("style#pp-injected").length == 0 ) {
-			colors = Bling.extend({
-				opr: "#880",
-				str: "#008",
-				com: "#080",
-				kwd: "#088",
-				num: "#808"
-			}, colors)
-			var css = ""
-			for( var i in colors )
-				css += "pre.pp ."+i+" { color: "+colors[i]+"; }"
-			$("head").append($.synth("style#pp-injected").text(css))
-		}
-		// extract comments
-		return "<pre class='pp'>"+$(extract_comments(js))
-			.fold(function(text, comment) {
-				// extract quoted strings
-				return $(extract_quoted(text))
-					.fold(function(code, quoted) {
-						// label number constants
-						return (code
-							// label operator symbols
-							.replace(operators, "<span class='opr'>$&</span>")
-							// label numbers
-							.replace(all_numbers, "<span class='num'>$&</span>")
-							// label keywords
-							.replace(keywords, "<span class='kwd'>$&</span>")
-							.replace(/\t/g, "&nbsp;&nbsp;")
-						) +
-						// label string constants
-						(quoted ? "<span class='str'>"+quoted+"</span>" : "")
-					})
-					// collapse the strings
-					.join('')
-					// append the extracted comment
-					+ (comment ? "<span class='com'>"+comment+"</span>" : "")
-			})
-			.join('')
-			+"</pre>"
-	}
-})()
-
-/* Bling, the constructor.
- * -----------------------
- * Bling(expression, context):
- * expression -
- *   accepts strings, as css expression to select, ("body div + p", etc.)
- *     or as html to create (must start with "<")
- *   accepts existing Bling
- *   accepts arrays of anything
- *   accepts a single number, used as the argument in new Array(n), to pre-allocate space
- * context - optional, the item to consider the root of the search when using a css expression
- *
- * always returns a Bling object, full of stuff
- */
-function Bling (selector, context) {
-	if( isBling(selector) ) // accept Bling objects, but do nothing
-		return selector
-	// the default context is the entire document
-	context = context || document
-
-	if( selector === undefined )
-		return Bling.__init__(selector, context, [])
-
-	if( typeof selector === "string" ) { // strings, search css or parse html
-		// accept two different kinds of strings: html, and css expression
-		// html begins with "<", and we create a set of nodes by parsing it
-		// anyu other string is considered css
-
-		selector = selector.trimLeft()
-
-		if( selector[0] == "<" )
-			return Bling.__init__(selector, context, [Bling.HTML.parse(selector)])
-
-		// anything else is a css expression, for querySelectorAll
-		// if we are searching inside another Bling
-		// then search each item in the bling, and accumulate in one bling
-		if( isBling(context) )
-			return context.reduce(function(a, x) {
-				a.union(x.querySelectorAll(selector))
-			}, Bling.__init__(selector, context, []))
-
-		if( context.querySelectorAll != undefined )
-			// if the context is directly searchable, search it
-			try {
-				return Bling.__init__(selector, context, context.querySelectorAll(selector))
-			} catch ( err ) {
-				console.log("err",err,selector,context)
-				return null
+		function extract_quoted(s) {
+			var i = 0, n = s.length, ret = [],
+				j = -1, k = -1, q = null
+			if( ! isString(s) )
+				if( ! isFunc(s.toString) )
+					throw TypeError("invalid string argument to extract_quoted")
+				else {
+					s = s.toString()
+					n = s.length
+				}
+			while( i < n ) {
+				q = find_first_quote(s, i)
+				j = q[1]
+				if( j == -1 ) {
+					ret.push(s.substring(i))
+					break
+				}
+				ret.push(s.substring(i,j))
+				k = find_unescaped_quote(s, j+1, q[0])
+				if( k == -1 )
+					throw Error("unmatched "+q[0]+" at "+j)
+				ret.push(s.substring(j, k+1))
+				i = k+1
 			}
+			return ret
+		}
+		function first_comment(s) {
+			var a = s.match(singleline_comment),
+				b = s.match(multiline_comment)
+				return a == b ? [-1, null]
+					: a == null && b != null ? [b.index, b[0]]
+					: a != null && b == null ? [a.index, a[0]]
+					: b.index < a.index ? [b.index, b[0]]
+					: [a.index, a[0]]
+		}
+		function extract_comments(s) {
+			var ret = [], i = 0, j = 0,
+				n = s.length, q = null, ss = null
+			while( i < n ) {
+				ss = s.substring(i)
+				q = first_comment(ss)
+				j = q[0]
+				if( j > -1 ) {
+					ret.push(ss.substring(0,j))
+					ret.push(q[1])
+					i += j + q[1].length
+				} else {
+					ret.push(ss)
+					break
+				}
+			}
+			return ret
+		}
+		return function prettyPrint(js, colors) {
+			if( isFunc(js) )
+				js = js.toString()
+			if( ! isString(js) )
+				throw TypeError("prettyPrint requires a function or string to format")
+			if( $("style#pp-injected").length == 0 ) {
+				colors = Bling.extend({
+					opr: "#880",
+					str: "#008",
+					com: "#080",
+					kwd: "#088",
+					num: "#808"
+				}, colors)
+				var css = ""
+				for( var i in colors )
+					css += "pre.pp ."+i+" { color: "+colors[i]+"; }"
+				$("head").append($.synth("style#pp-injected").text(css))
+			}
+			// extract comments
+			return "<pre class='pp'>"+$(extract_comments(js))
+				.fold(function(text, comment) {
+					// extract quoted strings
+					return $(extract_quoted(text))
+						.fold(function(code, quoted) {
+							// label number constants
+							return (code
+								// label operator symbols
+								.replace(operators, "<span class='opr'>$&</span>")
+								// label numbers
+								.replace(all_numbers, "<span class='num'>$&</span>")
+								// label keywords
+								.replace(keywords, "<span class='kwd'>$&</span>")
+								.replace(/\t/g, "&nbsp;&nbsp;")
+							) +
+							// label string constants
+							(quoted ? "<span class='str'>"+quoted+"</span>" : "")
+						})
+						// collapse the strings
+						.join('')
+						// append the extracted comment
+						+ (comment ? "<span class='com'>"+comment+"</span>" : "")
+				})
+				.join('')
+				+"</pre>"
+		}
+	})()
+})
 
-		// otherwise, this is not a valid context
-		throw new Error("invalid parameters: " + selector + ", " + context)
-	}
-
-	if( typeof(selector) === "number" ) // numbers pre-allocate
-		// accept a single number, to pre-allocate space
-		return Bling.__init__(selector, context, new Array(selector))
-
-	if( selector === window || isNode(selector) ) // single items get stored
-		// a single node becomes the sole item in our array
-		return Bling.__init__(selector, context, [selector])
-
-	if( selector.length != undefined )
-		// use any array-like object directly
-		// careful to check for === window _before_ this check, as window.length is defined
-		return Bling.__init__(selector, context, selector)
-
-	// everything else, just wrap in an array
-	return Bling.__init__(selector, context, [selector])
-
-}
-// finish defining the Bling type
-Bling.inherit(Array)
-function isBling(a)  { return isType(a, Bling) }
-
-Bling.__init__ = function(selector, context, arr) {
-	// attach like a parasite to just this instance of arr
-	arr.__proto__ = Bling.prototype
-	arr.selector = selector
-	arr.context = context
-	return arr
-}
 
 
 
-/* Extend the API
- *
- * addOps accepts an object full of functions, or a list of named functions
- * ex. Bling.addOps({"echo": function echo() { ... }})
- *     Bling.addOps(function echo() { ... })
- *
- * Both of the above will result in $().echo() being defined.
- *
- */
-Bling.addOps = function addOps(/*arguments*/) {
-	// .addOps() - adds bling operations
+
+Bling.addOps = function addOps() {
+	// .addOps([obj or funcs]) - adds bling operations
 	// ex. Bling.addOps({nop:function(){ return this; })
 	// ex. Bling.addOps(function nop(){ return this })
 	// $("body").nop().nop()
 	for(var i = 0, n = arguments.length; i < n; i++) {
 		var a = arguments[i]
-		if( isFunc(a) ) {
-			if( a.name == null ) throw new Error("cannot extend with an anonymous method (must have a name)")
-			Bling.prototype[a.name] = a
-		} else if( isObject(a) ) {
+		if( isFunc(a) )
+			if( a.name == null ) 
+				throw new Error("cannot add an anonymous method (must have a name)")
+			else
+				Bling.prototype[a.name] = a
+		else if( isObject(a) )
 			Bling.extend(Bling.prototype, a)
-		} else {
-			throw new Error("can only extend by an object or function, not:" + typeof(a))
-		}
+		else
+			throw new Error("can only add an object or function, not:" + typeof(a))
 	}
 }
 
 Bling.module = function module(name, Module) {
+	// .module(name, module) - add a bunch of functions to Bling.prototype
 	var m = Module(),
 		f = arguments.callee
 	f.order.push(name)
 	f[name] = m
 	Bling.addOps(m)
 }
-Bling.module.order = []
+Bling.module.order = [] // preserve the order for generating docs
 
 Bling.module('Core', function () {
 	/// Core Module ///
@@ -527,7 +501,8 @@ Bling.module('Core', function () {
 				t = this[i]
 				try { a[i] = f.call(t, t) }
 				catch( e ) {
-					if( isType(e, TypeError) ) a[i] = f(t)
+					a.nerr = (a.nerr|0) + 1
+					if( a.nerr < 2 && isType(e, TypeError) ) a[i] = f(t)
 					else throw e
 				}
 			}
@@ -1140,7 +1115,7 @@ Bling.module('Html', function () {
 		parse: function stringify(h) {
 			// parse the html in the string h, return a Node.
 			// will return a DocumentFragment if not well-formed.
-			var d = document.createElement("div")
+			var d = document.createElement("html")
 			d.innerHTML = h
 			var df = document.createDocumentFragment()
 			for( var i = 0, n = d.childNodes.length; i < n; i++)
@@ -2421,18 +2396,19 @@ Bling.module('Template', function() {
 		}
 		return ret
 	}
+	compile.cache = {}
 
 	function render(text, values) {
 		// get the cached compiled version
-		var cache = arguments.callee.cache[text]
-			|| (arguments.callee.cache[text] = compile(text)),
+		var cache = compile.cache[text]
+			|| (compile.cache[text] = compile(text)),
 			// the first block is always just text
 			output = [cache[0]],
 			// j is an insert marker into output
 			j = 1 // (because .push() is slow on an iphone, but inserting at length is fast everywhere)
 			// (and because building up this list is the bulk of what render does)
 
-		// then the rest of the cache items are: [key, precision, fixed, type, remainder] 5-lets
+		// then the rest of the cache items are: [key, pad, fixed, type, text remainder] 5-lets
 		for( var i = 1, n = cache.length; i < n-4; i += 5) {
 			var key = cache[i],
 				// the format in three pieces
@@ -2442,7 +2418,7 @@ Bling.module('Template', function() {
 				fixed = cache[i+2],
 				// \d.\d(\w)
 				type = cache[i+3],
-				// the text after the end of the format
+				// the text remaining after the end of the format
 				rest = cache[i+4],
 				// the value to render for this key
 				value = values[key]
@@ -2451,9 +2427,7 @@ Bling.module('Template', function() {
 			if( value == null )
 				value = "missing required value: "+key
 
-			// TODO: the format is used for all kinds of options like padding, etc
-			// right now this only really supports %s, %d, and %N.Nf
-			// everything else is equivalent to %s
+			// format the value according to the format options
 			switch( type ) {
 				case 'd':
 					output[j++] = "" + parseInt(value)
@@ -2461,7 +2435,7 @@ Bling.module('Template', function() {
 				case 'f':
 					output[j++] = parseFloat(value).toFixed(fixed)
 					break
-				// output unsupported formats as strings
+				// output unsupported formats like %s strings
 				// TODO: add support for more types
 				case 's':
 				default:
@@ -2473,13 +2447,12 @@ Bling.module('Template', function() {
 		}
 		return output.join('')
 	}
-	render.cache = {}
 
-	// synth stuff
-	var tagname_re = /^\s*([A-Za-z+]+)/g,
+	// synth regex's
+	var tagname_re = /^\s*([A-Za-z0-9+]+)/g,
 		id_re = /#([^\[.# "']+)/g,
 		class_re = /\.([^\[.# "']+)/g,
-		attr_re = /\[([^\[.# "']+)=*([^\]]*)\]/g,
+		attr_re = /\[([^\[.# "'=\]]+)=*([^\]]*)\]/g,
 		dquote_re = /"[^"]+"/g,
 		squote_re = /'[^']+'/g,
 		comma_sep_re = /,\s*/,
@@ -2487,24 +2460,17 @@ Bling.module('Template', function() {
 		clean_attr_re = /(?:^\[)|(?:\]$)/g,
 		clean_class_re = /\./,
 		clean_id_re = /#/,
-		clean_dquote_re = /"/g,
-		clean_squote_re = /'/g
+		clean_quote_re = /(?:^["'])|(?:["']$)/g
 
 	function _synth(expr) {
 		var ret = $(expr.split(comma_sep_re)) // a set of full expressions
 			.map(function() {
 				var parent = null
-				return $([this])
-					.zip("split").call(/\s"/)
-					.flatten()
-					.zip("split").call(/"\s*/)
-					.flatten()
+				return $(this.split(/\s"/))
+					.zip("split").call(/"\s*/).flatten()
 					.fold(function(a, b) {
 						return $(a.split(space_sep_re))
 							.map(function() {
-							var t = this.valueOf()
-							if( t == "" ) return null
-							return $([t]).map(function() {
 								// this is a single node expression
 								var val = this.valueOf(),
 									tagname = val.match(tagname_re),
@@ -2522,39 +2488,36 @@ Bling.module('Template', function() {
 								if( tagname === '+' && parent != null )
 									return parent = parent.parentNode
 
-								id = id == null ? ''
-									: ' id="'
-										+ id[0].replace(clean_id_re, '')
-										+ '"'
-
-								cls = cls == null ? ''
-									: ' class="' 
-										+ $(cls).zip('replace').call(clean_class_re,'').join(" ") 
-										+ '"'
-
-								attr = attr == null ? ''
-									: $(attr)
-										.zip('replace').call(clean_attr_re,'')
-										.zip('replace').call(clean_dquote_re,'')
-										.zip('split').call('=')
-										.flatten()
-										.fold(function(k, v) {
-											return " "+k+'="'+v+'"'
-										})
-										.join("")
-
-								// a single node expression yields a single node
-								node = Bling.HTML.parse("<"+tagname+id+cls+attr+" />")
+								// create this new node
+								node = document.createElement(tagname)
+								// set the id
+								if( id != null )
+									node.id = id[0].replace(clean_id_re, '')
+								// the class
+								if( cls != null )
+									node.className = $(cls)
+										.zip('replace').call(clean_class_re,'')
+										.join(" ") 
+								// and all the attributes
+								$(attr)
+									.zip('replace').call(clean_attr_re,'')
+									.zip('replace').call(clean_quote_re,'')
+									.zip('split').call('=')
+									.flatten()
+									.fold(function(k, v) {
+										node.setAttribute(k, v)
+									})
 								if( parent != null )
 									parent.appendChild(node)
 								return parent = node
-							}).first()
 						})
 						.push(b)
 					})
 					.flatten()
 			})
 			.flatten()
+
+		// run a loop that will attach all the right parents to the right children
 		ret.reduce(function(a, x) {
 			if( isString(x) ) {
 				a.appendChild(document.createTextNode(x))
@@ -2565,21 +2528,29 @@ Bling.module('Template', function() {
 			else
 				return x
 		})
-		return ret[0]
+
+		return ret.take(1)
 	}
 
 	Bling.synth = _synth
 
 	return {
 		template: function template(defaults) {
-			// .template([defaults]) - compile a template from each node, call .render(v) to use
+			// .template([defaults]) - mark nodes as templates, add optional defaults to .render()
 			// if defaults is passed, these will be the default values for v in .render(v)
 			defaults = Bling.extend({
 			}, defaults)
+			// over-ride the basic .render() with one that applies these defaults
 			this.render = function(args) {
-				return render(Bling.HTML.stringify(this.first()), Bling.extend(defaults,args))
+				return render(this.map(Bling.HTML.stringify).join(''), Bling.extend(defaults,args))
 			}
-			return this.hide()
+			return this.remove() // the template item itself should not be in the DOM
+		},
+
+		render: function render(args) {
+			// .render(args) - replace %(var)s-type strings with values from args
+			// accepts nodes, returns a string
+			return render(this.map(Bling.HTML.stringify).join(''), args)
 		},
 
 		synth: function synth(expr) {
@@ -2619,18 +2590,4 @@ Bling.module('Template', function() {
 	}
 
 })
-
-/* The Bling! Operator
- * -------------------
- * Bound to $ by default, this is the handy constructor of Bling objects.
- * It also holds references to the global Bling functions:
- * $.extend === Bling.extend
- * $("body")[0] === Bling("body")[0]
- * isBling($) == false
- * isBling($()) == true
- * isFunc($) == true
- */
-$ = Bling
-Bling.symbol = "$" // for display purposes
-
 

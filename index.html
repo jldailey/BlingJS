@@ -159,7 +159,6 @@
 		// replace tabs with spaces in <pre>'s
 		// make all <pre>'s pretty-printable
 		$("pre").each(function(){
-			console.log(this.innerHTML)
 			var html = this.innerHTML.replace(/\t/g,"  ")
 			html = $.HTML.escape(html)
 			$(this).replace($(Function.PrettyPrint(html)))

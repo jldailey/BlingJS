@@ -549,7 +549,6 @@ Bling.module('Core', function () {
 				> })
 				> == $([2, 4, 6])
 			*/
-
 		},
 
 		reduce: function reduce(f, init) {
@@ -587,67 +586,6 @@ Bling.module('Core', function () {
 				> $([12, 13, 47, 9, 22]).reduce(Math.min)
 				> == 9
 
-			*/
-		},
-
-		filter: function filter(f) {
-			// .filter(/f/) - collect all /x/ from _this_ where /x/./f/(/x/) is true
-			// or if f is a selector string, collects nodes that match the selector
-			// or if f is a RegExp, collect nodes where f.test(x) is true
-			var i = 0, j = -1, n = this.length,
-				b = Bling(n), it = null
-			b.context = this
-			b.selector = f
-			for(; i < n; i++ ) {
-				it = this[i]
-				if( it )
-					if ( isFunc(f) && f.call( it, it )
-						|| isString(f) && it.webkitMatchesSelector && it.webkitMatchesSelector(f)
-						|| isType(f, RegExp) && f.test(it)
-						)
-						b[++j] = it
-			}
-			return b
-			/* Example:
-				> $([1,2,3,4,5]).filter(function() {
-				> 	return this % 2 == 0
-				> })
-				> == $([2,4,6])
-
-				Or, you can filter by a selector.
-
-				> $("pre").filter(".prettyprint")
-
-				Or, you can filter by a RegExp.
-
-				> $(["text", "test", "foo"].filter(/x/)
-				> == $(["text"])
-
-			*/
-		},
-
-		matches: function matches(expr) {
-			// .matches(/expr/) - collects true if /x/.matchesSelector(/expr/) for /x/ in _this_
-			if( isType(expr, RegExp) )
-				return this.map(function() {
-					return expr.test(this)
-				})
-			if( isString(expr) && this.webkitMatchesSelector )
-				return this.map(function() {
-					return this.webkitMatchesSelector(expr)
-				})
-			else
-				return this.map(function() {
-					return false;
-				})
-			/* Example:
-				> $("pre").matches(".prettyprint")
-				> $([true, false, false, true, etc...])
-
-				Or, the expr can be a RegExp.
-
-				> $(["text", "test", "foo"]).matches(/x/)
-				> == $([true, false, false])
 			*/
 		},
 
@@ -941,6 +879,67 @@ Bling.module('Core', function () {
 			return this
 		},
 
+		filter: function filter(f) {
+			// .filter(/f/) - collect all /x/ from _this_ where /x/./f/(/x/) is true
+			// or if f is a selector string, collects nodes that match the selector
+			// or if f is a RegExp, collect nodes where f.test(x) is true
+			var i = 0, j = -1, n = this.length,
+				b = Bling(n), it = null
+			b.context = this
+			b.selector = f
+			for(; i < n; i++ ) {
+				it = this[i]
+				if( it )
+					if ( isFunc(f) && f.call( it, it )
+						|| isString(f) && it.webkitMatchesSelector && it.webkitMatchesSelector(f)
+						|| isType(f, RegExp) && f.test(it)
+						)
+						b[++j] = it
+			}
+			return b
+			/* Example:
+				> $([1,2,3,4,5]).filter(function() {
+				> 	return this % 2 == 0
+				> })
+				> == $([2,4,6])
+
+				Or, you can filter by a selector.
+
+				> $("pre").filter(".prettyprint")
+
+				Or, you can filter by a RegExp.
+
+				> $(["text", "test", "foo"].filter(/x/)
+				> == $(["text"])
+
+			*/
+		},
+
+		matches: function matches(expr) {
+			// .matches(/expr/) - collects true if /x/.matchesSelector(/expr/) for /x/ in _this_
+			if( isType(expr, RegExp) )
+				return this.map(function() {
+					return expr.test(this)
+				})
+			if( isString(expr) && this.webkitMatchesSelector )
+				return this.map(function() {
+					return this.webkitMatchesSelector(expr)
+				})
+			else
+				return this.map(function() {
+					return false;
+				})
+			/* Example:
+				> $("pre").matches(".prettyprint")
+				> $([true, false, false, true, etc...])
+
+				Or, the expr can be a RegExp.
+
+				> $(["text", "test", "foo"]).matches(/x/)
+				> == $([true, false, false])
+			*/
+		},
+
 		weave: function weave(b) {
 			// .weave(/b/) - interleave the items of _this_ and the items of _b_
 			// to produce: $([ ..., b[i], this[i], ... ])
@@ -1031,25 +1030,24 @@ Bling.module('Core', function () {
 			/* Example:
 				>	var a = {
 				>		x: 1,
-				>		get1: function() {
+				>		getOne: function() {
 				>			return this.x
 				>		}
 				>	}
 				>	var b = {
 				>		x: 2,
-				>		get2: function() {
+				>		getTwo: function() {
 				>			return this.x
 				>		}
 				>	}
-				> b.get2() == 2
-				> a.get1() == 1
+				> b.getTwo() == 2
+				> a.getOne() == 1
 				> $([a.get1, b.get2]).apply(a)
 				> == $([1, 1])
 
-				This happens because both functions are called
-				with 'a' as 'this', since it is the context argument to apply().
+				This happens because both functions are called with 'a' as 'this', since it is the context argument to .apply()
 
-				(IOW, it happens because b.get2.apply(a) == 1)
+				(In other words, it happens because b.get2.apply(a) == 1)
 			*/
 
 		},
@@ -1386,7 +1384,9 @@ Bling.module('Html', function () {
 
 		attr: function attr(a,v) {
 			// .attr(a, [v]) - get [or set] an /a/ttribute [/v/]alue
-			var f = v ? "setAttribute" : "getAttribute"
+			var f = v === undefined ? "getAttribute" 
+				: v === null ? "removeAttribute"
+				: "setAttribute"
 			var ret = this.zip(f).call(a,v)
 			return v ? this : ret
 		},
@@ -2416,7 +2416,7 @@ Bling.module('Template', function() {
 		return -1
 	}
 
-	var type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])(.*)/
+	var type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/
 
 	function compile(text) {
 		var ret = [],
@@ -2444,7 +2444,7 @@ Bling.module('Template', function() {
 	}
 	compile.cache = {}
 
-	function render(text, values) {
+	function _render(text, values) {
 		// get the cached compiled version
 		var cache = compile.cache[text]
 			|| (compile.cache[text] = compile(text)),
@@ -2493,6 +2493,7 @@ Bling.module('Template', function() {
 		}
 		return output.join('')
 	}
+	Bling.render = _render
 
 	// synth regex's
 	var tagname_re = /^\s*([A-Za-z0-9+]+)/g,
@@ -2589,15 +2590,16 @@ Bling.module('Template', function() {
 			}, defaults)
 			// over-ride the basic .render() with one that applies these defaults
 			this.render = function(args) {
-				return render(this.map(Bling.HTML.stringify).join(''), Object.Extend(defaults,args))
+				return _render(this.map(Bling.HTML.stringify).join(''), Object.Extend(defaults,args))
 			}
+
 			return this.remove() // the template item itself should not be in the DOM
 		},
 
 		render: function render(args) {
 			// .render(args) - replace %(var)s-type strings with values from args
 			// accepts nodes, returns a string
-			return render(this.map(Bling.HTML.stringify).join(''), args)
+			return _render(this.map(Bling.HTML.stringify).join(''), args)
 		},
 
 		synth: function synth(expr) {

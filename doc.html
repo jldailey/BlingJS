@@ -23,7 +23,7 @@
 				text-align: justify;
 				margin-top: 6px;
 			}
-			a[href^='#doc:Bling'] {
+			a[name^='api:'] {
 				font-size: 18px;
 				font-weight: bold;
 				color: #222;
@@ -161,7 +161,7 @@
 							$docroot.fadeIn(function() {
 								var hash = window.location.hash
 								if( hash ) {
-									$("a[name="+hash.replace(/#/,"")+"]").first().scrollIntoView()
+									$("a[name='"+hash.replace(/#/,"")+"']").first().scrollIntoView()
 								}
 							})
 						})
@@ -176,7 +176,10 @@
 		<div id="progress-bar"> </div>
 		<div id="docroot">
 		</div>
-		<li id="func-template"><a name="%(coderef)s" href="#doc:Bling.prototype.%(coderef)s"><span>%(funcdef)s</span></a>&nbsp;&mdash;&nbsp;%(funcdesc)s
+		<li id="func-template">
+			<a name="api:%(coderef)s"><span>%(funcdef)s</span></a>
+			<a href="#api:%(coderef)s" title="Permalink to this definition">&#182;</a>
+			&nbsp;&mdash;&nbsp;%(funcdesc)s
 		</li>
 	</body>
 </html>

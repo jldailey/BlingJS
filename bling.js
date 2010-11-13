@@ -1164,7 +1164,7 @@ Bling.module('Html', function () {
 		parse: function stringify(h) {
 			// parse the html in the string h, return a Node.
 			// will return a DocumentFragment if not well-formed.
-			var d = document.createElement("html")
+			var d = document.createElement("body")
 			d.innerHTML = h
 			var df = document.createDocumentFragment()
 			for( var i = 0, n = d.childNodes.length; i < n; i++)

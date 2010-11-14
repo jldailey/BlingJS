@@ -1,11 +1,10 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 	<head>
-		<script src="bling.js"></script>
-		<script src="bling.ui.js"></script>
+		<script src="../bling.js"></script>
+		<script src="../bling.ui.js"></script>
 		<link href='http://fonts.googleapis.com/css?family=Nobile' rel='stylesheet' type='text/css'>
 		<style>
-			.template { display: none; }
 			body {
 				font-family: 'Nobile', Verdana, sans;
 				width:320px;
@@ -147,9 +146,10 @@
 				setTimeout(function () {
 					if( name = Bling.module.order[i++] ) {
 						module = Bling.module[name]
-						var h3 = $("<h3>"+name+"</h3>"),
+						var h3 = $("<h3>"+name+"</h3>").log("h3"),
 							ul = generateModuleDocs(module, funcTemplate)
 						h3.click(function() {
+							console.log('click!')
 							ul.toggle()
 						})
 						$docroot.append(h3).append(ul)
@@ -177,26 +177,7 @@
 		<div id="progress-bar"> </div>
 		<div id="docroot">
 		</div>
-		<div id="func-template" class="template">
-			<li><a name="%(coderef)s" href="#doc:Bling.prototype.%(coderef)s"><span>%(funcdef)s</span></a>&nbsp;&mdash;&nbsp;%(funcdesc)s
-			</li>
-		</div>
-		<ul id="nav-accordion" class="accordion">
-			<li><span>Core</span><div>
-				Core Content goes here.
-			</div></li>
-			<li><span>Html</span><div>
-				Html Content goes here.
-			</div></li>
-			<li><span>Math</span><div>
-				Math Content goes here.
-			</div></li>
-		</ul>
-		<script>
-			$(document).ready(function() {
-				var $nav = $.UI.Accordion("#nav-accordion")
-					.center()
-			})
-		</script>
+		<li id="func-template"><a name="%(coderef)s" href="#doc:Bling.prototype.%(coderef)s"><span>%(funcdef)s</span></a>&nbsp;&mdash;&nbsp;%(funcdesc)s
+		</li>
 	</body>
 </html>

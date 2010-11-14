@@ -149,12 +149,6 @@ Bling.extend(window, {
 })
 
 
-/* Static Closures:
- * ----------------
- * All the little functions in this section are created ahead of time,
- * to prevent the need to create lots of little anonymous closures
- */
-
 // cache a reference
 var OtoS = Object.prototype.toString
 
@@ -172,8 +166,11 @@ Array.Slice = function (o, i, j) {
 		a[k++] = o[start++]
 	return a
 }
+
 // return a number with "px" attached, suitable for css
 Number.Px = function (x,d) { return (parseInt(x)+(d|0))+"px" }
+
+// build simple closures to avoid repitition later
 Bling.extend(Function, {
 	Empty: function (){},
 	NotNull: function (x) { return x != null },
@@ -185,6 +182,8 @@ Bling.extend(Function, {
 	ToString: function (x) { return OtoS.apply(x) },
 	Px: function (d) { return function() { return Number.Px(this,d) } }
 })
+
+// add string functions
 Bling.extend(String, {
 	HtmlEscape: function htmlescape(x) {
 		// String.HtmlEscape(string) - take an string of html, return a string of escaped html
@@ -206,7 +205,6 @@ Bling.extend(String, {
 		return s.substring(0,a) + repl + s.substring(b)
 	}
 })
-// return a functor that adds "px" to it's 'this'
 
 // Function.PrettyPrint gets its own little private namespace
 ;(function() {
@@ -296,11 +294,10 @@ Bling.extend(String, {
 				kwd: "#088",
 				num: "#808"
 			}, colors)
-			var css = "<style id='pp-injected'> "
+			var css = ""
 			for( var i in colors )
 				css += "pre.pp ."+i+" { color: "+colors[i]+"; }"
-			css += "</style>"
-			$("head").append(css)
+			$("head").append($.synth("style#pp-injected").text(css))
 		}
 		// extract comments
 		return "<pre class='pp'>"+$(extract_comments(js))
@@ -321,9 +318,10 @@ Bling.extend(String, {
 						// label string constants
 						(quoted ? "<span class='str'>"+quoted+"</span>" : "")
 					})
+					// collapse the strings
 					.join('')
-					+
-					(comment ? "<span class='com'>"+comment+"</span>" : "")
+					// append the extracted comment
+					+ (comment ? "<span class='com'>"+comment+"</span>" : "")
 			})
 			.join('')
 			+"</pre>"
@@ -912,6 +910,11 @@ Bling.module('Core', function () {
 				> $([1, 2, 3]).concat([3, 4, 5])
 				> == $([1, 2, 3, 3, 4, 5])
 			*/
+		},
+
+		push: function push(b) {
+			Array.prototype.push.call(this, b)
+			return this
 		},
 
 		weave: function weave(b) {
@@ -2474,70 +2477,102 @@ Bling.module('Template', function() {
 
 	// synth stuff
 	var tagname_re = /^\s*([A-Za-z+]+)/g,
-		id_re = /#([^\[.# ]+)/g,
-		class_re = /\.([^\[.# ]+)/g,
-		attr_re = /\[([^\[.# ]+)=*([^\]]*)\]/g,
+		id_re = /#([^\[.# "']+)/g,
+		class_re = /\.([^\[.# "']+)/g,
+		attr_re = /\[([^\[.# "']+)=*([^\]]*)\]/g,
+		dquote_re = /"[^"]+"/g,
+		squote_re = /'[^']+'/g,
+		comma_sep_re = /,\s*/,
+		space_sep_re = / /,
 		clean_attr_re = /(?:^\[)|(?:\]$)/g,
 		clean_class_re = /\./,
 		clean_id_re = /#/,
-		clean_quot_re = /"/g
+		clean_dquote_re = /"/g,
+		clean_squote_re = /'/g
 
 	function _synth(expr) {
-		return $(expr.split(/,\s*/)) // a set of full expressions
-			.zip("split").call(" ") // a set of sets of expression parts
+		return $($(expr.split(comma_sep_re)) // a set of full expressions
 			.map(function() {
 				var parent = null
-				return $(this).map(function() {
-					// this is a single node expression
-					var val = this.valueOf(),
-						tagname = val.match(tagname_re),
-						id = val.match(id_re),
-						cls = val.match(class_re),
-						attr = val.match(attr_re),
-						node = null
-					if( tagname == null || tagname.length > 1 )
-						throw Error("Invalid synth expression: "+tagname)
+				return $([this])
+					.zip("split").call(/\s"/)
+					.flatten()
+					.zip("split").call(/"\s*/)
+					.flatten()
+					.fold(function(a, b) {
+						return $(a.split(space_sep_re))
+							.map(function() {
+							var t = this.valueOf()
+							if( t == "" ) return null
+							return $([t]).map(function() {
+								// this is a single node expression
+								var val = this.valueOf(),
+									tagname = val.match(tagname_re),
+									dquote = val.match(dquote_re),
+									squote = val.match(squote_re),
+									id = val.match(id_re),
+									cls = val.match(class_re),
+									attr = val.match(attr_re),
+									node = null
+								console.log("inside",this.valueOf())
 
-					tagname = tagname[0]
+								if( tagname == null || tagname.length > 1 )
+									throw Error("Invalid synth expression: "+expr)
 
-					// support the adjacency selector: +
-					if( tagname === '+' && parent != null ) {
-						parent = parent.parentNode
-						return null
-					}
+								tagname = tagname[0]
 
-					if( id != null )
-						id = ' id="'+id[0].replace(clean_id_re, '')+'"'
-					else
-						id = ""
+								// support the adjacency selector: +
+								if( tagname === '+' && parent != null )
+									return parent = parent.parentNode
 
-					if( cls != null )
-						cls = ' class="' + $(cls).zip('replace').call(clean_class_re,'').join(" ") + '"'
-					else
-						cls = ""
+								id = id == null ? ''
+									: ' id="'
+										+ id[0].replace(clean_id_re, '')
+										+ '"'
 
-					if( attr != null )
-						attr = $(attr)
-							.zip('replace').call(clean_attr_re,'')
-							.zip('replace').call(clean_quot_re,'')
-							.zip('split').call('=')
-							.flatten()
-							.fold(function(k, v) {
-								return " "+k+'="'+v+'"'
-							})
-							.join("")
-					else
-						attr = ""
+								cls = cls == null ? ''
+									: ' class="' 
+										+ $(cls).zip('replace').call(clean_class_re,'').join(" ") 
+										+ '"'
 
-					// a single node expression yields a single node
-					node = Bling.HTML.parse("<"+tagname+id+cls+attr+"></"+tagname+">")
-					if( parent != null )
-						parent.appendChild(node)
-					parent = node
-					return node
+								attr = attr == null ? ''
+									: $(attr)
+										.zip('replace').call(clean_attr_re,'')
+										.zip('replace').call(clean_dquote_re,'')
+										.zip('split').call('=')
+										.flatten()
+										.fold(function(k, v) {
+											return " "+k+'="'+v+'"'
+										})
+										.join("")
 
-				}).first()
+								// a single node expression yields a single node
+								node = Bling.HTML.parse("<"+tagname+id+cls+attr+"></"+tagname+">")
+								if( parent != null )
+									parent.appendChild(node)
+								return parent = node
+							}).first()
+						})
+						.push(b)
+						.log("bottom")
+					})
+					.flatten()
 			})
+			.flatten()
+			.log("beforefold")
+			.reduce(function(a, x) {
+				if( isString(x) ) {
+					a.appendChild(document.createTextNode(x))
+					return a
+				}
+				else if( x == null )
+					return a
+				else
+					return x
+			}))
+			.parents()
+			.map(Bling.prototype.last)
+			.flatten()
 	}
 
 	Bling.synth = _synth
@@ -2558,7 +2593,9 @@ Bling.module('Template', function() {
 			// .synth(expr) - create DOM nodes to match a simple css expression
 			// supports the following css selectors:
 			// tag, #id, .class, [attr=val]
+			// and the additional helper "text"
 			return _synth(expr).appendTo(this)
+
 			/* Example:
 				> $("body").synth("div#one.foo.bar[orb=bro] span + p")
 				> == $([<div id="one" class="foo bar" orb="bro"> <span></span> <p></p> </div>])
@@ -2577,8 +2614,13 @@ Bling.module('Template', function() {
 
 				> $.synth("div#one, div#two")
 				> == $([<div id="one"></div>, <div id="two"></div>])
-			*/
 
+				You can use the new quote selector to add text nodes.
+
+				> $.synth('div#one "hello" + div#two "world"')
+				> == $([<div id="one">hello<div id="two">world</div></div>])
+
+			*/
 		}
 
 	}

@@ -6,7 +6,7 @@ Bling.module('UI', function() {
 		var dialog = Bling(selector)
 			.addClass("dialog")
 			.center()
-		opts = Bling.extend({
+		opts = Object.Extend({
 			autoOpen: false
 		}, opts)
 		dialog.open = dialog.show
@@ -16,7 +16,7 @@ Bling.module('UI', function() {
 	}
 
 	Bling.UI.ProgressBar = function ProgressBar(selector, opts) {
-		opts = Bling.extend({
+		opts = Object.Extend({
 			change: Function.Empty,
 			showPercent: "center",
 			barColor: "green",
@@ -53,7 +53,7 @@ Bling.module('UI', function() {
 			return current
 		}
 
-		Bling.extend(node, {
+		Object.Extend(node, {
 			update: function (percent, speed) {
 				speed = speed || "instant"
 				if( percent < 0.0 ) percent *= -1.0
@@ -74,7 +74,7 @@ Bling.module('UI', function() {
 	}
 
 	Bling.UI.Accordion = function Accordion(selector, opts) {
-		opts = Bling.extend({
+		opts = Object.Extend({
 			exclusive: false,
 			sticky: false
 		}, opts)
@@ -124,7 +124,7 @@ Bling.module('UI', function() {
 	}
 
 	Bling.UI.Tabs = function Tabs(selector, opts) {
-		opts = Bling.extend({
+		opts = Object.Extend({
 		}, opts)
 		var node = Bling.UI.Accordion(selector, {sticky: true, exclusive: true})
 

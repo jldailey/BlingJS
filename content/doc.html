@@ -4,6 +4,7 @@
 		<script src="../bling.js"></script>
 		<script src="../bling.ui.js"></script>
 		<link href='http://fonts.googleapis.com/css?family=Nobile' rel='stylesheet' type='text/css'>
+		<link href='http://fonts.googleapis.com/css?family=Inconsolata' rel='stylesheet' type='text/css'>
 		<style>
 			body {
 				font-family: 'Nobile', Verdana, sans;
@@ -23,7 +24,7 @@
 				text-align: justify;
 				margin-top: 6px;
 			}
-			a[href^='#doc:Bling'] {
+			a[name^='api:'] {
 				font-size: 18px;
 				font-weight: bold;
 				color: #222;
@@ -31,13 +32,13 @@
 			}
 		</style>
 		<script>
-			$.ready(function() {
+			$(document).ready(function() {
 				var $body = $("body"),
 					$docroot = $("#docroot"),
 					i = 0, j = 0, module = null,
 					example_re = /\s*[Ee]xample:\s*/,
 					end_line = /\n/g,
-					code_line = /^\s*>\s/,
+					code_line = /^\s*\&gt;\s/,
 					blank_line = /^\s*$/,
 					singleline_comment = /^\/\/ */,
 					multiline_comment_open = /^\/\* */,
@@ -46,9 +47,6 @@
 					i_word = /_(\w+)_/g,
 					progressBar = $.UI.ProgressBar("#progress-bar")
 
-				function getSource(func) {
-					return $(Function.PrettyPrint(func))
-				}
 				function getDescription(node) {
 					var desc = node.find(".com").take(1).text().first();
 					desc = desc ? desc
@@ -60,7 +58,7 @@
 				}
 				function getExamples(node) {
 					// return a list of [<p>, <pre>, <p>, <pre>, ...]
-					var examples = node.find(".com").skip(1).text(),
+					var examples = node.find(".com").skip(1).html(),
 						result = $([]), codeQueue = [], paraQueue = [],
 						i = 0, j = 0, n = examples.length, example = null
 						lines = null, line = null
@@ -71,9 +69,10 @@
 							j = 0
 							while( (line = lines[j++]) != null ) {
 								if( code_line.test(line) ) {
-									codeQueue.push(line.replace(code_line, ''))
+									var code = line.replace(code_line, '')
+									codeQueue.push(code)
 									if( paraQueue.length > 0 ) {
-										result.push($("<p>").html(paraQueue.join('\n')))
+										result.push($.synth("p").text(paraQueue.join('\n')))
 										paraQueue = []
 									}
 									continue
@@ -81,34 +80,36 @@
 								else if ( ! blank_line.test(line) ) {
 									paraQueue.push(line.replace(/\/\*/g,"").replace(/\*\//g,""))
 									if( codeQueue.length > 0 ) {
-										result.push($(Function.PrettyPrint(codeQueue.join('\n'))))
+										var code = codeQueue.join('\n')
+										code = $(Function.PrettyPrint(code))
+										result.push(code)
 										codeQueue = []
 									}
 								} 
 								else if( codeQueue.length > 0 ) {
-									result.push($(Function.PrettyPrint(codeQueue.join('\n'))))
+									var code = codeQueue.join('\n')
+									code = $(Function.PrettyPrint(code))
+									result.push(code)
 									codeQueue = []
 								}
 								else if ( paraQueue.length > 0 ) {
-									result.push($("<p>").html(paraQueue.join('\n')))
+									result.push($.synth("p").text(paraQueue.join('\n')))
 									paraQueue = []
 								}
 							}
 						}
 					}
-					if( codeQueue.length > 0 ) {
+					if( codeQueue.length > 0 )
 						result.push($(Function.PrettyPrint(codeQueue.join('\n'))))
-					}
-					if( paraQueue.length > 0 ) {
+					if( paraQueue.length > 0 )
 						result.push($("<p>").html(paraQueue.join('\n')))
-					}
 					return result
 				}
 
-				function generateModuleDocs(module, template) {
-					var ul = $("<ol class='apilist' module='"+name+"'></ol>")
+				function generateModuleDocs(name, module, template) {
+					var ul = $.synth("ol.apilist[module="+name+"]")
 					for( var k in module ) {
-						var source = getSource(module[k]),
+						var source = $(Function.PrettyPrint(module[k]))
 							desc = getDescription(source),
 							examples = getExamples(source)
 						ul.append(template.render({
@@ -146,8 +147,8 @@
 				setTimeout(function () {
 					if( name = Bling.module.order[i++] ) {
 						module = Bling.module[name]
-						var h3 = $("<h3>"+name+"</h3>").log("h3"),
-							ul = generateModuleDocs(module, funcTemplate)
+						var h3 = $("<h3>"+name+"</h3>"),
+							ul = generateModuleDocs(name, module, funcTemplate)
 						h3.click(function() {
 							console.log('click!')
 							ul.toggle()
@@ -162,7 +163,7 @@
 							$docroot.fadeIn(function() {
 								var hash = window.location.hash
 								if( hash ) {
-									$("a[name="+hash.replace(/#/,"")+"]").first().scrollIntoView()
+									$("a[name='"+hash.replace(/#/,"")+"']").first().scrollIntoView()
 								}
 							})
 						})
@@ -177,7 +178,10 @@
 		<div id="progress-bar"> </div>
 		<div id="docroot">
 		</div>
-		<li id="func-template"><a name="%(coderef)s" href="#doc:Bling.prototype.%(coderef)s"><span>%(funcdef)s</span></a>&nbsp;&mdash;&nbsp;%(funcdesc)s
+		<li id="func-template">
+			<a name="api:%(coderef)s"><span>%(funcdef)s</span></a>
+			<a href="#api:%(coderef)s" title="Permalink to this definition">&#182;</a>
+			&nbsp;&mdash;&nbsp;%(funcdesc)s
 		</li>
 	</body>
 </html>

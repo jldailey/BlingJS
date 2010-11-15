@@ -280,7 +280,7 @@ Object.Extend(Function, {
 			singleline_comment = /\/\/.*?\n/,
 			multiline_comment = /\/\*(?:.|\n)*?\*\//,
 			all_numbers = /\d+\.*\d*/g,
-			bling_symbol = /\$\(/g
+			bling_symbol = /\$(?:\(|\.)/g
 		function find_unescaped_quote(s, i, q) {
 			var r = s.indexOf(q, i)
 			while( s.charAt(r-1) == "\\" && r < s.length && r > 0)
@@ -398,10 +398,6 @@ Object.Extend(Function, {
 		}
 	})()
 })
-
-
-
-
 
 Bling.addOps = function addOps() {
 	// .addOps([obj or funcs]) - adds bling operations
@@ -1123,7 +1119,6 @@ Bling.module('Core', function () {
 		}
 
 	}
-
 })
 
 Bling.module('Html', function () {
@@ -1715,7 +1710,6 @@ Bling.module('Html', function () {
 			return f
 		}
 	}
-
 })
 
 Bling.module('Math', function () {
@@ -1802,7 +1796,6 @@ Bling.module('Math', function () {
 			return this.scale(1/this.magnitude())
 		}
 	}
-
 })
 
 Bling.module('Event', function () {
@@ -2132,7 +2125,6 @@ Bling.module('Event', function () {
 		gestureend: binder('gestureend'),
 		gesturecancel: binder('gesturecancel')
 	}
-
 })
 
 Bling.module('Transform', function () {
@@ -2283,7 +2275,6 @@ Bling.module('Transform', function () {
 			return this.fadeOut(speed, callback, 0.0, this.height().first())
 		}
 	}
-
 })
 
 Bling.module('Http', function() {
@@ -2351,7 +2342,6 @@ Bling.module('Http', function() {
 	})
 
 	return {} // no operator methods
-
 })
 
 Bling.module('Database', function () {
@@ -2395,11 +2385,9 @@ Bling.module('Database', function () {
 			})
 		}
 	}
-
 })
 
 Bling.module('Template', function() {
-
 	function match_forward(text, find, against, start, stop) {
 		var count = 1;
 		if( stop == null || stop == -1 ) {
@@ -2637,6 +2625,5 @@ Bling.module('Template', function() {
 		}
 
 	}
-
 })
 

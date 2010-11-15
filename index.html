@@ -21,13 +21,13 @@
 			i { color:#822; }
 			p {
 				width:300px;
-				text-align: justify;
+				text-align: left;
 				margin-left:auto;
 				margin-right:auto;
 			}
 			pre {
 				font-family: 'Inconsolata', courier, fixed, sans;
-				font-size:0.9em;
+				font-size:14px;
 				line-height:1.1em;
 				padding:6px 0px 6px 4px;
 				display: inline-block;
@@ -35,6 +35,15 @@
 				background-color:#ffc;
 				width:300px;
 				margin:0px 0px 0px 10px;
+			}
+			code {
+				font-family: 'Inconsolata', courier, fixed, sans;
+				font-size: 14px;
+			}
+			h3, h4, h5 {
+				border-bottom: 1px solid black;
+			}
+			h5 {
 			}
 			ol.apilist {
 				padding:0px 2em;
@@ -49,7 +58,7 @@
 				margin-left: -25px;
 			}
 			ol.apilist li > a, 
-			a[href^='#doc:Bling'] {
+			a[href] {
 				font-size: 16px;
 				text-decoration:none;
 				color:blue;
@@ -57,11 +66,6 @@
 			}
 			ol.apilist li > a span {
 				margin-right:.2em;
-			}
-
-			dg {
-				color: #161;
-				font-size: larger;
 			}
 
 			div.doc {
@@ -133,6 +137,18 @@
 				float:left;
 				margin: 4px 3px;
 			}
+			textarea {
+				width: 100%;
+			}
+			table.small {
+				font-size: 14px;
+				width: 100%;
+			}
+			table.small td:first-child {
+				font-family: 'Inconsolata', courier, fixed, sans;
+				font-size: 16px;
+				width: 45%;
+			}
 		</style>
 	</head>
 <body>
@@ -144,7 +160,7 @@
 			console.log(this, this.innerText)
 			this.innerText = Function.PrettyPrint(this.innerText)
 		})
-	}
+	})
 
 	$(document).ready(function(){
 		// wrap all h1's and h3's into named anchors
@@ -171,8 +187,7 @@
 	})
 
 </script>
-<a name="top" />
-<h1>BlingJS<h1>
+<h1><a name="top">BlingJS</a><h1>
 <h2>A JavaScript framework for WebKit.</h2>
 
 <p>BlingJS is named after the bling symbol (<span class='bln'>$</span>), which is the default alias for the Bling constructor.
@@ -202,11 +217,11 @@ $([1, "foo", {a: 'b'}]) // or anything</pre>
 
 <h4>What makes BlingJS special?</h4>
 <p>While similar to jQuery, there are a number of important differences; the implementation, the philosophy, and a few neat tools that when put together become very powerful.  
-This section will highlight and explain these things.  For full documentation of everything BlingJS can do, see the <a href="doc.html">API Documentation</a> (which is generated live from the current source).
+This section will highlight and explain these things.  For full documentation of everything BlingJS can do, see the <a href="content/doc.html">API Documentation</a> (which is generated live from the current source).
 <p>The biggest philosophical difference is that BlingJS methods <b>always try to return sets</b>,
-rather than first elements, unless specifically requested by <a href='#doc:Bling.prototype.first'>first</a>, or <a href='#doc:Bling.prototype.last'>last</a>.
-Even methods that return values (like <a href='#doc:Bling.prototype.width'>width</a> or <a href='#doc:Bling.prototype.height'>height</a>) 
-will return a set of values (one for each node in the source set), and if there is only one, you access it using <a href="#doc:Bling.prototype.first">first</a>.
+rather than first elements, unless specifically requested by <a href='#doc:first'>first</a>, or <a href='#doc:last'>last</a>.
+Even methods that return values (like <a href='#doc:width'>width</a> or <a href='#doc:height'>height</a>) 
+will return a set of values (one for each node in the source set), and if there is only one, you access it using <a href="#doc:first">first</a>.
 <p>One of my big frustrations with jQuery is having to do stuff like this:
 <pre>
 jQuery("div").map(function() {
@@ -225,8 +240,8 @@ jQuery("div").html()
 <p>In order to make this set-focused philosophy work, a few core tools are needed.
 
 <a name="zip" />
-<h5>zip</h5>
-<p>The <a href='#doc:Bling.prototype.zip'>zip</a> operation selects of list of properties from a set of elements.  Think of <a href='#doc:Bling.prototype.zip'>zip</a> as being similar to a SELECT query in SQL.
+<h5>Zip</h5>
+<p>The <a href='#doc:zip'>zip</a> operation selects of list of properties from a set of elements.  Think of <a href='#doc:zip'>zip</a> as being similar to a SELECT query in SQL.
 <p>The expression:
 <pre>
 $("div").zip("style")</pre>
@@ -235,11 +250,11 @@ $("div").zip("style")</pre>
 <pre>
 $("div").zip("style.setProperty")</pre>
 
-<p>Not only does the compound form allow for precise extraction, but the above example also demonstrates another useful feature of <a href='#doc:Bling.prototype.zip'>zip</a>:
-<blockquote>When <a href='#doc:Bling.prototype.zip'>zip</a> selects a function, it is bound to the object it is selected from.</blockquote>
-<p>What this means is that when you .zip("style.setProperty") you get back a set of functions, and when you call these functions directly, it is as if you were calling: div.style.setProperty().
-<p>In other words, the 'this' value inside each returned function, will be a reference to the original 'style' from which 'setProperty' was extracted.
-<p>The <a href='#doc:Bling.prototype.call'>call</a> operation exists in order to call all the functions in the set with the same arguments.
+<p>Not only does the compound form allow for precise extraction, but the above example also demonstrates another useful feature of <a href='#doc:zip'>zip</a>:
+<blockquote>When <a href='#doc:zip'>zip</a> selects a function, it is bound to the object it is selected from.</blockquote>
+<p>What this means is that when you <code>.zip("style.setProperty")</code> you get back a set of functions, and when you call these functions directly, it is as if you were calling: <code>div.style.setProperty()</code>.
+<p>In other words, the <code>this</code> value inside each returned function, will be a reference to the original <code>style</code> from which <code>setProperty</code> was extracted.
+<p>The <a href='#doc:call'>call</a> operation exists in order to call all the functions in the set with the same arguments.
 
 <p>If you specify multiple columns, you get a list of simple objects with only the desired fields.
 <pre>
@@ -247,11 +262,11 @@ $("div").zip("id", "className")
 == $([{'id':..., 'className':... },...])</pre>
 
 <a name="zap" />
-<h5>zap</h5>
-<p>The companion to <a href='#doc:Bling.prototype.zip'>zip</a> is <a href='#doc:Bling.prototype.zap'>zap</a>, naturally.  The <a href='#doc:Bling.prototype.zap'>zap</a> operation allows assignment in a functional syntax.
+<h5>Zap</h5>
+<p>The companion to <a href='#doc:zip'>zip</a> is <a href='#doc:zap'>zap</a>, naturally.  The <a href='#doc:zap'>zap</a> operation allows assignment in a functional syntax.
 <pre>
 $("span").zap("innerText", "Hello World")</pre>
-<p>Like <a href='#doc:Bling.prototype.zip'>zip</a>, it also supports compound properties.
+<p>Like <a href='#doc:zip'>zip</a>, it also supports compound properties.
 <pre>
 $("span").zap("style.color", "red")</pre>
 <p>Or, you can give a bunch of properties to set all at once.
@@ -264,62 +279,49 @@ $("span").zap({
 <pre>
 $("span").take(3).zap("style.color",
 	["red", "green", "blue"])</pre>
-<p>If you use <a href='#doc:Bling.prototype.zap'>zap</a> this way, you must make sure you have enough values for how many elements you select.
+<p>If you use <a href='#doc:zap'>zap</a> this way, you must make sure you have enough values for how many elements you select.
 
 <a name="html" />
 <h4>Html Operations</h4>
-<p>While BlingJS has all of the basic HTML and DOM manipulating operations that jQuery has (like <a href='#doc:Bling.prototype.html'>html</a>, <a href='#doc:Bling.prototype.text'>text</a>, <a href='#doc:Bling.prototype.after'>after</a>, <a href='#doc:Bling.prototype.append'>append</a>, <a href="doc.html">etc.</a>), 
+<p>While BlingJS has all of the basic HTML and DOM manipulating operations that jQuery has (like <a href='#doc:html'>html</a>, <a href='#doc:text'>text</a>, <a href='#doc:after'>after</a>, <a href='#doc:append'>append</a>, <a href="content/doc.html">etc.</a>), 
 it also has two simple systems that work together to add quite a bit more power.
 
 <a name="template" />
 <h5>Templates</h5>
 <p>The first such system that is built into the core is a simple template system, 
-and it works by replacing substrings that look like these: <nobr>%(id)d</nobr>, <nobr>%(name)s</nobr>, and <nobr>%(dollars).2f</nobr>
+and it works by replacing substrings that look like these: <code>%(id)d</code>, <code>%(name)s</code>, and <code>%(dollars).2f</code>
 <p>All templates start with DOM nodes.
-<textarea style="height:85px">
+<textarea style="height:85px" resizable="false">
 <li id="line-template">
  <span>%(title)s</span>
  <div>%(body)s</div>
 </li>
 </textarea>
-<style>
-	textarea {
-		width: 100%;
-	}
-	table.small {
-		font-size: 12px;
-		width: 100%;
-	}
-	table.small td:first-child {
-		font-size: 14px;
-		width: 40%;
-	}
-</style>
-<p>Once you have the DOM nodes you want to copy, you should usually initialize them with <a href='#doc:Bling.prototype.template'>template</a>.
+<p>Once you have the DOM nodes you want to copy, you should usually initialize them with <a href='#doc:template'>template</a>.
 <pre>
 $("#line-template").template({
 	title: "default title",
 })</pre>
-<p>Initializing the nodes with <a href='#doc:Bling.prototype.template'>template</a> will set default values for the fields, and will remove the nodes from the DOM so that their un-rendered forms don't interfere with the page.
-<p>The <a href='#doc:Bling.prototype.render'>render</a> operation creates new nodes from templates.
+<p>Initializing the nodes with <a href='#doc:template'>template</a> will set default values for the fields, and will remove the nodes from the DOM so that their un-rendered forms don't interfere with the page.
+<p>The <a href='#doc:render'>render</a> operation creates new nodes from templates.
 <pre>
 $("#line-template").render({
 	title: "This is my line."
 	body: "This is my line's body."
 })</pre>
-<p>The initialization with <a href='#doc:Bling.prototype.template'>template</a> is optional, otherwise you will have to manage the source nodes and defaults yourself.
+<p>The initialization with <a href='#doc:template'>template</a> is optional, otherwise you will have to manage the source nodes and defaults yourself.
 
 <a name="synth" />
 <h5>Synthesizing nodes</h5>
 
-<p>One of the handiest features in Bling is the <a href='#doc:Bling.prototype.synth'>synth</a> operation.  This lets you fabricate entire DOM trees, given a CSS expression.
+<p>One of the handiest features in Bling is the <a href='#doc:synth'>synth</a> operation.  This lets you fabricate small DOM trees, given a CSS expression.
 <p>In other words, given a CSS expression, $.synth() returns the smallest DOM tree that satisfies the CSS.
 <p>Example:
 <pre>
 $.synth("div#foo.bar")
-=== $('<div id="foo" class="bar"></div>')</pre>
+== $('<div id="foo" class="bar"></div>')</pre>
 <p>The above example used the global $.synth(), for creating nodes that are initially un-attached to anything.  If you use $(selector).synth(...), the new nodes will be appended to $(selector) before they are returned.
-<p>The <a href='#doc:Bling.prototype.synth'>synth</a> operation supports only a few CSS selectors:
+<p>The <a href='#doc:synth'>synth</a> operation supports only a few CSS selectors:
 <table class="small">
 	<tr><td><i>.class</i> &lt;dot&gt;<td>any number
 	<tr><td><i>#id</i> &lt;hash&gt;<td>once

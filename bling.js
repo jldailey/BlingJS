@@ -277,7 +277,7 @@ Object.Extend(Function, {
 	PrettyPrint: (function() {
 		var operators = /!==|!=|!|\#|\%|\%=|\&|\&\&|\&\&=|&=|\*|\*=|\+|\+=|-|-=|->|\.{1,3}|\/|\/=|:|::|;|<<=|<<|<=|<|===|==|=|>>>=|>>=|>=|>>>|>>|>|\?|@|\[|\]|}|{|\^|\^=|\^\^|\^\^=|\|=|\|\|=|\|\||\||~/g,
 			keywords = /\b[Ff]unction\b|\bvar\b|\.prototype\b|\.__proto__\b|\bString\b|\bArray\b|\bNumber\b|\bObject\b|\bbreak\b|\bcase\b|\bcontinue\b|\bdelete\b|\bdo\b|\bif\b|\belse\b|\bfinally\b|\binstanceof\b|\breturn\b|\bthrow\b|\btry\b|\btypeof\b|\btrue\b|\bfalse\b/g,
-			singleline_comment = /\/\/.*?\n/,
+			singleline_comment = /\/\/.*?(?:\n|$)/,
 			multiline_comment = /\/\*(?:.|\n)*?\*\//,
 			all_numbers = /\d+\.*\d*/g,
 			bling_symbol = /\$(?:\(|\.)/g
@@ -497,7 +497,7 @@ Bling.module('Core', function () {
 	return {
 
 		each: function each(f) {
-			// .each(/f/) - applies /f/ to every /x/ in _this_
+			// .each(/f/) - applies function /f/ to every item /x/ in _this_
 			var i = -1,
 				n = this.len(),
 				t = null
@@ -514,7 +514,7 @@ Bling.module('Core', function () {
 		},
 
 		map: function map(f) {
-			// .map(/f/) - collects /x/./f/(/x/) for /x/ in _this_
+			// .map(/f/) - collects /f/.call(/x/, /x/) for every item /x/ in _this_
 			var n = this.len(),
 				a = Bling(n),
 				i = 0, t = null,
@@ -548,7 +548,7 @@ Bling.module('Core', function () {
 		},
 
 		reduce: function reduce(f, init) {
-			// .reduce(/f/, [initial]) - a = /f/(a, /x/) for /x/ in _this_
+			// .reduce(/f/, [/init/]) - a = /f/(a, /x/) for /x/ in _this_
 			// along with respecting the context, we pass only the accumulation and one argument
 			// so you can use functions like Math.min directly $([1,2,3]).reduce(Math.min)
 			// this fails with the ECMA reduce, since Math.min(a,x,i,items) is NaN
@@ -565,22 +565,28 @@ Bling.module('Core', function () {
 			return a
 			/* Example:
 
-				> $([12, 14, 9, 37]).reduce(Math.min)
-				> == 9
+				Here, reduce() is used to mimic sum().
+
+				> $([12, 14, 9, 37]).reduce(function(a, x) {
+				>		return a + x;
+				> })
+				> == 72
 
 				But, you can accumulate anything easily, given an initial value.
-				Here, an initially empty object is used to mimic .distinct()
+				Here, an initially empty object is used to mimic distinct().
 
-				> a = $([1,2,3,3])
+				> Object.Keys( $(["foo","foo","bar"])
 				>		.reduce(function(a,x) {
 				>			a[x] = 1
-				>		}, { })
-				> Object.Keys(a) == [1,2,3,4]
+				>		}, { }) )
+				> == ["foo", "bar"]
 
 				You can use any function that takes 2 arguments, including several useful built-ins.
 
 				> $([12, 13, 47, 9, 22]).reduce(Math.min)
 				> == 9
+
+				This is something you can't do with the native Array reduce.
 
 			*/
 		},
@@ -711,7 +717,7 @@ Bling.module('Core', function () {
 					return b
 			}
 			/* Example:
-				> $(["foo", "bar", "bank"]).zip("length")
+				> $(["foo","bar","bank"]).zip("length")
 				> == $([3, 3, 4])
 
 				You can use compound property names.
@@ -723,15 +729,19 @@ Bling.module('Core', function () {
 				you get back raw objects with only those properties.
 				Similar to specifying columns on a SQL select query.
 
-				> $("pre").first(1).zip("style.display", "style.color")
-				> == $([ {'display': 'block', 'color': 'black'}, ])
+				> $("pre").first(1)
+				>		.zip("style.display", "style.color")
+				> == $([{'display':'block','color':'black'}])
 
 				If the property value is a function,
 				a bound-method is returned in its place.
 
-				> $("pre").first(1).zip("getAttribute")
+				> $("pre").first(1)
+				>		.zip("getAttribute")
 				> == $(["bound-method getAttribute of HTMLPreElement"])
-				See: .call, .apply
+
+				See: <a href='#api:call'>call</a> for how to use a set of methods quickly.
+
 			*/
 		},
 
@@ -759,7 +769,7 @@ Bling.module('Core', function () {
 		},
 
 		take: function take(n) {
-			// .take([n]) - collect the first /n/ elements of _this_
+			// .take([/n/]) - collect the first /n/ elements of _this_
 			// if n >= this.length, returns a shallow copy of the whole bling
 			n = Math.min(n|0, this.len())
 			var a = Bling(n), i = -1
@@ -777,7 +787,7 @@ Bling.module('Core', function () {
 		},
 
 		skip: function skip(n) {
-			// .skip([n]) - collect all but the first /n/ elements of _this_
+			// .skip([/n/]) - collect all but the first /n/ elements of _this_
 			// if n == 0, returns a shallow copy of the whole bling
 			n = Math.min(this.len(), Math.max(0, (n|0)))
 			var a = Bling( n )
@@ -793,8 +803,26 @@ Bling.module('Core', function () {
 			*/
 		},
 
+		first: function first(n) {
+			// .first([/n/]) - collect the first [/n/] element[s] from _this_
+			// if n is not passed, returns just the item (no bling)
+			return n ? this.take(n)
+				: this[0]
+			/* Example:
+				> $([1, 2, 3, 4]).first()
+				> == 1
+
+				> $([1, 2, 3, 4]).first(2)
+				> == $([1, 2])
+
+				> $([1, 2, 3, 4]).first(1)
+				> == $([1])
+
+			*/
+		},
+
 		last: function last(n) {
-			// .last([n] - collect the last [/n/] elements from _this_
+			// .last([/n/] - collect the last [/n/] elements from _this_
 			// if n is not passed, returns just the last item (no bling)
 			return n ? this.skip(this.len() - n)
 				: this[this.length - 1]
@@ -808,22 +836,8 @@ Bling.module('Core', function () {
 			*/
 		},
 
-		first: function first(n) {
-			// .first([n]) - collect the first [/n/] elements from _this_
-			// if n is not passed, returns just the item (no bling)
-			return n ? this.take(n)
-				: this[0]
-			/* Example:
-				> $([1, 2, 3, 4, 5]).first()
-				> == 1
-
-				> $([1, 2, 3, 4, 5]).first(2)
-				> == $([1, 2])
-			*/
-		},
-
 		join: function join(sep) {
-			// .join(sep) - concatenates all /x/ in _this_ using /sep/
+			// .join(/sep/) - concatenates all /x/ in _this_ using /sep/
 			if( this.length == 0 ) return ""
 			return this.reduce(function(j) {
 				return j + sep + this
@@ -835,7 +849,7 @@ Bling.module('Core', function () {
 		},
 
 		slice: function slice(start, end) {
-			// .slice(i, [j]) - get a subset of _this_ including [/i/../j/-1]
+			// .slice(/i/, [/j/]) - get a subset of _this_ including [/i/../j/-1]
 			// the j-th item will not be included - slice(0,2) will contain items 0, and 1.
 			// negative indices work like in python: -1 is the last item, -2 is second-to-last
 			// undefined start or end become 0, or this.length, respectively
@@ -984,10 +998,11 @@ Bling.module('Core', function () {
 
 			return b
 			/* Example:
-				> var a = $([1, 1, 1, 1])
-				> var b = $([2, 2, 2, 2])
-				> a.weave(b) // == $([2, 1, 2, 1, 2, 1, 2, 1])
-				>	.fold(function(x,y) {
+				> var a = $([1, 1, 1])
+				> var b = $([2, 2, 2])
+				> a = a.weave(b) 
+				> == $([2, 1, 2, 1, 2, 1])
+				>	a.fold(function(x,y) {
 				>		return x + y
 				>	})
 				> == $([3, 3, 3, 3])
@@ -1005,6 +1020,11 @@ Bling.module('Core', function () {
 				for(c = this[i], j = 0, d = c.length; j < d;)
 					b[k++] = c[j++]
 			return b
+			/* Example:
+			
+				> $([[1,2], [3,4]]).flatten()
+				> == $([1,2,3,4])
+			*/
 		},
 
 		call: function call() {
@@ -1017,7 +1037,7 @@ Bling.module('Core', function () {
 		},
 
 		apply: function apply(context, args) {
-			// .apply(context, [args]) - collect /f/.apply(/context/,/args/) for /f/ in _this_
+			// .apply(/context/, [/args/]) - collect /f/.apply(/context/,/args/) for /f/ in _this_
 			return this.map(function() {
 				if( isFunc(this) )
 					return this.apply(context, args)
@@ -1038,12 +1058,12 @@ Bling.module('Core', function () {
 				>	}
 				> b.getTwo() == 2
 				> a.getOne() == 1
-				> $([a.get1, b.get2]).apply(a)
+				> $([a.getOne, b.getTwo]).apply(a)
 				> == $([1, 1])
 
 				This happens because both functions are called with 'a' as 'this', since it is the context argument to .apply()
 
-				(In other words, it happens because b.get2.apply(a) == 1)
+				(In other words, it happens because b.getTwo.apply(a) == 1, because a.x == 1)
 			*/
 
 		},
@@ -1065,7 +1085,7 @@ Bling.module('Core', function () {
 		},
 
 		future: function future(n, f) {
-			// .future(n, f) -  continue with /f/ on _this_ after /n/ milliseconds
+			// .future(/n/, /f/) -  continue with /f/ on _this_ after /n/ milliseconds
 			if( f ) { timeoutQueue.schedule(f.bound(this), n) }
 			return this
 			/* Example:
@@ -1074,13 +1094,10 @@ Bling.module('Core', function () {
 				> })
 				> console.log($("pre").length)
 
-				The same number will log twice, one 50 milliseconds
-				or more after the other.
+				The same number will log twice, one 50 milliseconds or more after the other.
 
-				.future() is nearly identical to setTimeout(), except for two key differences: perserving context, and most importantly, perserving order.
-				See the comments on TimeoutQueue for a detailed explanation, but setTimeout does not guarantee that handlers will be executed in the order they were scheduled to execute.
+				See the comments in the source for the full explanation as to why future() is more powerful than setTimeout on it's own.
 
-				By adding this small guarantee, .future() becomes much more useful than a raw setTimeout.
 			*/
 
 		},
@@ -1114,7 +1131,8 @@ Bling.module('Core', function () {
 				> b.push("foo")
 				> b[0] === "foo"
 				.len() tells you where .push will insert and how many times .forEach will loop
-				> $(b).len() === 1 && b.length == 10
+				> $(b).len() === 1
+				> b.length  === 10
 			*/
 		}
 

@@ -363,38 +363,39 @@ Object.Extend(Function, {
 					num: "#808",
 					bln: "#800"
 				}, colors)
-				var css = "pre.pp .bln { font-size: 17px; } "
+				var css = "code.pp .bln { font-size: 17px; } "
 				for( var i in colors )
-					css += "pre.pp ."+i+" { color: "+colors[i]+"; }"
+					css += "code.pp ."+i+" { color: "+colors[i]+"; }"
 				$("head").append($.synth("style#pp-injected").text(css))
 			}
-			// extract comments
-			return "<pre class='pp'>"+$(extract_comments(js))
-				.fold(function(text, comment) {
-					// extract quoted strings
-					return $(extract_quoted(text))
-						.fold(function(code, quoted) {
-							// label number constants
-							return (code
-								// label operator symbols
-								.replace(operators, "<span class='opr'>$&</span>")
-								// label numbers
-								.replace(all_numbers, "<span class='num'>$&</span>")
-								// label keywords
-								.replace(keywords, "<span class='kwd'>$&</span>")
-								.replace(bling_symbol, "<span class='bln'>$$</span>(")
-								.replace(/\t/g, "&nbsp;&nbsp;")
-							) +
-							// label string constants
-							(quoted ? "<span class='str'>"+quoted+"</span>" : "")
-						})
-						// collapse the strings
-						.join('')
-						// append the extracted comment
-						+ (comment ? "<span class='com'>"+comment+"</span>" : "")
-				})
-				.join('')
-				+"</pre>"
+			return "<code class='pp'>"+
+				// extract comments
+				$(extract_comments(js))
+					.fold(function(text, comment) {
+						// extract quoted strings
+						return $(extract_quoted(text))
+							.fold(function(code, quoted) {
+								// label number constants
+								return (code
+									// label operator symbols
+									.replace(operators, "<span class='opr'>$&</span>")
+									// label numbers
+									.replace(all_numbers, "<span class='num'>$&</span>")
+									// label keywords
+									.replace(keywords, "<span class='kwd'>$&</span>")
+									.replace(bling_symbol, "<span class='bln'>$$</span>(")
+									.replace(/\t/g, "&nbsp;&nbsp;")
+								) +
+								// label string constants
+								(quoted ? "<span class='str'>"+quoted+"</span>" : "")
+							})
+							// collapse the strings
+							.join('')
+							// append the extracted comment
+							+ (comment ? "<span class='com'>"+comment+"</span>" : "")
+					})
+					.join('')+
+			"</code>"
 		}
 	})()
 })
@@ -565,25 +566,25 @@ Bling.module('Core', function () {
 			return a
 			/* Example:
 
-				Here, reduce() is used to mimic sum().
+				Here, reduce is used to mimic sum.
 
-				> $([12, 14, 9, 37]).reduce(function(a, x) {
-				>		return a + x;
-				> })
+				> $([12, 14, 9, 37])
+				>		.reduce(function(a, x) {
+				>			return a + x
+				>		})
 				> == 72
 
-				But, you can accumulate anything easily, given an initial value.
-				Here, an initially empty object is used to mimic distinct().
+				But, you can accumulate anything easily, given an initial value.  Here, an initially empty object is used to mimic distinct.
 
-				> Object.Keys( $(["foo","foo","bar"])
-				>		.reduce(function(a,x) {
+				> Object.Keys( $(["a", "a", "b"])
+				>		.reduce(function(a, x) {
 				>			a[x] = 1
 				>		}, { }) )
-				> == ["foo", "bar"]
+				> == ["a", "b"]
 
 				You can use any function that takes 2 arguments, including several useful built-ins.
 
-				> $([12, 13, 47, 9, 22]).reduce(Math.min)
+				> $([12, 13, 9, 22]).reduce(Math.min)
 				> == 9
 
 				This is something you can't do with the native Array reduce.
@@ -740,7 +741,7 @@ Bling.module('Core', function () {
 				>		.zip("getAttribute")
 				> == $(["bound-method getAttribute of HTMLPreElement"])
 
-				See: <a href='#api:call'>call</a> for how to use a set of methods quickly.
+				See: .call() for how to use a set of methods quickly.
 
 			*/
 		},
@@ -765,6 +766,15 @@ Bling.module('Core', function () {
 				Set a property on all nodes at once.
 				> $("pre").zap("style.display", "none")
 				Hides all pre's.
+
+				You can pass compound properties.
+				> $("pre").zap("style.display", "block")
+
+				You can pass multiple values for one property.
+
+				> $("pre").take(3).zap("style.display",
+				>		["block", "inline", "block"])
+
 			*/
 		},
 
@@ -2501,92 +2511,87 @@ Bling.module('Template', function() {
 	}
 	Bling.render = _render
 
-	// synth regex's
-	var tagname_re = /^\s*([A-Za-z0-9+]+)/g,
-		id_re = /#([^\[.# "']+)/g,
-		class_re = /\.([^\[.# "']+)/g,
-		attr_re = /\[([^\[.# "'=\]]+)=*([^\]]*)\]/g,
-		comma_sep_re = /,\s*/,
-		space_sep_re = / /,
-		clean_attr_re = /(?:^\[)|(?:\]$)/g,
-		clean_class_re = /\./,
-		clean_id_re = /#/,
-		clean_quote_re = /(?:^["'])|(?:["']$)/g
+	// modes for the synth machine
+	var TAGMODE = 1, IDMODE = 2, CLSMODE = 3, ATTRMODE = 4, VALMODE = 5, DTEXTMODE = 6, STEXTMODE = 7
 
-	function _synth(expr) {
-		var ret = $(expr.split(comma_sep_re))
-			// break up the comma-separated patterns
-			.map(function() {
-				var parent = null
-				// extract quoted text
-				return $(this.split(/\s"/))
-					.zip("split").call(/"\s*/).flatten()
-					// fold the quoted text in with the node expressions
-					.fold(function(a, b) {
-						return $(a.split(space_sep_re))
-							.map(function() {
-								// process a single node expression
-								var val = this.valueOf(),
-									tagname = val.match(tagname_re),
-									id = val.match(id_re),
-									cls = val.match(class_re),
-									attr = val.match(attr_re),
-									node = null
-
-								if( tagname == null || tagname.length > 1 )
-									throw Error("Invalid synth expression: "+expr)
-
-								tagname = tagname[0]
-
-								// support the adjacency selector: +
-								if( tagname === '+' && parent != null )
-									return parent = parent.parentNode
-
-								// create this new node
-								node = document.createElement(tagname)
-								// set the id
-								if( id != null )
-									node.id = id[0].replace(clean_id_re, '')
-								// the class
-								if( cls != null )
-									node.className = $(cls)
-										.zip('replace').call(clean_class_re,'')
-										.join(" ")
-								// and all the attributes
-								$(attr)
-									.zip('replace').call(clean_attr_re,'')
-									.zip('replace').call(clean_quote_re,'')
-									.zip('split').call('=')
-									.flatten()
-									.fold(function(k, v) {
-										node.setAttribute(k, v)
-									})
-								if( parent != null )
-									parent.appendChild(node)
-								return parent = node
-						})
-						.push(b)
-					})
-					.flatten()
-			})
-			.flatten()
-
-		// run a loop that will attach all the right parents to the right children
-		ret.reduce(function(a, x) {
-			if( isString(x) ) {
-				a.appendChild(document.createTextNode(x))
-				return a
-			}
-			else if( x == null )
-				return a
+	function synth(expr) {
+		var tagname = '', id = '', cls = '', attr = '', val = '',
+			text = '', attrs = {}, parent = null, mode = TAGMODE,
+			ret = $([]), i = 0, c = null
+		parent = null
+		function emitText() {
+			node = document.createTextNode(text)
+			if( parent )
+				parent.appendChild(node)
 			else
-				return x
-		})
+				ret.push(node)
+			text = ''
+			mode = TAGMODE
+		}
+		function emitNode() {
+			node = document.createElement(tagname)
+			node.id = id ? id : null
+			node.className = cls ? cls : null
+			for(var k in attrs)
+				node.setAttribute(k, attrs[k])
+			if( parent )
+				parent.appendChild(node)
+			else
+				ret.push(node)
+			parent = node
+			tagname = ''; id = ''; cls = ''
+			attr = ''; val = ''; text = ''
+			attrs = {}
+			mode = TAGMODE
+		}
 
-		return ret.take(1)
+		while( (c = expr.charAt(i++)) ) {
+			if( c == '+' && mode == TAGMODE)
+				parent = parent ? parent.parentNode : parent
+			else if( c == '#' && (mode == TAGMODE || mode == CLSMODE || mode == ATTRMODE) )
+				mode = IDMODE
+			else if( c == '.' && (mode == TAGMODE || mode == IDMODE || mode == ATTRMODE) )
+				mode = CLSMODE
+			else if( c == '[' && (mode == TAGMODE || mode == IDMODE || mode == CLSMODE || mode == ATTRMODE) )
+				mode = ATTRMODE
+			else if( c == '=' && (mode == ATTRMODE))
+				mode = VALMODE
+			else if( c == '"' && mode == TAGMODE)
+				mode = DTEXTMODE
+			else if( c == "'" && mode == TAGMODE)
+				mode = STEXTMODE
+			else if( c == ']' && (mode == ATTRMODE || mode == VALMODE) ) {
+				attrs[attr] = val
+				attr = ''
+				val = ''
+				mode = TAGMODE
+			}
+			else if( c == '"' && mode == DTEXTMODE )
+				emitText()
+			else if( c == "'" && mode == STEXTMODE )
+				emitText()
+			else if( (c == ' ' || c == ',') && (mode != VALMODE && mode != ATTRMODE) && tagname.length > 0 )
+				emitNode()
+			else if( mode == TAGMODE )
+				tagname += c != ' ' ? c : ''
+			else if( mode == IDMODE ) id += c
+			else if( mode == CLSMODE ) cls += c
+			else if( mode == ATTRMODE ) attr += c
+			else if( mode == VALMODE ) val += c
+			else if( mode == DTEXTMODE || mode == STEXTMODE ) text += c
+			else throw new Error("Unknown input/state: '"+c+"'/"+mode)
+
+		}
+
+		if( tagname.length > 0 )
+			emitNode()
+
+		if( text.length > 0 )
+			emitText()
+
+		return ret
 	}
-
-	Bling.synth = _synth
+	Bling.synth = synth
 
 	return {
 		template: function template(defaults) {
@@ -2613,7 +2618,7 @@ Bling.module('Template', function() {
 			// supports the following css selectors:
 			// tag, #id, .class, [attr=val]
 			// and the additional helper "text"
-			return _synth(expr).appendTo(this)
+			return synth(expr).appendTo(this)
 
 			/* Example:
 				> $("body").synth("div#one.foo.bar[orb=bro] span + p")
@@ -2629,7 +2634,7 @@ Bling.module('Template', function() {
 				These will not be attached to anything when they are returned.
 
 				Each expression returns a single node that is the parent of the new tree.
-				But, you can pass in a list of expressions to get a set of nodes back.
+				But, you can pass in a comma-separated list of expressions to multiple nodes back.
 
 				> $.synth("div#one, div#two")
 				> == $([<div id="one"></div>, <div id="two"></div>])
@@ -2638,6 +2643,21 @@ Bling.module('Template', function() {
 
 				> $.synth('div#one "hello" + div#two "world"')
 				> == $([<div id="one">hello<div id="two">world</div></div>])
+
+				You can use the '+' operator not only for adjacency:
+
+				> $.synth("div h3 'title' + p 'body'")
+				> == $([<div><h3>title</h3><p>body</p></div>])
+
+				But, you can also repeat the '+' in order to ascend any number of times.
+
+				> $.synth("ul li h3 'one' + p 'body' ++ li h3 'two' + p 'body'")
+				> == $([<ul><li><h3>one</h3><p>body</p><li><h3>two</h3><p>body</p></li></ul>])
+
+				If you ascend higher than the root, you get a list of separate nodes.
+
+				> $.synth("ul li p +++ span")
+				> == $([<ul><li><p></p></li></ul>, <span></span>])
 
 			*/
 		}

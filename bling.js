@@ -1830,10 +1830,10 @@ Bling.module('Event', function () {
 	/// Events Module: provides for binding and triggering DOM events ///
 
 	function binder(e) {
-		var f = null
 		// eval is evil! but there is no other way to set a function's name, and the generated docs need a name
-		eval("f = function "+e+"(f) { // ."+e+"([f]) - trigger [or bind] the '"+e+"' event \nreturn isFunc(f) ? this.bind('"+e+"',f) : this.trigger(e, f ? f : {}) }")
-		return f
+		// also, we have to be even slightly more evil, to prevent the jsc compiler from mangling local names like f
+		eval("var f = function "+e+"(f) { // ."+e+"([f]) - trigger [or bind] the '"+e+"' event \nreturn isFunc(f) ? this.bind('"+e+"',f) : this.trigger('"+e+"', f ? f : {}) }")
+		return eval("f")
 	}
 
 	// detect and fire the document.ready event
@@ -2138,7 +2138,7 @@ Bling.module('Event', function () {
 		reset: binder('reset'),
 		submit: binder('submit'),
 		keyup: binder('keyup'),
-		keydwon: binder('keydown'),
+		keydown: binder('keydown'),
 		change: binder('change'),
 		abort: binder('abort'),
 		cut: binder('cut'),

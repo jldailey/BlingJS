@@ -17,7 +17,7 @@
 			border-left:1px dashed #ebebeb;
 			background-color:white;
 		}
-		b { color:#911; }
+		b { color:#800; }
 		i { color:#822; }
 		p {
 			width:300px;
@@ -25,7 +25,7 @@
 			margin-left:auto;
 			margin-right:auto;
 		}
-		pre {
+		code.pp, textarea {
 			font-family: 'Inconsolata', courier, fixed, sans;
 			font-size:14px;
 			line-height:1.1em;
@@ -38,7 +38,7 @@
 		}
 		code {
 			font-family: 'Inconsolata', courier, fixed, sans;
-			font-size: 14px;
+			font-size: 16px;
 		}
 		h3, h4, h5 {
 			border-bottom: 1px solid black;
@@ -138,7 +138,6 @@
 			margin: 4px 3px;
 		}
 		textarea {
-			width: 100%;
 		}
 		table.small {
 			font-size: 14px;
@@ -159,35 +158,31 @@
 	</style>
 	<script>
 
-		$(document).ready(function() {
-			return;
-			$("pre").each(function() {
-				console.log(this, this.innerText)
-				this.innerText = Function.PrettyPrint(this.innerText)
-			})
-		})
-
 		$(document).ready(function(){
-			// wrap all h1's and h3's into named anchors
-			$("h1").concat($("h3")).each(function() {
-				$(this).wrap("<a name='"+this.innerText+"'></a>");
-			})
-			// add 'Back to top' links to all h3's
-			$("h3").skip(2)
-				.before($("<a href='#BlingJS'>&#171;Back to top</a>")
-				.css('font-size','0.9em').css('float','right'))
+			var initial_tab = /(^|\n)\t/g,
+				all_tabs = /\t/g
+
 			// replace tabs with spaces in <pre>'s
 			// make all <pre>'s pretty-printable
 			$("pre").each(function(){
-				var html = this.innerHTML.replace(/\t/g,"  ")
+				var html = this.innerHTML.replace(initial_tab,'$1').replace(all_tabs,"  ")
 				html = $.HTML.escape(html)
-				$(this).replace($(Function.PrettyPrint(html)))
+				this.innerHTML = Function.PrettyPrint(html)
+				// $(this).replace($(Function.PrettyPrint(html)))
+			})
+			// clean up textarea's also
+			$("textarea").each(function() {
+				this.value = this.value
+					.replace(initial_tab,'$1')
+					.replace(all_tabs, "  ")
 			})
 			// all documentation links are made active
-			$("a[href^='#doc:Bling']").click(function(e) {
-				e.stopPropagation()
-				e.preventDefault()
-			})
+			// collect the links
+			var a = $("a[href^='#doc:']")
+			// modify their hrefs
+			a.zap('href', a.map(function() {
+				return 'content/doc.html#api:' + this.href.split(/:/)[2]
+			}))
 		})
 
 	</script>
@@ -299,7 +294,7 @@
 	<p>The first such system that is built into the core is a simple template system, 
 	and it works by replacing substrings that look like these: <code>%(id)d</code>, <code>%(name)s</code>, and <code>%(dollars).2f</code>
 	<p>All templates start with DOM nodes.
-	<textarea style="height:85px" resizable="false">
+	<textarea style="height:90px" >
 	<li id="line-template">
 	 <span>%(title)s</span>
 	 <div>%(body)s</div>
@@ -323,12 +318,12 @@
 	<h5>Synthesizing nodes</h5>
 
 	<p>One of the handiest features in Bling is the <a href='#doc:synth'>synth</a> operation.  This lets you fabricate small DOM trees, given a CSS expression.
-	<p>In other words, given a CSS expression, $.synth() returns the smallest DOM tree that satisfies the CSS.
+	<p>In other words, given a CSS expression, <code>$.synth(css)</code> will return the smallest DOM tree that satisfies the CSS.
 	<p>Example:
 	<pre>
 	$.synth("div#foo.bar")
 	== $('<div id="foo" class="bar"></div>')</pre>
-	<p>The above example used the global $.synth(), for creating nodes that are initially un-attached to anything.  If you use $(selector).synth(...), the new nodes will be appended to $(selector) before they are returned.
+	<p>The above example used the global <code>$.synth()</code>, for creating nodes that are initially un-attached to anything.  If you use <code>$(selector).synth(...)</code>, the new nodes will be appended to <code>$(selector)</code> before they are returned.
 	<p>The <a href='#doc:synth'>synth</a> operation supports only a few CSS selectors:
 	<table class="small">
 		<tr><td><i>.class</i> &lt;dot&gt;<td>any number
@@ -345,9 +340,10 @@
 	<pre>
 	$.synth('p b "Hello" + i "World"')
 	== $('<p><b>Hello</b><i>World</i></p>')</pre>
+	<p>Even though this is only a small subset of CSS selectors, you can still construct an aribtrary DOM tree by combining the supported selectors.
 
 	<h5>Synthing templates</h5>
-	<p>You can put these two tools together to fabricate template nodes quickly in code.
+	<p>You can use <a href="#doc:synth">synth</a> and <a href="#doc:template">template</a> to fabricate template nodes quickly in code.
 	<pre>
 	var paragraph = 
 		$.synth('p b "%(title)s" + i "%(body)s"')

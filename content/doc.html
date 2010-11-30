@@ -28,127 +28,33 @@
 				color: #222;
 				text-decoration:none;
 			}
+			code.pp, textarea {
+				font-family: 'Inconsolata', courier, fixed, sans;
+				font-size:14px;
+				line-height:1.1em;
+				padding:0px 0px 0px 4px;
+				display: inline-block;
+				margin:0px 0px 0px 0px;
+			}
+			code {
+				font-family: 'Inconsolata', courier, fixed, sans;
+				font-size: 16px;
+			}
 		</style>
 		<script>
 			$(document).ready(function() {
 				var $body = $("body"),
 					$docroot = $("#docroot"),
-					i = 0, j = 0, module = null,
-					example_re = /\s*[Ee]xample:\s*/,
-					end_line = /\n/g,
-					code_line = /^\s*\&gt;\s/,
-					blank_line = /^\s*$/,
-					singleline_comment = /^\/\/ */,
-					multiline_comment_open = /^\/\* */,
-					multiline_comment_close = /\s*\*\/\s*$/,
-					b_word = /\/(\w+)\//g,
-					i_word = /_(\w+)_/g,
-					progressBar = $.UI.ProgressBar("#progress-bar")
+					i = 0, name = null, module = null,
+					progressBar = $.UI.ProgressBar("#progress-bar"),
+					funcTemplate = $.synth('li a[name="api:%(reference)s"] span "%(definition)s" + + '
+						+ 'a[href="#api:%(reference)s"][title="Permalink"] "&#182;" + + "&nbsp;&mdash;&nbsp;%(description)s"')
 
-				function getDescription(node) {
-					var desc = node.find(".com").take(1).text().first();
-					desc = desc ? desc
-						.replace(singleline_comment,'')
-						.replace(b_word, "<b>$1</b>")
-						.replace(i_word, "<i>$1</i>")
-						: "unknown - unknown"
-					return desc.split(" - ")
-				}
-				function getExamples(node) {
-					// return a list of [<p>, <pre>, <p>, <pre>, ...]
-					var examples = node.find(".com").skip(1).html(),
-						result = $([]), codeQueue = [], paraQueue = [],
-						i = 0, j = 0, n = examples.length, example = null
-						lines = null, line = null
-
-					while( (example = examples[i++]) != null ) {
-						if( example_re.test(example) ) {
-							lines = example.split(end_line)
-							j = 0
-							while( (line = lines[j++]) != null ) {
-								if( code_line.test(line) ) {
-									var code = line.replace(code_line, '')
-									codeQueue.push(code)
-									if( paraQueue.length > 0 ) {
-										result.push($.synth("p").text(paraQueue.join('\n')))
-										paraQueue = []
-									}
-									continue
-								}
-								else if ( ! blank_line.test(line) ) {
-									paraQueue.push(line.replace(/\/\*/g,"").replace(/\*\//g,""))
-									if( codeQueue.length > 0 ) {
-										var code = codeQueue.join('\n')
-										code = $(Function.PrettyPrint(code))
-										result.push(code)
-										codeQueue = []
-									}
-								} 
-								else if( codeQueue.length > 0 ) {
-									var code = codeQueue.join('\n')
-									code = $(Function.PrettyPrint(code))
-									result.push(code)
-									codeQueue = []
-								}
-								else if ( paraQueue.length > 0 ) {
-									result.push($.synth("p").text(paraQueue.join('\n')))
-									paraQueue = []
-								}
-							}
-						}
-					}
-					if( codeQueue.length > 0 )
-						result.push($(Function.PrettyPrint(codeQueue.join('\n'))))
-					if( paraQueue.length > 0 )
-						result.push($("<p>").html(paraQueue.join('\n')))
-					return result
-				}
-
-				function generateModuleDocs(name, module, template) {
-					var ul = $.synth("ol.apilist[module="+name+"]")
-					for( var k in module ) {
-						var source = $(Function.PrettyPrint(module[k]))
-							desc = getDescription(source),
-							examples = getExamples(source)
-						ul.append(template.render({
-							coderef: k, 
-							funcdef: desc[0], 
-							funcdesc: desc[1]
-						}))
-						.find("li")
-						.last(1)
-						.append(examples)
-					}
-					ul.find("a").cycle('click', function() {
-						var $this = $(this),
-							name = $this.attr('name').first(),
-							func = eval("Bling.prototype."+name),
-							source = getSource(func)
-						source.find(".com").filter(function() {
-							return this.innerText.indexOf("Example:") > -1
-						}).remove()
-						$this.parent()
-							.append("<h6>Implementation:</h6>")
-							.append(source)
-							.find("h6, h6 + pre").click(function () {
-								$(this).parent().find("h6, pre").remove()
-							})
-						return false
-					}, function() {
-						var $this = $(this)
-						$this.parent().find("h6, h6 + pre").remove()
-					})
-					return ul
-				}
-
-				var funcTemplate = $("#func-template").template()
 				setTimeout(function () {
 					if( name = Bling.module.order[i++] ) {
-						module = Bling.module[name]
 						var h3 = $("<h3>"+name+"</h3>"),
-							ul = generateModuleDocs(name, module, funcTemplate)
+							ul = $.doc.module(name)
 						h3.click(function() {
-							console.log('click!')
 							ul.toggle()
 						})
 						$docroot.append(h3).append(ul)
@@ -176,10 +82,5 @@
 		<div id="progress-bar"> </div>
 		<div id="docroot">
 		</div>
-		<li id="func-template">
-			<a name="api:%(coderef)s"><span>%(funcdef)s</span></a>
-			<a href="#api:%(coderef)s" title="Permalink to this definition">&#182;</a>
-			&nbsp;&mdash;&nbsp;%(funcdesc)s
-		</li>
 	</body>
 </html>

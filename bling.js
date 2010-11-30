@@ -912,7 +912,7 @@ Bling.module('Core', function () {
 				if( it )
 					if ( isFunc(f) && f.call( it, it )
 						|| isString(f) && it.webkitMatchesSelector && it.webkitMatchesSelector(f)
-						|| isType(f, RegExp) && f.test(it)
+						|| isType(f, "RegExp") && f.test(it)
 						)
 						b[++j] = it
 			}
@@ -937,7 +937,7 @@ Bling.module('Core', function () {
 
 		matches: function matches(expr) {
 			// .matches(/expr/) - collects true if /x/.matchesSelector(/expr/) for /x/ in _this_
-			if( isType(expr, RegExp) )
+			if( isType(expr, "RegExp") )
 				return this.map(function() {
 					return expr.test(this)
 				})
@@ -1831,6 +1831,7 @@ Bling.module('Event', function () {
 
 	function binder(e) {
 		var f = null
+		// eval is evil! but there is no other way to set a function's name, and the generated docs need a name
 		eval("f = function "+e+"(f) { // ."+e+"([f]) - trigger [or bind] the '"+e+"' event \nreturn isFunc(f) ? this.bind('"+e+"',f) : this.trigger(e, f ? f : {}) }")
 		return f
 	}
@@ -2136,6 +2137,8 @@ Bling.module('Event', function () {
 		unload: binder('unload'),
 		reset: binder('reset'),
 		submit: binder('submit'),
+		keyup: binder('keyup'),
+		keydwon: binder('keydown'),
 		change: binder('change'),
 		abort: binder('abort'),
 		cut: binder('cut'),

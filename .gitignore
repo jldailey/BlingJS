@@ -1,3 +1,5 @@
 .tags
+compiler.jar
+compiler-latest.zip
 *.errors
 *.warnings

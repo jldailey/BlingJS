@@ -6,110 +6,20 @@
  * Blame: Jesse Dailey <jesse.dailey@gmail.com>
  */
 
-Object.Extend = function extend(a, b, c) {
-	// .extend(a, b, [c]) - merge values from b into a
-	// if c is present, it should be a list of property names to copy
-	for( var i in b ) {
-		if( c && a[i] != undefined ) {
-			for( var j in c ) {
-				a[i][j] = b[i][j]
-			}
-		} else {
-			a[i] = b[i]
-		}
-	}
-	return a
-}
+var console = console || {}
+console.log = console.log || function() {}
 
-Object.Keys = function(o) {
-	var keys = [], j = 0
-	for( var i in o )
-		keys[j++] = i
-	return keys
-}
-
-Object.Extend(Function.prototype, {
-	inherit: function (T) {
-		//  A.inherit(T) will make type A inherit members from type T.
-		this.prototype = new T() // get a copy of T's prototype (a copy!)
-		return this.prototype.constructor = this // set the copy's constructor to ours
-		/* Example:
-			Make a subclass of Array
-
-			> function MyType(){
-			>	 Array.apply(this, arguments);
-			> }
-			> MyType.inherit(Array)
-			> var a = new MyType()
-			> a.push("foo")
-		*/
-	},
-	bound: function (t, args) {
-		// /f/.bound(/t/) - whenever /f/ is called, _this_ === /t/
-		var f = this // the original function
-		function r() { return f.apply(t, args ? args: arguments) }
-		r.toString = function() { return "bound-method of "+t+"."+f.name+"(...) { [code] }" }
-		return r
-		/* Example:
-			> var stars = ["Ricky","Martin"]
-			> var num_stars = function () { return this.length }
-			>   .bound(stars)
-			> num_stars() == 2
-
-			Where it can be most useful is extracting member functions from an instance
-			so you can call them without access to the member itself.
-
-			Here, we extract the Array.prototype.join function,
-			bind it to an array, then call it without any context, and you can see
-			that it uses the context that was given to .bound()
-
-			> var join_stars = stars.join.bound(stars)
-			> join_stars(", ") == "Ricky, Martin"
-
-			You can also bind the arguments ahead of time if you know them:
-
-			> join_stars = stars.join.bound(stars, [", "])
-			> join_stars() == "Ricky, Martin"
-
-			Once a function is bound, it cannot be re-bound, called, or applied,
-			in any other context than the one it was first bound to.
-
-			> more_stars = ["Janet", "Micheal", "Latoya"];
-			> join_stars.apply(more_stars, ", ")
-			> == "Ricky, Martin"
-
-			NOTE that join_stars is still operating on 'stars', not 'more_stars'.
-
-			Even if we explicitly bind to an object, like so:
-
-			> more_stars.num_stars = num_stars
-			> more_stars.num_stars() == 2
-			> num_stars.call(more_stars) == 2
-			> num_stars.apply(more_stars, []) == 2
-
-			Why 2?  Because num_stars will always act on its original binding ('stars'), not the
-			newer binding to more_stars.
-
-			Another very useful example:
-
-			> var log = window.console ? console.log.boung(console) : Function.Empty
-			> log("hello", "world")
-		*/
-	}
-})
-
-/* Bling, the constructor.
+/** Bling, the constructor.
  * -----------------------
  * Bling(expression, context):
- * expression -
+ * @param {(string|number|Array|NodeList|Node|Window)=} selector
  *   accepts strings, as css expression to select, ("body div + p", etc.)
  *     or as html to create (must start with "<")
  *   accepts existing Bling
  *   accepts arrays of anything
  *   accepts a single number, used as the argument in new Array(n), to pre-allocate space
- * context - optional, the item to consider the root of the search when using a css expression
- *
- * always returns a Bling object, full of stuff
+ * @param {Object=} context the item to consider the root of the search when using a css expression
+ * 
  */
 function Bling (selector, context) {
 	if( isBling(selector) )
@@ -152,6 +62,7 @@ function Bling (selector, context) {
 	else
 		set = selector
 
+	// parasitic type replacement
 	set.__proto__ = Bling.prototype
 	set.selector = selector
 	set.context = context
@@ -159,10 +70,11 @@ function Bling (selector, context) {
 	return set
 }
 // finish defining the Bling type
-Bling.inherit(Array)
+Bling.prototype = new Array // a copy(!) of the Array prototype, Blings are ordered sets
+Bling.prototype.constructor = Bling
 function isBling(a)  { return isType(a, Bling) }
-$ = Bling
 Bling.symbol = "$" // for display purposes
+window[Bling.symbol] = Bling // for use in code as $
 
 /* Type Checking
  * -------------
@@ -171,59 +83,145 @@ Bling.symbol = "$" // for display purposes
  * If you don't have a reference to the actual type,
  * you can pass the name as a string: isType(window, "DOMWindow") === true
  */
-Object.Extend(window, {
-	isType: function(a,T) {
-		// isType(a,T) - true if object a is of type T (directly)
-		return !a ? T === a
-			: typeof(T) === "string" ? a.__proto__.constructor.name == T
-			: a.__proto__.constructor === T
-	},
-	isSubtype: function(a, T) {
-		// isSubtype(a,T) - true if object a is of type T (directly or indirectly)
-		return a == null ? a == T
-			: a.__proto__ == null ? false
-			: typeof(T) === "string" ? a.__proto__.constructor.name == T
-			: a.__proto__.constructor == T ? true
-			: isSubtype(a.__proto__, T) // recursive
-	},
-	isString: function(a) {
-		// isString(a) - true if object a is a string
-		return typeof(a) == "string" || isSubtype(a, String)
-	},
-	// isNumber(a) - true if object a is a number
-	isNumber: isFinite,
-	isFunc: function(a) {
-		// isFunc(a) - true if object a is a function
-		return typeof(a) == "function" || isType(a, Function)
-	},
-	isNode: function(a) {
-		// isNode(a) - true if object is a DOM node
-		return a ? a.nodeType > 0 : false
-	},
-	isFragment: function(a) {
-		// isFragment(a) - true if object is a DocumentFragment node
-		return a ? a.nodeType == 11 : false
-	},
-	isArray: function(a) {
-		// isArray(a) - true if object is an Array (or inherits Array)
-		return a ? Function.ToString(a) == "[object Array]"
-			|| isSubtype(a, Array) : false
-	},
-	isObject: function(a) {
-		// isObject(a) - true if a is an object
-		return typeof(a) == "object"
-	},
-	hasValue: function(a) {
-		// hasValue(a) - true if a is not null nor undefined
-		return !(a == null)
+function isType(a,T) {
+	// isType(a,T) - true if object a is of type T (directly)
+	return !a ? T === a
+		: typeof(T) === "string" ? a.__proto__.constructor.name == T
+		: a.__proto__.constructor === T
+}
+function isSubtype(a, T) {
+	// isSubtype(a,T) - true if object a is of type T (directly or indirectly)
+	return a == null ? a == T
+		: a.__proto__ == null ? false
+		: typeof(T) === "string" ? a.__proto__.constructor.name == T
+		: a.__proto__.constructor == T ? true
+		: isSubtype(a.__proto__, T) // recursive
+}
+function isString(a) {
+	// isString(a) - true if object a is a string
+	return typeof(a) == "string" || isSubtype(a, String)
+}
+// isNumber(a) - true if object a is a number
+var isNumber = isFinite
+function isFunc(a) {
+	// isFunc(a) - true if object a is a function
+	return typeof(a) == "function" || isType(a, Function)
+}
+function isNode(a) {
+	// isNode(a) - true if object is a DOM node
+	return a ? a.nodeType > 0 : false
+}
+function isFragment(a) {
+	// isFragment(a) - true if object is a DocumentFragment node
+	return a ? a.nodeType == 11 : false
+}
+function isArray(a) {
+	// isArray(a) - true if object is an Array (or inherits Array)
+	return a ? Function.ToString(a) == "[object Array]"
+		|| isSubtype(a, Array) : false
+}
+function isObject(a) {
+	// isObject(a) - true if a is an object
+	return typeof(a) == "object"
+}
+function hasValue(a) {
+	// hasValue(a) - true if a is not null nor undefined
+	return !(a == null)
+}
+
+/** Object.Extend
+ * @param {Object} a the object to copy into
+ * @param {Object} b the object to copy from
+ * @param {Array=} c if present, a list of field names to limit to
+ */
+Object.Extend = function extend(a, b, c) {
+	// .extend(a, b, [c]) - merge values from b into a
+	// if c is present, it should be a list of property names to copy
+	for( var i in b ) {
+		if( c && a[i] != undefined ) {
+			for( var j in c ) {
+				a[i][j] = b[i][j]
+			}
+		} else {
+			a[i] = b[i]
+		}
 	}
-})
+	return a
+}
+
+Object.Keys = function(o) {
+	var keys = [], j = 0
+	for( var i in o )
+		keys[j++] = i
+	return keys
+}
+
+/** boundmethod
+ * @param {Function} f the function to bind
+ * @param {Object} t the context to bind f to
+ * @param {Array=} args (optional) bind the arguments now as well
+ */
+function boundmethod (f, t, args) {
+	// boundmethod(/f/, /t/) - whenever /f/ is called, _this_ === /t/
+	function r() { return f.apply(t, args ? args: arguments) }
+	r.toString = function() { return "bound-method of "+t+"."+f.name+"(...) { [code] }" }
+	return r
+	/* Example:
+		> var stars = ["Ricky","Martin"]
+		> var num_stars = function () { return this.length }
+		>   .bound(stars)
+		> num_stars() == 2
+
+		Where it can be most useful is extracting member functions from an instance
+		so you can call them without access to the member itself.
+
+		Here, we extract the Array.prototype.join function,
+		bind it to an array, then call it without any context, and you can see
+		that it uses the context that was given to .bound()
+
+		> var join_stars = stars.join.bound(stars)
+		> join_stars(", ") == "Ricky, Martin"
+
+		You can also bind the arguments ahead of time if you know them:
+
+		> join_stars = stars.join.bound(stars, [", "])
+		> join_stars() == "Ricky, Martin"
+
+		Once a function is bound, it cannot be re-bound, called, or applied,
+		in any other context than the one it was first bound to.
+
+		> more_stars = ["Janet", "Micheal", "Latoya"];
+		> join_stars.apply(more_stars, ", ")
+		> == "Ricky, Martin"
+
+		NOTE that join_stars is still operating on 'stars', not 'more_stars'.
+
+		Even if we explicitly bind to an object, like so:
+
+		> more_stars.num_stars = num_stars
+		> more_stars.num_stars() == 2
+		> num_stars.call(more_stars) == 2
+		> num_stars.apply(more_stars, []) == 2
+
+		Why 2?  Because num_stars will always act on its original binding ('stars'), not the
+		newer binding to more_stars.
+
+		Another very useful example:
+
+		> var log = window.console ? console.log.boung(console) : Function.Empty
+		> log("hello", "world")
+	*/
+}
 
 // cache a reference
 var OtoS = Object.prototype.toString
 
-// Array.Slice works like python's slice (negative indexes, etc)
-// and works on any indexable (not just array instances, notably 'arguments')
+/** Array.Slice works like python's slice (negative indexes, etc)
+ * and works on any indexable (not just array instances, notably 'arguments')
+ * @param {Object} o the iterable to get a slice of
+ * @param {number} i the start index
+ * @param {number=} j the end index
+ */
 Array.Slice = function (o, i, j) {
 	var a = [], k = 0, n = o.length,
 		end = j == undefined ? n
@@ -238,7 +236,11 @@ Array.Slice = function (o, i, j) {
 }
 
 // return a number with "px" attached, suitable for css
-Number.Px = function (x,d) { return (parseInt(x)+(d|0))+"px" }
+/** Number.Px
+ * @param {(number|string)} x a number-ish
+ * @param {number=} d (optional) delta for adjusting the number
+ */
+Number.Px = function (x,d) { return (parseInt(x,10)+(d|0))+"px" }
 
 // add string functions
 Object.Extend(String, {
@@ -354,7 +356,7 @@ Object.Extend(Function, {
 				js = js.toString()
 			if( ! isString(js) )
 				throw TypeError("prettyPrint requires a function or string to format")
-			if( $("style#pp-injected").length == 0 ) {
+			if( Bling("style#pp-injected").length == 0 ) {
 				colors = Object.Extend({
 					opr: "#880",
 					str: "#008",
@@ -366,14 +368,14 @@ Object.Extend(Function, {
 				var css = "code.pp .bln { font-size: 17px; } "
 				for( var i in colors )
 					css += "code.pp ."+i+" { color: "+colors[i]+"; }"
-				$("head").append($.synth("style#pp-injected").text(css))
+				Bling("head").append(Bling.synth("style#pp-injected").text(css))
 			}
 			return "<code class='pp'>"+
 				// extract comments
-				$(extract_comments(js))
+				Bling(extract_comments(js))
 					.fold(function(text, comment) {
 						// extract quoted strings
-						return $(extract_quoted(text))
+						return Bling(extract_quoted(text))
 							.fold(function(code, quoted) {
 								// label number constants
 								return (code
@@ -400,7 +402,7 @@ Object.Extend(Function, {
 	})()
 })
 
-Bling.addOps = function addOps() {
+Bling.addOps = function addOps(ops) {
 	// .addOps([obj or funcs]) - adds bling operations
 	// ex. Bling.addOps({nop:function(){ return this; })
 	// ex. Bling.addOps(function nop(){ return this })
@@ -432,8 +434,10 @@ Bling.module.order = [] // preserve the order for generating docs
 Bling.module('Core', function () {
 	/// Core Module ///
 
-	// a TimeoutQueue is used by the core to preserve the proper order
-	// of setTimeout handlers scheduled by .future()
+	/** a TimeoutQueue is used by the core to preserve the proper order
+	 * of setTimeout handlers scheduled by .future()
+	 * @constructor 
+	 */
 	function TimeoutQueue() {
 		// the basic problem with setTimeout happens when multiple handlers
 		// are scheduled to fire 'near' each other, values of 'near' depend on
@@ -445,12 +449,12 @@ Bling.module('Core', function () {
 		// always fire in the order they were scheduled
 		this.queue = []
 		// next() consumes the next handler on the queue
-		this.next = function next() {
+		this.next = boundmethod(function() {
 			// consume all 'due' handlers
 			if( this.queue.length > 0 )
 				// shift AND call
 				this.queue.shift()()
-		}.bound(this)
+		}, this)
 		// schedule(f, n) sets f to run after n or more milliseconds
 		this.schedule = function schedule(f, n) {
 			if( !isFunc(f) ) return
@@ -483,7 +487,7 @@ Bling.module('Core', function () {
 		var v
 		return function() {
 			v = this[p]
-			return isFunc(v) ? v.bound(this) : v
+			return isFunc(v) ? boundmethod(v, this) : v
 		}
 	}
 	// used in .zip()
@@ -800,7 +804,7 @@ Bling.module('Core', function () {
 			// .skip([/n/]) - collect all but the first /n/ elements of _this_
 			// if n == 0, returns a shallow copy of the whole bling
 			n = Math.min(this.len(), Math.max(0, (n|0)))
-			var a = Bling( n )
+			var a = Bling( n ),
 				i = 0, nn = this.len() - n
 			a.context = this.context
 			a.selector = this.selector
@@ -969,7 +973,7 @@ Bling.module('Core', function () {
 			// 2 * max(length) items
 			var n = b.length,
 				nn = this.length,
-				c = Bling(2 * Math.max(nn, n))
+				c = Bling(2 * Math.max(nn, n)),
 				i = nn - 1
 			c.context = this.context
 			c.selector = this.selector
@@ -1096,7 +1100,7 @@ Bling.module('Core', function () {
 
 		future: function future(n, f) {
 			// .future(/n/, /f/) -  continue with /f/ on _this_ after /n/ milliseconds
-			if( f ) { timeoutQueue.schedule(f.bound(this), n) }
+			if( f ) { timeoutQueue.schedule(boundmethod(f, this), n) }
 			return this
 			/* Example:
 				> $("pre").future(50, function sometimeLater() {
@@ -1164,8 +1168,10 @@ Bling.module('Html', function () {
 			: isString(x) ? Bling(x).toFragment()
 			: isFunc(x.toString) ? Bling(x.toString()).toFragment()
 			: undefined
+		// TODO: consider removing... not super useful and in the middle of a very central operation
 		Bling.nextguid = Bling.nextguid || 1
-		if( ret.guid == null ) ret.guid = Bling.nextguid++
+		if( ret && ret.guid == null )
+			ret.guid = Bling.nextguid++
 		return ret
 	}
 	// a helper that will recursively clone a sub-tree of the DOM
@@ -1225,15 +1231,15 @@ Bling.module('Html', function () {
 				var d = document.createElement("div")
 				d.style.display = 'none'
 				d.style.color = css
-				$(document.body).append(d)
-				var rgb = window.getComputedStyle(d).getPropertyValue('color')
-				$(d).remove()
+				Bling(document.body).append(d)
+				var rgb = window.getComputedStyle(d,null).getPropertyValue('color')
+				Bling(d).remove()
 				if( rgb ) {
 					// grab between the parens
 					rgb = rgb.slice(rgb.indexOf('(')+1, rgb.indexOf(')'))
-						// make an array
-						.split(", ")
-					if( rgb.length == 3 ) rgb[3] = 1.0
+						.split(", ") // make an array
+					if( rgb.length == 3 )
+						rgb[3] = "1.0"
 					// return floats
 					return Bling( rgb ).floats()
 				}
@@ -1524,7 +1530,7 @@ Bling.module('Html', function () {
 			// also, this.selector need not match any nodes at the time of the call
 			var sel = this.selector,
 				style = "<style> ",
-				head = $("head")
+				head = Bling("head")
 			if( isString(k) )
 				if( isString(v) )
 					style += sel+" { "+k+": "+v+" } "
@@ -1581,7 +1587,7 @@ Bling.module('Html', function () {
 					w = t.width().floats().first(),
 					x = (mode == "viewport" || mode == "horizontal"
 						? document.body.scrollLeft + vw - (w/2)
-						:  NaN)
+						:  NaN),
 					y = (mode == "viewport" || mode == "vertical"
 						? document.body.scrollTop + vh - (h/2)
 						: NaN)
@@ -1602,7 +1608,7 @@ Bling.module('Html', function () {
 			// by default, compute the background color, but call with 'color'
 			// to compute the foreground color
 			prop = prop || "background-color"
-			function reducer(a) {
+			reducer = reducer || function _reducer(a) {
 				// combine two rgba color arrays
 				a[0] += (this[0] - a[0]) * this[3]
 				a[1] += (this[1] - a[1]) * this[3]
@@ -1734,7 +1740,7 @@ Bling.module('Html', function () {
 			if( this.length == 1 )
 				return toNode(this[0])
 			var f = document.createDocumentFragment()
-			this.map(toNode).map(f.appendChild.bound(f))
+			this.map(toNode).map(boundmethod(f.appendChild, f))
 			return f
 		}
 	}
@@ -1755,7 +1761,7 @@ Bling.module('Math', function () {
 			// .ints() - parseInt(/x/) for /x/ in _this_
 			return this.map(function() {
 				if( isBling(this) ) return this.ints()
-				return parseInt(this)
+				return parseInt(this,10)
 			})
 		},
 
@@ -1855,11 +1861,11 @@ Bling.module('Event', function () {
 			// e is a string like 'click', 'mouseover', etc.
 			// e can be comma-separated to bind multiple events at once
 			var i = 0,
-				e = (e||"").split(comma_sep),
-				n = e.length
+				c = (e||"").split(comma_sep),
+				n = c.length
 			return this.each(function() {
 				for(; i < n; i++) {
-					this.addEventListener(e[i], f)
+					this.addEventListener(c[i], f)
 				}
 			})
 		},
@@ -1868,11 +1874,11 @@ Bling.module('Event', function () {
 			// .unbind(e, [f]) - removes handler f from event e
 			// if f is not present, removes all handlers from e
 			var i = 0,
-				e = (e||"").split(comma_sep),
-				n = e.length
+				c = (e||"").split(comma_sep),
+				n = c.length
 			return this.each(function() {
 				for(; i < n; i++) {
-					this.removeEventListener(e[i],f)
+					this.removeEventListener(c[i],f)
 				}
 			})
 		},
@@ -1880,10 +1886,10 @@ Bling.module('Event', function () {
 		once: function once(e, f) {
 			// .once(e, f) - adds a handler f that will be called only once
 			var i = 0,
-				e = (e||"").split(comma_sep),
-				n = e.length
+				c = (e||"").split(comma_sep),
+				n = c.length
 			for(; i < n; i++) {
-				this.bind(e[i], function(evt) {
+				this.bind(c[i], function(evt) {
 					f.call(this, evt)
 					this.unbind(evt.type, arguments.callee)
 				})
@@ -1896,8 +1902,8 @@ Bling.module('Event', function () {
 			// the next trigger will call the first handler again
 			var j = 0,
 				funcs = Array.Slice(arguments, 1, arguments.length),
-				e = (e||"").split(comma_sep),
-				ne = e.length,
+				c = (e||"").split(comma_sep),
+				ne = c.length,
 				nf = funcs.length
 			function cycler() {
 				var i = 0
@@ -1907,7 +1913,7 @@ Bling.module('Event', function () {
 				}
 			}
 			while( j < ne )
-				this.bind(e[j++], cycler())
+				this.bind(c[j++], cycler())
 			return this
 		},
 
@@ -1918,8 +1924,8 @@ Bling.module('Event', function () {
 			//   {screenX: 10, screenY: 10}
 			// note: not all browsers support manually creating all event types
 			var e = undefined, i = 0,
-				evt = (evt||"").split(comma_sep),
-				n = evt.length,
+				evts = (evt||"").split(comma_sep),
+				n = evts.length,
 				evt_i = null
 			args = Object.Extend({
 				bubbles: true,
@@ -1927,7 +1933,7 @@ Bling.module('Event', function () {
 			}, args)
 
 			for(; i < n; i++) {
-				evt_i = evt[i]
+				evt_i = evts[i]
 				switch(evt_i) {
 					// mouse events
 					case "click":
@@ -2082,14 +2088,14 @@ Bling.module('Event', function () {
 			// die(e, [f]) - stop f [or all] from living for event e
 			var selector = this.selector,
 				context = this.context,
-				c = Bling(context)
+				c = Bling(context),
 				livers = context.__livers__
 			// if no event handlers have been 'live'd on this context
 			if( livers == null ) return this;
 
-			var livers = context.__livers__[selector][e],
-				i = 0,
-				nn = livers.length;
+			livers = context.__livers__[selector][e]
+			var i = 0,
+				nn = livers.length
 			// find f in the living handlers
 			for(; i < nn; i++) {
 				if( f == undefined || f == livers[i] ) {
@@ -2159,7 +2165,7 @@ Bling.module('Event', function () {
 })
 
 Bling.module('Transform', function () {
-	Bling.duration = function duration(speed) {
+	Bling['duration'] = function duration(speed) {
 		// given a speed description, return milliseconds
 		var speeds = {
 			"slow": 700.0,
@@ -2311,6 +2317,8 @@ Bling.module('Transform', function () {
 Bling.module('Http', function() {
 	/// HTTP Request Module: provides wrappers for making http requests ///
 
+	var JSON = JSON || {}
+
 	// static helper to create &foo=bar strings from object properties
 	function formencode(obj) {
 		var s = [], j = 0, o = JSON.parse(JSON.stringify(obj)) // quickly remove all non-stringable items
@@ -2324,7 +2332,7 @@ Bling.module('Http', function() {
 		http: function http(url, opts) {
 			var xhr = new XMLHttpRequest()
 			if( isFunc(opts) )
-				opts = {success: opts.bound(xhr)}
+				opts = {success: boundmethod(opts, xhr)}
 			opts = Object.Extend({
 				method: "GET",
 				data: null,
@@ -2334,9 +2342,9 @@ Bling.module('Http', function() {
 				async: true,
 				withCredentials: false
 			}, opts)
-			opts.state = opts.state.bound(xhr)
-			opts.success = opts.success.bound(xhr)
-			opts.error = opts.error.bound(xhr)
+			opts.state = boundmethod(opts.state, xhr)
+			opts.success = boundmethod(opts.success, xhr)
+			opts.error = boundmethod(opts.error, xhr)
 			if( opts.data && opts.method == "GET" )
 				url += "?" + formencode(opts.data)
 			else if( opts.data && opts.method == "POST" )
@@ -2381,7 +2389,13 @@ Bling.module('Database', function () {
 	// static error handler
 	function SqlError(t, e) { throw new Error("sql error ["+e.code+"] "+e.message) }
 
-	Bling.db = function db(fileName, version, displayName, maxSize) {
+	function assert(cond, msg) {
+		if( ! cond ) {
+			throw new Error("assert failed: "+msg)
+		}
+	}
+
+	Bling['db'] = function db(fileName, version, displayName, maxSize) {
 		// .db(fn, ver, name, size) - get a new connection to the local database
 		return Bling([window.openDatabase(
 			fileName || "bling.db",
@@ -2399,9 +2413,9 @@ Bling.module('Database', function () {
 			return this
 		},
 
-		sql: function sql(sql, values, callback, errors) {
+		sql: function sql(stmt, values, callback, errors) {
 			// .sql(sql, values, callback, errors) - shortcut for using transaction
-			if( sql == undefined ) return undefined
+			if( stmt== undefined ) return undefined
 			if( typeof(values) == "function") {
 				errors = callback
 				callback = values
@@ -2412,7 +2426,7 @@ Bling.module('Database', function () {
 			errors = errors || SqlError
 			assert( isType(this[0], "Database"), "can only call .sql() on a bling of Database" )
 			return this.transaction(function(t) {
-				t.executeSql(sql, values, callback, errors)
+				t.executeSql(stmt, values, callback, errors)
 			})
 		}
 	}
@@ -2440,7 +2454,8 @@ Bling.module('Template', function() {
 	function compile(text) {
 		var ret = [],
 			chunks = text.split(/%[\(\/]/),
-			end = -1, i = 1, n = chunks.length
+			end = -1, i = 1, n = chunks.length,
+			key = null, rest = null, match = null
 		ret.push(chunks[0])
 		for( ; i < n; i++) {
 			end = match_forward(chunks[i], ')', '(', 0, -1)
@@ -2495,7 +2510,7 @@ Bling.module('Template', function() {
 			// format the value according to the format options
 			switch( type ) {
 				case 'd':
-					output[j++] = "" + parseInt(value)
+					output[j++] = "" + parseInt(value, 10)
 					break
 				case 'f':
 					output[j++] = parseFloat(value).toFixed(fixed)
@@ -2512,7 +2527,7 @@ Bling.module('Template', function() {
 		}
 		return output.join('')
 	}
-	Bling.render = _render
+	Bling['render'] = _render
 
 	// modes for the synth machine
 	var TAGMODE = 1, IDMODE = 2, CLSMODE = 3, ATTRMODE = 4, VALMODE = 5, DTEXTMODE = 6, STEXTMODE = 7
@@ -2520,10 +2535,10 @@ Bling.module('Template', function() {
 	function synth(expr) {
 		var tagname = '', id = '', cls = '', attr = '', val = '',
 			text = '', attrs = {}, parent = null, mode = TAGMODE,
-			ret = $([]), i = 0, c = null
+			ret = Bling([]), i = 0, c = null
 		parent = null
 		function emitText() {
-			node = document.createTextNode(text)
+			var node = document.createTextNode(text)
 			if( parent )
 				parent.appendChild(node)
 			else
@@ -2532,7 +2547,7 @@ Bling.module('Template', function() {
 			mode = TAGMODE
 		}
 		function emitNode() {
-			node = document.createElement(tagname)
+			var node = document.createElement(tagname)
 			node.id = id ? id : null
 			node.className = cls ? cls : null
 			for(var k in attrs)
@@ -2594,7 +2609,7 @@ Bling.module('Template', function() {
 
 		return ret
 	}
-	Bling.synth = synth
+	Bling['synth'] = synth
 
 	return {
 		template: function template(defaults) {

@@ -52,7 +52,7 @@
 
 				setTimeout(function () {
 					if( name = Bling.module.order[i++] ) {
-						var h3 = $("<h3>"+name+"</h3>"),
+						var h3 = $.synth("h3 '"+name+"'"),
 							ul = $.doc.module(name)
 						h3.click(function() {
 							ul.toggle()
@@ -67,7 +67,8 @@
 							$docroot.fadeIn(function() {
 								var hash = window.location.hash
 								if( hash ) {
-									$("a[name='"+hash.replace(/#/,"")+"']").first().scrollIntoView()
+									hash = hash.replace(/#/, "")
+									$("a[name='"+hash+"']").first().scrollIntoView()
 								}
 							})
 						})

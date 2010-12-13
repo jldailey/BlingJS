@@ -2,17 +2,28 @@
 <html>
 	<head>
 		<script src="../bling.js"></script>
-		<script src="../bling.ui.js"></script>
+		<script src="../plugins/bling.ui.js"></script>
+		<script src="../plugins/bling.doc.js"></script>
 		<link href='http://fonts.googleapis.com/css?family=Nobile' rel='stylesheet' type='text/css'>
+		<link href='http://fonts.googleapis.com/css?family=Droid+Sans:regular,bold' rel='stylesheet' type='text/css'>
 		<link href='http://fonts.googleapis.com/css?family=Inconsolata' rel='stylesheet' type='text/css'>
 		<style>
 			body {
 				font-family: 'Nobile', Verdana, sans;
+				font-size: 14px;
 				width:320px;
 				padding:4px;
 				margin-left:auto;
 				margin-right:auto;
 				background-color:white;
+			}
+			.large { font-size: 16px; }
+			.medium { font-size: 14px; }
+			.small { font-size: 10px; }
+			a.toggle {
+				line-height: 20px;
+				vertical-align:middle;
+				margin: 0px 8px;
 			}
 			b { color:#911; }
 			i { color:#822; }
@@ -25,6 +36,7 @@
 			a[name^='api:'] {
 				font-size: 18px;
 				font-weight: bold;
+				font-family: 'Inconsolata';
 				color: #222;
 				text-decoration:none;
 			}
@@ -40,31 +52,63 @@
 				font-family: 'Inconsolata', courier, fixed, sans;
 				font-size: 16px;
 			}
+			ol {
+				list-style: decimal;
+				padding-left: 10px;
+			}
+			ol ol {
+				list-style: circle;
+			}
+
+			li.module > span {
+				font-size: 16px;
+				font-weight: bold;
+			}
+
+			a.example {
+			}
+			li.func {
+			}
+
+			.examples {
+				display: none;
+			}
+
+			#search {
+				border-radius: 5px;
+			}
 		</style>
 		<script>
 			$(document).ready(function() {
 				var $body = $("body"),
 					$docroot = $("#docroot"),
+					$search = $("#search"),
 					i = 0, name = null, module = null,
 					progressBar = $.UI.ProgressBar("#progress-bar"),
-					funcTemplate = $.synth('li a[name="api:%(reference)s"] span "%(definition)s" + + '
-						+ 'a[href="#api:%(reference)s"][title="Permalink"] "&#182;" + + "&nbsp;&mdash;&nbsp;%(description)s"')
+					funcTemplate = $.synth('li.func a[name=api:%(reference)s] span "%(definition)s"'
+						+ ' + + a[href=#api:%(reference)s][title=Permalink] "&nbsp;&#182;&nbsp;"'
+						+ ' + "&mdash;" br'
+						+ ' + span.desc "%(description)s"'
+						+ ' + a.example[href=#ex:%(reference)s][title=Examples] "Examples"'
+						+ ' + div.examples a[name=#ex:%(reference)s] + "%(examples)s"')
 
 				setTimeout(function () {
 					if( name = Bling.module.order[i++] ) {
-						var h3 = $.synth("h3 '"+name+"'"),
-							ul = $.doc.module(name)
-						h3.click(function() {
-							ul.toggle()
-						})
-						$docroot.append(h3).append(ul)
+						var h3 = $.synth("li.module span '"+name+"'"), // a.toggle.small[name="+name+"][href=#"+name+"] 'Toggle'"),
+							ul = $.synth("ol.apilist").append($.doc.module(name, funcTemplate))
+						// h3.find("a.toggle").click(function() {
+							// ul.toggle()
+						// })
+						$docroot.append(h3.append(ul))
 						// update progress bar
 						progressBar.update(i/Bling.module.order.length, 0)
 						setTimeout(arguments.callee, 0)
 					} else {
-						// hide the progress bar, fade the docs in
+						// hide the progress bar
 						progressBar.hide(function() {
+							// fade the docs in 
 							$docroot.fadeIn(function() {
+								// read the #hash and scroll there
 								var hash = window.location.hash
 								if( hash ) {
 									hash = hash.replace(/#/, "")
@@ -76,12 +120,24 @@
 				}, 0)
 				$docroot.hide()
 
+				$search.keyup(function() {
+					var val = $search.val().first(),
+						$items = $("ol#docroot li").hide()
+					if( val == "" )
+						$items.show()
+					else
+						$("ol.apilist li a[name^='api:Bling.'][name*='"+val+"']")
+							.parents().flatten()
+							.intersect($items).show()
+				})
+
 			})
 		</script>
 	</head>
 	<body>
+		<input id="search" type="text" size="20" placeholder="Enter filter text here">
 		<div id="progress-bar"> </div>
-		<div id="docroot">
-		</div>
+		<ol id="docroot">
+		</ol>
 	</body>
 </html>

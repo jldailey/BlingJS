@@ -22,7 +22,7 @@ Bling.module('UI', function() {
 			barColor: "green",
 			textColor: "black"
 		}, opts)
-		opts.invertedTextColor = Bling.Color.toCss(Bling.Color.invert(Bling.Color.fromCss))
+		opts.invertedTextColor = Bling.Color.toCss(Bling.Color.invert(Bling.Color.fromCss(opts.textColor)))
 		var current = 0.0,
 			node = Bling(selector)
 				.addClass('progress-bar')
@@ -44,14 +44,6 @@ Bling.module('UI', function() {
 					width: "100%",
 					height: "100%"
 				})
-
-		node.update = function update(percent, speed) {
-		}
-		node.update(0.0, "instant")
-
-		node.current = function current() {
-			return current
-		}
 
 		Object.Extend(node, {
 			update: function (percent, speed) {

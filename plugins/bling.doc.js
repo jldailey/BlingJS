@@ -10,6 +10,7 @@
 		i_word = /_(\w+)_/g
 
 	function getDescription(node) {
+		// return a pair of [definition, description] strings
 		var desc = node.find(".com").take(1).text().first();
 		desc = desc ? desc
 			.replace(singleline_comment,'')
@@ -27,7 +28,7 @@
 
 		paraQueue.flush = function() {
 			if( this.length > 0 ) {
-				result.push($.synth("p").text(this.join("\n"))
+				result.push($.synth("p").text(this.join("\n")))
 				this.length = 0
 			}
 			return this.length == 0
@@ -64,55 +65,52 @@
 			result.push($(Function.PrettyPrint(codeQueue.join('\n'))))
 		if( paraQueue.length > 0 )
 			result.push($("<p>").html(paraQueue.join('\n')))
-		return result
+		return result.flatten()
 	}
 
-	function generateModuleDocs(name, module, template) {
-		var ul = $.synth("ol.apilist[module="+name+"]")
-		for( var k in module ) {
-			var source = $(Function.PrettyPrint(module[k]))
-				desc = getDescription(source),
-				examples = getExamples(source)
-			ul.append(template.render({
-				reference: k, 
-				definition: desc[0], 
-				description: desc[1]
-			}))
-			.find("li")
-			.last(1)
-			.append(examples)
+
+	function walk(name, x, visit) {
+		var keys = Object.Keys(x),
+			i = 0, n = keys.length,
+			key = null, val = null
+		for(; i < n; i++) {
+			key = keys[i],
+			val = x[key]
+
+			if( isObject(val) ) {
+				// recurse
+				arguments.callee(key.charAt(0) == '$' ? 'Bling.' + key.substr(1) : name + "." + key, val, visit)
+			} else if( isFunc(val) ) {
+				visit(key.charAt(0) == '$' ? 'Bling.' + key.substr(1) : name + "." + key, val)
+			}
 		}
-		ul.find("a").cycle('click', function() {
-			var $this = $(this),
-				name = $this.attr('name').first(),
-				func = eval("Bling.prototype."+name),
-				source = getSource(func)
-			source.find(".com").filter(function() {
-				return this.innerText.indexOf("Example:") > -1
-			}).remove()
-			$this.parent()
-				.append("<h6>Implementation:</h6>")
-				.append(source)
-				.find("h6, h6 + pre").click(function () {
-					$(this).parent().find("h6, pre").remove()
-				})
-			return false
-		}, function() {
-			var $this = $(this)
-			$this.parent().find("h6, h6 + pre").remove()
-		})
-		return ul
 	}
 
-	$.doc = function doc(x) {
-		// .doc(/x/) - generate doc html, /x/ is function or module object
-	}
-
-	$.doc.module = function (m) {
-	}
-
-	$.doc.func = function (f) {
-	}
+	$.module("Doc", function() {
+		return {
+			$doc: {
+				module: function (name, func_template) {
+					var ret = $([])
+					if( ! func_template )
+						func_template = $.synth("li a[href=api:%(reference)s] '%(definition)s' div '%(description)s' div '%(examples)s'")
+					walk("Bling.prototype", Bling.module[name], function visit(name, f) {
+						var text = Function.PrettyPrint(f),
+							nodes = $(text),
+							examples = getExamples(nodes),
+							description = getDescription(nodes),
+							output = func_template.render({
+								reference: name,
+								definition: description[0],
+								description: description[1],
+								examples: examples.map($.HTML.stringify).join("")
+							})
+						ret.push($(output))
+					})
+					return ret
+				}
+			}
+		}
+	})
 
 })(Bling)
 

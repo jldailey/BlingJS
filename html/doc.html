@@ -125,10 +125,29 @@
 						$items = $("ol#docroot li").hide()
 					if( val == "" )
 						$items.show()
-					else
-						$("ol.apilist li a[name^='api:Bling.'][name*='"+val+"']")
-							.parents().flatten()
-							.intersect($items).show()
+					else {
+						var step = 0, match = null
+						progressBar.show()
+						setTimeout(function() {
+							switch( step ) {
+								case 0:
+									match = $("ol.apilist li a[name^='api:Bling.'][name*='"+val+"']")
+									break
+								case 1:
+									match = match.parents().flatten()
+									break
+								case 2:
+									match = match.intersect($items).show()
+									break
+								case 3:
+									progressBar.hide()
+									return
+							}
+							step += 1
+							progressBar.update(step/3, 0)
+							setTimeout(arguments.callee, 10)
+						}, 10)
+					}
 				})
 
 			})

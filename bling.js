@@ -190,7 +190,7 @@ function boundmethod (f, t, args) {
 		Once a function is bound, it cannot be re-bound, called, or applied,
 		in any other context than the one it was first bound to.
 
-		> more_stars = ["Janet", "Micheal", "Latoya"];
+		> more_stars = ["Janet", "Micheal", "Latoya"]
 		> join_stars.apply(more_stars, ", ")
 		> == "Ricky, Martin"
 
@@ -973,7 +973,7 @@ Bling.module('Core', function () {
 				})
 			else
 				return this.map(function() {
-					return false;
+					return false
 				})
 			/* Example:
 				> $("pre").matches(".prettyprint")
@@ -1049,7 +1049,7 @@ Bling.module('Core', function () {
 			// .flatten() - collect all /y/ in each /x/ in _this_, in depth-first order.
 			var b = Bling(),
 				n = this.len(), c = null, d = 0,
-				i = 0, j = 0, k = 0;
+				i = 0, j = 0, k = 0
 			b.context = this.context
 			b.selector = this.selector
 			for(; i < n; i++)
@@ -1519,7 +1519,7 @@ Bling.module('Html', function () {
 				// know the true cost, .css() is a very central function
 				var webkit_re = /^-webkit-/
 				var setter = this.zip('style.setProperty').map(function(){
-					var set = this;
+					var set = this
 					return function(k,v) {
 						if( webkit_re.test(k) ) {
 							set(k.replace(webkit_re, '-moz-'), v)
@@ -1843,7 +1843,7 @@ Bling.module('Math', function () {
 		squares: function squares()  {
 			// .squares() - collect /x/*/x/ for each /x/ in _this_
 			return this.map(function() {
-				if( isBling(this) ) return this.squares();
+				if( isBling(this) ) return this.squares()
 				return this * this
 			})
 		},
@@ -1851,8 +1851,8 @@ Bling.module('Math', function () {
 		magnitude: function magnitude() {
 			// .magnitude() - compute the vector length of _this_
 			var n = this.map(function() {
-				if( isBling(this) ) return this.magnitude();
-				return parseFloat(this);
+				if( isBling(this) ) return this.magnitude()
+				return parseFloat(this)
 			})
 			return Math.sqrt(n.squares().sum())
 		},
@@ -1860,7 +1860,7 @@ Bling.module('Math', function () {
 		scale: function scale(r) {
 			// .scale(/r/) - /x/ *= /r/ for /x/ in _this_
 			return this.map(function() {
-				if( isBling(this) ) return this.scale(r);
+				if( isBling(this) ) return this.scale(r)
 				return r * this
 			})
 		},
@@ -1997,8 +1997,8 @@ Bling.module('Event', function () {
 						}, args)
 						e.initMouseEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
 							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-							args.button, args.relatedTarget);
-						break;
+							args.button, args.relatedTarget)
+						break
 
 					// UI events
 					case "blur":
@@ -2011,7 +2011,7 @@ Bling.module('Event', function () {
 					case "unload":
 						e = document.createEvent("UIEvents")
 						e.initUIEvent(evt_i, args.bubbles, args.cancelable, window, 1)
-						break;
+						break
 
 					// iphone touch events
 					case "touchstart":
@@ -2038,8 +2038,8 @@ Bling.module('Event', function () {
 						}, args)
 						e.initTouchEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
 							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-							args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation);
-						break;
+							args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
+						break
 
 					// iphone gesture events
 					case "gesturestart":
@@ -2063,8 +2063,8 @@ Bling.module('Event', function () {
 						}, args)
 						e.initGestureEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
 							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-							args.target, args.scale, args.rotation);
-						break;
+							args.target, args.scale, args.rotation)
+						break
 
 					// iphone events that are not supported yet
 					// (dont know how to create yet, needs research)
@@ -2083,8 +2083,8 @@ Bling.module('Event', function () {
 
 					// a general event
 					default:
-						e = document.createEvent("Events");
-						e.initEvent(evt_i, args.bubbles, args.cancelable);
+						e = document.createEvent("Events")
+						e.initEvent(evt_i, args.bubbles, args.cancelable)
 				}
 				if( !e ) continue
 				else this.each(function() {
@@ -2093,7 +2093,7 @@ Bling.module('Event', function () {
 				})
 			}
 
-			return this;
+			return this
 
 		},
 
@@ -2110,7 +2110,7 @@ Bling.module('Event', function () {
 					.intersect(Bling(evt.target).parents().first())
 					// then fire the real handler on the matched nodes
 					.each(function() {
-						evt.target = this;
+						evt.target = this
 						f.call(this, evt)
 					})
 			}
@@ -2130,7 +2130,7 @@ Bling.module('Event', function () {
 				c = Bling(context),
 				livers = context.__livers__
 			// if no event handlers have been 'live'd on this context
-			if( livers == null ) return this;
+			if( livers == null ) return this
 
 			livers = context.__livers__[selector][e]
 			var i = 0,
@@ -2143,7 +2143,7 @@ Bling.module('Event', function () {
 					// remove f
 					livers.splice(i, 1)
 					nn--; // adjust the iteration
-					i--;
+					i--
 				}
 			}
 		},
@@ -2204,34 +2204,33 @@ Bling.module('Event', function () {
 })
 
 Bling.module('Transform', function () {
-	// the regex that matches all the accelerated css properties
+	// the regex that matches all the accelerated css property names
 	var accel_props_re = /(?:scale|translate|rotate|scale3d|translateX|translateY|translateZ|translate3d|rotateX|rotateY|rotateZ|rotate3d)/
+
+	var speeds = {
+		"slow": 700,
+		"medium": 500,
+		"normal": 300,
+		"fast": 100,
+		"instant": 0,
+		"now": 0
+	}
 
 	/// Transformation Module: provides wrapper for using -webkit-transform ///
 	return {
 		$duration: function duration(speed) {
-			// $.duration(/speed/) - given a speed description (string|number), return a number in milliseconds
-			var speeds = {
-				"slow": 700.0,
-				"medium": 500.0,
-				"normal": 300.0,
-				"fast": 100.0,
-				"instant": 0.0,
-				"now": 0.0
-			}
-			var s = speeds[speed]
-			var ret = s ? s : parseFloat(speed);
-			return ret;
+			// $.duration(/s/) - given a speed description (string|number), return a number in milliseconds
+			return speeds[speed] || parseFloat(speed)
 		},
 
 		// like jquery's animate(), but using only webkit-transition/transform
 		transform: function transform(end_css, speed, callback) {
-			// .transform(css, [speed], [callback]) - animate css properties on each node
+			// .transform(css, [/s/], [/cb/]) - animate css properties on each node
 			// animate css properties over a duration
 			// accelerated: scale, translate, rotate, scale3d,
 			// ... translateX, translateY, translateZ, translate3d,
 			// ... rotateX, rotateY, rotateZ, rotate3d
-			if( typeof(speed) == "function" ) {
+			if( isFunc(speed) ) {
 				callback = speed
 				speed = undefined
 			}
@@ -2282,10 +2281,9 @@ Bling.module('Transform', function () {
 		hide: function hide(callback) {
 			// .hide() - each node gets display:none
 			return this.each(function() {
-				// console.log("hiding", this)
 				if( this.style ) {
-					this._display = this.style.display == "none" ? undefined : this.style.display;
-					this.style.display = 'none';
+					this._display = this.style.display === "none" ? "" : this.style.display
+					this.style.display = 'none'
 				}
 			}).future(50, callback)
 		},
@@ -2293,10 +2291,9 @@ Bling.module('Transform', function () {
 		show: function show(callback) {
 			// .show() - show each node
 			return this.each(function() {
-				// console.log("showing", this)
 				if( this.style ) {
-					this.style.display = this._display ? this._display : "block";
-					this._display = undefined;
+					this.style.display = this._display
+					delete this._display
 				}
 			}).future(50, callback)
 		},
@@ -2433,48 +2430,50 @@ Bling.module('Database', function () {
 		}
 	}
 
+	function execute(stmt, values, callback, errors) {
+		// .execute(/sql/, [/values/], [/cb/], [/errcb/]) - shortcut for using transaction
+		if( stmt== undefined ) return undefined
+		if( typeof(values) == "function") {
+			errors = callback
+			callback = values
+			values = undefined
+		}
+		values = values || []
+		callback = callback || Function.Empty
+		errors = errors || SqlError
+		assert( isType(this[0], "Database"), "can only call .sql() on a bling of Database" )
+		return this.transaction(function(t) {
+			t.executeSql(stmt, values, callback, errors)
+		})
+	}
+	function transaction( f ) {
+		// .transaction() - provides access to the db's raw transaction() method
+		// but, use .execute() instead, its friendlier
+		this.zip('transaction').call(f)
+		return this
+	}
 	return {
 		$db: function db(fileName, version, displayName, maxSize) {
-			// .db(fn, ver, name, size) - get a new connection to the local database
-			return Bling([window.openDatabase(
+			// .db([/file/], [/ver/], [/name/], [/size/]) - get a new connection to the local database
+			var db = Bling([window.openDatabase(
 				fileName || "bling.db",
 				version || "1.0",
 				displayName || "bling database",
 				maxSize || 1024)
 			])
-		},
-		transaction: function transaction( f ) {
-			// .transaction() - provides access to the db's raw transaction() method
-			// but, use .sql() instead, its friendlier
-			this.zip('transaction').call(f)
-			return this
+			db.transaction = transaction
+			db.execute = execute
+			return db
 		},
 
-		sql: function sql(stmt, values, callback, errors) {
-			// .sql(sql, values, callback, errors) - shortcut for using transaction
-			if( stmt== undefined ) return undefined
-			if( typeof(values) == "function") {
-				errors = callback
-				callback = values
-				values = undefined
-			}
-			values = values || []
-			callback = callback || Function.Empty
-			errors = errors || SqlError
-			assert( isType(this[0], "Database"), "can only call .sql() on a bling of Database" )
-			return this.transaction(function(t) {
-				t.executeSql(stmt, values, callback, errors)
-			})
-		}
 	}
 })
 
 Bling.module('Template', function() {
 	function match_forward(text, find, against, start, stop) {
-		var count = 1;
-		if( stop == null || stop == -1 ) {
-			stop = text.length;
-		}
+		var count = 1
+		if( stop == null || stop == -1 )
+			stop = text.length
 		for( var i = start; i < stop; i++ ) {
 			if( text.charAt(i) == against )
 				count += 1

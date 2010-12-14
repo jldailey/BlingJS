@@ -130,7 +130,7 @@ function hasValue(a) {
 /** Object.Extend
  * @param {Object} a the object to copy into
  * @param {Object} b the object to copy from
- * @param {Array=} c if present, a list of field names to limit to
+ * @param {Array=} k if present, a list of field names to limit to
  */
 Object.Extend = function extend(a, b, k) {
 	// .extend(a, b, [k]) - merge values from b into a
@@ -138,7 +138,7 @@ Object.Extend = function extend(a, b, k) {
 	var i, j, undefined
 	if( isArray(k) )
 		for( i in k )
-			a[k[i]] = b[k[i]] != undefined ? b[c[i]] : a[c[i]]
+			a[k[i]] = b[k[i]] != undefined ? b[k[i]] : a[k[i]]
 	else 
 		for( i in (k = Object.Keys(b)) )
 			a[k[i]] = b[k[i]]
@@ -239,7 +239,7 @@ Object.Extend(Function, {
 	ToString: function (x) { return Object.prototype.toString.apply(x) },
 	Px: function (d) { return function() { return Number.Px(this,d) } }
 })
-var console = console || {}, alert = alert || Function.Empty
+var console = console || {}
 console.log = console.log || Function.Empty
 
 /** Array.Slice works like python's slice (negative indexes, etc)
@@ -294,7 +294,7 @@ Object.Extend(String, {
 
 
 /** Plugin adds a new plugin to the library.
- * @param {function} constructor the closure to execute to get a copy of the plugin
+ * @param {Function} constructor the closure to execute to get a copy of the plugin
  */
 Bling.plugin = function (constructor) {
 	var plugin = constructor.call(Bling, Bling),
@@ -2295,17 +2295,16 @@ Bling.plugin = function (constructor) {
 		return {
 			$db: function db(fileName, version, displayName, maxSize) {
 				// .db([/file/], [/ver/], [/name/], [/size/]) - get a new connection to the local database
-				var db = $([window.openDatabase(
+				var d = $([window.openDatabase(
 					fileName || "bling.db",
 					version || "1.0",
 					displayName || "bling database",
 					maxSize || 1024)
 				])
-				db.transaction = transaction
-				db.execute = execute
-				return db
-			},
-
+				d.transaction = transaction
+				d.execute = execute
+				return d
+			}
 		}
 	})
 

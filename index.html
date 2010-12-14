@@ -182,7 +182,7 @@
 			var a = $("a[href^='#doc:']")
 			// modify their hrefs
 			a.zap('href', a.map(function() {
-				return 'doc.html#api:' + this.href.split(/:/)[2]
+				return 'html/doc.html#api:' + this.href.split(/:/)[2]
 			}))
 		})
 
@@ -221,7 +221,7 @@
 	<h4>What makes BlingJS special?</h4>
 	<p>While similar to jQuery, there are a number of important differences.  Mostly, a philosophical belief in the power of programming with sets, 
 	and the consequences of that in the implementation. But also, a few neat tools that when combined give you quite a bit of power.
-	<p>For complete documentation of everything BlingJS can do, see the <a href="doc.html">API Documentation</a> (which is generated live from the current source).
+	<p>For complete documentation of everything BlingJS can do, see the <a href="html/doc.html">API Documentation</a> (which is generated live from the current source).
 	<p>The biggest philosophical difference is that BlingJS <b>always tries to return a set</b>,
 	rather than first elements, unless specifically requested by <a href='#doc:first'>first</a>, or <a href='#doc:last'>last</a>.
 	Even methods that return values (like <a href='#doc:width'>width</a> or <a href='#doc:height'>height</a>) 
@@ -241,7 +241,7 @@
 	<a name="set" />
 	<h4>Set Operations</h4>
 
-	<p>In order to make this set-focused philosophy work, a few core tools are needed. We highlight only two here, but there are many more, please do browse the <a href="doc.html">Full API</a>.
+	<p>In order to make this set-focused philosophy work, a few core tools are needed. We highlight only two here, but there are many more, please do browse the <a href="html/doc.html">Full API</a>.
 
 	<a name="zip" />
 	<h5>Zip</h5>
@@ -287,7 +287,7 @@
 
 	<a name="html" />
 	<h4>Html Operations</h4>
-	<p>While BlingJS has all of the basic HTML and DOM manipulating operations that jQuery has (like <a href='#doc:html'>html</a>, <a href='#doc:text'>text</a>, <a href='#doc:after'>after</a>, <a href='#doc:append'>append</a>, <a href="doc.html">etc.</a>), 
+	<p>While BlingJS has all of the basic HTML and DOM manipulating operations that jQuery has (like <a href='#doc:html'>html</a>, <a href='#doc:text'>text</a>, <a href='#doc:after'>after</a>, <a href='#doc:append'>append</a>, <a href="html/doc.html">etc.</a>), 
 	it also has two simple systems that work together to add quite a bit more power.
 
 	<a name="template" />

@@ -5,7 +5,6 @@
 		<script src="../plugins/bling.ui.js"></script>
 		<script src="../plugins/bling.doc.js"></script>
 		<link href='http://fonts.googleapis.com/css?family=Nobile' rel='stylesheet' type='text/css'>
-		<link href='http://fonts.googleapis.com/css?family=Droid+Sans:regular,bold' rel='stylesheet' type='text/css'>
 		<link href='http://fonts.googleapis.com/css?family=Inconsolata' rel='stylesheet' type='text/css'>
 		<style>
 			body {
@@ -84,16 +83,21 @@
 					$docroot = $("#docroot"),
 					$search = $("#search"),
 					i = 0, name = null, module = null,
-					progressBar = $.UI.ProgressBar("#progress-bar"),
-					funcTemplate = $.synth('li.func a[name=api:%(reference)s] span "%(definition)s"'
+					progressBar = $.UI.ProgressBar("#search", {
+						barColor: "rgba(0,0,0,0.7)",
+						textColor: "yellow",
+					}),
+					funcTemplate = $.synth('li.func a[name=api:%(reference)s] span.def "%(definition)s"'
 						+ ' + + a[href=#api:%(reference)s][title=Permalink] "&nbsp;&#182;&nbsp;"'
 						+ ' + "&mdash;" br'
 						+ ' + span.desc "%(description)s"'
-						+ ' + a.example[href=#ex:%(reference)s][title=Examples] "Examples"'
-						+ ' + div.examples a[name=#ex:%(reference)s] + "%(examples)s"')
+						// + ' + a.example[href=#ex:%(reference)s][title=Examples] "Examples"'
+						+ ' + div.examples a[name=#ex:%(reference)s] + "%(examples)s"'),
+					old_val,
+					$items = $("ol#docroot li")
 
 				setTimeout(function () {
-					if( name = Bling.module.order[i++] ) {
+					if( name = $.plugin.s[i++] ) {
 						var h3 = $.synth("li.module span '"+name+"'"), // a.toggle.small[name="+name+"][href=#"+name+"] 'Toggle'"),
 							ul = $.synth("ol.apilist").append($.doc.module(name, funcTemplate))
 						// h3.find("a.toggle").click(function() {
@@ -101,33 +105,42 @@
 						// })
 						$docroot.append(h3.append(ul))
 						// update progress bar
-						progressBar.update(i/Bling.module.order.length, 0)
+						progressBar.update(i/$.plugin.s.length)
 						setTimeout(arguments.callee, 0)
 					} else {
-						// hide the progress bar
-						progressBar.hide(function() {
-							// fade the docs in 
-							$docroot.fadeIn(function() {
-								// read the #hash and scroll there
-								var hash = window.location.hash
-								if( hash ) {
-									hash = hash.replace(/#/, "")
-									$("a[name='"+hash+"']").first().scrollIntoView()
-								}
-							})
+						progressBar.update(1)
+						$items = $("ol#docroot li")
+						// fade the docs in 
+						$docroot.fadeIn(function() {
+							// read the #hash and scroll there
+							var hash = window.location.hash
+							if( hash ) {
+								hash = hash.replace(/#/, "")
+								$("a[name='"+hash+"']").first().scrollIntoView()
+							}
 						})
 					}
 				}, 0)
 				$docroot.hide()
 
+
+				$("li.func span.def, li.func span.desc", $docroot).live('click', function() {
+					$(this).parents().flatten()
+						.intersect($("#docroot li.func"))
+						.find("div.examples")
+						.toggle()
+				})
+
 				$search.keyup(function() {
-					var val = $search.val().first(),
-						$items = $("ol#docroot li").hide()
-					if( val == "" )
+					var val = $search.val().first().trim()
+					if( val == old_val)
+						return // ignore keystrokes that dont alter the value
+					old_val = val
+					$items.hide()
+					if( val === "" )
 						$items.show()
 					else {
 						var step = 0, match = null
-						progressBar.show()
 						setTimeout(function() {
 							switch( step ) {
 								case 0:
@@ -137,10 +150,10 @@
 									match = match.parents().flatten()
 									break
 								case 2:
-									match = match.intersect($items).show()
+									match = match.intersect($items)
 									break
 								case 3:
-									progressBar.hide()
+									match.show()
 									return
 							}
 							step += 1
@@ -149,13 +162,11 @@
 						}, 10)
 					}
 				})
-
 			})
 		</script>
 	</head>
 	<body>
 		<input id="search" type="text" size="20" placeholder="Enter filter text here">
-		<div id="progress-bar"> </div>
 		<ol id="docroot">
 		</ol>
 	</body>

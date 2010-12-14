@@ -1,8 +1,7 @@
 
-Bling.module('UI', function() {
-	Bling.UI = {}
+Bling.plugin(function UI() {
 
-	Bling.UI.Dialog = function Dialog(selector, opts) {
+	function Dialog(selector, opts) {
 		var dialog = Bling(selector)
 			.addClass("dialog")
 			.center()
@@ -15,57 +14,43 @@ Bling.module('UI', function() {
 		return dialog
 	}
 
-	Bling.UI.ProgressBar = function ProgressBar(selector, opts) {
+	function ProgressBar(selector, opts) {
 		opts = Object.Extend({
 			change: Function.Empty,
-			showPercent: "center",
-			barColor: "green",
-			textColor: "black"
+			backgroundColor: "#fff",
+			barColor: "rgba(0,128,0,0.5)",
+			textColor: "white"
 		}, opts)
-		opts.invertedTextColor = Bling.Color.toCss(Bling.Color.invert(Bling.Color.fromCss(opts.textColor)))
-		var current = 0.0,
+
+		var _progress = 0.0,
 			node = Bling(selector)
-				.addClass('progress-bar')
-				.css({
-					position: "relative",
-					overflow: "hidden"
-				}),
-			slide = $("<div>").appendTo(node)
-				.css({
-					"background-color": opts.barColor,
-					position: "absolute",
-					width: "100%",
-					height: "100%"
-				}),
-			label = $("<span>").appendTo(node)
-				.css({
-					display: opts.showPercent ? "block" : "none",
-					"text-align": opts.showPercent,
-					width: "100%",
-					height: "100%"
-				})
+				.addClass('progress-bar'),
+			orig_bg = node.css("background").first(),
+			orig_color = node.css("color").first()
 
-		Object.Extend(node, {
-			update: function (percent, speed) {
-				speed = speed || "instant"
-				if( percent < 0.0 ) percent *= -1.0
-				while( percent > 1.0 ) percent /= 100.0
-				label.text((percent * 100).toFixed(0) + "%")
-					.css("color", percent > 0.5 ? opts.invertedTextColor : opts.textColor)
-				state = percent
-				percent = (1.0 - percent)
-				slide.transform({translateX: node.width().scale(-percent).px().first()}, speed)
-			},
+		node.update = function(pct) {
+			while( pct > 1 ) pct /= 100;
+			_progress = pct
+			if( pct == 1 )
+				node.css("background", orig_bg)
+					.css("color", orig_color)
+			else
+				node.css("background", 
+					"-webkit-gradient(linear, 0 0, "+parseInt(pct * 100)+"% 50%, "
+					+ "color-stop(0, "+opts.barColor+"), "
+					+ "color-stop(0.92, "+opts.barColor+"), "
+					+ "color-stop(1.0, "+opts.backgroundColor+"))")
+					.css("color", opts.textColor)
+		}
 
-			percent: function() {
-				return state
-			}
-		})
+		node.progress = function() {
+			return _progress
+		}
 
 		return node
 	}
 
-	Bling.UI.Accordion = function Accordion(selector, opts) {
+	function Accordion(selector, opts) {
 		opts = Object.Extend({
 			exclusive: false,
 			sticky: false
@@ -115,7 +100,7 @@ Bling.module('UI', function() {
 		return $node
 	}
 
-	Bling.UI.Tabs = function Tabs(selector, opts) {
+	function Tabs(selector, opts) {
 		opts = Object.Extend({
 		}, opts)
 		var node = Bling.UI.Accordion(selector, {sticky: true, exclusive: true})
@@ -134,33 +119,31 @@ Bling.module('UI', function() {
 
 	return {
 
+		$UI: {
+			Dialog: Dialog,
+			ProgressBar: ProgressBar,
+			Accordion: Accordion,
+			Tabs: Tabs
+		},
+
 		dialog: function dialog(opts) {
 			// .dialog([opts]) - create a dialog from each node
-			return Bling.UI.Dialog(this, opts)
+			return Dialog(this, opts)
 		},
 		progressBar: function progressBar(opts) {
 			// .progressBar([opts]) - create a progress bar in each node
-			return Bling.UI.ProgressBar(this, opts)
+			return ProgressBar(this, opts)
+		},
+		accordion: function accordion(opts) {
+			this.filter("*").map(function () {
+				return Accordion(this, opts)
+			})
 		},
 		tabs: function tabs(opts) {
 			// .tabs([opts]) - create a tab set from this collection
 			// (one tab per node in the set?)
-			return Bling.UI.Tabs(this, opts)
-		},
-		accordion: function accordion(opts) {
-			this.filter("*").map(function _accordion() {
-				return Bling.UI.Accordion(this, opts)
-			})
-		},
-		listSet: function listSet(opts) {
-			// .listSet([opts]) - create a list set from this collection
-			// list sets are like iPhone interfaces, ol's or li's and
-			// when you click on an item it either moves to a new list
-			// back to the previous list, or launches some action
-			return Bling.UI.ListSet(this, opts)
+			return Tabs(this, opts)
 		}
 
 	}
 })
-
-		

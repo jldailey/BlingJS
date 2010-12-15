@@ -36,7 +36,7 @@ Bling.plugin(function UI() {
 					.css("color", orig_color)
 			else
 				node.css("background", 
-					"-webkit-gradient(linear, 0 0, "+parseInt(pct * 100)+"% 50%, "
+					"-webkit-gradient(linear, 0 0, "+parseInt(pct * 100)+"% 0, "
 					+ "color-stop(0, "+opts.barColor+"), "
 					+ "color-stop(0.92, "+opts.barColor+"), "
 					+ "color-stop(1.0, "+opts.backgroundColor+"))")

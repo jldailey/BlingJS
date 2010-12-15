@@ -32,7 +32,7 @@
 				text-align: justify;
 				margin-top: 6px;
 			}
-			a[name^='api:'] {
+			a.apiname {
 				font-size: 18px;
 				font-weight: bold;
 				font-family: 'Inconsolata';
@@ -66,7 +66,17 @@
 
 			a.example {
 			}
-			li.func {
+			li {
+				clear: both;
+			}
+
+			a[title='Permalink'] {
+				float: right;
+			}
+
+			span.desc {
+				float: left;
+				clear: right;
 			}
 
 			.examples {
@@ -87,9 +97,9 @@
 						barColor: "rgba(0,0,0,0.7)",
 						textColor: "yellow",
 					}),
-					funcTemplate = $.synth('li.func a[name=api:%(reference)s] span.def "%(definition)s"'
-						+ ' + + a[href=#api:%(reference)s][title=Permalink] "&nbsp;&#182;&nbsp;"'
-						+ ' + "&mdash;" br'
+					funcTemplate = $.synth('li.func a.apiname[name=%(reference)s] span.def "%(definition)s"'
+						+ ' + + a[href=#%(reference)s][title=Permalink] "&#182;"'
+						// + ' + "&mdash;" br'
 						+ ' + span.desc "%(description)s"'
 						// + ' + a.example[href=#ex:%(reference)s][title=Examples] "Examples"'
 						+ ' + div.examples a[name=#ex:%(reference)s] + "%(examples)s"'),
@@ -98,26 +108,23 @@
 
 				setTimeout(function () {
 					if( name = $.plugin.s[i++] ) {
-						var h3 = $.synth("li.module span '"+name+"'"), // a.toggle.small[name="+name+"][href=#"+name+"] 'Toggle'"),
-							ul = $.synth("ol.apilist").append($.doc.module(name, funcTemplate))
-						// h3.find("a.toggle").click(function() {
-							// ul.toggle()
-						// })
-						$docroot.append(h3.append(ul))
+						var h3 = $.synth("li.module span '"+name+"' + ol.apilist"), // a.toggle.small[name="+name+"][href=#"+name+"] 'Toggle'"),
+							docs = $.doc.module(name, funcTemplate)
+						h3.find("ol.apilist").append(docs)
+						$docroot.append(h3)
 						// update progress bar
 						progressBar.update(i/$.plugin.s.length)
 						setTimeout(arguments.callee, 0)
 					} else {
-						progressBar.update(1)
+						progressBar.update(1.0)
+						// rebuild the item list
 						$items = $("ol#docroot li")
 						// fade the docs in 
 						$docroot.fadeIn(function() {
 							// read the #hash and scroll there
 							var hash = window.location.hash
-							if( hash ) {
-								hash = hash.replace(/#/, "")
-								$("a[name='"+hash+"']").first().scrollIntoView()
-							}
+							if( hash )
+								$("a[name='"+hash.substr(1)+"']").zip('scrollIntoView').call()
 						})
 					}
 				}, 0)
@@ -127,9 +134,10 @@
 				$("li.func span.def, li.func span.desc", $docroot).live('click', function() {
 					$(this).parents().flatten()
 						.intersect($("#docroot li.func"))
+						.toggleClass("highlight")
 						.find("div.examples")
 						.toggle()
-				})
+				}).defaultCss("cursor", "pointer")
 
 				$search.keyup(function() {
 					var val = $search.val().first().trim()
@@ -144,7 +152,7 @@
 						setTimeout(function() {
 							switch( step ) {
 								case 0:
-									match = $("ol.apilist li a[name^='api:Bling.'][name*='"+val+"']")
+									match = $("ol.apilist li a.apiname[name*='"+val+"']")
 									break
 								case 1:
 									match = match.parents().flatten()
@@ -166,7 +174,7 @@
 		</script>
 	</head>
 	<body>
-		<input id="search" type="text" size="20" placeholder="Enter filter text here">
+		<input id="search" type="text" size="30" placeholder="Enter filter text here">
 		<ol id="docroot">
 		</ol>
 	</body>

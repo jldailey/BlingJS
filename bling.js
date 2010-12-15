@@ -1087,7 +1087,7 @@ Bling.plugin = function (constructor) {
 			$Color: {
 				// $.Color - provides functions for parsing and creating css colors
 				fromCss: function fromCss(css) {
-					// .fromCss(css) - convert any css color strings to numbers
+					// $.Color.fromCss(css) - convert any css color strings to numbers
 					css = css || this
 					if( isString(css) ) {
 						var d = document.createElement("div")
@@ -1116,7 +1116,7 @@ Bling.plugin = function (constructor) {
 					*/
 				},
 				toCss: function toCss(b) {
-					// .toCss(/b/) - convert a color array to a css string
+					// $.Color.toCss(/b/) - convert a color array to a css string
 					function f(t) {
 						var r = t.map(Function.UpperLimit(255))
 							.map(Function.LowerLimit(0))
@@ -1141,7 +1141,7 @@ Bling.plugin = function (constructor) {
 					*/
 				},
 				invert: function invert(c) {
-					// $.Color.invert(/c/) -
+					// $.Color.invert(/c/) - compute the highest contrast color
 					var b = $(4)
 					if( isString(c) )
 						c = $.Color.fromCss(c)
@@ -1320,8 +1320,10 @@ Bling.plugin = function (constructor) {
 					var cls = node.className.split(" ")
 					if( cls.indexOf(x) > -1 )
 						node.className = cls.filter(notx).join(" ")
-					else
-						node.className = cls.push(x).join(" ")
+					else {
+						cls.push(x)
+						node.className = cls.join(" ")
+					}
 				})
 			},
 
@@ -1721,6 +1723,30 @@ Bling.plugin = function (constructor) {
 			return eval("f")
 		}
 
+		function register_live(selector, context, e, f, h) {
+			var $c = $(context)
+			$c.bind(e, h) // bind the real handler
+				.each(function() { 
+					var a = (this.__alive__ = this.__alive__ || {} )
+						b = (a[selector] = a[selector] || {}),
+						c = (b[e] = b[e] || {})
+					// make a record using the fake handler
+					c[f] = h
+				})
+		}
+
+		function unregister_live(selector, context, e, f) {
+			var $c = $(context)
+			$c.each(function() { 
+				var a = (this.__alive__ = this.__alive__ || {} ),
+					b = (a[selector] = a[selector] || {}),
+					c = (b[e] = b[e] || {}),
+					h = c[f]
+				$c.unbind(e, h)
+				delete c[f]
+			})
+		}
+
 		// detect and fire the document.ready event
 		setTimeout(function() {
 			if( $.prototype.trigger != null
@@ -1957,35 +1983,17 @@ Bling.plugin = function (constructor) {
 				// bind the handler to the context
 				$(context).bind(e, _handler)
 				// record f so we can 'die' it if needed
-				var livers = (context.__livers__ = context.__livers__ || {})
-				livers[selector] = livers[selector] || {}
-				livers[selector][e] = livers[selector][e] || []
-				livers[selector][e].push(f)
+				register_live(selector, context, e, f, _handler)
+				return this
 			},
 
 			die: function die(e, f) {
 				// die(e, [f]) - stop f [or all] from living for event e
 				var selector = this.selector,
 					context = this.context,
-					c = $(context),
-					livers = context.__livers__
-				// if no event handlers have been 'live'd on this context
-				if( livers == null ) return this
-
-				livers = context.__livers__[selector][e]
-				var i = 0,
-					nn = livers.length
-				// find f in the living handlers
-				for(; i < nn; i++) {
-					if( f == null || f === livers[i] ) {
-						// unbind f
-						c.unbind(e, f)
-						// remove f
-						livers.splice(i, 1)
-						nn--; // adjust the iteration
-						i--
-					}
-				}
+					h = unregister_live(selector, context, e, f)
+				$(context).unbind(e, h)
+				return this
 			},
 
 			liveCycle: function liveCycle(e) {

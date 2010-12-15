@@ -226,7 +226,7 @@
 							examples = getExamples(nodes),
 							description = getDescription(nodes),
 							output = func_template.render({
-								reference: name,
+								reference: name.replace("Bling.prototype.","").replace("Bling.",""),
 								definition: description[0],
 								description: description[1],
 								examples: examples.map($.HTML.stringify).join("")

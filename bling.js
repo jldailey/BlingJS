@@ -1727,7 +1727,7 @@ Bling.plugin = function (constructor) {
 			var $c = $(context)
 			$c.bind(e, h) // bind the real handler
 				.each(function() { 
-					var a = (this.__alive__ = this.__alive__ || {} )
+					var a = (this.__alive__ = this.__alive__ || {} ),
 						b = (a[selector] = a[selector] || {}),
 						c = (b[e] = b[e] || {})
 					// make a record using the fake handler

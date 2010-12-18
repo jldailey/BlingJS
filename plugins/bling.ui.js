@@ -1,8 +1,9 @@
+;(function ($) {
 
-Bling.plugin(function UI() {
+$.plugin(function UI() {
 
 	function Dialog(selector, opts) {
-		var dialog = Bling(selector)
+		var dialog = $(selector)
 			.addClass("dialog")
 			.center()
 		opts = Object.Extend({
@@ -13,6 +14,89 @@ Bling.plugin(function UI() {
 		if( opts.autoOpen ) dialog.open()
 		return dialog
 	}
+	
+	function Movable(selector, opts) {
+		opts = Object.Extend({
+			handlePosition: {}
+		}, opts)
+		opts.handlePosition = Object.Extend({
+			top: "0px",
+			left: "0px",
+			width: "100%",
+			height: "4px"
+		}, opts.handlePosition)
+
+		var target = $(selector),
+			moving = false,
+			origin = [0, 0],
+			handle = $.synth("div.handle")
+				.css(Object.Extend({
+					border: "1px solid red",
+					cursor: "pointer",
+					position: "absolute"
+				}, opts.handlePosition))
+				.bind('mousedown, touchstart', function mousedown(evt) {
+					moving = true
+				})
+				.bind('mousemove, touchmove', function mousemove(evt) {
+					if( moving ) {
+						console.log("moving!")
+					}
+				})
+				.bind('mouseup, touchend', function mouseup(evt) {
+					moving = false
+				})
+		target.append(handle)
+		return target
+	}
+
+	Movable.test = function() {
+		if( $("body").find("div#movable-test").len() == 0 )
+			$("body").append(
+				$.synth("div#movable-test 'Hello'")
+					.css({
+						width: "200px", 
+						height: "100px", 
+						"line-height": "100px", 
+						"text-align": "center"
+					}))
+		$.UI.Movable($("div#movable-test").center())
+	}
+
+
+
+	/*
+
+	var sides = {
+		n: 
+	function applyAnchor(side, target) {
+		var d = "div.anchor."+side
+		if( target.find(d).len() === 0 ) {
+			d = $.synth(d)
+				.bind('mousedown, touchstart', function(evt) {
+				})
+				.bind('mousemove, touchmove', function(evt) {
+				})
+				.bind('mouseup, touchend', function(evt) {
+				})
+			node = target.prepend($.synth(d))
+			switch (side) {
+				case 'n':
+		}
+	}
+
+	function Resizable(selector, opts) {
+		opts = Object.Extend({
+			anchors: "n ne e se s sw w nw"
+		}, opts)
+		opts.anchors = opts.anchors.split(/,* /)
+		var $node = $(selector)
+		for(var i = 0, n = opts.anchors.length; i < n; i++) {
+			applyAnchor(opts.anchors[i], $node)
+		}
+
+	}
+	*/
 
 	function ProgressBar(selector, opts) {
 		opts = Object.Extend({
@@ -23,12 +107,12 @@ Bling.plugin(function UI() {
 		}, opts)
 
 		var _progress = 0.0,
-			node = Bling(selector)
+			node = $(selector)
 				.addClass('progress-bar'),
 			orig_bg = node.css("background").first(),
 			orig_color = node.css("color").first()
 
-		node.update = function(pct) {
+		node.zap('update', function(pct) {
 			while( pct > 1 ) pct /= 100;
 			_progress = pct
 			if( pct == 1 )
@@ -38,14 +122,16 @@ Bling.plugin(function UI() {
 				node.css("background", 
 					"-webkit-gradient(linear, 0 0, "+parseInt(pct * 100)+"% 0, "
 					+ "color-stop(0, "+opts.barColor+"), "
-					+ "color-stop(0.92, "+opts.barColor+"), "
+					+ "color-stop(0.93, "+opts.barColor+"), "
 					+ "color-stop(1.0, "+opts.backgroundColor+"))")
 					.css("color", opts.textColor)
-		}
+			if( Object.IsFunc(opts.change) )
+				opts.change()
+		})
 
-		node.progress = function() {
+		node.zap('progress', function() {
 			return _progress
-		}
+		})
 
 		return node
 	}
@@ -100,30 +186,35 @@ Bling.plugin(function UI() {
 		return $node
 	}
 
-	function Tabs(selector, opts) {
+	function Tabs(tabs, bodies, opts) {
 		opts = Object.Extend({
 		}, opts)
-		var node = Bling.UI.Accordion(selector, {sticky: true, exclusive: true})
+		var $tabs = $(tabs),
+			$bodies = $(bodies),
+			i = 0, n = $tabs.len()
+		while( i < n ) {
+			$tabs.index(i).click(function(){
+				$bodies.index(i).toggle()
+			})
+		}
+	}
 
-		// force things into tab-like orientation
-		node.css({position: "relative" })
-			.children().first()
-			.css({position: "static", 'float': "left" })
-			.find("*:first-child + *")
-			.css({position: "absolute", 
-				'top': node.children().first().filter("*").take(1).height().px(+2).first(), 
-				left: "2px"})
+	function ViewStack(bodies, opts) {
+		opts = Object.Extend({
+			width: "auto",
+			height: "auto"
+		}, opts)
+		var $bodies = $(bodies),
+			$box = $.synth("div.box")
 
-		return node
+		$box.css({width: opts.width, height: opts.height})
 	}
 
 	return {
 
 		$UI: {
-			Dialog: Dialog,
+			Movable: Movable,
 			ProgressBar: ProgressBar,
-			Accordion: Accordion,
-			Tabs: Tabs
 		},
 
 		dialog: function dialog(opts) {
@@ -134,16 +225,8 @@ Bling.plugin(function UI() {
 			// .progressBar([opts]) - create a progress bar in each node
 			return ProgressBar(this, opts)
 		},
-		accordion: function accordion(opts) {
-			this.filter("*").map(function () {
-				return Accordion(this, opts)
-			})
-		},
-		tabs: function tabs(opts) {
-			// .tabs([opts]) - create a tab set from this collection
-			// (one tab per node in the set?)
-			return Tabs(this, opts)
-		}
 
 	}
 })
+
+})(Bling)

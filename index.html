@@ -3,8 +3,10 @@
 	<title>BlingJS Framework.</title>
 	<meta name="viewport" content="initial-scale=1.0, user-scalable=yes, width=device-width" />
 	<link rel="icon" href="bling.png" type="image/png" />
+	<!-- 
 	<link href='http://fonts.googleapis.com/css?family=Nobile' rel='stylesheet' type='text/css'>
 	<link href='http://fonts.googleapis.com/css?family=Inconsolata' rel='stylesheet' type='text/css'>
+	-->
 	<script src="bling.js" type="text/javascript"></script>
 	<script src="plugins/bling.doc.js" type="text/javascript"></script>
 	<style type="text/css">
@@ -182,7 +184,8 @@
 			var a = $("a[href^='#doc:']")
 			// modify their hrefs
 			a.zap('href', a.map(function() {
-				return 'html/doc.html#api:' + this.href.split(/:/)[2]
+				return 'html/doc.html#' 
+					+ this.href.split(/#doc:/)[1]
 			}))
 		})
 
@@ -219,45 +222,34 @@
 	$([1, "foo", {a: 'b'}]) // or anything</pre>
 
 	<h4>What makes BlingJS special?</h4>
-	<p>While similar to jQuery, there are a number of important differences.  Mostly, a philosophical belief in the power of programming with sets, 
-	and the consequences of that in the implementation. But also, a few neat tools that when combined give you quite a bit of power.
-	<p>For complete documentation of everything BlingJS can do, see the <a href="html/doc.html">API Documentation</a> (which is generated live from the current source).
+	<p>Sets.
+	<p>While similar to jQuery, BlingJS believes is doing as much as possible with sets.
+	<p>Also, there are tools for dealing with sets that are suprisingly simple and powerful.
+	<p>For complete documentation of everything BlingJS can do, see the <a href="html/doc.html">API Documentation</a>
 	<p>The biggest philosophical difference is that BlingJS <b>always tries to return a set</b>,
-	rather than first elements, unless specifically requested by <a href='#doc:first'>first</a>, or <a href='#doc:last'>last</a>.
-	Even methods that return values (like <a href='#doc:width'>width</a> or <a href='#doc:height'>height</a>) 
+	rather than first elements, unless it isn't possible, or you have specifically requested otherwise using <a href='#doc:first'>first</a>, or <a href='#doc:last'>last</a>.
+	Even methods that return scalar values (like <a href='#doc:width'>width</a> or <a href='#doc:height'>height</a>) 
 	will return a set of values (one for each node in the source set), and if there is only one, you access it using <a href="#doc:first">first</a>.
-	<p>One of my big frustrations with jQuery is having to do stuff like this:
-	<pre>
-	jQuery("div").map(function() {
-		return $(this).html()
-	})</pre>
-	<p>Using BlingJS, this is equivalent to:
-	<pre>Bling("div").html()</pre>
-	<p>And, in the opposite direction:
-	<pre>
-	jQuery("div").html() 
-	=== Bling("div").html().first()</pre>
 
 	<a name="set" />
 	<h4>Set Operations</h4>
 
-	<p>In order to make this set-focused philosophy work, a few core tools are needed. We highlight only two here, but there are many more, please do browse the <a href="html/doc.html">Full API</a>.
+	<p>In order to make this set-focused philosophy work, a few core tools are provided.
 
 	<a name="zip" />
 	<h5>Zip</h5>
-	<p>The <a href='#doc:zip'>zip</a> operation selects of list of properties from a set of elements.  Think of <a href='#doc:zip'>zip</a> as being similar to a SELECT query in SQL.
-	<p>The expression:
+	<p>The <a href='#doc:zip'>zip</a> operation selects an array of property values from a set of objects.
+	<p>The expression...
 	<pre>
 	$("div").zip("style")</pre>
-	<p>Will select a list of StyleDeclaration objects, one for each div on the page.
-	<p>You can also zip compound names in order to extract precise information from a set.
+	<p>...will return a list of StyleDeclaration objects, one for each div on the page.
+	<p>You can also zip compound names in order to extract properties of properties.
 	<pre>
 	$("div").zip("style.setProperty")</pre>
 
-	<p>Not only does the compound form allow for precise extraction, but the above example also demonstrates another useful feature of <a href='#doc:zip'>zip</a>:
+	<p>The above example also demonstrates another useful feature of <a href='#doc:zip'>zip</a>:
 	<blockquote>When <a href='#doc:zip'>zip</a> selects a function, it is bound to the object it is selected from.</blockquote>
-	<p>What this means is that when you <code>.zip("style.setProperty")</code> you get back a set of functions, and when you call these functions directly, it is as if you were calling: <code>div.style.setProperty()</code>.
-	<p>In other words, the <code>this</code> value inside each returned function, will be a reference to the original <code>style</code> from which <code>setProperty</code> was extracted.
+	<p>What this means is that when you call <code>.zip("style.setProperty")</code> you get back a set of functions and call them directly, it is the same as calling <code>div.style.setProperty()</code> directly on each div.
 	<p>The <a href='#doc:call'>call</a> operation exists in order to call all the functions in the set with the same arguments.
 
 	<p>If you specify multiple columns, you get a list of simple objects with only the desired fields.
@@ -283,7 +275,6 @@
 	<pre>
 	$("span").take(3).zap("style.color",
 		["red", "green", "blue"])</pre>
-	<p>If you use <a href='#doc:zap'>zap</a> this way, you must make sure you have enough values for how many elements you select.
 
 	<a name="html" />
 	<h4>Html Operations</h4>

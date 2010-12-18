@@ -108,20 +108,16 @@
 
 				setTimeout(function () {
 					if( name = $.plugin.s[i++] ) {
-						var h3 = $.synth("li.module span '"+name+"' + ol.apilist"), // a.toggle.small[name="+name+"][href=#"+name+"] 'Toggle'"),
+						var h3 = $.synth("li.module span '"+name+"' + ol.apilist"),
 							docs = $.doc.module(name, funcTemplate)
 						h3.find("ol.apilist").append(docs)
 						$docroot.append(h3)
-						// update progress bar
-						progressBar.update(i/$.plugin.s.length)
+						progressBar.zip('update').call(i/$.plugin.s.length)
 						setTimeout(arguments.callee, 0)
 					} else {
-						progressBar.update(1.0)
-						// rebuild the item list
-						$items = $("ol#docroot li")
-						// fade the docs in 
+						progressBar.zip('update').call(1.0)
+						$items = $("ol#docroot li") // rebuild 
 						$docroot.fadeIn(function() {
-							// read the #hash and scroll there
 							var hash = window.location.hash
 							if( hash )
 								$("a[name='"+hash.substr(1)+"']").zip('scrollIntoView').call()

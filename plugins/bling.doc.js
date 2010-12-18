@@ -1,7 +1,7 @@
 (function($) {
 
 	Function.PrettyPrint = (function() {
-		// closure scope:
+		// in the closure scope:
 		var operators = /!==|!=|!|\#|\%|\%=|\&|\&\&|\&\&=|&=|\*|\*=|\+|\+=|-|-=|->|\.{1,3}|\/|\/=|:|::|;|<<=|<<|<=|<|===|==|=|>>>=|>>=|>=|>>>|>>|>|\?|@|\[|\]|}|{|\^|\^=|\^\^|\^\^=|\|=|\|\|=|\|\||\||~/g,
 			keywords = /\b[Ff]unction\b|\bvar\b|\.prototype\b|\.__proto__\b|\bString\b|\bArray\b|\bNumber\b|\bObject\b|\bbreak\b|\bcase\b|\bcontinue\b|\bdelete\b|\bdo\b|\bif\b|\belse\b|\bfinally\b|\binstanceof\b|\breturn\b|\bthrow\b|\btry\b|\btypeof\b|\btrue\b|\bfalse\b/g,
 			singleline_comment = /\/\/.*?(?:\n|$)/,
@@ -26,8 +26,8 @@
 		function extract_quoted(s) {
 			var i = 0, n = s.length, ret = [],
 				j = -1, k = -1, q = null
-			if( ! isString(s) )
-				if( ! isFunc(s.toString) )
+			if( ! Object.IsString(s) )
+				if( ! Object.IsFunc(s.toString) )
 					throw TypeError("invalid string argument to extract_quoted")
 				else {
 					s = s.toString()
@@ -77,11 +77,11 @@
 			return ret
 		}
 		return function prettyPrint(js, colors) {
-			if( isFunc(js) )
+			if( Object.IsFunc(js) )
 				js = js.toString()
-			if( ! isString(js) )
+			if( ! Object.IsString(js) )
 				throw TypeError("prettyPrint requires a function or string to format, not '"+typeof(js)+"'")
-			if( Bling("style#pp-injected").length === 0 ) {
+			if( $("style#pp-injected").length === 0 ) {
 				var i, css = "code.pp .bln { font-size: 17px; } "
 				colors = Object.Extend({
 					opr: "#880",
@@ -93,14 +93,14 @@
 				}, colors)
 				for( i in colors )
 					css += "code.pp ."+i+" { color: "+colors[i]+"; }"
-				Bling("head").append(Bling.synth("style#pp-injected").text(css))
+				$("head").append($.synth("style#pp-injected").text(css))
 			}
 			return "<code class='pp'>"+
 				// extract comments
-				Bling(extract_comments(js))
+				$(extract_comments(js))
 					.fold(function(text, comment) {
 						// extract quoted strings
-						return Bling(extract_quoted(text))
+						return $(extract_quoted(text))
 							.fold(function(code, quoted) {
 								// label number constants
 								return (code
@@ -204,11 +204,11 @@
 			key = keys[i],
 			val = x[key]
 
-			if( isObject(val) ) {
+			if( Object.IsObject(val) ) {
 				// recurse
-				arguments.callee(key.charAt(0) == '$' ? 'Bling.' + key.substr(1) : name + "." + key, val, visit)
-			} else if( isFunc(val) ) {
-				visit(key.charAt(0) == '$' ? 'Bling.' + key.substr(1) : name + "." + key, val)
+				arguments.callee(key.charAt(0) == '$' ? '$.' + key.substr(1) : name + "." + key, val, visit)
+			} else if( Object.IsFunc(val) ) {
+				visit(key.charAt(0) == '$' ? '$.' + key.substr(1) : name + "." + key, val)
 			}
 		}
 	}
@@ -220,7 +220,7 @@
 					var ret = $([])
 					if( ! func_template )
 						func_template = $.synth("li a[href=api:%(reference)s] '%(definition)s' + div '%(description)s' + div '%(examples)s'")
-					walk("Bling.prototype", Bling.plugin.s[name], function visit(name, f) {
+					walk("Bling.prototype", $.plugin.s[name], function visit(name, f) {
 						var text = Function.PrettyPrint(f),
 							nodes = $(text),
 							examples = getExamples(nodes),

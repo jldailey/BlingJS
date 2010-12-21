@@ -6,7 +6,6 @@
  * Blame: Jesse Dailey <jesse.dailey@gmail.com>
  */
 
-
 /** Bling, the "constructor".
  * -----------------------
  * Bling(selector, context):
@@ -40,6 +39,12 @@ function Bling (selector, context) {
 
 		if( selector[0] === "<" )
 			set = [Bling.HTML.parse(selector)]
+		else if( context.querySelectorAll )
+			try {
+				set = context.querySelectorAll(selector)
+			} catch ( err ) {
+				throw Error("invalid selector: " + selector, err)
+			}
 		else if( Object.IsBling(context) )
 			// search every item in the context
 			set = context.reduce(function(a, x) {
@@ -49,12 +54,6 @@ function Bling (selector, context) {
 					a.push(s[i])
 				return a
 			}, [])
-		else if( context.querySelectorAll )
-			try {
-				set = context.querySelectorAll(selector)
-			} catch ( err ) {
-				throw Error("invalid selector: " + selector, err)
-			}
 		else throw Error("invalid context: " + context)
 	}
 	else
@@ -198,7 +197,7 @@ Object.Extend(Function, {
 	Bound: function (f, t, args) {
 		// Function.Bound(/f/, /t/) - whenever /f/ is called, _this_ === /t/
 		function r() { return f.apply(t, args ? args: arguments) }
-		r.toString = function() { return "bound-method of "+t+"."+f.name+"(...) { [code] }" }
+		r.toString = function() { return "bound-method of "+t+"."+f.name }
 		return r
 		/* Example:
 			> var log = window.console ? Function.Bound(console.log, console) 
@@ -212,7 +211,8 @@ Object.Extend(Function, {
 	 */
 	Trace: function (f, label) {
 		function r() {
-			console.log(label ? label : f.name, Array.Slice(arguments, 0))
+			console.log(label ? label : "" + (this.name ? this.name : this) + "." + f.name,
+				Array.Slice(arguments, 0))
 			return f.apply(this, arguments)
 		}
 		r.toString = function() { return f.toString() }
@@ -231,8 +231,6 @@ Object.Extend(Function, {
 	ToString: function (x) { return Object.prototype.toString.apply(x) },
 	Px: function (d) { return function() { return Number.Px(this,d) } }
 })
-var console = console || {}
-console.log = console.log || Function.Empty
 
 /* Array Extensions
  * ---------------- */
@@ -285,14 +283,28 @@ Object.Extend(String, {
 		return s
 	},
 	Splice: function splice(s, i, j, n) {
-		// String.Splice(start, length, ...) - replace a substring with ...
-		return s.substring(0,i) + n + s.substring(j)
+		// String.Splice(string, start, end, ...) - replace a substring with ...
+		var nn = s.length,
+			end = j == null ? nn
+				: j < 0 ? nn + j
+				: j,
+			start = i == null ? 0
+				: i < 0 ? nn + i
+				: i
+		return s.substring(0,start) + n + s.substring(end)
 	}
 })
 
 // move into a safer namespace
 // so we can use shorthand in making our initial plugins
 ;(function ($) {
+
+	// string constants for re-use
+	var commasep = ", ",
+		commasep_re = /, */,
+		space = " ",
+		matchesSelector = "webkitMatchesSelector",
+		object_cruft = /\[object (\w+)\]/
 
 	/** $.plugin adds a new plugin to the library.
 	 * @param {Function} constructor the closure to execute to get a copy of the plugin
@@ -328,7 +340,7 @@ Object.Extend(String, {
 			// always fire in the order they were scheduled
 			this.queue = []
 			// next() consumes the next handler on the queue
-			this.next = Function.Bound(function() {
+			this.next = Function.Bound(function tqnext() {
 				// consume all 'due' handlers
 				if( this.queue.length > 0 )
 					// shift AND call
@@ -344,10 +356,16 @@ Object.Extend(String, {
 				if( nn === 0 || f.order > this.queue[nn-1].order ) {
 					this.queue[nn] = f
 				} else { // search the queue for the sorted position to insert f
+					var inserted = false
 					for( var i = 0; i < nn; i++) { // find i such that
 						if( this.queue[i].order > f.order ) { // i is the first item > f
 							this.queue.splice(i,0,f) // insert f before i
+							inserted = true
+							break
 						}
+					}
+					if( ! inserted ) { 
+						this.queue.push(f)
 					}
 				}
 				setTimeout(this.next, n)
@@ -377,7 +395,7 @@ Object.Extend(String, {
 			each: function each(f) {
 				// .each(/f/) - apply function /f/ to every item /x/ in _this_.
 				var i = -1,
-					n = this.len(),
+					n = this.length,
 					t = null
 				while( ++i < n ) {
 					t = this[i]
@@ -395,24 +413,14 @@ Object.Extend(String, {
 				// .map(/f/) - collect /f/.call(/x/, /x/) for every item /x/ in _this_.
 				var n = this.len(),
 					a = $(n),
-					i = 0, t = null,
-					can_call = true
+					i = 0, t = null
 				a.context = this
 				a.selector = f
 				for(; i < n; i++ ) {
 					t = this[i]
-					if( can_call ) {
-						try { a[i] = f.call(t, t) }
-						catch( e ) {
-							if( Object.IsType(e, TypeError) ) {
-								can_call = false
-								i-- // redo this iteration
-							}
-							else a[i] = e
-						}
-					} else try {
-						a[i] = f(t)
-					} catch( e ) {
+					try { a[i] = f.call(t, t) }
+					catch( e ) {
+						console.log(".map() error: ", e)
 						a[i] = e
 					}
 				}
@@ -469,21 +477,20 @@ Object.Extend(String, {
 				*/
 			},
 
-			union: function union(other) {
+			union: function union(other, strict) {
 				// .union(/other/) - collect all /x/ from _this_ and /y/ from _other_.
 				// no duplicates, use concat if you want to preserve dupes
 				var ret = $(),
-					i = 0, j = 0, x = null
+					i,j,x = i = j = 0
 				ret.context = this.context
 				ret.selector = this.selector
-				this.each(function() {
-					ret[i++] = this
-				})
-				while(x = other[j++]) {
-					if( ! ret.contains(x) ) {
+				while(x = this[j++])
+					if( ! ret.contains(x, strict) ) // TODO: could speed this up by inlining contains
 						ret[i++] = x
-					}
-				}
+				j = 0
+				while(x = other[j++])
+					if( ! ret.contains(x, strict) )
+						ret[i++] = x
 				return ret
 				/* Example:
 					> $([1, 2, 3]).union([3, 4, 5])
@@ -512,18 +519,18 @@ Object.Extend(String, {
 				*/
 			},
 
-			distinct: function distinct() {
+			distinct: function distinct(strict) {
 				// .distinct() - return a copy of _this_ without duplicates.
-				return this.union(this)
+				return this.union(this, strict)
 				/* Example:
 					> $([1, 2, 1, 3]).distinct()
 					> == $([1,2,3])
 				*/
 			},
 
-			contains: function contains(item) {
+			contains: function contains(item, strict) {
 				// .contains(/x/) - true if /x/ is in _this_, false otherwise.
-				return this.count(item) > 0
+				return this.count(item, strict) > 0
 				/* Example:
 					> $("body").contains(document.body)
 					> == true
@@ -533,8 +540,8 @@ Object.Extend(String, {
 			count: function count(item, strict) {
 				// .count(/x/) - returns the number of times /x/ occurs in _this_.
 				var undefined // an extra careful check here
-				// since we want to be able to search for null values,
-				// but if you just call .count(), it returns the total
+				// since we want to be able to search for null values with .count(null)
+				// but if you just call .count(), it returns the total length
 				if( item === undefined ) 
 					return this.len()
 				var ret = 0
@@ -603,7 +610,8 @@ Object.Extend(String, {
 
 					> $("pre").first(1)
 					>		.zip("getAttribute")
-					> == $(["bound-method getAttribute of HTMLPreElement"])
+					>		.toString()
+					> == "$([bound-method of HTMLPreElement.getAttribute])"
 
 					See: .call() for how to use a set of methods quickly.
 
@@ -664,8 +672,8 @@ Object.Extend(String, {
 				// .skip([/n/]) - collect all but the first /n/ elements of _this_.
 				// if n == 0, returns a shallow copy of the whole bling
 				n = Math.min(this.len(), Math.max(0, (n|0)))
-				var a = $( n ),
-					i = 0, nn = this.len() - n
+				var i = 0, nn = this.len() - n,
+					a = $( nn )
 				a.context = this.context
 				a.selector = this.selector
 				for(; i < nn; i++)
@@ -717,7 +725,7 @@ Object.Extend(String, {
 					return j + sep + this
 				})
 				/* Example:
-					> $([1, 2, 3, 4, 5]).join(", ")
+					> $([1, 2, 3, 4, 5]).join(commasep)
 					> == "1, 2, 3, 4, 5"
 				*/
 			},
@@ -748,7 +756,7 @@ Object.Extend(String, {
 				var i = this.len() - 1,
 					j = -1,
 					n = b.length
-				while( j < n )
+				while( j < n-1 )
 					this[++i] = b[++j]
 				return this
 				/* Example:
@@ -768,7 +776,7 @@ Object.Extend(String, {
 				// or if f is a selector string, collects nodes that match the selector
 				// or if f is a RegExp, collect nodes where f.test(x) is true
 				var i = 0, j = -1, n = this.length,
-					b = $(n), it = null
+					b = $(), it = null
 				b.context = this
 				b.selector = f
 				for(; i < n; i++ ) {
@@ -805,13 +813,11 @@ Object.Extend(String, {
 					return this.map(function() {
 						return expr.test(this)
 					})
-				if( Object.IsString(expr) && this.webkitMatchesSelector )
-					return this.map(function() {
-						return this.webkitMatchesSelector(expr)
-					})
+				if( Object.IsString(expr) )
+					return this.zip(matchesSelector).call(expr)
 				else
 					return this.map(function() {
-						return false
+						return undefined
 					})
 				/* Example:
 					> $("pre").matches(".prettyprint")
@@ -945,8 +951,8 @@ Object.Extend(String, {
 					+this.map(function(){
 						return this === undefined || this === window ? "undefined"
 							: this === null ? "null"
-							: this.toString().replace(/\[object (\w+)\]/,"$1")
-					}).join(", ")
+							: this.toString().replace(object_cruft,"$1")
+					}).join(commasep)
 					+"])"
 				/* Example:
 					> $("body").toString()
@@ -1023,25 +1029,34 @@ Object.Extend(String, {
 				: Object.IsString(x) ? $(x).toFragment()
 				: Object.IsFunc(x.toString) ? $(x.toString()).toFragment()
 				: undefined
+			/*
 			// TODO: consider removing... not super useful and in the middle of a very central operation
 			$.nextguid = $.nextguid || 1
 			if( ret && ret.guid == null )
 				ret.guid = $.nextguid++
+				*/
 			return ret
 		}
 		// a helper that will recursively clone a sub-tree of the DOM
-		function deepClone(node) {
-			var n = node.cloneNode()
-			for(var i = 0; i < node.childNodes.length; i++) {
-				var c = n.appendChild(deepClone(node.childNodes[i]))
-				c.parentNode = n // just make sure
+		function deepClone(node) { // TODO: check for support for .cloneNode(deep=true)
+			var n = node.cloneNode(), i = 0,
+				nn = node.childNodes.length
+			for(; i < nn; i++) {
+				n.appendChild(deepClone(node.childNodes[i]))
 			}
 			return n
 		}
 		// make a #text node, for escapeHTML
 		var escaper = null
-		// for work inside .css
-		var webkit_re = /^-webkit-/
+
+		function getCSSProperty(k) {
+			// window.getComputeStyle is not a normal function
+			// (it doesnt support .call() so we can't use it with .map())
+			// so define something that does work right for use in .css
+			return function() {
+				window.getComputedStyle(this, null).getPropertyValue(k)
+			}
+		}
 
 		return {
 			$HTML: {
@@ -1049,14 +1064,17 @@ Object.Extend(String, {
 				parse: function parse(h) {
 					// $.HTML.parse(/h/) - parse the html in string h, return a Node.
 					// will return a DocumentFragment if not well-formed.
-					var d = document.createElement("body"),
+					var d = document.createElement("html"),
 						df = document.createDocumentFragment()
 					d.innerHTML = h
-					var n = d.childNodes.length
+					// since d is an "html" node, it always has two children, head and body
+					var node = d.childNodes[1],
+						childNodes = node.childNodes,
+						n = childNodes.length
 					if( n === 1 )
-						return d.removeChild(d.childNodes[0])
+						return node.removeChild(childNodes[0])
 					for(var i = 0; i < n; i++)
-						df.appendChild(d.removeChild(d.childNodes[0]))
+						df.appendChild(node.removeChild(childNodes[0]))
 					return df
 				},
 				stringify: function stringify(n) {
@@ -1091,13 +1109,14 @@ Object.Extend(String, {
 						var d = document.createElement("div")
 						d.style.display = 'none'
 						d.style.color = css
-						$(document.body).append(d)
+						var $d = $(d).appendTo(document.body)
 						var rgb = window.getComputedStyle(d,null).getPropertyValue('color')
-						$(d).remove()
+						$d.remove()
 						if( rgb ) {
 							// grab between the parens
 							rgb = rgb.slice(rgb.indexOf('(')+1, rgb.indexOf(')'))
-								.split(", ") // make an array
+								// then make an array
+								.split(commasep_re)
 							if( rgb.length === 3 )
 								rgb[3] = "1.0"
 							// return floats
@@ -1119,7 +1138,7 @@ Object.Extend(String, {
 						var r = t.map(Function.UpperLimit(255))
 							.map(Function.LowerLimit(0))
 						r[3] = Math.min(1, r[3])
-						return "rgba(" + r.join(", ") + ")"
+						return "rgba(" + r.join(commasep) + ")"
 					}
 					// accept either a $ of $s
 					// or a single $ of numbers
@@ -1297,9 +1316,9 @@ Object.Extend(String, {
 				// .addClass(/x/) - add x to each node's .className
 				// remove the node and then add it to avoid dups
 				return this.removeClass(x).each(function() {
-					var c = this.className.split(" ").filter(function(y){return y && y != ""})
+					var c = this.className.split(space).filter(function(y){return y && y != ""})
 					c.push(x) // since we dont know the len, its still faster to push, rather than insert at len()
-					this.className = c.join(" ")
+					this.className = c.join(space)
 				})
 			},
 
@@ -1307,7 +1326,7 @@ Object.Extend(String, {
 				// .removeClass(/x/) - remove class x from each node's .className
 				var notx = function(y){ return y != x }
 				return this.each(function() {
-					this.className = this.className.split(" ").filter(notx).join(" ")
+					this.className = this.className.split(space).filter(notx).join(space)
 				})
 			},
 
@@ -1315,12 +1334,12 @@ Object.Extend(String, {
 				// .toggleClass(/x/) - add, or remove if present, class x from each node
 				function notx(y) { return y != x }
 				return this.each(function(node) {
-					var cls = node.className.split(" ")
+					var cls = node.className.split(space)
 					if( cls.indexOf(x) > -1 )
-						node.className = cls.filter(notx).join(" ")
+						node.className = cls.filter(notx).join(space)
 					else {
 						cls.push(x)
-						node.className = cls.join(" ")
+						node.className = cls.join(space)
 					}
 				})
 			},
@@ -1328,7 +1347,7 @@ Object.Extend(String, {
 			hasClass: function hasClass(x) {
 				// .hasClass(/x/) - true/false for each node: whether .className contains x
 				// note: different from jQuery, we always return sets when possible
-				return this.zip('className.split').call(" ")
+				return this.zip('className.split').call(space)
 					.zip('indexOf').call(x)
 					.map(Function.IndexFound)
 			},
@@ -1353,23 +1372,6 @@ Object.Extend(String, {
 				if( Object.HasValue(v) || Object.IsObject(k) ) {
 					var setter = this.zip('style.setProperty')
 					
-					// HACK: so... this would be a prime where we could slow down all browsers
-					// in order to support more than just webkit... testing is needed to
-					// know the true cost, .css() is a very central function
-					/* DISABLED:
-					setter = setter.map(function(){
-						var set = Function.Trace(this, 'setProperty')
-						return function(k,v) {
-							if( webkit_re.test(k) ) {
-								set(k.replace(webkit_re, '-moz-'), v)
-								set(k.replace(webkit_re, '-o-'), v)
-								set(k.replace(webkit_re, ''), v)
-							}
-							set(k,v)
-						}
-					})
-					*/
-
 					if( Object.IsString(k) )
 						setter.call(k, v) // if v is present set the value on each element
 					else for(var x in k)
@@ -1377,7 +1379,7 @@ Object.Extend(String, {
 					return this
 				}
 				// collect the computed values
-				var cv = this.map(window.getComputedStyle).zip('getPropertyValue').call(k)
+				var cv = this.map(getCSSProperty(k))
 				// collect the values specified directly on the node
 				var ov = this.zip('style').zip(k)
 				// weave and fold them so that object values override computed values
@@ -1387,15 +1389,6 @@ Object.Extend(String, {
 
 				> $("body").css({color: "white", "background-color": "black"})
 
-				Special Sauce: Any property that begins with -webkit-, gets cloned like so:
-
-				> $("button").css("-webkit-border-radius", "5px")
-				> == $("button").css({
-				>		"-webkit-border-radius": "5px",
-				>		"-moz-border-radius": "5px",
-				>		"-o-border-radius": "5px",
-				>		"border-radius": "5px"
-				> })
 				*/
 			},
 
@@ -1434,7 +1427,8 @@ Object.Extend(String, {
 			},
 			width: function width(w) {
 				// .width([w]) - get [or set] each node's width value
-				return this.rect().zip('width')
+				return  w == null ? this.rect().zip('width')
+					: this.css("width", w)
 			},
 			height: function height(h) {
 				// .height([h]) - get [or set] each node's height value
@@ -1472,17 +1466,17 @@ Object.Extend(String, {
 				// .center([mode]) - move the elements to the center of the screen
 				// mode is "viewport" (default), "horizontal" or "vertical"
 				mode = mode || "viewport"
-				var vh = document.body.clientHeight/2,
-					vw = document.body.clientWidth/2
+				var vh = document.body.scrollLeft + (document.body.clientHeight/2),
+					vw = document.body.scrollTop + (document.body.clientWidth/2)
 				return this.each(function() {
 					var t = $(this),
 						h = t.height().floats().first(),
 						w = t.width().floats().first(),
 						x = (mode === "viewport" || mode === "horizontal"
-							? document.body.scrollLeft + vw - (w/2)
+							? vw - (w/2)
 							:  NaN),
 						y = (mode === "viewport" || mode === "vertical"
-							? document.body.scrollTop + vh - (h/2)
+							? vh - (h/2)
 							: NaN)
 					t.css({ position: "absolute",
 						left: (Object.IsNumber(x) ? x+"px" : undefined),
@@ -1553,7 +1547,7 @@ Object.Extend(String, {
 
 			parents: function parents() {
 				// .parents() - collects the full ancestry up to the owner
-				return this.map(function() {
+				return this.map(function inparents() {
 					var b = $(), j = -1,
 						p = this
 					while( p = p.parentNode )
@@ -1564,7 +1558,7 @@ Object.Extend(String, {
 
 			prev: function prev() {
 				// .prev() - collects the full chain of .previousSibling nodes
-				return this.map(function() {
+				return this.map(function inprev() {
 					var b = $(), j = -1,
 						p = this
 					while( p = p.previousSibling )
@@ -1575,10 +1569,10 @@ Object.Extend(String, {
 
 			next: function next() {
 				// .next() - collects the full chain of .nextSibling nodes
-				return this.map(function() {
+				return this.map(function innext() {
 					var b = $(), j = -1,
 						p = this
-					while( p = p.previousSibling )
+					while( p = p.nextSibling )
 						b[++j] = p
 					return b
 				})
@@ -1596,7 +1590,7 @@ Object.Extend(String, {
 			find: function find(expr) {
 				// .find(expr) - collects nodes matching expr, using each node in this as context
 				return this.filter("*") // limit to only nodes
-					.map(function() { return $(expr, this) })
+					.map(function infind() { return $(expr, this) })
 					.flatten()
 			},
 
@@ -1640,11 +1634,11 @@ Object.Extend(String, {
 		}
 	})
 
-	$.plugin(function Math() {
+	$.plugin(function Maths() {
 		return {
 			floats: function floats() {
 				// .floats() - parseFloat(/x/) for /x/ in _this_
-				return this.map(function() {
+				return this.map(function infloats() {
 					if( Object.IsBling(this) ) return this.floats()
 					return parseFloat(this)
 				})
@@ -1728,10 +1722,11 @@ Object.Extend(String, {
 	$.plugin(function Event() {
 
 		function binder(e) {
-			// eval is evil! but there is no other way to set a function's name, and the generated docs need a name
-			// also, we have to be even slightly more evil, to prevent the jsc compiler from mangling local names like f
-			eval("var f = function "+e+"(f) { // ."+e+"([f]) - trigger [or bind] the '"+e+"' event \nreturn Object.IsFunc(f) ? this.bind('"+e+"',f) : this.trigger('"+e+"', f ? f : {}) }")
-			return eval("f")
+			// eval is evil! but there is no other way to set a function's name programmatically, 
+			// and the generated docs need a name
+			// also, we have to be even slightly more evil, to prevent the jsc compiler from mangling local names like g
+			eval("var g = function "+e+"(f) { // ."+e+"([f]) - trigger [or bind] the '"+e+"' event \nreturn Object.IsFunc(f) ? this.bind('"+e+"',f) : this.trigger('"+e+"', f ? f : {}) }")
+			return eval("g")
 		}
 
 		function register_live(selector, context, e, f, h) {
@@ -1768,7 +1763,6 @@ Object.Extend(String, {
 			}
 		}, 0)
 
-		var comma_sep = /, */
 
 		return {
 			bind: function bind(e, f) {
@@ -1776,7 +1770,7 @@ Object.Extend(String, {
 				// e is a string like 'click', 'mouseover', etc.
 				// e can be comma-separated to bind multiple events at once
 				var i = 0,
-					c = (e||"").split(comma_sep),
+					c = (e||"").split(commasep_re),
 					n = c.length
 				return this.each(function() {
 					for(; i < n; i++) {
@@ -1789,7 +1783,7 @@ Object.Extend(String, {
 				// .unbind(e, [f]) - removes handler f from event e
 				// if f is not present, removes all handlers from e
 				var i = 0,
-					c = (e||"").split(comma_sep),
+					c = (e||"").split(commasep_re),
 					n = c.length
 				return this.each(function() {
 					for(; i < n; i++) {
@@ -1801,7 +1795,7 @@ Object.Extend(String, {
 			once: function once(e, f) {
 				// .once(e, f) - adds a handler f that will be called only once
 				var i = 0,
-					c = (e||"").split(comma_sep),
+					c = (e||"").split(commasep_re),
 					n = c.length
 				for(; i < n; i++) {
 					this.bind(c[i], function(evt) {
@@ -1817,7 +1811,7 @@ Object.Extend(String, {
 				// the next trigger will call the first handler again
 				var j = 0,
 					funcs = Array.Slice(arguments, 1, arguments.length),
-					c = (e||"").split(comma_sep),
+					c = (e||"").split(commasep_re),
 					ne = c.length,
 					nf = funcs.length
 				function cycler() {
@@ -1839,7 +1833,7 @@ Object.Extend(String, {
 				//   {screenX: 10, screenY: 10}
 				// note: not all browsers support manually creating all event types
 				var e, i = 0,
-					evts = (evt||"").split(comma_sep),
+					evts = (evt||"").split(commasep_re),
 					n = evts.length,
 					evt_i = null
 				args = Object.Extend({
@@ -2063,8 +2057,8 @@ Object.Extend(String, {
 	})
 
 	$.plugin(function Transform() {
-		// the regex that matches all the accelerated css property names
-		var accel_props_re = /(?:scale|translate|rotate|scale3d|translateX|translateY|translateZ|translate3d|rotateX|rotateY|rotateZ|rotate3d)/
+		// matches all the accelerated css property names
+		var accel_props_re = /(?:scale|translate|rotate|scale3d|translate[XYZ]|translate3d|rotate[XYZ]|rotate3d)/
 
 		var speeds = {
 			"slow": 700,
@@ -2075,6 +2069,12 @@ Object.Extend(String, {
 			"now": 0
 		}
 
+		// static strings for re-use
+		var transformCSS = "-webkit-transform",
+			transitionProperty = "-webkit-transition-property",
+			transitionDuration = "-webkit-transition-duration",
+			transitionEasing = "-webkit-transition-easing"
+
 		/// Transformation Module: provides wrapper for using -webkit-transform ///
 		return {
 			$duration: function duration(speed) {
@@ -2084,7 +2084,7 @@ Object.Extend(String, {
 
 			// like jquery's animate(), but using only webkit-transition/transform
 			transform: function transform(end_css, speed, callback) {
-				// .transform(css, [/s/], [/cb/]) - animate css properties on each node
+				// .transform(cssobject, [/speed/], [/callback/]) - animate css properties on each node
 				// animate css properties over a duration
 				// accelerated: scale, translate, rotate, scale3d,
 				// ... translateX, translateY, translateZ, translate3d,
@@ -2105,10 +2105,10 @@ Object.Extend(String, {
 					if( accel_props_re.test(i) ) {
 						ii = end_css[i]
 						if( ii.join )
-							ii = ii.join(", ")
+							ii = ii.join(commasep)
 						else if( ii.toString )
 							ii = ii.toString()
-						trans += " " + i + "(" + ii + ")"
+						trans += space + i + "(" + ii + ")"
 					}
 					else // stick real css values in the css dict
 						css[i] = end_css[i]
@@ -2117,19 +2117,19 @@ Object.Extend(String, {
 					props[j++] = i
 				// and include -webkit-transform if we have transform values to set
 				if( trans )
-					props[j++] = "-webkit-transfrom"
+					props[j++] = transformCSS
 
 				// apply the duration (TODO: and easing)
-				// set which properties to apply a duration to
-				css['-webkit-transition-property'] = props.join(', ')
+				// sets a list of properties to apply a duration to
+				css[transitionProperty] = props.join(commasep)
 				// apply the same duration to each property
-				css['-webkit-transition-duration'] =
+				css[transitionDuration] =
 					props.map(function() { return duration + "ms" })
-						.join(', ')
+						.join(commasep)
 
 				// apply the transformation
 				if( trans )
-					css['-webkit-transform'] = trans
+					css[transformCSS] = trans
 				// apply the css to the actual node
 				this.css(css)
 				// queue the callback to be executed at the end of the animation
@@ -2157,15 +2157,40 @@ Object.Extend(String, {
 				}).future(50, callback)
 			},
 
+			visible: function visible() {
+				var y, x = y = null, // find the nodes that enforce overflow cutoffs
+					p = this.parents().map(function (parents) {
+						var i = -1, n = parents.length;
+						while( ++i < n ) {
+							var pp = $(parents[i])
+							if( pp[0] === document ) {
+								x = x || document
+								y = y || document
+							} else {
+								if( pp.css("overflow-x").first() == "hidden" )
+									x = pp
+								if( pp.css("overflow-y").first() == "hidden" )
+									y = pp
+								if(x && y)
+									break
+							}
+						}
+						return $([x,y])
+					})
+				return p
+			},
+
 			toggle: function toggle(callback) {
 				// .toggle() - show each hidden node, hide each visible one
 				this.weave(this.css("display"))
 					.fold(function(display, node) {
 						if( display === "none" ) {
-							node.style.display = node._old_display ? node._old_display : "block"
-							delete node._old_display
+							console.log("new display:", (node._display || ""))
+							node.style.display = node._display || ""
+							delete node._display
 						} else {
-							node._old_display = display
+							console.log("display:", display)
+							node._display = display
 							node.style.display = "none"
 						}
 						return node
@@ -2411,7 +2436,7 @@ Object.Extend(String, {
 						output[j++] = parseFloat(value).toFixed(fixed)
 						break
 					// output unsupported formats like %s strings
-					// TODO: add support for more types
+					// TODO: add support for more formats
 					case 's':
 					default:
 						output[j++] = "" + value
@@ -2467,11 +2492,11 @@ Object.Extend(String, {
 					mode = IDMODE
 				else if( c === '.' && (mode === TAGMODE || mode === IDMODE || mode === ATTRMODE) ) {
 					if( cls.length > 0 )
-						cls += " "
+						cls += space
 					mode = CLSMODE
 				}
 				else if( c === '.' && cls.length > 0 )
-					cls += " "
+					cls += space
 				else if( c === '[' && (mode === TAGMODE || mode === IDMODE || mode === CLSMODE || mode === ATTRMODE) )
 					mode = ATTRMODE
 				else if( c === '=' && (mode === ATTRMODE))
@@ -2490,13 +2515,13 @@ Object.Extend(String, {
 					emitText()
 				else if( c === "'" && mode === STEXTMODE )
 					emitText()
-				else if( (c === ' ' || c === ',') && (mode !== VALMODE && mode !== ATTRMODE) && tagname.length > 0 ) {
+				else if( (c === space || c === ',') && (mode !== VALMODE && mode !== ATTRMODE) && tagname.length > 0 ) {
 					emitNode()
 					if( c == ',' )
 						parent = null
 				}
 				else if( mode === TAGMODE )
-					tagname += c != ' ' ? c : ''
+					tagname += c != space ? c : ''
 				else if( mode === IDMODE ) id += c
 				else if( mode === CLSMODE ) cls += c
 				else if( mode === ATTRMODE ) attr += c

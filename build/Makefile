@@ -16,7 +16,7 @@ compiler.jar: compiler-latest.zip
 	@touch compiler.jar
 
 min.bling.js: ../bling.js compiler.jar
-	$(JAVA) -jar compiler.jar --js=../bling.js --js_output_file=min.bling.js --warning_level=VERBOSE --compilation_level=$(LEVEL)
+	$(JAVA) -jar compiler.jar --js=../bling.js --js_output_file=min.bling.js --warning_level=VERBOSE --compilation_level=$(LEVEL) --externs externs.js
 
 min.bling.js.gz: min.bling.js
 	@gzip -f9c min.bling.js > min.bling.js.gz

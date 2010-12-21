@@ -1,17 +1,688 @@
 
 <html>
 	<head>
-		<script src="bling.js" type="text/javascript"> </script>
 		<meta name="viewport" content="initial-scale=1.0, user-scalable=yes" />
-		<script src="test.bling.js" type="text/javascript"></script>
+		<script src="../bling.js" type="text/javascript"> </script>
 		<style type="text/css">
-		body { overflow: scroll; height: auto }
-		ul { margin:0px; padding:4px 12px; }
-		li { height: 20px; line-height:20px; overflow: hidden; list-style: inside; padding:0px 5px; margin:0px }
-		.pass { background-color: #dfc; }
-		.fail { background-color: #fdc; }
+			body { overflow: scroll; height: auto }
+			ul { margin:0px; padding:4px 12px; }
+			li { height: 20px; line-height:20px; overflow: hidden; list-style: inside; padding:0px 5px; margin:0px }
+			.pass { background-color: #dfc; }
+			.fail { background-color: #fdc; }
+			h4 { margin: 6px 4px; }
 		</style>
+		<script>
+			function assert(cnd, msg) {
+				msg = msg || "no message"
+				if( ! cnd )
+					throw Error("assertion error: "+msg)
+			}
+			function assertEqual(a, b, msg) {
+				msg = " " + (msg || "")
+				assert(a == b, "" + a + " != " + b + msg)
+			}
+			function assertEequal(a, b, msg) {
+				msg = " " + (msg || "")
+				assert(a === b, "" + a + " !== " + b + msg)
+			}
+			function assertArrayEqual(a, b) {
+				assert(Object.IsArray(a), "assertArrayEqual expects two arrays")
+				assert(Object.IsArray(b), "assertArrayEqual expects two arrays")
+				assertEqual(a.length, b.length, "lengths must match, "+a+" != " + b + "")
+				for(var i = 0, n = a.length; i < n; i++) {
+					assertEqual(a[i], b[i], "item "+i+" must match")
+				}
+			}
+
+			Bling.tests = {}
+			Bling.asynctests = {}
+			Bling.tests['Main'] = [
+				function _BlingtoBling() {
+					var b = Bling()
+					assertEequal(Bling(b), b)
+				},
+				function _BlingNull() {
+					var b = Bling(null)
+					assert(Object.IsBling(b))
+					assertEequal(b.length, 0)
+				},
+				function _BlingNumber() {
+					var b = Bling(10)
+					assert(Object.IsBling(b))
+					assert(b.len() == 0)
+					assert(b.length == 10)
+				},
+				function _BlingWindow() {
+					var b = Bling(window)
+					assert(Object.IsBling(b))
+					assert(b[0] === window)
+				},
+				function _BlingBody() {
+					var b = Bling(document.body)
+					assert(Object.IsBling(b))
+					assert(b[0] === document.body)
+				},
+				function _BlingSelector() {
+					var b = Bling("head")
+					assert(Object.IsBling(b))
+					assert(b[0] === document.head)
+				},
+				function _BlingSelectorContext() {
+					var b = Bling("script", Bling("head"))
+					assert(Object.IsBling(b))
+					assert(b[0].nodeName == "SCRIPT")
+				},
+				function _BlingNewHtml() {
+					var b = Bling("<p>")
+					assert(Object.IsBling(b))
+					assertEqual(b.length, 1)
+					assertEqual(b[0].nodeName, "P")
+					assertEqual(b[0].parentNode, null)
+				},
+				function _BlingAnySet() {
+					var b = Bling([1, "a"])
+					assert(Object.IsBling(b))
+					assert(b[0] == 1)
+					assert(b[1] == "a")
+				},
+				function _BlingIsArray() {
+					var b = Bling()
+					assert(Object.IsBling(b))
+					assert(Object.IsArray(b))
+				},
+				function _ObjectIsBling() {
+					var a = {}, b = Bling()
+					assert(!Object.IsBling(a))
+					assert(Object.IsBling(b))
+				},
+				function _ObjectKeys() {
+					var a = {a: 1, b: 2},
+						k = Object.Keys(a)
+					assert(k[0] == "a")
+					assert(k[1] == "b")
+				},
+				function _ObjectExtend() {
+					var a = {a: 1}, b = {b: 2},
+						c = Object.Extend(a, b)
+					assert(c.a == 1)
+					assert(c.b == 2)
+					assert(a.b == 2) // a is edited in place
+					var d = {}, e = Object.Extend(d, c, ["a"])
+					assert(d.a == 1)
+					assert(d.b === undefined)
+				},
+				function _FunctionBound() {
+					var f = function _(x) { return this + x; },
+						g = Function.Bound(f, 42),
+						h = g(12)
+					assert(Object.IsFunc(g))
+					assert(h == 54)
+				},
+				function _ArraySlice() {
+					var a = [0, 1, 2, 3]
+					assertArrayEqual(Array.Slice(a, 0), a)
+					assertArrayEqual(Array.Slice(a, 1, -1), [1, 2])
+					assertArrayEqual(Array.Slice(a, -1), [3])
+				},
+				function _NumberPx() {
+					assertEqual(Number.Px(12, 2), "14px")
+					assertEqual(Number.Px(14), "14px")
+				},
+				function _StringFuncs() {
+					assertEqual(String.PadLeft("foo", 5), "  foo")
+					assertEqual(String.PadRight("foo", 5), "foo  ")
+					assertEqual(String.Splice("foobar", 1, -1, "loo"), "floor")
+				},
+			]
+			Bling.tests['Core'] = [
+				function _each() {
+					var sum = 0;
+					$([1, 2, 3]).each(function() {
+						sum += this
+					})
+					assertEqual(sum, 6)
+				},
+				function _map() {
+					assertArrayEqual($([1, 2, 3]).map(function() {
+						return this * 2
+					}), [2, 4, 6])
+				},
+				function _reduce() {
+					assertEqual($([1, 2, 3]).reduce(function(a, x) {
+						return a + x
+					}), 6)
+				},
+				function _union() {
+					assertArrayEqual($([1,2,3]).union([3,4,5]), [1,2,3,4,5])
+				},
+				function _intersect() {
+					assertArrayEqual($([1,2,3]).intersect([3,4,5]), [3])
+				},
+				function _distinct() {
+					assertArrayEqual($([1,2,2,3,3]).distinct(), [1,2,3])
+				},
+				function _contains() {
+					assert($("body").contains(document.body))
+				},
+				function _count() {
+					assertEqual($([1,2,2,3]).count(2), 2)
+				},
+				function _zip() {
+					assertArrayEqual($(["foo", "bar", "ball"]).zip('length'), [3, 3, 4])
+				},
+				function _zap() {
+					assertArrayEqual($([{}, {}, {}]).zap("a", 1).zip("a"), [1, 1, 1])
+				},
+				function _take() {
+					assertArrayEqual($([1,2,3]).take(2), [1,2])
+				},
+				function _skip() {
+					assertArrayEqual($([1,2,3]).skip(2), [3])
+				},
+				function _first() {
+					assertEqual($([1,2,3]).first(), 1)
+					assertArrayEqual($([1,2,3]).first(2), [1,2])
+				},
+				function _last() {
+					assertEqual($([1,2,3]).last(), 3)
+					assertArrayEqual($([1,2,3]).last(2), [2,3])
+				},
+				function _join() {
+					assertEqual($([1,2,3]).join(", "), "1, 2, 3")
+				},
+				function _slice() {
+					assertArrayEqual($([1,2,3,4]).slice(-1), [4])
+					assertArrayEqual($([1,2,3,4]).slice(1,-1), [2,3])
+					assertArrayEqual($([1,2,3,4]).slice(1), [2,3,4])
+				},
+				function _concat() {
+					assertArrayEqual($([1,2,3]).concat([1,2,3]), [1,2,3,1,2,3])
+				},
+				function _push() {
+					assertArrayEqual($([1,2,3]).push(4), [1,2,3,4])
+				},
+				function _filter() {
+					assertArrayEqual($([1,2,3,4,5]).filter(function() {
+						return ((this % 2) == 0)
+					}), [2,4])
+					assertArrayEqual($("body").push(4).filter("*"), [document.body])
+				},
+				function _matches() {
+					assertArrayEqual($(["foo", "bar", "ball"]).matches(/ba.*/), [false, true, true])
+					assertArrayEqual($("body").matches("body"), [true])
+				},
+				function _weave() {
+					assertArrayEqual($([1,1,1]).weave($([0,0,0])),
+						[0,1,0,1,0,1])
+				},
+				function _fold() {
+					assertArrayEqual($([1,2,3,4,5,6]).fold(function(a,b) {
+						return a + b
+					}), [3, 7, 11])
+				},
+				function _flatten() {
+					assertArrayEqual($([ [1,2], [3,4] ]).flatten(), [1,2,3,4])
+				},
+				function _call() {
+					assertArrayEqual($([1,2,3]).zip('toString').call(), ["1","2","3"])
+				},
+				function _apply() {
+					assertArrayEqual($([Object.prototype.toString, Math.sqrt]).apply(4, [4]), ["[object Number]", 2])
+				},
+				function _toString() {
+					assertEequal($([1,2,3]).toString(), "$([1, 2, 3])")
+				},
+				function _len() {
+					var b = Bling(10)
+					assertEqual(b.len(), 0)
+					b[3] = 1
+					assertEqual(b.len(), 4)
+				},
+			];
+			Bling.tests['HTML'] = [
+				function _parse() {
+					assertEqual(Bling.HTML.parse("<p>").nodeName, "P")
+					assertEqual(Bling.HTML.parse("<p></p><span>").__proto__.constructor.name, "DocumentFragment")
+				},
+				function _stringify() {
+					assertEqual(Bling.HTML.stringify(Bling.HTML.parse("<p>")), "<p></p>")
+				},
+				function _escape() {
+					assertEqual(Bling.HTML.escape("<p>Funk & Wag</p>"),
+						"&lt;p&gt;Funk &amp; Wag&lt;/p&gt;")
+				},
+				function _ColorFromCss() {
+					assertArrayEqual(Bling.Color.fromCss("#fff"), [255, 255, 255, 1])
+				},
+				function _ColorToCss() {
+					assertEqual(Bling.Color.toCss([255,255,255,1]), "rgba(255, 255, 255, 1)")
+				},
+				function _ColorInvert() {
+					assertArrayEqual(Bling.Color.invert([255, 255, 255, 1]), [0, 0, 0, 1])
+				},
+				function _html() {
+					var d = $("<div>")
+					d.html("magic")
+					assertEqual(d[0].innerHTML, "magic")
+					assertArrayEqual(d.html(), ["magic"])
+				},
+				function _append() {
+					var d = $("<div>")
+					assertEqual(d.html().first(), "")
+					d.append("<p>string")
+					assertEqual(d.html().first(), "<p>string</p>")
+					d.html("")
+					d.append($("<p>bling"))
+					assertEqual(d.html().first(), "<p>bling</p>")
+					d.html("")
+					d.append($("<p>node")[0])
+					assertEqual(d.html().first(), "<p>node</p>")
+				},
+				function _appendTo() {
+					var d = $("<div>")
+					$("<p>bling").appendTo(d)
+					assertEqual(d.html().first(), "<p>bling</p>")
+				},
+				function _prepend() {
+					var d = $("<div></div>")
+					d.html("<b>")
+					d.prepend("<p>")
+					assertArrayEqual($(d[0].childNodes).zip('nodeName'), ["P", "B"])
+				},
+				function _prependTo() {
+					var d = $("<div>")
+					d.html("<b>")
+					$("<p>").prependTo(d)
+					assertArrayEqual($(d[0].childNodes).zip('nodeName'), ["P", "B"])
+				},
+				function _before() {
+					var d = $("<div>")
+					$("body").append(d)
+					d.before("<div id='magic'>")
+					assertEqual(d[0].previousSibling.id, 'magic')
+					$("#magic").remove()
+					d.remove()
+				},
+				function _after() {
+					var d = $("<div>")
+					$("body").append(d)
+					d.after("<div id='magic'>")
+					var id = d.zip('nextSibling.id').first()
+					$("#magic").remove()
+					d.remove()
+					assertEqual(id, 'magic')
+				},
+				function _wrap() {
+					var d = $("<div id='child'>")
+					$("body").append(d)
+					var id = d.wrap("<div id='parent'>").zip('parentNode.id').first()
+					$("#child, #parent").remove()
+					assertEqual(id, 'parent')
+				},
+				function _unwrap() {
+					var d = $("<div><p></div>")
+					$("body").append(d)
+					var p = d.find("p")
+					p.unwrap()
+					var name = p.zip('parentNode.nodeName').first()
+					d.remove()
+					p.remove()
+					assertEqual(name, "BODY")
+				},
+				function _replace() {
+					var d = $("<div id='target'>")
+					d.appendTo("body")
+					d.replace("<div id='replace'>")
+					assertEqual($("#target").len(), 0)
+					assertEqual($("#replace").len(), 1)
+					d.remove()
+					$("#replace").remove()
+				},
+				function _attr() {
+					var d= $("<div k='v'>")
+					assertEqual(d.attr('k').first(), 'v')
+					d.attr('k2', 'v2')
+					assertEqual(d.attr('k2').first(), 'v2')
+				},
+				function _class() {
+					var d = $("<div>")
+					d.addClass("foo")
+					assertEqual(d.zip('className').first(), "foo")
+					d.addClass("bar")
+					assertEqual(d.zip('className').first(), "foo bar")
+					d.addClass("baz")
+					assertEqual(d.zip('className').first(), "foo bar baz")
+					d.toggleClass("bar")
+					assertEqual(d.zip('className').first(), "foo baz")
+					d.toggleClass("bar")
+					assertEqual(d.zip('className').first(), "foo baz bar")
+					d.removeClass("baz").removeClass("bar").removeClass("foo")
+					assertEqual(d.zip('className').first(), "")
+				},
+				function _text() {
+					var d = $("<div>Hello</div>")
+					assertEqual(d.text().first(), "Hello")
+					d.text("Goodbye")
+					assertEqual(d.text().first(), "Goodbye")
+					d.text("Content")
+					assertEqual(d.zip('textContent').first(), "Content")
+				},
+				function _val() {
+					var d = $("<input value='Hello'>")
+					assertEqual(d.val().first(), "Hello")
+					d.val("Bye")
+					assertEqual(d.val().first(), "Bye")
+				},
+				function _css() {
+					var d = $("<div>")
+					d.css("display", "none")
+					assertEqual(d[0].style.display, "none")
+					d.css({position: "absolute", top: "10px"})
+					assertEqual(d[0].style.position, "absolute")
+					assertEqual(d[0].style.top, "10px")
+					assertEqual(d.css("display").first(), "none")
+				},
+				function _defaultCss() {
+					assert(false, "no test")
+				},
+				function _empty() {
+					var d = $("<div><p>Hello</p><span>Bye</span></div>")
+					assertEqual(d[0].childNodes.length, 2)
+					d.empty()
+					assertEqual(d[0].childNodes.length, 0)
+				},
+				function _rect() {
+					var rect = $("body").rect().first()
+					assert(Object.IsType(rect, "ClientRect"), "must return a ClientRect")
+					assert(Object.IsNumber(rect.top), "top")
+					assert(Object.IsNumber(rect.bottom), "bot")
+					assert(Object.IsNumber(rect.left), "left")
+					assert(Object.IsNumber(rect.right), "right")
+					assert(Object.IsNumber(rect.width), "width")
+					assert(Object.IsNumber(rect.height), "height")
+				},
+				function _width() {
+					var d = $("<div>").appendTo("body").width("200px")
+					assertEqual(d.css("width").first(), "200px")
+					assertEqual(d.rect().first().width, 200)
+					d.width("300px")
+					assertEqual(d.css("width").first(), "300px")
+					assertEqual(d.rect().first().width, 300)
+					d.remove()
+				},
+				function _height() {
+					var d = $("<div>").appendTo("body").height("200px")
+					assertEqual(d.css("height").first(), "200px")
+					assertEqual(d.rect().first().height, 200)
+					d.height("300px")
+					assertEqual(d.css("height").first(), "300px")
+					assertEqual(d.rect().first().height, 300)
+					d.remove()
+				},
+				function _top() {
+					var d = $("<div>").appendTo("body")
+						.css("position", "absolute")
+						.top("200px")
+					assertEqual(d.css("top").first(), "200px")
+					assertEqual(d.rect().first().top, 200)
+					d.top("300px")
+					assertEqual(d.css("top").first(), "300px")
+					assertEqual(d.rect().first().top, 300)
+					d.remove()
+				},
+				function _left() {
+					var d = $("<div>").appendTo("body")
+						.css("position", "absolute")
+						.left("200px")
+					assertEqual(d.css("left").first(), "200px")
+					assertEqual(d.rect().first().left, 200)
+					d.left("300px")
+					assertEqual(d.css("left").first(), "300px")
+					assertEqual(d.rect().first().left, 300)
+					d.remove()
+				},
+				function _bottom() {
+					var d = $("<div>").appendTo("body")
+						.css("position", "absolute")
+						.bottom("200px")
+					assertEqual(d.css("bottom").first(), "200px")
+					d.bottom("300px")
+					assertEqual(d.css("bottom").first(), "300px")
+					d.remove()
+				},
+				function _right() {
+					var d = $("<div>").appendTo("body")
+						.css("position", "absolute")
+						.right("200px")
+					assertEqual(d.css("right").first(), "200px")
+					d.right("300px")
+					assertEqual(d.css("right").first(), "300px")
+					d.remove()
+				},
+				function _position() {
+					var d = $("<div>").appendTo("body")
+						.css("position", "absolute")
+						.position(100, 200)
+					assertEqual(d.css("left").first(), "100px")
+					assertEqual(d.css("top").first(), "200px")
+					d.position(300, 400)
+					assertEqual(d.css("left").first(), "300px")
+					assertEqual(d.css("top").first(), "400px")
+					d.remove()
+				},
+				function _center() {
+					var d = $("<div>").appendTo("body")
+						.center()
+					assertEqual(d.css("position").first(), "absolute")
+					d.remove()
+				},
+				function _trueColor() {
+					assert(false, "no test")
+				},
+				function _child() {
+					var d = $("<div><p></p><span></span></div>")
+
+					assertEqual(d.child(1).first().nodeName, "SPAN")
+				},
+				function _children() {
+					var d = $("<div><p></p><span></span></div>")
+					assertArrayEqual(d.children().first().zip('nodeName'), ["P", "SPAN"])
+				},
+				function _parent() {
+					var d = $("<div id='magic'><p></p><span></span></div>")
+					assertArrayEqual(d.children().first().parent().zip('id'), ['magic', 'magic'])
+				},
+				function _parents() {
+					var d = $("<div><p></p><span></span></div>").appendTo("body")
+					assertArrayEqual(d.child(1).parents().first().zip('nodeName'), ["DIV", "BODY", "HTML", "#document"])
+					d.remove()
+				},
+				function _prevnext() {
+					var d = $("<div><p></p><span></span><b></b></div>")
+					assertArrayEqual(d.find("span").next().first().zip('nodeName'), ["B"])
+					assertArrayEqual(d.find("p").next().first().zip('nodeName'), ["SPAN", "B"])
+					assertArrayEqual(d.find("b").next().first().zip('nodeName'), [])
+					assertArrayEqual(d.find("span").prev().first().zip('nodeName'), ["P"])
+					assertArrayEqual(d.find("b").prev().first().zip('nodeName'), ["SPAN", "P"])
+					assertArrayEqual(d.find("p").prev().first().zip('nodeName'), [])
+				},
+				function _remove() {
+					var d = $("<div id='magic'>").appendTo("body")
+
+					assertEqual($("#magic").len(), 1)
+					d.remove()
+					assertEqual($("#magic").len(), 0)
+				},
+				function _find() {
+					var d = $("<div id='magic'><p>Hello</p><span>Bye</span></div>").appendTo("body")
+					assertEqual($("#magic").find("p").text().first(), "Hello")
+					assertEqual($("head").find("p").len(), 0)
+					d.remove()
+				},
+				function _clone() {
+					var d = $("<div id='1'>"),
+						e = d.clone()
+
+					assertArrayEqual(d.attr('id'), e.attr('id'))
+					e.attr('id', '2')
+					assertEqual(d.attr('id').first(), '1')
+					assertEqual(e.attr('id').first(), '2')
+				},
+				function _toFragment() {
+					assert(false, "no test")
+				}
+			]
+			Bling.tests['Math'] = [
+				function _floats() {
+					assertArrayEqual($([1.8, "12px", "13.5px"]).floats(), [1.8, 12, 13.5])
+				},
+				function _ints() {
+					assertArrayEqual($([1.8, "12px", "13.5px"]).ints(), [1, 12, 13])
+				},
+				function _px() {
+					assertArrayEqual($([1.8, "12", 42]).px(2), ["3px", "14px", "44px"])
+				},
+				function _min() {
+					assertEqual($([3, 5, 7, 11, 1]).min(), 1)
+				},
+				function _max() {
+					assertEqual($([3, 5, 7, 11, 1]).max(), 11)
+				},
+				function _average() {
+					assertEqual($([3, 5, 7, 11, 1]).average(), 5.4)
+				},
+				function _sum() {
+					assertEqual($([3, 5, 7, 11, 1]).sum(), 27)
+				},
+				function _squares() {
+					assertArrayEqual($([3, 5, 7, 11, 1]).squares(), [9, 25, 49, 121, 1])
+				},
+				function _magnitude() {
+					assertEqual($([0, 1, 0]).magnitude(), 1)
+				},
+				function _scale() {
+					assertArrayEqual($([1, 2, 1]).scale(2), [2, 4, 2])
+				},
+				function _normalize() {
+					assertEqual($([1, 2, 1]).normalize().magnitude(), 1)
+				},
+			]
+			Bling.asynctests['Transform'] = [
+				function _hide(pass, fail) {
+					var d = $("<div>").appendTo("body")
+					d.hide(function () {
+						if( this.css("display").first() == "none" )
+							pass()
+						else
+							fail()
+					})
+				},
+				function _show(pass, fail) {
+					var d = $("<div>").appendTo("body")
+					d.show(function () {
+						if( this.css("display").first() == "none" )
+							fail()
+						else
+							pass()
+					})
+				},
+			]
+		</script>
+
+		<script>
+			var PASS = '<span class="pass">PASS</span>&nbsp;',
+				FAIL = '<span class="fail">FAIL</span><br>'
+
+			function RunAllTests(done) {
+				var h = "", keys = Object.Keys(Bling.tests),
+					i = 0, n = keys.length, k = null, tests = null,
+					j = 0, nn = 0, test = null
+				for( ; i < n; i++ ) {
+					k = keys[i]
+					tests = Bling.tests[k]
+					h += ("<h4>"+k+"</h4>")
+					for( j = 0, nn = tests.length; j < nn; j++) {
+						test = tests[j]
+						try {
+							h += test.name + "..."
+							test()
+							h += PASS
+						} catch( e ) {
+							h += FAIL
+							h += "<code>"+e+"</code><br>"
+						}
+					}
+				}
+				$("#output").append(h)
+				if( done ) done()
+			}
+			function RunAllAsyncTests(done) {
+				var keys = Object.Keys(Bling.asynctests),
+					n = keys.length, 
+					key = tests = test = null,
+					i = j = nn = expected = passed = failed = 0,
+					output = "",
+					pass = function pass() {
+						var msg = "" + this.name + "... " + PASS
+						passed += 1
+						output += msg
+						finish()
+					},
+					fail = function fail(e) {
+						failed += 1
+						output += "" + this.name + "... " + FAIL
+						finish()
+					},
+					finish = function finish() {
+						expected -= 1
+						if( expected === 0 ) {
+							$("#output").append("<h4>Async</h4><span>"+output+"</span>")
+							done()
+						}
+					}
+
+				for( ; i < n; i++ ) {
+					key = keys[i]
+					tests = Bling.asynctests[key]
+					expected = nn = tests.length
+					for(j = 0; j < nn; j++) {
+						test = tests[j]
+						try {
+							test(Function.Bound(pass, test), Function.Bound(fail, test))
+						} catch( e ) {
+							fail(name, "caught: "+e)
+						}
+					}
+				}
+			}
+
+			$(document).ready(function() {
+				$("button").click(function() {
+					var n = $("#runcount").val().first(), i = 0,
+						start = new Date().getTime(), end = start,
+						duration = 0, complete = 0,
+						done = function () {
+							complete += 1
+							end = new Date().getTime()
+							duration = (end - start) + " ms"
+							$("#report").html("<span>" + complete + " iterations in " + duration +"</span>")
+						}
+
+					for( ;i < n; i++ ) {
+						setTimeout(function() {
+							RunAllTests(done)
+							RunAllAsyncTests(done)
+						}, 0)
+					}
+				})
+			})
+
+		</script>
 	</head>
 	<body>
+		<button>Run All Tests</button>
+		<input id="runcount" value="1">
+		<div id="report" ></div>
+		<div id="output" ></div>
 	</body>
 </html>

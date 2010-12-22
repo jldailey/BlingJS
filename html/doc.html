@@ -126,10 +126,11 @@
 						barColor: "rgba(0,0,0,0.7)",
 						textColor: "yellow",
 					}),
-					funcTemplate = $.synth('li.func a.apiname[name=%(reference)s] span.def "%(definition)s"'
-						+ ' + + a[href=#%(reference)s][title=Permalink] "&#182;"'
-						+ ' + span.desc "%(description)s"'
-						+ ' + div.examples a[name=#ex:%(reference)s] + "%(examples)s"'),
+					funcTemplate = $.synth("li.func "
+						+ " a.apiname[name=%(reference)s] span.def '%(definition)s'"
+						+ " + + a[href=#%(reference)s][title=Permalink] '&#182;'"
+						+ " + span.desc '%(description)s'"
+						+ " + div.examples a[name=#ex:%(reference)s] + '%(examples)s'"),
 					old_val,
 					$items = $("ol#docroot li")
 
@@ -139,10 +140,10 @@
 							docs = $.doc.module(name, funcTemplate)
 						h3.find("ol.apilist").append(docs)
 						$docroot.append(h3)
-						progressBar.zip('update').call(i/$.plugin.s.length)
+						progressBar.zip("update").call(i/$.plugin.s.length)
 						setTimeout(arguments.callee, 0)
 					} else {
-						progressBar.zip('update').call(1.0)
+						progressBar.zip("update").call(1.0)
 						$items = $("ol#docroot li") // rebuild 
 						$docroot.fadeIn(function() {
 							var hash = window.location.hash
@@ -202,11 +203,6 @@
 		</script>
 	</head>
 	<body>
-		<a class="arrow up"></a>
-		<a class="arrow down"></a>
-		<a class="arrow left"></a>
-		<a class="arrow right"></a>
-
 		<input id="search" type="text" size="30" placeholder="Enter filter text here">
 		<ol id="docroot">
 		</ol>

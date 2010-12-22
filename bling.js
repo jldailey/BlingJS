@@ -420,7 +420,6 @@ Object.Extend(String, {
 					t = this[i]
 					try { a[i] = f.call(t, t) }
 					catch( e ) {
-						console.log(".map() error: ", e)
 						a[i] = e
 					}
 				}
@@ -1547,7 +1546,7 @@ Object.Extend(String, {
 
 			parents: function parents() {
 				// .parents() - collects the full ancestry up to the owner
-				return this.map(function inparents() {
+				return this.map(function () {
 					var b = $(), j = -1,
 						p = this
 					while( p = p.parentNode )
@@ -1558,7 +1557,7 @@ Object.Extend(String, {
 
 			prev: function prev() {
 				// .prev() - collects the full chain of .previousSibling nodes
-				return this.map(function inprev() {
+				return this.map(function () {
 					var b = $(), j = -1,
 						p = this
 					while( p = p.previousSibling )
@@ -1569,7 +1568,7 @@ Object.Extend(String, {
 
 			next: function next() {
 				// .next() - collects the full chain of .nextSibling nodes
-				return this.map(function innext() {
+				return this.map(function () {
 					var b = $(), j = -1,
 						p = this
 					while( p = p.nextSibling )
@@ -1590,7 +1589,7 @@ Object.Extend(String, {
 			find: function find(expr) {
 				// .find(expr) - collects nodes matching expr, using each node in this as context
 				return this.filter("*") // limit to only nodes
-					.map(function infind() { return $(expr, this) })
+					.map(function () { return $(expr, this) })
 					.flatten()
 			},
 
@@ -1638,7 +1637,7 @@ Object.Extend(String, {
 		return {
 			floats: function floats() {
 				// .floats() - parseFloat(/x/) for /x/ in _this_
-				return this.map(function infloats() {
+				return this.map(function () {
 					if( Object.IsBling(this) ) return this.floats()
 					return parseFloat(this)
 				})

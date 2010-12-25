@@ -19,6 +19,7 @@ $.plugin(function UI() {
 		opts = Object.Extend({
 			handlePosition: {}
 		}, opts)
+
 		opts.handlePosition = Object.Extend({
 			top: "0px",
 			left: "0px",
@@ -28,42 +29,43 @@ $.plugin(function UI() {
 
 		var target = $(selector),
 			moving = false,
-			origin = [0, 0],
+			originX = 0,
+			originY = 0,
+			originPOS = target.position()[0],
 			handle = $.synth("div.handle")
 				.css(Object.Extend({
 					border: "1px solid red",
-					cursor: "pointer",
+					cursor: "move",
 					position: "absolute"
 				}, opts.handlePosition))
 				.bind('mousedown, touchstart', function mousedown(evt) {
 					moving = true
+					originX = evt.pageX
+					originY = evt.pageY
+					console.log("START", originX, originY)
 				})
-				.bind('mousemove, touchmove', function mousemove(evt) {
+				$(document).bind('mousemove, touchmove', function mousemove(evt) {
 					if( moving ) {
-						console.log("moving!")
+						var left = originPOS.left + (evt.pageX - originX) + "px",
+							top = originPOS.top + (evt.pageY - originY) + "px"
+						console.log("MOVETO", top, left)
+						var t = target.css({
+							left: left,
+							top: top
+						})
 					}
 				})
 				.bind('mouseup, touchend', function mouseup(evt) {
 					moving = false
+					console.log("STOP")
 				})
-		target.append(handle)
-		return target
+
+		return target.css({
+				position: "absolute"
+			})
+			.addClass("movable")
+			.append(handle)
 	}
-
-	Movable.test = function() {
-		if( $("body").find("div#movable-test").len() == 0 )
-			$("body").append(
-				$.synth("div#movable-test 'Hello'")
-					.css({
-						width: "200px", 
-						height: "100px", 
-						"line-height": "100px", 
-						"text-align": "center"
-					}))
-		$.UI.Movable($("div#movable-test").center())
-	}
-
-
 
 	/*
 

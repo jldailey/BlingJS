@@ -262,7 +262,10 @@ Object.Extend(Number, {
 	 * @param {(number|string)} x a number-ish
 	 * @param {number=} d delta for adjusting the number before output
 	 */
-	Px: function (x,d) { return (parseInt(x,10)+(d|0))+"px" }
+	Px: function (x,d) { return (parseInt(x,10)+(d|0))+"px" },
+	// mappable versions of max() and min()
+	AtLeast: function (x) { return function (y) { return Math_max(parseFloat(y||0), x) } },
+	AtMost: function (x) { return function (y) { return Math_min(parseFloat(y||0), x) } }
 })
 
 /* String Extensions
@@ -304,7 +307,11 @@ Object.Extend(String, {
 		commasep_re = /, */,
 		space = " ",
 		matchesSelector = "webkitMatchesSelector",
-		object_cruft = /\[object (\w+)\]/
+		object_cruft = /\[object (\w+)\]/,
+		Math_min = Math.min,
+		Math_max = Math.max,
+		Math_ceil = Math.ceil,
+		Math_sqrt = Math.sqrt
 
 	/** $.plugin adds a new plugin to the library.
 	 * @param {Function} constructor the closure to execute to get a copy of the plugin
@@ -575,9 +582,8 @@ Object.Extend(String, {
 							b = $(), n = arguments.length, nn = this.length,
 							i = 0, j = 0, k = null
 						// first collect a set of lists
-						for(i = 0; i < n; i++) {
-							master[i] = _zipper.call(this, arguments[i])
-						}
+						for(; i < n; i++)
+							master[arguments[i]] = _zipper.call(this, arguments[i])
 						// then convert to a list of sets
 						for(i = 0; i < nn; i++) {
 							var o = {}
@@ -652,7 +658,7 @@ Object.Extend(String, {
 			take: function take(n) {
 				// .take([/n/]) - collect the first /n/ elements of _this_.
 				// if n >= this.length, returns a shallow copy of the whole bling
-				n = Math.min(n|0, this.len())
+				n = Math_min(n|0, this.len())
 				var a = $(n), i = -1
 				a.context = this.context
 				a.selector = this.selector
@@ -670,7 +676,7 @@ Object.Extend(String, {
 			skip: function skip(n) {
 				// .skip([/n/]) - collect all but the first /n/ elements of _this_.
 				// if n == 0, returns a shallow copy of the whole bling
-				n = Math.min(this.len(), Math.max(0, (n|0)))
+				n = Math_min(this.len(), Math_max(0, (n|0)))
 				var i = 0, nn = this.len() - n,
 					a = $( nn )
 				a.context = this.context
@@ -838,7 +844,7 @@ Object.Extend(String, {
 				// 2 * max(length) items
 				var n = b.length,
 					nn = this.length,
-					c = $(2 * Math.max(nn, n)),
+					c = $(2 * Math_max(nn, n)),
 					i = nn - 1
 				c.context = this.context
 				c.selector = this.selector
@@ -865,7 +871,7 @@ Object.Extend(String, {
 				// then fold them to a bling the original size
 				var n = this.len(), j = 0
 				// at least 2 items are required in the set
-				var b = $(Math.ceil(n/2)),
+				var b = $(Math_ceil(n/2)),
 					 i = 0
 				b.context = this.context
 				b.selector = this.selector
@@ -1136,7 +1142,7 @@ Object.Extend(String, {
 					function f(t) {
 						var r = t.map(Function.UpperLimit(255))
 							.map(Function.LowerLimit(0))
-						r[3] = Math.min(1, r[3])
+						r[3] = Math_min(1, r[3])
 						return "rgba(" + r.join(commasep) + ")"
 					}
 					// accept either a $ of $s
@@ -1369,12 +1375,19 @@ Object.Extend(String, {
 				// called with string k and string v -> set property k = v
 				// called with object k and undefd v -> set css(x, k[x]) for x in k
 				if( Object.HasValue(v) || Object.IsObject(k) ) {
-					var setter = this.zip('style.setProperty')
-					
+					var setter = this.zip('style.setProperty'),
+						i = 0, n = 0, nn = setter.length
 					if( Object.IsString(k) )
-						setter.call(k, v) // if v is present set the value on each element
-					else for(var x in k)
-						setter.call(x, k[x])
+						setter.call(k, v)
+					else if ( Object.IsArray(v) ) {
+						n = max(v.length, nn)
+						for(;i < n; i++)
+							setter[i%nn](v[i%n])
+					}
+					else if ( Object.IsObject(k) ) {
+						for(i in k)
+							setter.call(i, k[i])
+					}
 					return this
 				}
 				// collect the computed values
@@ -1399,8 +1412,7 @@ Object.Extend(String, {
 				// so it can still be over-ridden by external css files (such as themes)
 				// also, this.selector need not match any nodes at the time of the call
 				var sel = this.selector,
-					style = "<style> ",
-					head = $("head")
+					style = ""
 				if( Object.IsString(k) )
 					if( Object.IsString(v) )
 						style += sel+" { "+k+": "+v+" } "
@@ -1411,8 +1423,7 @@ Object.Extend(String, {
 						style += i+": "+k[i]+"; "
 					style += "} "
 				}
-				style += "</style>"
-				head.append(style)
+				$.synth("style").text(style).appendTo("head")
 				return this
 			},
 
@@ -1499,7 +1510,7 @@ Object.Extend(String, {
 					a[0] += (this[0] - a[0]) * this[3]
 					a[1] += (this[1] - a[1]) * this[3]
 					a[2] += (this[2] - a[2]) * this[3]
-					a[3] = Math.min(1, a[3] + this[3])
+					a[3] = Math_min(1, a[3] + this[3])
 					return a
 				}
 				return this
@@ -1661,7 +1672,7 @@ Object.Extend(String, {
 				// .min() - select the smallest /x/ in _this_
 				return this.reduce(function(a) {
 					if( Object.IsBling(this) ) return this.min()
-					return Math.min(this,a)
+					return Math_min(this,a)
 				})
 			},
 
@@ -1669,7 +1680,7 @@ Object.Extend(String, {
 				// .max() - select the largest /x/ in _this_
 				return this.reduce(function(a) {
 					if( Object.IsBling(this) ) return this.max()
-					return Math.max(this,a)
+					return Math_max(this,a)
 				})
 			},
 
@@ -1700,7 +1711,7 @@ Object.Extend(String, {
 					if( Object.IsBling(this) ) return this.magnitude()
 					return parseFloat(this)
 				})
-				return Math.sqrt(n.squares().sum())
+				return Math_sqrt(n.squares().sum())
 			},
 
 			scale: function scale(r) {
@@ -1954,6 +1965,8 @@ Object.Extend(String, {
 						default:
 							e = document.createEvent("Events")
 							e.initEvent(evt_i, args.bubbles, args.cancelable)
+							e = Object.Extend(e, args)
+							// console.log('triggering '+evt_i, e, args)
 					}
 					if( !e ) continue
 					else this.each(function() {
@@ -2072,7 +2085,7 @@ Object.Extend(String, {
 		var transformCSS = "-webkit-transform",
 			transitionProperty = "-webkit-transition-property",
 			transitionDuration = "-webkit-transition-duration",
-			transitionEasing = "-webkit-transition-easing"
+			transitionTiming = "-webkit-transition-timing-function"
 
 		/// Transformation Module: provides wrapper for using -webkit-transform ///
 		return {
@@ -2082,17 +2095,27 @@ Object.Extend(String, {
 			},
 
 			// like jquery's animate(), but using only webkit-transition/transform
-			transform: function transform(end_css, speed, callback) {
+			transform: function transform(end_css, speed, easing, callback) {
 				// .transform(cssobject, [/speed/], [/callback/]) - animate css properties on each node
 				// animate css properties over a duration
 				// accelerated: scale, translate, rotate, scale3d,
 				// ... translateX, translateY, translateZ, translate3d,
 				// ... rotateX, rotateY, rotateZ, rotate3d
+				// easing values: ease | linear | ease-in | ease-out 
+				// | ease-in-out | step-start | step-end | steps(number[, start | end ]) 
+				// | cubic-bezier(number, number, number, number)
+
 				if( Object.IsFunc(speed) ) {
 					callback = speed
 					speed = null 
+					easing = null
 				}
-				speed = speed || "normal"
+				else if( Object.IsFunc(easing) ) {
+					callback = easing
+					easing = null
+				}
+				speed = Object.HasValue(speed) ? speed : "normal"
+				easing = easing || "ease"
 				var duration = $.duration(speed),
 					props = [], j = 0, i = 0, ii = null,
 					// what to send to the -webkit-transform
@@ -2104,7 +2127,7 @@ Object.Extend(String, {
 					if( accel_props_re.test(i) ) {
 						ii = end_css[i]
 						if( ii.join )
-							ii = ii.join(commasep)
+							ii = $(ii).px().join(commasep)
 						else if( ii.toString )
 							ii = ii.toString()
 						trans += space + i + "(" + ii + ")"
@@ -2125,6 +2148,10 @@ Object.Extend(String, {
 				css[transitionDuration] =
 					props.map(function() { return duration + "ms" })
 						.join(commasep)
+				// apply an easing function to each property
+				css[transitionTiming] =
+					props.map(function() { return easing })
+						.join(commasep)
 
 				// apply the transformation
 				if( trans )
@@ -2143,7 +2170,8 @@ Object.Extend(String, {
 						this._display = this.style.display === "none" ? "" : this.style.display
 						this.style.display = 'none'
 					}
-				}).future(50, callback)
+				}).trigger('hide')
+				.future(50, callback)
 			},
 
 			show: function show(callback) {
@@ -2153,7 +2181,8 @@ Object.Extend(String, {
 						this.style.display = this._display
 						delete this._display
 					}
-				}).future(50, callback)
+				}).trigger('show')
+				.future(50, callback)
 			},
 
 			visible: function visible() {
@@ -2184,13 +2213,13 @@ Object.Extend(String, {
 				this.weave(this.css("display"))
 					.fold(function(display, node) {
 						if( display === "none" ) {
-							console.log("new display:", (node._display || ""))
 							node.style.display = node._display || ""
 							delete node._display
+							$(node).trigger("show")
 						} else {
-							console.log("display:", display)
 							node._display = display
 							node.style.display = "none"
+							$(node).trigger("hide")
 						}
 						return node
 					})
@@ -2202,7 +2231,10 @@ Object.Extend(String, {
 				return this
 					.css('opacity','0.0')
 					.show(function(){
-						this.transform({opacity:"1.0", translate3d:[0,0,0]}, speed, callback)
+						this.transform({opacity:"1.0", translate3d:[0,0,0]}, speed, function() {
+							this.trigger("show")
+							if( callback ) callback.apply(this)
+						})
 					})
 			},
 			fadeOut:   function fadeOut(speed, callback, _x, _y) {
@@ -2455,6 +2487,8 @@ Object.Extend(String, {
 			var tagname = '', id = '', cls = '', attr = '', val = '',
 				text = '', attrs = {}, parent = null, mode = TAGMODE,
 				ret = $([]), i = 0, c = null
+			ret.selector = expr
+			ret.context = document
 			function emitText() {
 				// puts a TextNode in the resulting tree
 				var node = $.HTML.parse(text)

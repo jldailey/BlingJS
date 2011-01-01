@@ -15,90 +15,72 @@ $.plugin(function UI() {
 		return dialog
 	}
 	
-	function Movable(selector, opts) {
+	function Draggable(selector, opts) {
 		opts = Object.Extend({
 			handlePosition: {}
 		}, opts)
 
 		opts.handlePosition = Object.Extend({
+			position: "absolute",
 			top: "0px",
 			left: "0px",
 			width: "100%",
-			height: "4px"
+			height: "5px"
 		}, opts.handlePosition)
 
-		var target = $(selector),
+		var dragObject = $(selector),
 			moving = false,
 			originX = 0,
 			originY = 0,
-			originPOS = target.position()[0],
+			originPOS = dragObject.position(),
 			handle = $.synth("div.handle")
-				.css(Object.Extend({
-					border: "1px solid red",
+				.defaultCss({
+					background: "-webkit-gradient(linear, 50% 0%, 50% 100%, from(#eee), color-stop(0.25, #bbb), color-stop(0.3, #eee), color-stop(0.5, #eee), to(#bbb))",
+					"height": "5px",
+					"border-radius": "1px",
 					cursor: "move",
-					position: "absolute"
-				}, opts.handlePosition))
-				.bind('mousedown, touchstart', function mousedown(evt) {
+				})
+				.css(opts.handlePosition)
+				.bind('mousedown, touchstart', function (evt) {
 					moving = true
-					originX = evt.pageX
-					originY = evt.pageY
-					console.log("START", originX, originY)
+					originX = originX || evt.pageX
+					originY = originY || evt.pageY
+					evt.preventDefault()
+					evt.stopPropagation()
 				})
-				$(document).bind('mousemove, touchmove', function mousemove(evt) {
-					if( moving ) {
-						var left = originPOS.left + (evt.pageX - originX) + "px",
-							top = originPOS.top + (evt.pageY - originY) + "px"
-						console.log("MOVETO", top, left)
-						var t = target.css({
-							left: left,
-							top: top
-						})
-					}
-				})
-				.bind('mouseup, touchend', function mouseup(evt) {
-					moving = false
-					console.log("STOP")
-				})
-
-		return target.css({
-				position: "absolute"
+			$(document).bind('mousemove, touchmove', function (evt) {
+				if( moving ) {
+					evt.preventDefault()
+					evt.stopPropagation()
+					var deltaX = (evt.pageX - originX),
+						deltaY = (evt.pageY - originY)
+					dragObject.transform({
+						position: "absolute", 
+						translate: [ deltaX, deltaY ] 
+					}, 0)
+					.trigger('drag',{
+						dragObject: dragObject
+					})
+				}
 			})
-			.addClass("movable")
+			.bind('mouseup, touchend', function (evt) {
+				if( moving ) {
+					moving = false
+					$(document.elementFromPoint(evt.pageX, evt.pageY))
+						.trigger('drop', {
+							dropObject: dragObject
+						})
+				}
+			})
+
+		return dragObject.css({
+				position: "relative",
+				"padding-top": dragObject.css("padding-top").map(Number.AtLeast(5)).px().first(),
+			})
+			.addClass("draggable")
 			.append(handle)
 	}
 
-	/*
-
-	var sides = {
-		n: 
-	function applyAnchor(side, target) {
-		var d = "div.anchor."+side
-		if( target.find(d).len() === 0 ) {
-			d = $.synth(d)
-				.bind('mousedown, touchstart', function(evt) {
-				})
-				.bind('mousemove, touchmove', function(evt) {
-				})
-				.bind('mouseup, touchend', function(evt) {
-				})
-			node = target.prepend($.synth(d))
-			switch (side) {
-				case 'n':
-		}
-	}
-
-	function Resizable(selector, opts) {
-		opts = Object.Extend({
-			anchors: "n ne e se s sw w nw"
-		}, opts)
-		opts.anchors = opts.anchors.split(/,* /)
-		var $node = $(selector)
-		for(var i = 0, n = opts.anchors.length; i < n; i++) {
-			applyAnchor(opts.anchors[i], $node)
-		}
-
-	}
-	*/
 
 	function ProgressBar(selector, opts) {
 		opts = Object.Extend({
@@ -215,7 +197,7 @@ $.plugin(function UI() {
 	return {
 
 		$UI: {
-			Movable: Movable,
+			Draggable: Draggable,
 			ProgressBar: ProgressBar,
 		},
 

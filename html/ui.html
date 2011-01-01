@@ -1,102 +1,86 @@
 <html>
 	<head>
-		<script src="bling.js"></script>
-		<script src="bling.ui.js"></script>
+		<script src="../bling.js"></script>
+		<script src="../plugins/bling.ui.js"></script>
+		<style>
+			div.droppable {
+				width: 120px;
+				height: 120px;
+				text-align: center;
+				line-height: 120px;
+				border: 1px dashed black;
+			}
+		</style>
 		<script>
 			$(document).ready(function() {
-				$(".accordion").accordion()
-				$(".tabs").tabs()
+				$.UI.Draggable(".draggable").bind("drag", function() {
+					$(this).css({top: "", left: ""})
+				})
+
+				function snapToEdge(from, to, fromside, toside) {
+					var $from = $(from), $to = $(to),
+						fpos = $from.position()[0],
+						tpos = $to.position()[0],
+						top = fpos.top,
+						left = fpos.left
+					switch (toside) {
+						case "left":
+							left = tpos.left
+							break
+						case "right":
+							left = tpos.width + tpos.left
+							break
+						case "top":
+							top = tpos.top
+							break
+						case "bottom":
+							top = tpos.top + tpos.height
+							break
+					}
+					switch (fromside) {
+						case "left":
+						break
+						case "right":
+							left -= fpos.width
+							break
+						case "top":
+						break
+						case "bottom":
+							top -= fpos.height
+							break
+					}
+					$from.transform({
+						top: top + "px",
+						left: left + "px",
+						translate: [ 0, 0 ]
+					}, "slow", "linear")
+				}
+
+				$(".droppable").bind('drop', function(evt) {
+					// snapToEdge(evt.dropObject, this, "left", "left")
+					snapToEdge(evt.dropObject, this, "left", "right")
+					// snapToEdge(evt.dropObject, this, "right", "right")
+					// snapToEdge(evt.dropObject, this, "top", "top")
+					/*
+					var pos = $(this).position()[0]
+					// this drop container has a snap-to-edge effect
+					evt.dropObject.transform({
+						position: "absolute",
+						top: pos.top + "px",
+						left: pos.left + "px",
+						translate: [ 0, 0 ]
+					}, 0)
+					*/
+				})
 			})
 		</script>
 	</head>
 	<body>
+		<h1>UI Demos</h1>
 
-		<div id="example-one" class="example">
-		<h3>Accordion One</h3>
-		<p>Accordion's are most naturally laid out as an un-ordered list.
-		<ul class="accordion">
-			<li><span>Row One  </span><div id=1>Content One</div></li>
-			<li><span>Row Two  </span><div id=2>Content Two</div></li>
-			<li><span>Row Three</span><div id=3>Content Three</div></li>
-		</ul>
-		</div>
-		<a href="#">View Source</a>
-		<script>
-			$("a").last(1).click(function() {
-				console.log("click!")
-				return false
-			})
-		</script>
-
-
-
-		<h3>Accordion Two</h3>
-		<p>But, any kind of nodes will do, each following the pattern:
-		&lt;item&gt;&lt;label&gt;&lt;content&gt;&lt;/item&gt;
-		<div class="accordion">
-			<div><div>Handle One</div><textarea>Content One</textarea></div>
-			<div><div>Handle Two</div><textarea>Content Two</textarea></div>
-			<div><div>Handle Three</div><textarea>Content Three</textarea></div>
-		</div>
-
-		<h3>Tabs</h3>
-		<ul class="tabs">
-			<li><span>Tab One</span><div id=4>Content One</div></li>
-			<li><span>Tab Two</span><div id=5>Content Two</div></li>
-			<li><span>Tab Three</span><div id=6>Content Three</div></li>
-		</ul>
-		<style>
-			.tabs {
-				height: 40px;
-				padding: 0px;
-			}
-			.tabs > * > *:first-child { /* the tabs */
-				border: 1px solid red;
-				border-top-right-radius: 8px;
-				margin-right: 2px;
-				padding: 4px 8px;
-			}
-			.tabs > * > *:first-child.selected {
-				color: white;
-				background-color: red;
-			}
-			.tabs > * > *:first-child + * { /* the bodies */
-				border-bottom-left-radius: 5px;
-				border-bottom-right-radius: 5px;
-			}
-		</style>
-
-		<h3>Dialog</h3>
-		<div class="dialog">
-			<button>Make Me A Dialog!</button>
-		</div>
-
-		<h3>Slider</h3>
-		<div id="slider-content">
-			<script>
-				for(var i = 0; i < 100; i++ ) {
-					document.write("<span>"+i+"</span>")
-				}
-			</script>
-			<style>
-				#slider-content {
-					width: 320px;
-					height: 54px;
-					overflow: hidden;
-				}
-				#slider-content span {
-					width: 16px;
-					height: 16px;
-					border: 1px solid black;
-					border-collapse: all;
-					float: left;
-				}
-			</style>
-		</div>
-		<div class="slider" target="#slider-content"></div>
-
-
-		<br><br><Br><br>
+		<h2>Drag / Drop</h2>
+		<div class="droppable">Drop stuff here.</div>
+		<span class="draggable">Drag me around.</span>
 
 	</body>
 </html>

@@ -227,13 +227,11 @@
 
 	<h4>What makes BlingJS special?</h4>
 	<p>Sets.
-	<p>While similar to jQuery, BlingJS does as much as possible with sets.
-	<p>There are many tools for dealing with sets that are suprisingly simple and powerful.
+	<p>BlingJS is similar to jQuery, with an emphasis on sets.
+	<p>BlingJS operations <b>always <i>try</i> to return a set</b>.
+	<p>If you want just one element, then consider using <a href='#doc:first'>first</a>, or <a href='#doc:last'>last</a>, or standard array notation - <code>[i]</code>.
+	Even methods that return scalar values (like <a href='#doc:width'>width</a> or <a href='#doc:height'>height</a>), return a set of scalar values.
 	<p>For complete documentation of everything BlingJS can do, see the <a href="html/doc.html">API Documentation</a>
-	<p>The most noticable implication of this is that BlingJS <b>always tries to return a set</b>,
-	rather than first elements, unless it isn't possible, or you have specifically requested otherwise using <a href='#doc:first'>first</a>, or <a href='#doc:last'>last</a>.
-	Even methods that return scalar values (like <a href='#doc:width'>width</a> or <a href='#doc:height'>height</a>) 
-	will return a set of values (one for each node in the source set), and if there is only one, you access it using <a href="#doc:first">first</a>, or standard array notation: <code>...[i]</code>.
 
 	<a name="set" />
 	<h4>Set Operations</h4>
@@ -241,19 +239,19 @@
 	<p>In order to make this set-focused philosophy work, a few core tools are provided.
 
 	<a name="zip" />
-	<h5>Zip</h5>
 	<p>The <a href='#doc:zip'>zip</a> operation selects an array of property values from a set of objects.
 	<p>The expression...
 	<pre>
 	$("div").zip("style")</pre>
-	<p>...will return a list of StyleDeclaration objects, one for each div on the page.
+	<p>...will return a set of StyleDeclaration objects, one for each div on the page.
 	<p>You can also zip compound names in order to extract nested properties.
 	<pre>
 	$("div").zip("style.setProperty")</pre>
 
-	<p>The above example also demonstrates another useful feature of <a href='#doc:zip'>zip</a>:
+	<p>The above example also shows another useful feature of <a href='#doc:zip'>zip</a>:
 	<blockquote>When <a href='#doc:zip'>zip</a> selects a function, it is bound to the object it is selected from.</blockquote>
-	<p>What this means is that when you call <code>.zip("style.setProperty")</code> you get back a set of functions and call them, it is the same as calling <code>div.style.setProperty()</code> directly on each div.
+	<p>What this means is that when you call <code>.zip("style.setProperty")</code> you get back a set of functions and call them, 
+	it is the same as calling <code>div.style.setProperty()</code> directly on each div.
 	<p>The <a href='#doc:call'>call</a> operation exists in order to call all the functions in the set with the same arguments.
 
 	<p>If you specify multiple columns, you get a list of simple objects with only the desired fields.
@@ -262,7 +260,6 @@
 	== $([{'id':..., 'className':... },...])</pre>
 
 	<a name="zap" />
-	<h5>Zap</h5>
 	<p>Naturally, <a href='#doc:zap'>zap</a> is the companion to <a href='#doc:zip'>zip</a>.  The <a href='#doc:zap'>zap</a> operation allows assignment in a functional syntax.
 	<pre>
 	$("span").zap("innerText", "Hello World")</pre>
@@ -282,14 +279,14 @@
 
 	<a name="html" />
 	<h4>Html Operations</h4>
-	<p>While BlingJS has all of the basic HTML and DOM manipulating operations that jQuery has (like <a href='#doc:html'>html</a>, <a href='#doc:text'>text</a>, <a href='#doc:after'>after</a>, <a href='#doc:append'>append</a>, <a href="html/doc.html">etc.</a>), 
-	it also has two simple systems that work together to add quite a bit more power.
+	<p>While BlingJS has all of the basic HTML and DOM manipulating operations that jQuery has (like <a href='#doc:html'>html</a>, <a href='#doc:text'>text</a>, <a href='#doc:after'>after</a>, <a href='#doc:append'>append</a>, <a href="html/doc.html#html">etc.</a>), 
+	it also has two powerful ways to generate content: synth, and template.
 
 	<a name="template" />
 	<h5>Templates</h5>
-	<p>The first such system that is built into the core is a simple template system, 
-	and it works by replacing substrings that look like these: <code>%(id)d</code>, <code>%(name)s</code>, and <code>%(dollars).2f</code>
-	<p>All templates start with DOM nodes.
+	<p>Built into the core is a simple template system, and it works by replacing substrings: 
+	<code>%(id)d</code>, <code>%(name)s</code>, and <code>%(dollars).2f</code> (similar to python substitution strings)
+	<p>Templates can start with DOM nodes, or with raw strings.
 	<textarea style="height:90px" >
 	<li id="line-template">
 	 <span>%(title)s</span>
@@ -313,13 +310,15 @@
 	<a name="synth" />
 	<h5>Synthesizing nodes</h5>
 
-	<p>One of the handiest features in Bling is the <a href='#doc:synth'>synth</a> operation.  This lets you fabricate small DOM trees, given a CSS expression.
-	<p>In other words, given a CSS expression, <code>$.synth(css)</code> will return the smallest DOM tree that satisfies the CSS.
+	<p>Given a CSS expression, <code>$.synth(css)</code> will return the smallest DOM tree that satisfies the expression.
+	<p>One of the handiest features in Bling, <a href='#doc:synth'>synth</a> lets you fabricate small DOM trees, 
+	using the same CSS expression that will define the nodes later.
 	<p>Example:
 	<pre>
 	$.synth("div#foo.bar")
 	== $('<div id="foo" class="bar"></div>')</pre>
-	<p>The above example used the global <code>$.synth()</code>, for creating nodes that are initially un-attached to anything.  If you use <code>$(selector).synth(...)</code>, the new nodes will be appended to <code>$(selector)</code> before they are returned.
+	<p>The above example used the global <code>$.synth()</code>, for creating nodes that are initially un-attached to anything.  
+	If you use <code>$(selector).synth(...)</code>, the new nodes will be appended to <code>$(selector)</code> before they are returned.
 	<p>The <a href='#doc:synth'>synth</a> operation supports only a few CSS selectors:
 	<table class="small">
 		<tr><td><i>.class</i> &lt;dot&gt;<td>any number
@@ -328,18 +327,19 @@
 		<tr><td><i>+</i> &lt;plus&gt;<td>between nodes
 		<tr><td><i>"quote"</i><td>after a node
 	</table>
-	<p>It supports the non-standard quote operator "...", like in this example:
+	<p>It supports the non-standard quote operator <code>["']</code> for adding text nodes, like in this example:
 	<pre>
 	$.synth('div "Hello" p "World"')
 	== $('<div>Hello<p>World</p></div>')</pre>
-	<p>If the adjacency operator (+) is not clear, you can see what it does in this example:
+	<p>If the adjacency operator [+] is not clear, you can think of it as a closing tag for the currently open tag,
+	like in the following example the [+] will close the open &lt;b&gt; tag.
 	<pre>
 	$.synth('p b "Hello" + i "World"')
 	== $('<p><b>Hello</b><i>World</i></p>')</pre>
 	<p>Even though this is only a small subset of CSS selectors, you can still construct an aribtrary DOM tree by combining the supported selectors.
 
 	<h5>Synthing templates</h5>
-	<p>You can use <a href="#doc:synth">synth</a> and <a href="#doc:template">template</a> to fabricate template nodes quickly in code.
+	<p>You can use <a href="#doc:synth">synth</a> to fabricate templates quickly in code.
 	<pre>
 	var paragraph = 
 		$.synth('p b "%(title)s" + i "%(body)s"')
@@ -349,7 +349,7 @@
 			})
 	// ... sometime later ...
 	$("body").append(paragraph.render({
-		title: "This is paragraph."
+		title: "This is my title."
 		body: "This is my paragraph's body."
 	})) </pre>
 </body>

@@ -213,7 +213,7 @@ Object.Extend(Function, {
 	 */
 	Trace: function (f, label) {
 		var r = function () {
-			console.log(label ? label : emptyString + (this.name ? this.name : this), "." + f.name + "(",
+			console.log(label ? label : "" + (this.name ? this.name : this), "." + f.name + "(",
 				Array.Slice(arguments, 0), ")")
 			return f.apply(this, arguments)
 		}
@@ -2303,8 +2303,6 @@ Object.Extend(Event, {
 
 	$.plugin(function Http() {
 		/// HTTP Request Module: provides wrappers for making http requests ///
-
-		// var JSON = JSON || {}
 
 		// static helper to create &foo=bar strings from object properties
 		function formencode(obj) {

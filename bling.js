@@ -1,4 +1,4 @@
-/* bling.js
+/** bling.js
  * --------
  * Named after the bling operator ($) to which it is bound by default.
  * This is a jQuery-like framework, using any WebKit shortcuts that we can.
@@ -196,7 +196,9 @@ Object.Extend(Function, {
 	 */
 	Bound: function (f, t, args) {
 		// Function.Bound(/f/, /t/) - whenever /f/ is called, _this_ === /t/
-		function r() { return f.apply(t, args ? args: arguments) }
+		args = args || []
+		args.splice(0, 0, t)
+		var r = f.bind.apply(f, args)
 		r.toString = function() { return "bound-method of "+t+"."+f.name }
 		return r
 		/* Example:
@@ -210,9 +212,9 @@ Object.Extend(Function, {
 	 * @param {string=} label (optional)
 	 */
 	Trace: function (f, label) {
-		function r() {
-			console.log(label ? label : "" + (this.name ? this.name : this) + "." + f.name,
-				Array.Slice(arguments, 0))
+		var r = function () {
+			console.log(label ? label : "" + (this.name ? this.name : this), "." + f.name + "(",
+				Array.Slice(arguments, 0), ")")
 			return f.apply(this, arguments)
 		}
 		r.toString = function() { return f.toString() }
@@ -257,16 +259,20 @@ Object.Extend(Array, {
 
 /* Number Extensions
  * ----------------- */
-Object.Extend(Number, {
-	/** Number.Px
-	 * @param {(number|string)} x a number-ish
-	 * @param {number=} d delta for adjusting the number before output
-	 */
-	Px: function (x,d) { return (parseInt(x,10)+(d|0))+"px" },
-	// mappable versions of max() and min()
-	AtLeast: function (x) { return function (y) { return Math_max(parseFloat(y||0), x) } },
-	AtMost: function (x) { return function (y) { return Math_min(parseFloat(y||0), x) } }
-})
+Object.Extend(Number, (function() {
+	var Math_max = Math.max,
+		Math_min = Math.min
+	return {
+		/** Number.Px
+		 * @param {(number|string)} x a number-ish
+		 * @param {number=} d delta for adjusting the number before output
+		 */
+		Px: function (x,d) { return (parseInt(x,10)+(d|0))+"px" },
+		// mappable versions of max() and min()
+		AtLeast: function (x) { return function (y) { return Math_max(parseFloat(y||0), x) } },
+		AtMost: function (x) { return function (y) { return Math_min(parseFloat(y||0), x) } }
+	}
+})())
 
 /* String Extensions
  * ----------------- */
@@ -293,8 +299,27 @@ Object.Extend(String, {
 				: j,
 			start = i == null ? 0
 				: i < 0 ? nn + i
-				: i
+				: i;
 		return s.substring(0,start) + n + s.substring(end)
+	}
+})
+
+/* Event Extensions
+ * ---------------- */
+Object.Extend(Event, {
+	Prevent: function prevent(evt) {
+	 evt.stopPropagation()
+	 evt.preventDefault()
+	 evt.cancelBubble = true
+	 evt.returnValue = false
+	},
+	Stop: function stop(evt) {
+	 evt.preventDefault()
+	 evt.cancelBubble = true
+	},
+	Cancel: function cancel(evt) {
+	 evt.stopPropagation()
+	 evt.returnValue = false
 	}
 })
 
@@ -306,12 +331,16 @@ Object.Extend(String, {
 	var commasep = ", ",
 		commasep_re = /, */,
 		space = " ",
+		emptyString = "",
 		matchesSelector = "webkitMatchesSelector",
 		object_cruft = /\[object (\w+)\]/,
 		Math_min = Math.min,
 		Math_max = Math.max,
 		Math_ceil = Math.ceil,
-		Math_sqrt = Math.sqrt
+		Math_sqrt = Math.sqrt,
+		none = "none",
+		relative = "relative",
+		absolute = "absolute"
 
 	/** $.plugin adds a new plugin to the library.
 	 * @param {Function} constructor the closure to execute to get a copy of the plugin
@@ -398,6 +427,11 @@ Object.Extend(String, {
 		}
 
 		return {
+
+			eq: function eq(i) {
+				// .eq(/i/) - a new set containing only the /i/th item
+				return $([this[i]])
+			},
 
 			each: function each(f) {
 				// .each(/f/) - apply function /f/ to every item /x/ in _this_.
@@ -725,7 +759,7 @@ Object.Extend(String, {
 
 			join: function join(sep) {
 				// .join(/sep/) - concatenates all /x/ in _this_ using /sep/
-				if( this.length === 0 ) return ""
+				if( this.length === 0 ) return emptyString
 				return this.reduce(function(j) {
 					return j + sep + this
 				})
@@ -1100,7 +1134,7 @@ Object.Extend(String, {
 						// then get escaped html from the parent's .innerHTML
 						.zip("parentNode.innerHTML").first()
 					// clean up so escaped content isn't leaked into the DOM
-					escaper.zap('data', '')
+					escaper.zap('data', emptyString)
 					return ret
 				}
 			},
@@ -1112,7 +1146,7 @@ Object.Extend(String, {
 					css = css || this
 					if( Object.IsString(css) ) {
 						var d = document.createElement("div")
-						d.style.display = 'none'
+						d.style.display = none
 						d.style.color = css
 						var $d = $(d).appendTo(document.body)
 						var rgb = window.getComputedStyle(d,null).getPropertyValue('color')
@@ -1321,7 +1355,7 @@ Object.Extend(String, {
 				// .addClass(/x/) - add x to each node's .className
 				// remove the node and then add it to avoid dups
 				return this.removeClass(x).each(function() {
-					var c = this.className.split(space).filter(function(y){return y && y != ""})
+					var c = this.className.split(space).filter(function(y){return y && y != emptyString})
 					c.push(x) // since we dont know the len, its still faster to push, rather than insert at len()
 					this.className = c.join(space)
 				})
@@ -1380,7 +1414,7 @@ Object.Extend(String, {
 					if( Object.IsString(k) )
 						setter.call(k, v)
 					else if ( Object.IsArray(v) ) {
-						n = max(v.length, nn)
+						n = Math_max(v.length, nn)
 						for(;i < n; i++)
 							setter[i%nn](v[i%n])
 					}
@@ -1412,7 +1446,7 @@ Object.Extend(String, {
 				// so it can still be over-ridden by external css files (such as themes)
 				// also, this.selector need not match any nodes at the time of the call
 				var sel = this.selector,
-					style = ""
+					style = emptyString
 				if( Object.IsString(k) )
 					if( Object.IsString(v) )
 						style += sel+" { "+k+": "+v+" } "
@@ -1428,7 +1462,7 @@ Object.Extend(String, {
 			},
 
 			empty: function empty() {
-				return this.html("")
+				return this.html(emptyString)
 			},
 
 			rect: function rect() {
@@ -1734,8 +1768,8 @@ Object.Extend(String, {
 		function binder(e) {
 			// eval is evil! but there is no other way to set a function's name programmatically, 
 			// and the generated docs need a name
-			// also, we have to be even slightly more evil, to prevent the jsc compiler from mangling local names like g
 			eval("var g = function "+e+"(f) { // ."+e+"([f]) - trigger [or bind] the '"+e+"' event \nreturn Object.IsFunc(f) ? this.bind('"+e+"',f) : this.trigger('"+e+"', f ? f : {}) }")
+			// also, we have to be even slightly more evil, to prevent the jsc compiler from mangling local names like g
 			return eval("g")
 		}
 
@@ -1780,7 +1814,7 @@ Object.Extend(String, {
 				// e is a string like 'click', 'mouseover', etc.
 				// e can be comma-separated to bind multiple events at once
 				var i = 0,
-					c = (e||"").split(commasep_re),
+					c = (e||emptyString).split(commasep_re),
 					n = c.length
 				return this.each(function() {
 					for(; i < n; i++) {
@@ -1793,7 +1827,7 @@ Object.Extend(String, {
 				// .unbind(e, [f]) - removes handler f from event e
 				// if f is not present, removes all handlers from e
 				var i = 0,
-					c = (e||"").split(commasep_re),
+					c = (e||emptyString).split(commasep_re),
 					n = c.length
 				return this.each(function() {
 					for(; i < n; i++) {
@@ -1805,7 +1839,7 @@ Object.Extend(String, {
 			once: function once(e, f) {
 				// .once(e, f) - adds a handler f that will be called only once
 				var i = 0,
-					c = (e||"").split(commasep_re),
+					c = (e||emptyString).split(commasep_re),
 					n = c.length
 				for(; i < n; i++) {
 					this.bind(c[i], function(evt) {
@@ -1821,7 +1855,7 @@ Object.Extend(String, {
 				// the next trigger will call the first handler again
 				var j = 0,
 					funcs = Array.Slice(arguments, 1, arguments.length),
-					c = (e||"").split(commasep_re),
+					c = (e||emptyString).split(commasep_re),
 					ne = c.length,
 					nf = funcs.length
 				function cycler() {
@@ -1843,7 +1877,7 @@ Object.Extend(String, {
 				//   {screenX: 10, screenY: 10}
 				// note: not all browsers support manually creating all event types
 				var e, i = 0,
-					evts = (evt||"").split(commasep_re),
+					evts = (evt||emptyString).split(commasep_re),
 					n = evts.length,
 					evt_i = null
 				args = Object.Extend({
@@ -2029,7 +2063,7 @@ Object.Extend(String, {
 			click: function click(f) {
 				// .click([f]) - trigger [or bind] the 'click' event
 				// if the cursor is just default then make it look clickable
-				if( this.css("cursor").intersect(["auto",""]).len() > 0 )
+				if( this.css("cursor").intersect(["auto",emptyString]).len() > 0 )
 					this.css("cursor", "pointer")
 				return Object.IsFunc(f) ? this.bind('click', f)
 					: this.trigger('click', f ? f : {})
@@ -2119,7 +2153,7 @@ Object.Extend(String, {
 				var duration = $.duration(speed),
 					props = [], j = 0, i = 0, ii = null,
 					// what to send to the -webkit-transform
-					trans = "",
+					trans = emptyString,
 					// real css values to be set (end_css without the transform values)
 					css = {}
 				for( i in end_css )
@@ -2167,8 +2201,8 @@ Object.Extend(String, {
 				// .hide() - each node gets display:none
 				return this.each(function() {
 					if( this.style ) {
-						this._display = this.style.display === "none" ? "" : this.style.display
-						this.style.display = 'none'
+						this._display = this.style.display === none ? emptyString : this.style.display
+						this.style.display = none
 					}
 				}).trigger('hide')
 				.future(50, callback)
@@ -2212,13 +2246,13 @@ Object.Extend(String, {
 				// .toggle() - show each hidden node, hide each visible one
 				this.weave(this.css("display"))
 					.fold(function(display, node) {
-						if( display === "none" ) {
-							node.style.display = node._display || ""
+						if( display === none ) {
+							node.style.display = node._display || emptyString
 							delete node._display
 							$(node).trigger("show")
 						} else {
 							node._display = display
-							node.style.display = "none"
+							node.style.display = none
 							$(node).trigger("hide")
 						}
 						return node
@@ -2270,8 +2304,6 @@ Object.Extend(String, {
 	$.plugin(function Http() {
 		/// HTTP Request Module: provides wrappers for making http requests ///
 
-		var JSON = JSON || {}
-
 		// static helper to create &foo=bar strings from object properties
 		function formencode(obj) {
 			var s = [], j = 0, o = JSON.parse(JSON.stringify(obj)) // quickly remove all non-stringable items
@@ -2292,7 +2324,10 @@ Object.Extend(String, {
 					success: Function.Empty, // onload
 					error: Function.Empty, // onerror
 					async: true,
-					withCredentials: false
+					timeout: 0, // milliseconds, 0 is forever
+					withCredentials: false,
+					followRedirects: false,
+					asBlob: false
 				}, opts)
 				opts.state = Function.Bound(opts.state, xhr)
 				opts.success = Function.Bound(opts.success, xhr)
@@ -2303,6 +2338,9 @@ Object.Extend(String, {
 					opts.data = formencode(opts.data)
 				xhr.open(opts.method, url, opts.async)
 				xhr.withCredentials = opts.withCredentials
+				xhr.asBlob = opts.asBlob
+				xhr.timeout = opts.timeout
+				xhr.followRedirects = opts.followRedirects
 				xhr.onreadystatechange = function onreadystatechange() {
 					if( opts.state ) opts.state()
 					if( xhr.readyState === 4 )
@@ -2399,6 +2437,7 @@ Object.Extend(String, {
 			return -1
 		}
 
+		// the regex for the format specifiers in templates (from python)
 		var type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/
 
 		function compile(text) {
@@ -2461,7 +2500,7 @@ Object.Extend(String, {
 				// currently supports 'd', 'f', and 's'
 				switch( type ) {
 					case 'd':
-						output[j++] = "" + parseInt(value, 10)
+						output[j++] = emptyString + parseInt(value, 10)
 						break
 					case 'f':
 						output[j++] = parseFloat(value).toFixed(fixed)
@@ -2470,13 +2509,13 @@ Object.Extend(String, {
 					// TODO: add support for more formats
 					case 's':
 					default:
-						output[j++] = "" + value
+						output[j++] = emptyString + value
 				}
 				if( pad > 0 )
 					output[j] = String.PadLeft(output[j], pad)
 				output[j++] = rest
 			}
-			return output.join('')
+			return output.join(emptyString)
 		}
 
 		// modes for the synth machine
@@ -2484,8 +2523,8 @@ Object.Extend(String, {
 
 		function _synth(expr) {
 			// $.synth(/expr/) - given a CSS expression, create DOM nodes that match
-			var tagname = '', id = '', cls = '', attr = '', val = '',
-				text = '', attrs = {}, parent = null, mode = TAGMODE,
+			var tagname = emptyString, id = emptyString, cls = emptyString, attr = emptyString, val = emptyString,
+				text = emptyString, attrs = {}, parent = null, mode = TAGMODE,
 				ret = $([]), i = 0, c = null
 			ret.selector = expr
 			ret.context = document
@@ -2496,7 +2535,7 @@ Object.Extend(String, {
 					parent.appendChild(node)
 				else
 					ret.push(node)
-				text = ''
+				text = emptyString
 				mode = TAGMODE
 			}
 			function emitNode() {
@@ -2511,8 +2550,8 @@ Object.Extend(String, {
 				else
 					ret.push(node)
 				parent = node
-				tagname = ''; id = ''; cls = ''
-				attr = ''; val = ''; text = ''
+				tagname = emptyString; id = emptyString; cls = emptyString
+				attr = emptyString; val = emptyString; text = emptyString
 				attrs = {}
 				mode = TAGMODE
 			}
@@ -2540,8 +2579,8 @@ Object.Extend(String, {
 					mode = STEXTMODE
 				else if( c === ']' && (mode === ATTRMODE || mode === VALMODE) ) {
 					attrs[attr] = val
-					attr = ''
-					val = ''
+					attr = emptyString
+					val = emptyString
 					mode = TAGMODE
 				}
 				else if( c === '"' && mode === DTEXTMODE )
@@ -2554,7 +2593,7 @@ Object.Extend(String, {
 						parent = null
 				}
 				else if( mode === TAGMODE )
-					tagname += c != space ? c : ''
+					tagname += c != space ? c : emptyString
 				else if( mode === IDMODE ) id += c
 				else if( mode === CLSMODE ) cls += c
 				else if( mode === ATTRMODE ) attr += c
@@ -2581,7 +2620,7 @@ Object.Extend(String, {
 				// if defaults is passed, these will be the default values for v in .render(v)
 				this.render = function(args) {
 					// an over-ride of the basic .render() that applies these defaults
-					return _render(this.map($.HTML.stringify).join(''), Object.Extend(defaults,args))
+					return _render(this.map($.HTML.stringify).join(emptyString), Object.Extend(defaults,args))
 				}
 
 				return this.remove() // the template item itself should not be in the DOM
@@ -2590,7 +2629,7 @@ Object.Extend(String, {
 			render: function render(args) {
 				// .render(args) - replace %(var)s-type strings with values from args
 				// accepts nodes, returns a string
-				return _render(this.map($.HTML.stringify).join(''), args)
+				return _render(this.map($.HTML.stringify).join(emptyString), args)
 			},
 
 			synth: function synth(expr) {
@@ -2614,7 +2653,7 @@ Object.Extend(String, {
 					These will not be attached to anything when they are returned.
 
 					Each expression returns a single node that is the parent of the new tree.
-					But, you can pass in a comma-separated list of expressions to multiple nodes back.
+					But, you can pass in a comma-separated list of expressions to get multiple nodes back.
 
 					> $.synth("div#one, div#two")
 					> == $([<div id="one"></div>, <div id="two"></div>])

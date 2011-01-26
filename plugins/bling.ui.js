@@ -66,7 +66,9 @@ $.plugin(function UI() {
 			.bind('mouseup, touchend', function (evt) {
 				if( moving ) {
 					moving = false
-					$(document.elementFromPoint(evt.pageX, evt.pageY))
+					var pos = handle.position()[0]
+					$(document.elementFromPoint(pos.left, pos.top - 1))
+						.log("pre-trigger")
 						.trigger('drop', {
 							dropObject: dragObject
 						})
@@ -81,13 +83,13 @@ $.plugin(function UI() {
 			.append(handle)
 	}
 
-
 	function ProgressBar(selector, opts) {
 		opts = Object.Extend({
 			change: Function.Empty,
 			backgroundColor: "#fff",
 			barColor: "rgba(0,128,0,0.5)",
-			textColor: "white"
+			textColor: "white",
+			reset: false // whether to reset to the original style when the progress is complete
 		}, opts)
 
 		var _progress = 0.0,
@@ -99,14 +101,14 @@ $.plugin(function UI() {
 		node.zap('update', function(pct) {
 			while( pct > 1 ) pct /= 100;
 			_progress = pct
-			if( pct == 1 )
+			if( pct == 1 && opts.reset )
 				node.css("background", orig_bg)
 					.css("color", orig_color)
 			else
 				node.css("background", 
 					"-webkit-gradient(linear, 0 0, "+parseInt(pct * 100)+"% 0, "
 					+ "color-stop(0, "+opts.barColor+"), "
-					+ "color-stop(0.93, "+opts.barColor+"), "
+					+ "color-stop(0.98, "+opts.barColor+"), "
 					+ "color-stop(1.0, "+opts.backgroundColor+"))")
 					.css("color", opts.textColor)
 			if( Object.IsFunc(opts.change) )

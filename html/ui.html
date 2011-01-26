@@ -17,9 +17,9 @@
 					$(this).css({top: "", left: ""})
 				})
 
-				function snapToEdge(from, to, fromside, toside) {
-					var $from = $(from), $to = $(to),
-						fpos = $from.position()[0],
+				$.fn.snapTo = function(to, fromside, toside) {
+					var $to = $(to),
+						fpos = this.position()[0],
 						tpos = $to.position()[0],
 						top = fpos.top,
 						left = fpos.left
@@ -38,45 +38,127 @@
 							break
 					}
 					switch (fromside) {
+						case "top": /*fall-through*/
 						case "left":
 						break
 						case "right":
 							left -= fpos.width
 							break
-						case "top":
-						break
 						case "bottom":
 							top -= fpos.height
 							break
 					}
-					$from.transform({
+					return this.transform({
 						top: top + "px",
 						left: left + "px",
 						translate: [ 0, 0 ]
-					}, "slow", "linear")
+					}, "now")
 				}
 
 				$(".droppable").bind('drop', function(evt) {
-					// snapToEdge(evt.dropObject, this, "left", "left")
-					snapToEdge(evt.dropObject, this, "left", "right")
-					// snapToEdge(evt.dropObject, this, "right", "right")
-					// snapToEdge(evt.dropObject, this, "top", "top")
-					/*
-					var pos = $(this).position()[0]
-					// this drop container has a snap-to-edge effect
-					evt.dropObject.transform({
-						position: "absolute",
-						top: pos.top + "px",
-						left: pos.left + "px",
-						translate: [ 0, 0 ]
-					}, 0)
-					*/
+					$(evt.dropObject).snapTo(this, "left", "left")
 				})
 			})
 		</script>
 	</head>
 	<body>
 		<h1>UI Demos</h1>
+
+		<h2>Progress Bar</h2>
+		<p>Show the progress of long-running tasks.
+		<div id="bar-demo">
+			<div class="progressbar">Any content can be</div>
+			<input class="progressbar" type="text" value="a progressbar.">
+			<script>
+				$(document).ready(function() {
+					var bars = $("#bar-demo .progressbar")
+							.progressBar(),
+						interval = 30, // ms
+						steps = 15,
+						i = 0,
+						loop = function() {
+							// update the progress bar
+							bars.zip("update").call(i / steps)
+							if( i++ < steps)
+								setTimeout(arguments.callee, interval)
+						}
+					// begin the update loop
+					loop()
+				})
+			</script>
+		</div>
+
+		<h2>View Stack</h2>
+		<p>Multiple objects that are visually mutually-exclusive.
+		<div id="view-demo">
+			<div class="views">
+				<div id="item1">Item 1</div>
+				<div id="item2">Item 2</div>
+				<div id="item3">Item 3</div>
+			</div>
+			<style>
+				#demo-views > div {
+					padding: 4px;
+					border: 1px dashed black;
+				}
+				.views > * {
+					border:1px dashed black;
+					width: 200px;
+					text-align: center;
+				}
+			</style>
+			<script>
+				$(document).ready(function() {
+					$.fn.viewstack = function(opts) {
+						var items = this
+							.css({
+								display: none,
+								position: relative,
+								top: 0px,
+								left: 0px,
+							})
+							.map($),
+							i = 0, nn = items.len()
+						items[0].show()
+						items.next = function() {
+							items[i].hide()
+							i = (++i % nn)
+							items[i].show()
+						}
+						return items
+					}
+					// select all the stacked items into a set
+					var views = $("#view-demo .views > *")
+						.viewstack() // make the set a viewstack
+					// and then create a button for after
+					$.synth("button").click(function() {
+						views.next()
+					})
+					.text("Next View")
+					.appendTo("#view-demo")
+				})
+			</script>
+		</div>
+
+		<h2>Tabs</h2>
+		<p>Tabs are small clickable items that control a ViewStack.
+		<div id="tab-demo">
+			<ul class="tabs">
+				<li href="#view1">Tab One</li>
+				<li href="#view2">Tab Two</li>
+				<li href="#view3">Tab Three</li>
+			</ul>
+			<div class="stack">
+				<div><a name="view1"></a>View 1</div>
+				<div><a name="view2"></a>View 2</div>
+				<div><a name="view3"></a>View 3</div>
+			</div>
+			<script>
+				$(document).ready(function() {
+					$("#demo2 .tabs").tabs()
+				})
+			</script>
+		</div>
 
 		<h2>Drag / Drop</h2>
 		<div class="droppable">Drop stuff here.</div>

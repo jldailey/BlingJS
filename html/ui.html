@@ -89,18 +89,14 @@
 		</div>
 
 		<h2>View Stack</h2>
-		<p>Multiple objects that are visually mutually-exclusive.
+		<p>Multiple objects that are visually exclusive.
 		<div id="view-demo">
 			<div class="views">
-				<div id="item1">Item 1</div>
-				<div id="item2">Item 2</div>
-				<div id="item3">Item 3</div>
+				<div id="view1">View #1</div>
+				<div id="view2">View #2</div>
+				<div id="view3">View #3</div>
 			</div>
 			<style>
-				#demo-views > div {
-					padding: 4px;
-					border: 1px dashed black;
-				}
 				.views > * {
 					border:1px dashed black;
 					width: 200px;
@@ -108,34 +104,34 @@
 				}
 			</style>
 			<script>
+				// make a viewStack, and button to rotate the stack
 				$(document).ready(function() {
-					$.fn.viewstack = function(opts) {
-						var items = this
-							.css({
-								display: none,
-								position: relative,
-								top: 0px,
-								left: 0px,
-							})
-							.map($),
-							i = 0, nn = items.len()
-						items[0].show()
-						items.next = function() {
-							items[i].hide()
-							i = (++i % nn)
-							items[i].show()
-						}
-						return items
-					}
-					// select all the stacked items into a set
 					var views = $("#view-demo .views > *")
-						.viewstack() // make the set a viewstack
-					// and then create a button for after
-					$.synth("button").click(function() {
-						views.next()
-					})
-					.text("Next View")
-					.appendTo("#view-demo")
+						.viewStack()
+					$.synth("button")
+						.text("Next View")
+						.click(function() {
+							views.next()
+						})
+						.appendTo("#view-demo")
+					$.synth("button")
+						.text("Select View 3")
+						.click(function() {
+							views.activate(2)
+						})
+						.appendTo("#view-demo")
+					$.synth("button")
+						.text("Select View 2")
+						.click(function() {
+							$("#view2").zip("activate").call()
+						})
+						.appendTo("#view-demo")
+					$.synth("button")
+						.text("Select View 1")
+						.click(function() {
+							$("#view1")[0].activate()
+						})
+						.appendTo("#view-demo")
 				})
 			</script>
 		</div>
@@ -144,18 +140,34 @@
 		<p>Tabs are small clickable items that control a ViewStack.
 		<div id="tab-demo">
 			<ul class="tabs">
-				<li href="#view1">Tab One</li>
-				<li href="#view2">Tab Two</li>
-				<li href="#view3">Tab Three</li>
+				<li>Tab One</li>
+				<li>Tab Two</li>
+				<li>Tab Three</li>
 			</ul>
-			<div class="stack">
-				<div><a name="view1"></a>View 1</div>
-				<div><a name="view2"></a>View 2</div>
-				<div><a name="view3"></a>View 3</div>
+			<div class="views">
+				<div>View 1</div>
+				<div>View 2</div>
+				<div>View 3</div>
 			</div>
 			<script>
+				// make set of tabs to control a viewStack
 				$(document).ready(function() {
-					$("#demo2 .tabs").tabs()
+					function Tabs(selector, views) {
+						var tabs = $(selector),
+							views = $(views).viewStack(),
+							nn = tabs.len(),
+							i = 0
+						while( i < nn )
+							tabs[i]._tabIndex = i++
+						tabs.click(function tab_click() {
+							views.activate(this._tabIndex)
+						})
+						return tabs
+					}
+					$.fn.tabs = function (views) {
+						return Tabs(this, views)
+					}
+					$("#tab-demo .tabs > *").tabs("#tab-demo .views > *")
 				})
 			</script>
 		</div>

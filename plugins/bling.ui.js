@@ -86,24 +86,30 @@ $.plugin(function UI() {
 	function ProgressBar(selector, opts) {
 		opts = Object.Extend({
 			change: Function.Empty,
+			// the color of the 'incomplete' part of the bar
 			backgroundColor: "#fff",
+			// the color of 'complete'
 			barColor: "rgba(0,128,0,0.5)",
+			// the color of text when on top of the 'barColor'
 			textColor: "white",
-			reset: false // whether to reset to the original style when the progress is complete
+			// whether to reset to the original style when the progress is complete
+			reset: false 
 		}, opts)
 
-		var _progress = 0.0,
-			node = $(selector)
+		var node = $(selector)
 				.addClass('progress-bar'),
-			orig_bg = node.css("background").first(),
-			orig_color = node.css("color").first()
+			_progress = 0.0
+		if( opts.reset ) {
+			var _bg = node.css("background").first(),
+				_color = node.css("color").first()
+		}
 
 		node.zap('update', function(pct) {
 			while( pct > 1 ) pct /= 100;
 			_progress = pct
 			if( pct == 1 && opts.reset )
-				node.css("background", orig_bg)
-					.css("color", orig_color)
+				node.css("background", _bg)
+					.css("color", _color)
 			else
 				node.css("background", 
 					"-webkit-gradient(linear, 0 0, "+parseInt(pct * 100)+"% 0, "
@@ -172,28 +178,36 @@ $.plugin(function UI() {
 		return $node
 	}
 
-	function Tabs(tabs, bodies, opts) {
-		opts = Object.Extend({
-		}, opts)
-		var $tabs = $(tabs),
-			$bodies = $(bodies),
-			i = 0, n = $tabs.len()
-		while( i < n ) {
-			$tabs.index(i).click(function(){
-				$bodies.index(i).toggle()
+	function ViewStack(selector, opts) {
+		var items = $(selector)
+			.css({
+				position: "relative",
+				top: "0px",
+				left: "0px",
+			})
+			.hide()
+			.map($),
+			active = 0, j = 0, 
+			nn = items.len()
+		items[0].show()
+		items.next = function() {
+			items[active].hide()
+			active = (++active % nn)
+			items[active].show()
+		}
+		items.activate = function activate_one(k) {
+			items[active].hide()
+			items[k].show()
+			active = k
+		}
+		for(; j < nn; j++) {
+			items[j]
+			.zap("_viewIndex", j)
+			.zap("activate", function activate() {
+				items.activate(this._viewIndex)
 			})
 		}
-	}
-
-	function ViewStack(bodies, opts) {
-		opts = Object.Extend({
-			width: "auto",
-			height: "auto"
-		}, opts)
-		var $bodies = $(bodies),
-			$box = $.synth("div.box")
-
-		$box.css({width: opts.width, height: opts.height})
+		return items
 	}
 
 	return {
@@ -201,6 +215,7 @@ $.plugin(function UI() {
 		$UI: {
 			Draggable: Draggable,
 			ProgressBar: ProgressBar,
+			ViewStack: ViewStack
 		},
 
 		dialog: function dialog(opts) {
@@ -208,9 +223,12 @@ $.plugin(function UI() {
 			return Dialog(this, opts)
 		},
 		progressBar: function progressBar(opts) {
-			// .progressBar([opts]) - create a progress bar in each node
+			// .progressBar([opts]) - create a progress bar from each node
 			return ProgressBar(this, opts)
 		},
+		viewStack: function viewStack(opts) {
+			return ViewStack(this, opts)
+		}
 
 	}
 })

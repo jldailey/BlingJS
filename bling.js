@@ -1813,11 +1813,10 @@ Object.Extend(Event, {
 				// .bind(e, f) - adds handler f for event type e
 				// e is a string like 'click', 'mouseover', etc.
 				// e can be comma-separated to bind multiple events at once
-				var i = 0,
-					c = (e||emptyString).split(commasep_re),
-					n = c.length
+				var c = (e||emptyString).split(commasep_re),
+					n = c.length, i = 0
 				return this.each(function() {
-					for(; i < n; i++) {
+					for(i = 0; i < n; i++) {
 						this.addEventListener(c[i], f)
 					}
 				})

@@ -1030,7 +1030,7 @@ Object.Extend(Event, {
 			},
 
 			len: function len() {
-				// .len() - returns the largest not-undefined index + 1
+				// .len() - returns the max defined index + 1
 				// the .length of an array is more like capacity than length
 				// this counts backward from .length, looking for a valid item
 				// returns the found index + 1
@@ -2102,9 +2102,8 @@ Object.Extend(Event, {
 	})
 
 	$.plugin(function Transform() {
-		// matches all the accelerated css property names
-		var accel_props_re = /(?:scale|translate|rotate|scale3d|translate[XYZ]|translate3d|rotate[XYZ]|rotate3d)/
 
+		// define some constant speed names
 		var speeds = {
 			"slow": 700,
 			"medium": 500,
@@ -2114,17 +2113,26 @@ Object.Extend(Event, {
 			"now": 0
 		}
 
-		// static strings for re-use
+		// matches all the accelerated css property names
+		var accel_props_re = /(?:scale|translate|rotate|scale3d|translate[XYZ]|translate3d|rotate[XYZ]|rotate3d)/
+
+		// static string constants for re-use
 		var transformCSS = "-webkit-transform",
 			transitionProperty = "-webkit-transition-property",
 			transitionDuration = "-webkit-transition-duration",
-			transitionTiming = "-webkit-transition-timing-function"
+			transitionTiming = "-webkit-transition-timing-function",
+			_ms = "ms",
+			_hide = "hide",
+			_show = "show"
+
+		var updateDelay = 50 // ms to wait for DOM changes to apply
 
 		/// Transformation Module: provides wrapper for using -webkit-transform ///
 		return {
 			$duration: function duration(speed) {
 				// $.duration(/s/) - given a speed description (string|number), return a number in milliseconds
-				return speeds[speed] || parseFloat(speed)
+				var d = speeds[speed]
+				return Object.HasValue(d) ? d : parseFloat(speed)
 			},
 
 			// like jquery's animate(), but using only webkit-transition/transform
@@ -2134,7 +2142,7 @@ Object.Extend(Event, {
 				// accelerated: scale, translate, rotate, scale3d,
 				// ... translateX, translateY, translateZ, translate3d,
 				// ... rotateX, rotateY, rotateZ, rotate3d
-				// easing values: ease | linear | ease-in | ease-out 
+				// easing values (strings): ease | linear | ease-in | ease-out 
 				// | ease-in-out | step-start | step-end | steps(number[, start | end ]) 
 				// | cubic-bezier(number, number, number, number)
 
@@ -2174,12 +2182,14 @@ Object.Extend(Event, {
 				if( trans )
 					props[j++] = transformCSS
 
-				// apply the duration (TODO: and easing)
+				// apply the duration
+				duration = duration + _ms
 				// sets a list of properties to apply a duration to
-				css[transitionProperty] = props.join(commasep)
+				css[transitionProperty] = props
+					.join(commasep)
 				// apply the same duration to each property
 				css[transitionDuration] =
-					props.map(function() { return duration + "ms" })
+					props.map(function() { return duration })
 						.join(commasep)
 				// apply an easing function to each property
 				css[transitionTiming] =
@@ -2192,7 +2202,7 @@ Object.Extend(Event, {
 				// apply the css to the actual node
 				this.css(css)
 				// queue the callback to be executed at the end of the animation
-				// NOT EXACT!
+				// WARNING: NOT EXACT!
 				return this.future(duration, callback)
 			},
 
@@ -2203,8 +2213,9 @@ Object.Extend(Event, {
 						this._display = this.style.display === none ? emptyString : this.style.display
 						this.style.display = none
 					}
-				}).trigger('hide')
-				.future(50, callback)
+				})
+				.trigger(_hide)
+				.future(updateDelay, callback)
 			},
 
 			show: function show(callback) {
@@ -2214,12 +2225,15 @@ Object.Extend(Event, {
 						this.style.display = this._display
 						delete this._display
 					}
-				}).trigger('show')
-				.future(50, callback)
+				})
+				.trigger(_show)
+				.future(updateDelay, callback)
 			},
 
 			visible: function visible() {
-				var y, x = y = null, // find the nodes that enforce overflow cutoffs
+				// .visible(): TODO, incomplete
+				var y, x = y = null, 
+					// p is a set of nodes that enforce overflow cutoffs
 					p = this.parents().map(function (parents) {
 						var i = -1, n = parents.length;
 						while( ++i < n ) {
@@ -2238,6 +2252,7 @@ Object.Extend(Event, {
 						}
 						return $([x,y])
 					})
+				// TODO: should capture the viewport as well (window size, scrolling, etc)
 				return p
 			},
 
@@ -2248,38 +2263,36 @@ Object.Extend(Event, {
 						if( display === none ) {
 							node.style.display = node._display || emptyString
 							delete node._display
-							$(node).trigger("show")
+							$(node).trigger(_show)
 						} else {
 							node._display = display
 							node.style.display = none
-							$(node).trigger("hide")
+							$(node).trigger(_hide)
 						}
 						return node
 					})
-					.future(50, callback)
+					.future(updateDelay, callback)
 			},
 
 			fadeIn: function fadeIn(speed, callback) {
-				// .fadeIn() - fade each node to opacity:1.0
+				// .fadeIn() - fade each node to opacity 1.0
 				return this
 					.css('opacity','0.0')
 					.show(function(){
-						this.transform({opacity:"1.0", translate3d:[0,0,0]}, speed, function() {
-							this.trigger("show")
-							if( callback ) callback.apply(this)
-						})
+						this.transform({
+							opacity:"1.0",
+							translate3d:[0,0,0]
+						}, speed, callback)
 					})
 			},
 			fadeOut:   function fadeOut(speed, callback, _x, _y) {
 				// .fadeOut() - fade each node to opacity:0.0
 				_x = _x || 0.0
 				_y = _y || 0.0
-				return this.each(function(t) {
-					$(t).transform({
-						opacity:"0.0",
-						translate3d:[_x,_y,0.0]
-					}, speed, function() { this.hide() })
-				}).future($.duration(speed), callback)
+				return this.transform({
+					opacity:"0.0",
+					translate3d:[_x,_y,0.0]
+				}, speed, function() { this.hide(callback) })
 			},
 			fadeLeft:  function fadeLeft(speed, callback)  {
 				// .fadeLeft() - fadeOut and move offscreen to the left
@@ -2290,11 +2303,11 @@ Object.Extend(Event, {
 				return this.fadeOut(speed, callback, this.width().first(), 0.0)
 			},
 			fadeUp:    function fadeUp(speed, callback)    {
-				// .fadeUp() - fadeOut and move offscreen off the top
+				// .fadeUp() - fadeOut and move off the top
 				return this.fadeOut(speed, callback, 0.0, "-"+this.height().first())
 			},
 			fadeDown:  function fadeDown(speed, callback)  {
-				// .fadeDown() - fadeOut and move offscreen off the bottom
+				// .fadeDown() - fadeOut and move off the bottom
 				return this.fadeOut(speed, callback, 0.0, this.height().first())
 			}
 		}

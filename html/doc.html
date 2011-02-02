@@ -123,9 +123,11 @@
 					$docroot = $("#docroot"),
 					$search = $("#search"),
 					i = 0, name = null, module = null,
+					// init the progress bar
 					progressBar = $.UI.ProgressBar("#search", {
 						barColor: "rgba(0,0,0,0.7)",
 						textColor: "yellow",
+						reset: true
 					}),
 					funcTemplate = $.synth("li.func "
 						+ " a.apiname[name=%(reference)s] span.def '%(definition)s'"
@@ -135,6 +137,7 @@
 					old_val,
 					$items = $("ol#docroot li")
 
+				// generate all the documentation, in steps, updating progress
 				setTimeout(function () {
 					if( name = $.plugin.s[i++] ) {
 						var h3 = $.synth("li.module span '"+name+"' + ol.apilist"),
@@ -145,15 +148,12 @@
 						setTimeout(arguments.callee, 0)
 					} else {
 						progressBar.zip("update").call(1.0)
-						$items = $("ol#docroot li") // rebuild 
+						$items = $("ol#docroot li")
 						$docroot.fadeIn(function() {
+							// zoom to the #hash item if there is one
 							var hash = window.location.hash
 							if( hash )
 								$("a[name='"+hash.substr(1)+"']")
-									.future(0, function() {
-										this.parent()
-											.transform({scale: 1.2})
-									})
 									.zip('scrollIntoView').call()
 						})
 					}
@@ -163,7 +163,6 @@
 				$("li.func span.def, li.func span.desc", $docroot).live('click', function() {
 					$(this).parents().flatten()
 						.filter("li.func")
-						.transform({scale: 1.0})
 						.toggleClass("open")
 						.find("div.examples")
 						.toggle()
@@ -195,7 +194,7 @@
 									return
 							}
 							step += 1
-							progressBar.update(step/3, 0)
+							progressBar.zip('update').call(step/3, 0)
 							setTimeout(arguments.callee, 0)
 						}, 0)
 					}

@@ -2,64 +2,6 @@
 	<head>
 		<script src="../bling.js"></script>
 		<script src="../plugins/bling.ui.js"></script>
-		<style>
-			div.droppable {
-				width: 120px;
-				height: 120px;
-				text-align: center;
-				line-height: 120px;
-				border: 1px dashed black;
-			}
-		</style>
-		<script>
-			$(document).ready(function() {
-				$.UI.Draggable(".draggable").bind("drag", function() {
-					$(this).css({top: "", left: ""})
-				})
-
-				$.fn.snapTo = function(to, fromside, toside) {
-					var $to = $(to),
-						fpos = this.position()[0],
-						tpos = $to.position()[0],
-						top = fpos.top,
-						left = fpos.left
-					switch (toside) {
-						case "left":
-							left = tpos.left
-							break
-						case "right":
-							left = tpos.width + tpos.left
-							break
-						case "top":
-							top = tpos.top
-							break
-						case "bottom":
-							top = tpos.top + tpos.height
-							break
-					}
-					switch (fromside) {
-						case "top": /*fall-through*/
-						case "left":
-						break
-						case "right":
-							left -= fpos.width
-							break
-						case "bottom":
-							top -= fpos.height
-							break
-					}
-					return this.transform({
-						top: top + "px",
-						left: left + "px",
-						translate: [ 0, 0 ]
-					}, "now")
-				}
-
-				$(".droppable").bind('drop', function(evt) {
-					$(evt.dropObject).snapTo(this, "left", "left")
-				})
-			})
-		</script>
 	</head>
 	<body>
 		<h1>UI Demos</h1>
@@ -97,7 +39,7 @@
 				<div id="view3">View #3</div>
 			</div>
 			<style>
-				.views > * {
+				#view-demo .views > * {
 					border:1px dashed black;
 					width: 200px;
 					text-align: center;
@@ -137,7 +79,7 @@
 		</div>
 
 		<h2>Tabs</h2>
-		<p>Tabs are small clickable items that control a ViewStack.
+		<p>Tabs are clickable items that control a ViewStack.
 		<div id="tab-demo">
 			<ul class="tabs">
 				<li>Tab One</li>
@@ -149,32 +91,137 @@
 				<div>View 2</div>
 				<div>View 3</div>
 			</div>
+			<style>
+				#tab-demo .views {
+					width: 240px;
+				}
+				#tab-demo .tabs {
+					clear: both;
+					list-style: none;
+					margin: 0;
+					padding: 0;
+					height: 22px;
+				}
+				#tab-demo .tabs > * {
+					float: left;
+					height: 16px;
+					line-height: 16px;
+					padding: 2px 4px;
+					margin: 2px;
+					border-left: 1px solid black;
+					border-top: 1px solid black;
+					border-right: 1px solid #bababa;
+					border-radius: 3px;
+				}
+				#tab-demo .tabs > .active {
+					background-color: #ffc;
+				}
+
+				#tab-demo .views > * {
+					border:1px dashed black;
+					width: 245px;
+					text-align: center;
+					height: 50px;
+					line-height: 50px;
+				}
+			</style>
 			<script>
-				// make set of tabs to control a viewStack
+				// make a set of tabs to control a viewStack
 				$(document).ready(function() {
-					function Tabs(selector, views) {
-						var tabs = $(selector),
-							views = $(views).viewStack(),
-							nn = tabs.len(),
-							i = 0
-						while( i < nn )
-							tabs[i]._tabIndex = i++
-						tabs.click(function tab_click() {
-							views.activate(this._tabIndex)
-						})
-						return tabs
-					}
-					$.fn.tabs = function (views) {
-						return Tabs(this, views)
-					}
 					$("#tab-demo .tabs > *").tabs("#tab-demo .views > *")
 				})
 			</script>
 		</div>
 
+		<h2>Accordion</h2>
+		<p>An Accordion is a ViewStack with interleaved title rows.
+		<div id="accord-demo">
+			<ul class="accordion">
+				<li>
+					<div>Title One</div>
+					<div>Body One</div>
+				</li>
+				<li>
+					<div>Title Two</div>
+					<div>Body Two</div>
+				</li>
+				<li>
+					<div>Title Three</div>
+					<div>Body Three</div>
+				</li>
+			</ul>
+			<script>
+				$(document).ready(function() {
+					$("#accord-demo .accordion").accordion()
+				})
+			</script>
+		</div>
+
 		<h2>Drag / Drop</h2>
-		<div class="droppable">Drop stuff here.</div>
-		<span class="draggable">Drag me around.</span>
+		<div id="drag-demo">
+			<div class="droppable">Drop stuff here and it will stick.</div>
+			<span class="draggable">Drag me around by the handle.</span>
+			<style>
+				div.droppable {
+					width: 120px;
+					height: 80px;
+					text-align: center;
+					padding: 50px 6px 0px;
+					border: 1px dashed black;
+				}
+			</style>
+			<script>
+				$(document).ready(function() {
+					$.UI.Draggable("#drag-demo .draggable").bind("drag", function() {
+						// during the drag, reset the 'snapped' position
+						$(this).css({top: "", left: ""})
+					})
+
+					$.fn.snapTo = function(to, fromside, toside) {
+						var $to = $(to),
+							fpos = this.position()[0],
+							tpos = $to.position()[0],
+							top = fpos.top + document.body.scrollTop,
+							// this might should be - scrollLeft instead of +, need to test
+							left = fpos.left + document.body.scrollLeft
+						switch (toside) {
+							case "left":
+								left = tpos.left
+								break
+							case "right":
+								left = tpos.width + tpos.left
+								break
+							case "top":
+								top = tpos.top
+								break
+							case "bottom":
+								top = tpos.top + tpos.height
+								break
+						}
+						switch (fromside) {
+							case "top": /*fall-through*/
+							case "left":
+							break
+							case "right":
+								left -= fpos.width
+								break
+							case "bottom":
+								top -= fpos.height
+								break
+						}
+						return this.transform({
+							top: top + "px",
+							left: left + "px",
+							translate: [ 0, 0 ]
+						}, "instant")
+					}
+
+					$("#drag-demo .droppable").bind('drop', function(evt) {
+						$(evt.dropObject).snapTo(this, "left", "left")
+					})
+				})
+			</script>
+		</div>
 
 	</body>
 </html>

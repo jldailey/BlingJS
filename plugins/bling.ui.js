@@ -33,14 +33,18 @@ $.plugin(function UI() {
 			originX = 0,
 			originY = 0,
 			originPOS = dragObject.position(),
+			// create a handle
 			handle = $.synth("div.handle")
+				// set the default appearance of the handle
 				.defaultCss({
 					background: "-webkit-gradient(linear, 50% 0%, 50% 100%, from(#eee), color-stop(0.25, #bbb), color-stop(0.3, #eee), color-stop(0.5, #eee), to(#bbb))",
-					"height": "5px",
-					"border-radius": "1px",
+					height: "6px",
+					"border-radius": "3px",
 					cursor: "move",
 				})
+				// force the handle's position
 				.css(opts.handlePosition)
+				// activate the handle with events for starting the drag
 				.bind('mousedown, touchstart', function (evt) {
 					moving = true
 					originX = originX || evt.pageX
@@ -48,38 +52,39 @@ $.plugin(function UI() {
 					evt.preventDefault()
 					evt.stopPropagation()
 				})
-			$(document).bind('mousemove, touchmove', function (evt) {
-				if( moving ) {
-					evt.preventDefault()
-					evt.stopPropagation()
-					var deltaX = (evt.pageX - originX),
-						deltaY = (evt.pageY - originY)
-					dragObject.transform({
-						position: "absolute", 
-						translate: [ deltaX, deltaY ] 
-					}, 0)
-					.trigger('drag',{
-						dragObject: dragObject
+		$(document).bind('mousemove, touchmove', function (evt) {
+			if( moving ) {
+				evt.preventDefault()
+				evt.stopPropagation()
+				var deltaX = (evt.pageX - originX),
+					deltaY = (evt.pageY - originY)
+				dragObject.transform({
+					position: "absolute", 
+					translate: [ deltaX, deltaY ] 
+				}, 0)
+				.trigger('drag',{
+					dragObject: dragObject
+				})
+			}
+		})
+		.bind('mouseup, touchend', function (evt) {
+			if( moving ) {
+				moving = false
+				var pos = handle.position()[0]
+				$(document.elementFromPoint(pos.left, pos.top - 1))
+					.trigger('drop', {
+						dropObject: dragObject
 					})
-				}
-			})
-			.bind('mouseup, touchend', function (evt) {
-				if( moving ) {
-					moving = false
-					var pos = handle.position()[0]
-					$(document.elementFromPoint(pos.left, pos.top - 1))
-						.log("pre-trigger")
-						.trigger('drop', {
-							dropObject: dragObject
-						})
-				}
-			})
+			}
+		})
 
-		return dragObject.css({
+		return dragObject.addClass("draggable")
+			// make room for the handle
+			.css({
 				position: "relative",
 				"padding-top": dragObject.css("padding-top").map(Number.AtLeast(5)).px().first(),
 			})
-			.addClass("draggable")
+			// attach the handle
 			.append(handle)
 	}
 
@@ -137,43 +142,50 @@ $.plugin(function UI() {
 			selectedChild = null
 
 		function initRow(n) {
-			var t = $(n),
-				title = t.child(0),
-				body = t.child(1),
+			var t = $(n).children().first().filter("*"),
+				title = t.eq(0)
+					.addClass("accordion-title"),
+				body = t.eq(1)
+					.addClass("accordion-body")
+					.hide(),
 				bodyVisible = false
-			body.hide()
-			title.unbind('click').click(function accordion_click() {
+			title.unbind('click').click(function () {
 				if( opts.exclusive ) {
-					$node.children().first()
-						.find("*:first-child, *:first-child + *")
-						.removeClass("selected")
-						.filter("*:first-child + *")
+					$node.find(".accordion-body")
 						.hide()
 				}
 				if( bodyVisible ) {
-					bodyVisible = false
 					if( ! opts.sticky ) {
-						body.hide()
-						title.removeClass("selected")
+						body.hide().removeClass("visible")
+						title.removeClass("selected").trigger("deselect")
+						bodyVisible = false
 					}
 					else {
-						body.show()
-						title.addClass("selected")
+						body.show().addClass("visible")
+						title.addClass("selected").trigger("select")
+						bodyVisible = true
 					}
 				} else {
-					body.show()
-					title.addClass("selected")
+					body.show().addClass("visible")
+					title.addClass("selected").trigger("select")
 					bodyVisible = true
 				}
 			})
 		}
 
-		$node.bind("DOMNodeInserted", function _inserted(evt) {
-			var t = $(evt.target).parents().first().intersect($node.children().first())
-			if( t ) initRow(t)
+		// dynamically added rows should auto-init themselves 
+		$node.bind("DOMNodeInserted", function (evt) {
+			// find the parent of the new node
+			// that is a direct child of the accordion
+			var t = $(evt.target).parents().first()
+				.intersect($node.children().first().filter("*"))
+			if( t ) 
+				initRow(t)
 		})
 
-		$node.children().first().filter("*").map(initRow)
+		$node.children().first()
+			.filter("*") // only Nodes
+			.map(initRow)
 
 		return $node
 	}
@@ -210,12 +222,30 @@ $.plugin(function UI() {
 		return items
 	}
 
+	function Tabs(selector, views) {
+		var tabs = $(selector),
+			views = $(views).viewStack(),
+			nn = tabs.len(),
+			i = 0
+		while( i < nn )
+			tabs[i]._tabIndex = i++
+		$(tabs[0]).addClass("active")
+		tabs.click(function tab_click() {
+			tabs.removeClass("active")
+			views.activate(this._tabIndex)
+			$(this).addClass("active")
+		})
+		return tabs
+	}
+
 	return {
 
 		$UI: {
 			Draggable: Draggable,
 			ProgressBar: ProgressBar,
-			ViewStack: ViewStack
+			ViewStack: ViewStack,
+			Tabs: Tabs,
+			Accordion: Accordion
 		},
 
 		dialog: function dialog(opts) {
@@ -228,8 +258,13 @@ $.plugin(function UI() {
 		},
 		viewStack: function viewStack(opts) {
 			return ViewStack(this, opts)
+		},
+		tabs: function tabs(views) {
+			return Tabs(this, views)
+		},
+		accordion: function accordion(opts) {
+			return Accordion(this, opts)
 		}
-
 	}
 })
 

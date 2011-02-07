@@ -1,7 +1,7 @@
 /** bling.js
  * --------
- * Named after the bling operator ($) to which it is bound by default.
- * This is a jQuery-like framework, using any WebKit shortcuts that we can.
+ * Named after the bling symbol ($) to which it is bound by default.
+ * This is a jQuery-like framework.
  * All other browsers play at your own risk.
  * Blame: Jesse Dailey <jesse.dailey@gmail.com>
  */
@@ -35,7 +35,7 @@ function Bling (selector, context) {
 		// html begins with "<", and we create a set of nodes by parsing it
 		// any other string is considered css
 
-		selector = selector.trimLeft()
+		selector = String.TrimLeft(selector)
 
 		if( selector[0] === "<" )
 			set = [Bling.HTML.parse(selector)]
@@ -54,7 +54,7 @@ function Bling (selector, context) {
 					a.push(s[i])
 				return a
 			}, [])
-		else throw Error("invalid context: " + context)
+		else throw Error("invalid context: " + context + " (type: " + typeof(context) + ")")
 	}
 	else
 		set = selector
@@ -94,11 +94,11 @@ Object.Keys = function (o, inherited) {
  * @param {Object} b the object to copy from
  * @param {Array=} k if present, a list of field names to limit to
  */
-Object.Extend = function extend(a, b, k) {
+Object.Extend = function (a, b, k) {
 	// Object.Extend(a, b, [k]) - merge values from b into a
 	// if k is present, it should be a list of property names to copy
 	var i, j, undefined
-	if( Object.prototype.toString.apply(k) == "[object Array]" ) // cant use Object.IsArray yet
+	if( Object.prototype.toString.apply(k) === "[object Array]" ) // cant use Object.IsArray yet
 		for( i in k )
 			a[k[i]] = b[k[i]] != undefined ? b[k[i]] : a[k[i]]
 	else 
@@ -130,57 +130,56 @@ Object.Extend(Object, {
 
 		*/
 	},
-	IsType: function (a,T) {
-		// Object.IsType(a,T) - true if object a is of type T (directly or indirectly)
-		return a == null ? a === T
-			: a.__proto__ == null ? false
-			: a.__proto__.constructor === T ? true
-			: typeof T === "string" ? a.__proto__.constructor.name === T
-			: Object.IsType(a.__proto__, T) // recursive
+	IsType: function (o,T) {
+		// Object.IsType(o,T) - true if object o is of type T (directly or indirectly)
+		return o == null ? o === T
+			: o.__proto__ == null ? false
+			: o.__proto__.constructor === T ? true
+			: typeof T === "string" ? o.__proto__.constructor.name === T
+			: Object.IsType(o.__proto__, T) // recursive
 	},
-	IsString: function (a) {
+	IsString: function (o) {
 		// Object.IsString(a) - true if object a is a string
-		return typeof a === "string" || Object.IsType(a, String)
+		return typeof o === "string" || Object.IsType(o, String)
 	},
 	IsNumber: isFinite,
-	IsFunc: function (a) {
-		// Object.IsFunc(a) - true if object a is a function
-		return typeof a === "function" || Object.IsType(a, Function)
+	IsFunc: function (o) {
+		// Object.IsFunc(o) - true if object a is a function
+		return typeof o === "function" || Object.IsType(o, Function)
 	},
-	IsNode: function (a) {
-		// Object.IsNode(a) - true if object is a DOM node
-		return a ? a.nodeType > 0 : false
+	IsNode: function (o) {
+		// Object.IsNode(o) - true if object is a DOM node
+		return o ? o.nodeType > 0 : false
 	},
-	IsFragment: function (a) {
-		// Object.IsFragment(a) - true if object is a DocumentFragment node
-		return a ? a.nodeType === 11 : false
+	IsFragment: function (o) {
+		// Object.IsFragment(o) - true if object is a DocumentFragment node
+		return o ? o.nodeType === 11 : false
 	},
-	IsArray: function (a) {
-		// Object.IsArray(a) - true if object is an Array (or inherits Array)
-		return a ? Function.ToString(a) === "[object Array]"
-			|| Object.IsType(a, Array) : false
+	IsArray: function (o) {
+		// Object.IsArray(o) - true if object is an Array (or inherits Array)
+		return o ? Function.ToString(o) === "[object Array]"
+			|| Object.IsType(o, Array) : false
 	},
-	IsBling: function (a) {
-		return Object.IsType(a, Bling)
+	IsBling: function (o) {
+		return Object.IsType(o, Bling)
 	},
-	IsObject: function (a) {
-		// Object.IsObject(a) - true if a is an object
-		return typeof a === "object"
+	IsObject: function (o) {
+		// Object.IsObject(o) - true if a is an object
+		return typeof o === "object"
 	},
-	HasValue: function (a) {
-		// Object.HasValue(a) - true if a is not null nor undefined
-		return !(a == null)
+	HasValue: function (o) {
+		// Object.HasValue(o) - true if a is not null nor undefined
+		return !(o == null)
 	},
-	Unbox: function (a) {
-		// Object.Unbox(o) - primitive types can be 'boxed' in an object
-		if( Object.IsObject(a) )
-			switch (true) {
-				case Object.IsString(a):
-					return a.toString()
-				case Object.IsNumber(a):
-					return Number(a)
-			}
-		return a
+	Unbox: function (o) {
+		// Object.Unbox(o) - primitive types are sometimes 'boxed' in an object
+		if( Object.IsObject(o) ) {
+			if( Object.IsString(o) )
+				return o.toString()
+			if( Object.IsNumber(o) )
+				return Number(o)
+		}
+		return o
 	}
 })
 
@@ -197,8 +196,13 @@ Object.Extend(Function, {
 	Bound: function (f, t, args) {
 		// Function.Bound(/f/, /t/) - whenever /f/ is called, _this_ === /t/
 		args = args || []
-		args.splice(0, 0, t)
-		var r = f.bind.apply(f, args)
+		var r
+		if( Function.prototype.bind ) {
+			args.splice(0, 0, t)
+			r = f.bind.apply(f, args)
+		}
+		else
+			r = function() { f.apply(t, args.length > 0 ? args : arguments ) }
 		r.toString = function() { return "bound-method of "+t+"."+f.name }
 		return r
 		/* Example:
@@ -238,7 +242,7 @@ Object.Extend(Function, {
  * ---------------- */
 Object.Extend(Array, {
 	/** Array.Slice works like python's slice (negative indexes, etc)
-	 * and works on any indexable (not just array instances, notably 'arguments')
+	 * and works on any indexable (not just arrays, notably 'arguments')
 	 * @param {Object} o the iterable to get a slice of
 	 * @param {number} i the start index
 	 * @param {number=} j the end index
@@ -277,6 +281,12 @@ Object.Extend(Number, (function() {
 /* String Extensions
  * ----------------- */
 Object.Extend(String, {
+	TrimLeft: function triml(s) {
+		if( s.trimLeft )
+			return s.trimLeft()
+		else
+			return s.replace(/^\s+/,"")
+	},
 	PadLeft: function padl(s, n, c) {
 		// String.PadLeft(string, width, fill=" ")
 		c = c || " "
@@ -323,6 +333,37 @@ Object.Extend(Event, {
 	}
 })
 
+// if the browser doesn't support the Selectors API
+// patch in support from the Sizzle JS library
+if( ! document.querySelectorAll ) {
+	var scripts = document.getElementsByTagName("script"),
+		i = 0, nn = scripts.length,
+		re = /bling.js$/,
+		script = document.createElement("script")
+	// find the script tag that imports bling.js
+	for(; i < nn; i++ )
+		if( re.test(scripts[i].src) )
+			script.src = scripts[i].src.replace(re, "plugins/sizzle.js")
+	// when the sizzle is loaded, monkeypatch its API into the DOM
+	script.onload = function(evt) { 
+		Node.prototype.querySelector = function(x) {
+			return Sizzle(x, this)[0]
+		}
+		Node.prototype.querySelectorAll = function(x) {
+			return Sizzle(x, this)
+		}
+		Element.prototype.matchesSelector = function(x) {
+			return Sizzle.matchesSelector(this, x)
+		}
+	}
+	// inject the new script tag into the head
+	document.getElementsByTagName("head")[0].appendChild(script)
+} 
+else
+	Element.prototype.matchesSelector = 
+		Element.prototype.webkitMatchesSelector
+		// TODO: the other browsers
+
 // move into a safer namespace
 // so we can use shorthand in making our initial plugins
 ;(function ($) {
@@ -332,7 +373,6 @@ Object.Extend(Event, {
 		commasep_re = /, */,
 		space = " ",
 		emptyString = "",
-		matchesSelector = "webkitMatchesSelector",
 		object_cruft = /\[object (\w+)\]/,
 		Math_min = Math.min,
 		Math_max = Math.max,
@@ -822,7 +862,7 @@ Object.Extend(Event, {
 					it = this[i]
 					if( it )
 						if ( Object.IsFunc(f) && f.call( it, it )
-							|| Object.IsString(f) && it.webkitMatchesSelector && it.webkitMatchesSelector(f)
+							|| Object.IsString(f) && it.matchesSelector && it.matchesSelector(f)
 							|| Object.IsType(f, "RegExp") && f.test(it)
 							)
 							b[++j] = it
@@ -1104,15 +1144,21 @@ Object.Extend(Event, {
 					// $.HTML.parse(/h/) - parse the html in string h, return a Node.
 					// will return a DocumentFragment if not well-formed.
 					var d = document.createElement("html"),
-						df = document.createDocumentFragment()
+						df = document.createDocumentFragment(),
+						i = 0, node = null
 					d.innerHTML = h
-					// since d is an "html" node, it always has two children, head and body
-					var node = d.childNodes[1],
-						childNodes = node.childNodes,
+					if( d.childNodes.length > 0
+						&& d.childNodes[0].nodeName == "HEAD" )
+						// since d is an "html" node, 
+						// it has two implicit children, head and body
+						node = d.childNodes[1]
+					else 
+						node = d
+					var childNodes = node.childNodes,
 						n = childNodes.length
 					if( n === 1 )
 						return node.removeChild(childNodes[0])
-					for(var i = 0; i < n; i++)
+					for(; i < n; i++)
 						df.appendChild(node.removeChild(childNodes[0]))
 					return df
 				},
@@ -1343,11 +1389,11 @@ Object.Extend(Event, {
 			},
 
 			attr: function attr(a,v) {
-				// .attr(a, [v]) - get [or set] an /a/ttribute [/v/]alue
-				var f = v === undefined ? "getAttribute"
+				// .attr(a, [v]) - get [or set] an /a/ttribute [/v/alue]
+				var func = v === undefined ? "getAttribute"
 					: v === null ? "removeAttribute"
 					: "setAttribute"
-				var ret = this.zip(f).call(a,v)
+				var ret = this.zip(func).call(a,v)
 				return v ? this : ret
 			},
 
@@ -1426,8 +1472,10 @@ Object.Extend(Event, {
 				}
 				// collect the computed values
 				var cv = this.map(getCSSProperty(k))
+				console.log("cv", cv)
 				// collect the values specified directly on the node
 				var ov = this.zip('style').zip(k)
+				console.log("ov", ov)
 				// weave and fold them so that object values override computed values
 				return ov.weave(cv).fold(function(x,y) { return x ? x : y })
 				/* Example:
@@ -1773,7 +1821,7 @@ Object.Extend(Event, {
 			return eval("g")
 		}
 
-		function register_live(selector, context, e, f, h) {
+		function register_live(selector, context, e, fake_handler, real_handler) {
 			var $c = $(context)
 			$c.bind(e, h) // bind the real handler
 				.each(function() { 
@@ -1781,32 +1829,25 @@ Object.Extend(Event, {
 						b = (a[selector] = a[selector] || {}),
 						c = (b[e] = b[e] || {})
 					// make a record using the fake handler
-					c[f] = h
+					c[fake_handler] = real_handler
 				})
 		}
 
-		function unregister_live(selector, context, e, f) {
+		function unregister_live(selector, context, e, fake_handler) {
 			var $c = $(context)
 			$c.each(function() { 
 				var a = (this.__alive__ = this.__alive__ || {} ),
 					b = (a[selector] = a[selector] || {}),
 					c = (b[e] = b[e] || {}),
-					h = c[f]
-				$c.unbind(e, h)
-				delete c[f]
+					real_handler = c[fake_handler]
+				$c.unbind(e, real_handler)
+				delete c[fake_handler]
 			})
 		}
 
-		// detect and fire the document.ready event
-		setTimeout(function() {
-			if( $.fn.trigger != null
-				&& document.readyState === "complete") {
-				$(document).trigger('ready')
-			} else {
-				setTimeout(arguments.callee, 20)
-			}
-		}, 0)
-
+		document.addEventListener("DOMContentLoaded", function() {
+			$(document).trigger('ready')
+		}, false)
 
 		return {
 			bind: function bind(e, f) {
@@ -1816,9 +1857,8 @@ Object.Extend(Event, {
 				var c = (e||emptyString).split(commasep_re),
 					n = c.length, i = 0
 				return this.each(function() {
-					for(i = 0; i < n; i++) {
-						this.addEventListener(c[i], f)
-					}
+					for(i = 0; i < n; i++)
+						this.addEventListener(c[i], f, false)
 				})
 			},
 
@@ -1875,10 +1915,9 @@ Object.Extend(Event, {
 				// args is an optional mapping of properties to set,
 				//   {screenX: 10, screenY: 10}
 				// note: not all browsers support manually creating all event types
-				var e, i = 0,
+				var e, i = 0, evt_i = null,
 					evts = (evt||emptyString).split(commasep_re),
-					n = evts.length,
-					evt_i = null
+					n = evts.length
 				args = Object.Extend({
 					bubbles: true,
 					cancelable: true
@@ -1998,8 +2037,11 @@ Object.Extend(Event, {
 						default:
 							e = document.createEvent("Events")
 							e.initEvent(evt_i, args.bubbles, args.cancelable)
-							e = Object.Extend(e, args)
 							// console.log('triggering '+evt_i, e, args)
+							try { e = Object.Extend(e, args) }
+							catch( err ) {
+								// pass
+							}
 					}
 					if( !e ) continue
 					else this.each(function() {

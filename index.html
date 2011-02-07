@@ -31,7 +31,7 @@
 		}
 		code.pp, textarea {
 			font-family: courier, sans;
-			font-size:12px;
+			font-size:14px;
 			line-height:1.1em;
 			padding:6px 0px 6px 4px;
 			display: inline-block;
@@ -204,7 +204,6 @@
 					+ this.href.split(/#doc:/)[1]
 			}))
 		})
-
 	</script>
 </head>
 <body>
@@ -239,10 +238,10 @@
 	<pre>
 	$("button") // css expressions
 	$("<button>OK</button>") // or html
-	$([1, "foo", {a: 'b'}]) // or anything</pre>
+	$([1, "foo", {a: 'b'}]) // etc.</pre>
 	<p>You then manipulate these sets using functional primitives and other operations.
 	<pre>
-	$("button").each(function visit(node) {
+	$("button").each(function (node) {
 		this === node
 	})</pre>
 

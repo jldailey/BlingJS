@@ -3,11 +3,17 @@
 	Function.PrettyPrint = (function() {
 		// in the closure scope:
 		var operators = /!==|!=|!|\#|\%|\%=|\&|\&\&|\&\&=|&=|\*|\*=|\+|\+=|-|-=|->|\.{1,3}|\/|\/=|:|::|;|<<=|<<|<=|<|===|==|=|>>>=|>>=|>=|>>>|>>|>|\?|@|\[|\]|}|{|\^|\^=|\^\^|\^\^=|\|=|\|\|=|\|\||\||~/g,
+			operator_html = "<span class='opr'>$&</span>",
 			keywords = /\b[Ff]unction\b|\bvar\b|\.prototype\b|\.__proto__\b|\bString\b|\bArray\b|\bNumber\b|\bObject\b|\bbreak\b|\bcase\b|\bcontinue\b|\bdelete\b|\bdo\b|\bif\b|\belse\b|\bfinally\b|\binstanceof\b|\breturn\b|\bthrow\b|\btry\b|\btypeof\b|\btrue\b|\bfalse\b/g,
-			singleline_comment = /\/\/.*?(?:\n|$)/,
-			multiline_comment = /\/\*(?:.|\n)*?\*\//,
+			keyword_html = "<span class='kwd'>$&</span>",
 			all_numbers = /\d+\.*\d*/g,
-			bling_symbol = /\$(?:\(|\.)/g
+			number_html = "<span class='num'>$&</span>",
+			bling_symbol = /\$(\(|\.)/g,
+			bling_html = "<span class='bln'>$$</span>$1",
+			tabs = /\t/g,
+			tab_html = "&nbsp;&nbsp;",
+			singleline_comment = /\/\/.*?(?:\n|$)/,
+			multiline_comment = /\/\*(?:.|\n)*?\*\//
 		function find_unescaped_quote(s, i, q) {
 			var r = s.indexOf(q, i)
 			while( s.charAt(r-1) === "\\" && r < s.length && r > 0)
@@ -105,13 +111,15 @@
 								// label number constants
 								return (code
 									// label operator symbols
-									.replace(operators, "<span class='opr'>$&</span>")
+									.replace(operators, operator_html)
 									// label numbers
-									.replace(all_numbers, "<span class='num'>$&</span>")
+									.replace(all_numbers, number_html)
 									// label keywords
-									.replace(keywords, "<span class='kwd'>$&</span>")
-									.replace(bling_symbol, "<span class='bln'>$$</span>(")
-									.replace(/\t/g, "&nbsp;&nbsp;")
+									.replace(keywords, keyword_html)
+									// label the bling operator
+									.replace(bling_symbol, bling_html)
+									// replace tabs with spaces
+									.replace(tabs, tab_html)
 								) +
 								// label string constants
 								(quoted ? "<span class='str'>"+quoted+"</span>" : "")
@@ -121,8 +129,8 @@
 							// append the extracted comment
 							+ (comment ? "<span class='com'>"+comment+"</span>" : "")
 					})
-					.join('')+
-			"</code>"
+					.join('')
+			+ "</code>"
 		}
 	})()
 

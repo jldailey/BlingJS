@@ -47,103 +47,13 @@
 		.bold {
 			font-weight: bold;
 		}
+		.right {
+			text-align: right;
+		}
 		h3, h4, h5 {
 			border-bottom: 1px solid black;
 		}
-		h5 {
-		}
-		ol.apilist {
-			padding:0px 2em;
-		}
-		ol.apilist li {
-			padding: 0px;
-			margin:0px;
-			border-bottom:0px dashed black;
-		}
-		ol.apilist li pre {
-			display: none;
-			margin-left: -25px;
-		}
-		ol.apilist li > a, 
-		a[href] {
-			font-size: 16px;
-			text-decoration:none;
-			color:blue;
-			border-bottom: 1px solid black;
-		}
-		ol.apilist li > a span {
-			margin-right:.2em;
-		}
 
-		div.doc {
-			position: absolute;
-			display: block;
-			padding: 0;
-			margin: 0;
-			z-index: 9001;
-			left: 0px;
-		}
-		div.doc pre {
-			font-size:0.8em;
-			margin: 0px;
-			border: 1px solid navy;
-			background: #f0f0f0;
-			-webkit-border-radius: 6px;
-		}
-		div.doc h5 {
-			margin: 4px;
-			color: white;
-		}
-		div.shadow {
-			position: absolute;
-			display: block;
-			background-color: rgba(0,0,0,.35);
-			z-index: 9000;
-		}
-		div.shadow.solid {
-			background-color: rgba(89,89,89,1);
-		}
-		div.shadow span {
-			display:block;
-			width: 200px;
-			margin-left:auto;
-			margin-right:auto;
-			color:white;
-			font-size:28px;
-		}
-
-		span.adv {
-			color:blue;
-		}
-		span.footnote {
-			font-size:0.7em;
-		}
-
-		div.dialog {
-			padding:20px;
-			min-width:200px;
-			max-width:320px;
-			min-height:60px;
-			margin-left:auto;
-			margin-right:auto;
-			background-color: rgba(175,175,175,0.9);
-			border-radius: 5px;
-		}
-		div.dialog pre {
-			margin-left: auto;
-			margin-right: auto;
-		}
-		div.dialog .buttons {
-			position:absolute;
-			bottom:1px;
-			border-top:1px solid #ab7b7b;
-			clear: both;
-			padding:4px 10px;
-		}
-		div.dialog .buttons button {
-			float:left;
-			margin: 4px 3px;
-		}
 		textarea {
 		}
 		table.small {
@@ -154,6 +64,9 @@
 			font-family: 'Inconsolata', courier, fixed, sans;
 			font-size: 16px;
 			width: 45%;
+		}
+		table.synthops {
+			margin-top: 1em;
 		}
 		table.download a {
 			border-bottom: 1px dashed !important;
@@ -208,7 +121,8 @@
 </head>
 <body>
 	<h1><a name="top">BlingJS</a><h1>
-	<h2>A JavaScript framework for WebKit.</h2>
+	<h2>A JavaScript library</h2>
+	<div class="bold right">by Jesse Dailey</div>
 
 	<p>BlingJS is named after the "<span class='bln'>$</span>", the default alias for the constructor.
 	<pre>
@@ -232,8 +146,8 @@
 	</script>
 
 	<h3>Introduction</h3>
-	<p><i>A Bling</i> is an ordered collection of items of any type.  
-	This set defines functional operations to collect and manipulate the members.
+	<p><i>A Bling</i> is an ordered set of items of any type.  
+	This library defines functional operations to collect and manipulate sets and their members.
 	<p>You create a set by wrapping up or selecting other items, sets, or subsets:
 	<pre>
 	$("button") // css expressions
@@ -251,7 +165,7 @@
 	<p>BlingJS is similar to jQuery, with an emphasis on sets.
 	<p>BlingJS operations <b>always <i>try</i> to return a set</b>.
 	<p>If you want just one element, then consider using <a href='#doc:first'>first</a>, or <a href='#doc:last'>last</a>, or standard array notation; <code class="bold">[i]</code>.
-	<p>Even methods that return scalar values (like <a href='#doc:width'>width</a> or <a href='#doc:height'>height</a>), return a <b>set</b> of scalar values.
+	<p>Even methods that return scalar values (like <a href='#doc:width'>width</a> or <a href='#doc:height'>height</a>), return <b>a set of scalar values</b>.
 	<p>For complete documentation of everything BlingJS can do, see the <a href="html/doc.html">API Documentation</a>
 
 	<a name="set" />
@@ -272,19 +186,21 @@
 	<p>The above example also shows another useful feature of <a href='#doc:zip'>zip</a>:
 	<blockquote>When <a href='#doc:zip'>zip</a> selects a function, it is bound to the object it is selected from.</blockquote>
 	<p>What this means is that when you call <code>.zip("style.setProperty")</code> you get back a set of functions.
-	When you call these functions, it is the same as calling <code><i>this</i>.style.setProperty()</code> directly on each element of the set.
+	When you call these functions, <code><i>this</i>.style.setProperty()</code> will be called on the respective div(s).
 	<p>The <a href='#doc:call'>call</a> operation exists to help you call all the functions in the set with the same arguments.
 
 	<p>If you specify multiple columns, you get a list of simple objects with only the desired fields.
 	<pre>
-	$("div").zip("id", "className")
-	== $([{'id':..., 'className':... },...])</pre>
+	$("div").eq(0).zip("id", "className")
+	== $([{'id':..., 
+	       'className':... 
+	      }])</pre>
 
 	<a name="zap" />
 	<p>Naturally, <a href='#doc:zap'>zap</a> is the companion to <a href='#doc:zip'>zip</a>.  
 	The <a href='#doc:zap'>zap</a> operation allows assignment in a functional syntax.
 	<pre>
-	$("span").zap("innerText", "Hello World")</pre>
+	$("span").zap("innerText", "Hello")</pre>
 	<p>Like <a href='#doc:zip'>zip</a>, it also supports compound properties.
 	<pre>
 	$("span").zap("style.color", "red")</pre>
@@ -315,7 +231,7 @@
 	 <div>%(body)s</div>
 	</li>
 	</textarea>
-	<p>Once you have the DOM nodes you want to copy, you should usually initialize them with <a href='#doc:template'>template</a>.
+	<p>Once you have the source you want to copy, you should usually initialize them with <a href='#doc:template'>template</a>.
 	<pre>
 	$("#line-template").template({
 		title: "default title",
@@ -327,22 +243,25 @@
 		title: "This is my line."
 		body: "This is my line's body."
 	})</pre>
-	<p>The initialization with <a href='#doc:template'>template</a> is optional, otherwise you will have to manage the source nodes and defaults yourself.
+	<p>The initialization with <a href='#doc:template'>template</a> is optional, otherwise you will have to manage the source and defaults yourself.
 
 	<a name="synth" />
 	<h5>Synthesizing nodes</h5>
 
-	<p>Given a CSS expression, <code>$.synth(css)</code> will return the smallest DOM tree that satisfies the expression.
-	<p>One of the handiest features in Bling, <a href='#doc:synth'>synth</a> lets you fabricate small DOM trees, 
-	using the same CSS expression that will define the nodes later.
+	<p>Given a CSS expression, <code><span class='bln'>$</span>.synth(css)</code> will return the smallest DOM tree that satisfies the expression.
+	<p>The beauty of the <a href="#doc:synth">synth</a> feature lies in the fact 
+	that you use the same expressions to create content that you will use to search for it.
 	<p>Example:
 	<pre>
-	$.synth("div#foo.bar")
-	== $('<div id="foo" class="bar"></div>')</pre>
-	<p>The above example used the global <code>$.synth()</code>, for creating nodes that are initially un-attached to anything.  
-	If you use <code>$(selector).synth(...)</code>, the new nodes will be appended to <code>$(selector)</code> before they are returned.
+	$.synth("input[type=text]#foo")
+	== $('<input type="text" id="foo"/>')</pre>
+	<p>The above example used the global <code><span class='bln'>$</span>.synth()</code>, 
+	for creating nodes that are initially un-attached to anything.  
+	If you use <code><span class='bln'>$</span>(selector).synth(...)</code>, 
+	the new nodes will be appended to <code><span class='bln'>$</span>(selector)</code> 
+	before they are returned.
 	<p>The <a href='#doc:synth'>synth</a> operation supports only a few CSS selectors:
-	<table class="small">
+	<table class="small synthops">
 		<tr><td><i>.class</i> &lt;dot&gt;<td>any number
 		<tr><td><i>#id</i> &lt;hash&gt;<td>once
 		<tr><td><i>[attr=val]</i><td>any number
@@ -351,17 +270,28 @@
 	</table>
 	<p>It supports the non-standard quote operator <code>["']</code> for adding text nodes, like in this example:
 	<pre>
-	$.synth('div "Hello" p "World"')
-	== $('<div>Hello<p>World</p></div>')</pre>
-	<p>If the adjacency operator [+] is not clear, you can think of it as a closing tag for the currently open tag,
-	like in the following example the [+] will close the open &lt;b&gt; tag.
+	$.synth('p "Hello" span "Bob"')
+	== $('<p>Hello<span>Bob</span></p>')</pre>
+	<p>If the adjacency operator [+] is not clear, you can think of it as a closing tag for the currently open tag.
+
+	<p>Consider the example...
 	<pre>
-	$.synth('p b "Hello" + i "World"')
-	== $('<p><b>Hello</b><i>World</i></p>')</pre>
-	<p>Even though this is only a small subset of CSS selectors, you can still construct an aribtrary DOM tree by combining the supported selectors.
+	$.synth('p b "Hello" + i "Bob"')
+	== $('<p><b>Hello</b><i>Bob</i></p>')</pre>
+	<p>Here, the <code>+</code> will close the <code>&lt;b&gt;</code> tag. 
+	Using multiple <code>+</code>'s in a row is meaningless when <b>matching</b> CSS patterns,
+	but when <b>synthing</b> them, it does the natural thing: close multiple open nodes.
+	<pre>
+	$.synth('p b "Hello" + + i "Bob"')
+	== $(['<p><b>Hello</b></p>',
+	      '<i>Bob</i>'])</pre>
+	<p>Notice that since this expression specified a fragment (without a single root), 
+	it created a list of nodes.
+	<p>In this way, any arbitrary DOM tree can be specified, 
+	using only the limited selectors supported by synth.
 
 	<h5>Synthing templates</h5>
-	<p>You can use <a href="#doc:synth">synth</a> to fabricate templates quickly in code.
+	<p>You can use <a href="#doc:synth">synth</a> to fabricate complex templates quickly in code.
 	<pre>
 	var paragraph = 
 		$.synth('p b "%(title)s" + i "%(body)s"')
@@ -372,7 +302,7 @@
 	// ... sometime later ...
 	$("body").append(paragraph.render({
 		title: "This is my title."
-		body: "This is my paragraph's body."
+		body: "This is my body."
 	})) </pre>
 </body>
 </html>

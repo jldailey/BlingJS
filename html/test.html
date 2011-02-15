@@ -207,8 +207,8 @@
 					}), [2,4])
 					assertArrayEqual($("body").push(4).filter("*"), [document.body])
 				},
-				function _matches() {
-					assertArrayEqual($(["foo", "bar", "ball"]).matches(/ba.*/), [false, true, true])
+				function _test() {
+					assertArrayEqual($(["foo", "bar", "ball"]).test(/ba.*/), [false, true, true])
 					assertArrayEqual($("body").matches("body"), [true])
 				},
 				function _weave() {
@@ -637,7 +637,7 @@
 						expected -= 1
 						if( expected === 0 ) {
 							$("#output").append("<h4>Async</h4><span>"+output+"</span>")
-							done()
+							// done()
 						}
 					}
 

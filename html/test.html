@@ -7,6 +7,7 @@
 			body { overflow: scroll; height: auto }
 			ul { margin:0px; padding:4px 12px; }
 			li { height: 20px; line-height:20px; overflow: hidden; list-style: inside; padding:0px 5px; margin:0px }
+			.test { width: 100px; height: 20px; }
 			.pass { background-color: #dfc; }
 			.fail { background-color: #fdc; }
 			h4 { margin: 6px 4px; }
@@ -593,6 +594,8 @@
 			var PASS = '<span class="pass">PASS</span>&nbsp;',
 				FAIL = '<span class="fail">FAIL</span><br>'
 
+			var testLabel = $.synth("li '%(name)s'").template()
+
 			function RunAllTests(done) {
 				var h = "", keys = Object.Keys(Bling.tests),
 					i = 0, n = keys.length, k = null, tests = null,
@@ -600,7 +603,7 @@
 				for( ; i < n; i++ ) {
 					k = keys[i]
 					tests = Bling.tests[k]
-					h += ("<h4>"+k+"</h4>")
+					h += "<h4>"+k+"</h4>"
 					for( j = 0, nn = tests.length; j < nn; j++) {
 						test = tests[j]
 						try {
@@ -683,6 +686,6 @@
 		<button>Run All Tests</button>
 		<input id="runcount" value="1">
 		<div id="report" ></div>
-		<div id="output" ></div>
+		<ul id="output" ></ul>
 	</body>
 </html>

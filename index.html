@@ -77,46 +77,59 @@
 		}
 	</style>
 	<script>
-		$(document).ready(function() {
-			// find unsupported fraction markup
-			// and insert a fall-back
-			var num_re = /&frac(\d)(\d);/
-			$("p").each(function() {
-				var p = $(this),
-					text = p.text()[0]
-				if( num_re.test(text) ) {
-					p.text(text.replace(num_re, "$1/$2"))
+		try {
+			var readyTriggered = false,
+				secondsToWait = 3;
+			setTimeout(function() {
+				if( ! readyTriggered ) {
+					alert("document wasn't ready after "+secondsToWait+" seconds")
 				}
+			}, secondsToWait * 1000)
+			$(document).ready(function() {
+				readyTriggered = true
 			})
-		})
+			.ready(function() {
+				// find unsupported fraction markup
+				// and insert a fall-back
+				var num_re = /&frac(\d)(\d);/
+				$("p").each(function() {
+					var p = $(this),
+						text = p.text()[0]
+					if( num_re.test(text) ) {
+						p.text(text.replace(num_re, "$1/$2"))
+					}
+				})
+			})
+			.ready(function(){
+				var initial_tab = /(^|\n)\t/g,
+					all_tabs = /\t/g
 
-		$(document).ready(function(){
-			var initial_tab = /(^|\n)\t/g,
-				all_tabs = /\t/g
-
-			// replace tabs with spaces in <pre>'s
-			// make all <pre>'s pretty-printable
-			$("pre").each(function(){
-				var html = this.innerHTML.replace(initial_tab,'$1').replace(all_tabs,"  ")
-				html = $.HTML.escape(html)
-				this.innerHTML = Function.PrettyPrint(html)
-				// $(this).replace($(Function.PrettyPrint(html)))
+				// replace tabs with spaces in <pre>'s
+				// make all <pre>'s pretty-printable
+				$("pre").each(function(){
+					var html = this.innerHTML.replace(initial_tab,'$1').replace(all_tabs,"  ")
+					html = $.HTML.escape(html)
+					this.innerHTML = Function.PrettyPrint(html)
+					// $(this).replace($(Function.PrettyPrint(html)))
+				})
+				// clean up textarea's also
+				$("textarea").each(function() {
+					this.value = this.value
+						.replace(initial_tab,'$1')
+						.replace(all_tabs, "  ")
+				})
+				// all documentation links are made active
+				// collect the links
+				var a = $("a[href^='#doc:']")
+				// modify their hrefs
+				a.zap('href', a.map(function() {
+					return 'html/doc.html#' 
+						+ this.href.split(/#doc:/)[1]
+				}))
 			})
-			// clean up textarea's also
-			$("textarea").each(function() {
-				this.value = this.value
-					.replace(initial_tab,'$1')
-					.replace(all_tabs, "  ")
-			})
-			// all documentation links are made active
-			// collect the links
-			var a = $("a[href^='#doc:']")
-			// modify their hrefs
-			a.zap('href', a.map(function() {
-				return 'html/doc.html#' 
-					+ this.href.split(/#doc:/)[1]
-			}))
-		})
+		} catch ( err ) {
+			alert("JavaScript error:" + err)
+		}
 	</script>
 </head>
 <body>

@@ -293,7 +293,7 @@ Object.Extend(Array, {
 		else if( Object.IsArray(arguments[0]) )
 			a = arguments[0]
 		else
-			throw ArgumentError("expected either multiple arguments or an Array as first argument")
+			throw Error.ArgumentError("expected either multiple arguments or an Array as first argument")
 		var n = a.length, i = 0
 		for(; i < n; i++)
 			if( a[i] != null )
@@ -2132,7 +2132,7 @@ $.plugin(function Event() {
 				this.css("cursor", "pointer")
 			return Object.IsFunc(f) ? this.bind('click', f)
 				: this.trigger('click', f ? f : {})
-		},
+		}
 	]
 
 	// add event binding/triggering shortcuts to the plugin

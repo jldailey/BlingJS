@@ -1826,6 +1826,13 @@ $.plugin(function Maths() {
 
 $.plugin(function Event() {
 
+	// the basic supported events
+	var events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
+		'load','ready','unload','reset','submit','keyup','keydown','change',
+		'abort','cut','copy','paste','selection','drag','drop','orientationchange',
+		'touchstart','touchmove','touchend','touchcancel',
+		'gesturestart','gestureend','gesturecancel']
+
 	function binder(e) {
 		// eval is evil! but there is no other way to set a function's name programmatically, 
 		// and the generated docs and the plugin loader need a function name
@@ -2127,13 +2134,12 @@ $.plugin(function Event() {
 				: this.trigger('click', f ? f : {})
 		},
 	]
-	['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
-		'load','ready','unload','reset','submit','keyup','keydown','change',
-		'abort','cut','copy','paste','selection','drag','drop','orientationchange',
-		'touchstart','touchmove','touchend','touchcancel',
-		'gesturestart','gestureend','gesturecancel'].forEach(function(x) {
+
+	// add event binding/triggering shortcuts to the plugin
+	events.forEach(function(x) {
 		ret.push(binder(x))
 	})
+
 	return ret
 })
 

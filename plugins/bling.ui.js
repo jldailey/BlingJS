@@ -3,6 +3,7 @@
 $.plugin(function UI() {
 
 	function Dialog(selector, opts) {
+		// $.UI.Dialog(selector, opts) - make a dialog
 		var dialog = $(selector)
 			.addClass("dialog")
 			.center()
@@ -16,6 +17,7 @@ $.plugin(function UI() {
 	}
 	
 	function Draggable(selector, opts) {
+		// $.UI.Dialog(selector, opts) - make an object draggable
 		opts = Object.Extend({
 			handlePosition: {}
 		}, opts)
@@ -89,6 +91,7 @@ $.plugin(function UI() {
 	}
 
 	function ProgressBar(selector, opts) {
+		// $.UI.ProgressBar - make a progress bar
 		opts = Object.Extend({
 			change: Function.Empty,
 			// the color of the 'incomplete' part of the bar
@@ -134,24 +137,25 @@ $.plugin(function UI() {
 	}
 
 	function Accordion(selector, opts) {
+		// $.UI.Accordion - make an accordion
 		opts = Object.Extend({
 			exclusive: false,
 			sticky: false
 		}, opts)
-		var $node = $(selector),
+		var $node = $(selector).addClass("accordion"),
 			selectedChild = null
 
 		function initRow(n) {
 			var t = $(n).children().first().filter("*"),
 				title = t.eq(0)
-					.addClass("accordion-title"),
+					.addClass("title"),
 				body = t.eq(1)
-					.addClass("accordion-body")
+					.addClass("body")
 					.hide(),
 				bodyVisible = false
 			title.unbind('click').click(function () {
 				if( opts.exclusive ) {
-					$node.find(".accordion-body")
+					$node.find(".body")
 						.hide()
 				}
 				if( bodyVisible ) {
@@ -191,6 +195,7 @@ $.plugin(function UI() {
 	}
 
 	function ViewStack(selector, opts) {
+		// $.UI.ViewStack - make a set visually exclusive
 		var items = $(selector)
 			.css({
 				position: "relative",
@@ -223,6 +228,7 @@ $.plugin(function UI() {
 	}
 
 	function Tabs(selector, views) {
+		// $.UI.Tabs - make items control a viewstack
 		var tabs = $(selector),
 			views = $(views).viewStack(),
 			nn = tabs.len(),
@@ -257,12 +263,15 @@ $.plugin(function UI() {
 			return ProgressBar(this, opts)
 		},
 		viewStack: function viewStack(opts) {
+			// .viewStack([opts]) - make a set of nodes visually exclusive
 			return ViewStack(this, opts)
 		},
 		tabs: function tabs(views) {
+			// .tabs([views]) - make a set of nodes control a viewstack
 			return Tabs(this, views)
 		},
 		accordion: function accordion(opts) {
+			// .accordion([opts]) - make an accordion
 			return Accordion(this, opts)
 		}
 	}

@@ -134,7 +134,7 @@
 		</div>
 
 		<h2>Accordion</h2>
-		<p>An Accordion is a ViewStack with interleaved title rows.
+		<p>An Accordion is a set of views with title/control rows.
 		<div id="accord-demo">
 			<ul class="accordion">
 				<li>
@@ -150,6 +150,36 @@
 					<div>Body Three</div>
 				</li>
 			</ul>
+			<style>
+				.accordion {
+					list-style: none;
+					margin: 0;
+					padding: 0;
+				}
+				.accordion .title {
+					width: 120px;
+					background: #ffc; /*-webkit-gradient(linear, 0 0, 100% 100%, from(#ffc), to(#003));*/
+					border-radius: 3px;
+					border-bottom: 1px solid #999;
+					border-right: 1px solid #ccc;
+					border-left: 1px solid #ccc;
+					margin-bottom: 2px;
+					padding-left: 4px;
+				}
+				.accordion .title:hover {
+					background: #feb;
+				}
+				.accordion .title.selected {
+					background: #fda;
+				}
+				.accordion .title.selected:hover {
+					background: #ec9;
+				}
+				.accordion .body {
+					width: 120px;
+					text-align: center;
+				}
+			</style>
 			<script>
 				$(document).ready(function() {
 					$("#accord-demo .accordion").accordion()

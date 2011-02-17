@@ -126,7 +126,7 @@
 					// init the progress bar
 					progressBar = $.UI.ProgressBar("#search", {
 						barColor: "rgba(0,0,0,0.7)",
-						textColor: "yellow",
+						textColor: "gray",
 						reset: true
 					}),
 					funcTemplate = $.synth("li.func "
@@ -137,24 +137,39 @@
 					old_val,
 					$items = $("ol#docroot li")
 
+				$("#search").val("Generating...")
+
 				// generate all the documentation, in steps, updating progress
 				setTimeout(function () {
 					if( name = $.plugin.s[i++] ) {
 						var h3 = $.synth("li.module span '"+name+"' + ol.apilist"),
 							docs = $.doc.module(name, funcTemplate)
-						h3.find("ol.apilist").append(docs)
+						// console.log(docs.zip('selector'))
+						h3.find("ol.apilist")
+							.append(docs)
 						$docroot.append(h3)
 						progressBar.zip("update").call(i/$.plugin.s.length)
 						setTimeout(arguments.callee, 0)
+						return
 					} else {
 						progressBar.zip("update").call(1.0)
 						$items = $("ol#docroot li")
+						$("#search").val("")
 						$docroot.fadeIn(function() {
 							// zoom to the #hash item if there is one
 							var hash = window.location.hash
 							if( hash )
 								$("a[name='"+hash.substr(1)+"']")
-									.zip('scrollIntoView').call()
+									.parent()
+									.scrollToCenter()
+									.css({"background-color": "#ffc", 
+										"border": "1px dotted black"})
+									.delay(0, function() {
+										this.transform({
+											"background-color": "white", 
+											"border-color": "transparent"
+										}, 3000)
+									})
 						})
 					}
 				}, 0)

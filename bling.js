@@ -71,9 +71,9 @@ Bling.fn = new Array // a copy(!) of the Array prototype, Blings extend the orde
 Bling.fn.constructor = Bling
 Bling.symbol = "$" // for display purposes
 // public exports:
-window[Bling.symbol] = 
-window["Bling"] = 
-	Bling 
+window[Bling.symbol] =
+	window["Bling"] =
+		Bling
 
 // move into an even safer namespace, where $ can't be hijacked
 ;(function ($) {
@@ -83,12 +83,12 @@ var commasep = ", ",
 	commasep_re = /, */,
 	space = " ",
 	emptyString = "",
-	matchesSelector = "webkitMatchesSelector",
 	object_cruft = /\[object (\w+)\]/,
 	Math_min = Math.min,
 	Math_max = Math.max,
 	Math_ceil = Math.ceil,
 	Math_sqrt = Math.sqrt,
+	Obj_toString = Object.prototype.toString,
 	_none = "none",
 	_relative = "relative",
 	_absolute = "absolute",
@@ -98,7 +98,6 @@ var commasep = ", ",
 	_left = "left",
 	_right = "right",
 	_bottom = "bottom"
-
 
 /** Object.Keys
  * @param {Object} o the object to get property names from
@@ -127,10 +126,10 @@ Object.Extend = function extend(a, b, k) {
 	// Object.Extend(a, b, [k]) - merge values from b into a
 	// if k is present, it should be a list of property names to copy
 	var i, j, undefined
-	if( Object.prototype.toString.apply(k) === "[object Array]" ) // cant use Object.IsArray yet
+	if( Obj_toString.apply(k) === "[object Array]" ) // cant use Object.IsArray yet
 		for( i in k )
 			a[k[i]] = b[k[i]] !== undefined ? b[k[i]] : a[k[i]]
-	else 
+	else
 		for( i in (k = Object.Keys(b)) )
 			a[k[i]] = b[k[i]]
 	return a
@@ -174,7 +173,8 @@ Object.Extend(Object, {
 	IsNumber: isFinite,
 	IsFunc: function (a) {
 		// Object.IsFunc(a) - true if object a is a function
-		return typeof a === "function" || Object.IsType(a, Function)
+		return (typeof a === "function" || Object.IsType(a, Function))
+			&& a.call !== undefined
 	},
 	IsNode: function (a) {
 		// Object.IsNode(a) - true if object is a DOM node
@@ -202,13 +202,12 @@ Object.Extend(Object, {
 	},
 	Unbox: function (a) {
 		// Object.Unbox(o) - primitive types can be 'boxed' in an object
-		if( Object.IsObject(a) )
-			switch (true) {
-				case Object.IsString(a):
-					return a.toString()
-				case Object.IsNumber(a):
-					return Number(a)
-			}
+		if( Object.IsObject(a) ) {
+			if( Object.IsString(a) )
+				return a.toString()
+			if( Object.IsNumber(a) )
+				return Number(a)
+		}
 		return a
 	}
 })
@@ -226,12 +225,18 @@ Object.Extend(Function, {
 	Bound: function (f, t, args) {
 		// Function.Bound(/f/, /t/) - whenever /f/ is called, _this_ === /t/
 		args = args || []
-		args.splice(0, 0, t)
-		var r = f.bind.apply(f, args)
+		var r
+		if( "bind" in f ) {
+			args.splice(0, 0, t)
+			r = f.bind.apply(f, args)
+		} else
+			r = function () {
+				f.apply(t ? t : this, args ? args : arguments)
+			}
 		r.toString = function() { return "bound-method of "+t+"."+f.name }
 		return r
 		/* Example:
-			> var log = window.console ? Function.Bound(console.log, console) 
+			> var log = window.console ? Function.Bound(console.log, console)
 			>		: Function.Empty
 			> log("hello", "world")
 		*/
@@ -257,9 +262,9 @@ Object.Extend(Function, {
 	NotNull: function (x) { return x != null },
 	IndexFound: function (x) { return x > -1 },
 	ReduceAnd: function (x) { return x && this },
-	UpperLimit: function (x) { return function(y) { return Math.min(x, y) }},
-	LowerLimit: function (x) { return function(y) { return Math.max(x, y) }},
-	ToString: function (x) { return Object.prototype.toString.apply(x) },
+	UpperLimit: function (x) { return function(y) { return Math_min(x, y) }},
+	LowerLimit: function (x) { return function(y) { return Math_max(x, y) }},
+	ToString: function (x) { return Obj_toString.apply(x) },
 	Px: function (d) { return function() { return Number.Px(this,d) } }
 })
 
@@ -308,7 +313,7 @@ Object.Extend(Number, {
 	 * @param {(number|string)} x a number-ish
 	 * @param {number=} d delta for adjusting the number before output
 	 */
-	Px: function (x,d) { return (parseInt(x,10)+(d|0))+"px" },
+	Px: function (x,d) { return x == null ? undefined : (parseInt(x,10)+(d|0))+"px" },
 	// mappable versions of max() and min()
 	AtLeast: function (x) { return function (y) { return Math_max(parseFloat(y||0), x) } },
 	AtMost: function (x) { return function (y) { return Math_min(parseFloat(y||0), x) } }
@@ -456,7 +461,7 @@ $.plugin(function Core() {
 						break
 					}
 				}
-				if( ! inserted ) { 
+				if( ! inserted ) {
 					this.queue.push(f)
 				}
 			}
@@ -638,12 +643,12 @@ $.plugin(function Core() {
 			var undefined // an extra careful check here
 			// since we want to be able to search for null values with .count(null)
 			// but if you just call .count(), it returns the total length
-			if( item === undefined ) 
+			if( item === undefined )
 				return this.len()
 			var ret = 0
 			this.each(function(t) {
 				if( (strict && t === item)
-					|| (!strict && t == item)) 
+					|| (!strict && t == item))
 					ret++
 			})
 			return ret
@@ -878,7 +883,7 @@ $.plugin(function Core() {
 				it = this[i]
 				if( it )
 					if ( Object.IsFunc(f) && f.call( it, it )
-						|| Object.IsString(f) && it.webkitMatchesSelector && it.webkitMatchesSelector(f)
+						|| Object.IsString(f) && it.matchesSelector && it.matchesSelector(f)
 						|| Object.IsType(f, "RegExp") && f.test(it)
 						)
 						b[++j] = it
@@ -924,7 +929,7 @@ $.plugin(function Core() {
 		},
 
 		function weave(b) {
-			// .weave(/b/) - interleave the items of _this_ and of _b_
+			// .weave(/b/) - interleave the items of _this_ and the set _b_
 			// to produce: $([ ..., b[i], this[i], ... ])
 			// note: the items from b come first
 			// note: if b and this are different lengths, the shorter
@@ -997,7 +1002,7 @@ $.plugin(function Core() {
 		},
 
 		function call() {
-			// .call([/args/]) - call all functions in _this_ [with /args/]
+			// .call([/args/]) - collect /f/([/args/]) for /f/ in _this_
 			return this.apply(null, arguments)
 			/* Example:
 				> $("pre").zip("getAttribute").call("class")
@@ -1453,7 +1458,7 @@ $.plugin(function Html() {
 
 		val: function val(v) {
 			// .val([v]) - get [or set] each node's .value
-			return v ? this.zap('value', v)
+			return v != null ? this.zap('value', v)
 				: this.zip('value')
 		},
 
@@ -1516,6 +1521,7 @@ $.plugin(function Html() {
 		},
 
 		empty: function empty() {
+			// .empty() - remove all children
 			return this.html(emptyString)
 		},
 
@@ -1567,6 +1573,8 @@ $.plugin(function Html() {
 			// .center([mode]) - move the elements to the center of the screen
 			// mode is "viewport" (default), "horizontal" or "vertical"
 			mode = mode || "viewport"
+			// TODO: "viewport" should probably use window.innerHeight
+			// also, left + height? and top + width? that doesnt sound right...
 			var vh = document.body.scrollLeft + (document.body.clientHeight/2),
 				vw = document.body.scrollTop + (document.body.clientWidth/2)
 			return this.each(function() {
@@ -1575,15 +1583,22 @@ $.plugin(function Html() {
 					w = t.width().floats().first(),
 					x = (mode === "viewport" || mode === "horizontal"
 						? vw - (w/2)
-						:  NaN),
+						: NaN),
 					y = (mode === "viewport" || mode === "vertical"
 						? vh - (h/2)
 						: NaN)
 				t.css({ position: _absolute,
-					left: (Object.IsNumber(x) ? x+"px" : undefined),
-					top:  (Object.IsNumber(y) ? y+"px" : undefined)
+					left: Number.Px(x),
+					top: Number.Px(y)
 				})
 			})
+		},
+
+		scrollToCenter: function scrollToCenter() {
+			// .scrollToCenter() - scroll .first() to center of viewport
+			var t = this.eq(0).zip('offsetTop')[0] - (window.innerHeight / 2)
+			document.body.scrollTop = t
+			return this
 		},
 
 		trueColor: function trueColor(prop, reducer) {
@@ -1629,7 +1644,7 @@ $.plugin(function Html() {
 
 		child: function child(n) {
 			// .child(/n/) - returns the /n/th childNode for each in _this_
-			return this.map(function() { 
+			return this.map(function() {
 				var nn = this.childNodes.length,
 					i = n >= 0 ? n : n + nn
 				if( i < nn )
@@ -1725,7 +1740,7 @@ $.plugin(function Html() {
 			//   $("input").length === 0 // !?
 			// Where did the inputs go?!
 			// The first search finds 2 nodes.
-			// The second searchs finds 2 nodes and DETACHES them.
+			// The second search finds 2 nodes and DETACHES them.
 			// Both inputs nodes now have .parentNode == the fragment.
 			// The third search is searching the document object,
 			// to which the inputs are no longer attached, and it finds 0.
@@ -1824,27 +1839,29 @@ $.plugin(function Maths() {
 	]
 })
 
-$.plugin(function Event() {
-
-	// the basic supported events
+$.plugin(function Events() {
+	// support these generic events
+	// (click and ready are done separately)
 	var events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
-		'load','ready','unload','reset','submit','keyup','keydown','change',
+		'load','unload','reset','submit','keyup','keydown','change',
 		'abort','cut','copy','paste','selection','drag','drop','orientationchange',
 		'touchstart','touchmove','touchend','touchcancel',
 		'gesturestart','gestureend','gesturecancel']
 
 	function binder(e) {
-		// eval is evil! but there is no other way to set a function's name programmatically, 
-		// and the generated docs and the plugin loader need a function name
-		eval("var g = function "+e+"(f) { // ."+e+"([f]) - trigger [or bind] the '"+e+"' event \nreturn Object.IsFunc(f) ? this.bind('"+e+"',f) : this.trigger('"+e+"', f ? f : {}) }")
-		// also, we have to be even slightly more evil, to prevent the jsc compiler from mangling local names like g
-		return eval("g")
+		// carefully create a non-anonymous function
+		// using an anonymous one to avoid using eval()
+		return (new Function("return function "+e+"(f) { "
+			+"// ."+e+"([f]) - trigger [or bind] the '"+e+"' event \n"
+			+"return Object.IsFunc(f) ? this.bind('"+e+"',f) \n"
+			+" : this.trigger('"+e+"', f ? f : {}) }")
+		)()
 	}
 
 	function register_live(selector, context, e, f, h) {
 		var $c = $(context)
 		$c.bind(e, h) // bind the real handler
-			.each(function() { 
+			.each(function() {
 				var a = (this.__alive__ = this.__alive__ || {} ),
 					b = (a[selector] = a[selector] || {}),
 					c = (b[e] = b[e] || {})
@@ -1855,7 +1872,7 @@ $.plugin(function Event() {
 
 	function unregister_live(selector, context, e, f) {
 		var $c = $(context)
-		$c.each(function() { 
+		$c.each(function() {
 			var a = (this.__alive__ = this.__alive__ || {} ),
 				b = (a[selector] = a[selector] || {}),
 				c = (b[e] = b[e] || {}),
@@ -1866,14 +1883,38 @@ $.plugin(function Event() {
 	}
 
 	// detect and fire the document.ready event
-	setTimeout(function() {
-		if( $.fn.trigger != null
-			&& document.readyState === "complete") {
-			$(document).trigger('ready')
-		} else {
-			setTimeout(arguments.callee, 20)
+	var readyTriggered = 0,
+		readyBound = 0,
+		triggerReady = function() {
+			if( readyTriggered++ )
+				return
+			$(document).trigger('ready').unbind('ready')
+			if( document.removeEventListener )
+				document.removeEventListener("DOMContentLoaded", triggerReady)
+			if( window.removeEventListener )
+				window.removeEventListener("load", triggerReady)
+		},
+		bindReady = function() {
+			if( readyBound++ )
+				return
+			if( document.addEventListener )
+				document.addEventListener("DOMContentLoaded", triggerReady, false)
+			if( window.addEventListener )
+				window.addEventListener("load", triggerReady, false)
+			/* TODO: remove
+			setTimeout(function() {
+				if( readyTriggered )
+					return
+				if( $.fn.trigger != null
+					&& document.readyState === "complete")
+					triggerReady()
+				else
+					setTimeout(arguments.callee, 20)
+			}, 1)
+			*/
 		}
-	}, 0)
+
+	bindReady()
 
 	var ret = [
 		function bind(e, f) {
@@ -2124,7 +2165,6 @@ $.plugin(function Event() {
 			})
 		},
 
-		// short-cuts for calling bind or trigger
 		function click(f) {
 			// .click([f]) - trigger [or bind] the 'click' event
 			// if the cursor is just default then make it look clickable
@@ -2132,10 +2172,17 @@ $.plugin(function Event() {
 				this.css("cursor", "pointer")
 			return Object.IsFunc(f) ? this.bind('click', f)
 				: this.trigger('click', f ? f : {})
+		},
+
+		function ready(f) {
+			return Object.IsFunc(f) ?
+				readyTriggered ? f.apply(this)
+					: this.bind('ready', f)
+				: this.trigger('ready', f ? f : {})
 		}
 	]
 
-	// add event binding/triggering shortcuts to the plugin
+	// add event binding/triggering shortcuts for the generic events
 	events.forEach(function(x) {
 		ret.push(binder(x))
 	})
@@ -2180,13 +2227,13 @@ $.plugin(function Transform() {
 			// accelerated: scale, translate, rotate, scale3d,
 			// ... translateX, translateY, translateZ, translate3d,
 			// ... rotateX, rotateY, rotateZ, rotate3d
-			// easing values (strings): ease | linear | ease-in | ease-out 
-			// | ease-in-out | step-start | step-end | steps(number[, start | end ]) 
+			// easing values (strings): ease | linear | ease-in | ease-out
+			// | ease-in-out | step-start | step-end | steps(number[, start | end ])
 			// | cubic-bezier(number, number, number, number)
 
 			if( Object.IsFunc(speed) ) {
 				callback = speed
-				speed = null 
+				speed = null
 				easing = null
 			}
 			else if( Object.IsFunc(easing) ) {
@@ -2220,7 +2267,7 @@ $.plugin(function Transform() {
 			if( trans )
 				props[j++] = transformCSS
 
-			// apply the duration
+			// duration is always in milliseconds
 			duration = duration + _ms
 			// sets a list of properties to apply a duration to
 			css[transitionProperty] = props
@@ -2270,7 +2317,7 @@ $.plugin(function Transform() {
 
 		function visible() {
 			// .visible(): TODO, incomplete
-			var y, x = y = null, 
+			var y, x = y = null,
 				// p is a set of nodes that enforce overflow cutoffs
 				p = this.parents().map(function (parents) {
 					var i = -1, n = parents.length;
@@ -2364,6 +2411,7 @@ $.plugin(function Http() {
 
 	return [
 		function $http(url, opts) {
+			// $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
 			var xhr = new XMLHttpRequest()
 			if( Object.IsFunc(opts) )
 				opts = {success: Function.Bound(opts, xhr)}
@@ -2404,6 +2452,7 @@ $.plugin(function Http() {
 		},
 
 		function $post(url, opts) {
+			// $.post(/url/, [/opts/]) - fetch /url/ with a POST request
 			if( Object.IsFunc(opts) )
 				opts = {success: opts}
 			opts = opts || {}
@@ -2412,6 +2461,7 @@ $.plugin(function Http() {
 		},
 
 		function $get(url, opts) {
+			// $.get(/url/, [/opts/]) - fetch /url/ with a GET request
 			if( Object.IsFunc(opts) )
 				opts = {success: opts}
 			opts = opts || {}
@@ -2456,12 +2506,12 @@ $.plugin(function Database() {
 		return this
 	}
 	return [
-		function $db(fileName, version, displayName, maxSize) {
-			// $.db([/file/], [/ver/], [/name/], [/size/]) - get a new connection to the local database
+		function $db(fileName, version, maxSize) {
+			// $.db([/file/], [/ver/], [/maxSize/]) - new connection to the local database
 			var d = $([window.openDatabase(
 				fileName || "bling.db",
-				version || "1.0",
-				displayName || "bling database",
+				version || "0.0",
+				fileName || "bling.db",
 				maxSize || 1024)
 			])
 			d.transaction = transaction

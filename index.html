@@ -44,18 +44,14 @@
 			font-family: courier, sans;
 			font-size: 16px;
 		}
-		.bold {
-			font-weight: bold;
-		}
-		.right {
-			text-align: right;
-		}
+		.bold { font-weight: bold; }
+		.right { text-align: right; }
+		.center { text-align: center; }
+
 		h3, h4, h5 {
 			border-bottom: 1px solid black;
 		}
 
-		textarea {
-		}
 		table.small {
 			font-size: 14px;
 			width: 100%;
@@ -68,36 +64,43 @@
 		table.synthops {
 			margin-top: 1em;
 		}
+		table.download {
+			margin: 0 2em 0 1em;
+		}
 		table.download a {
-			border-bottom: 1px dashed !important;
 			text-decoration: none;
+		}
+		table.download td:first-child + td {
+			width: 100%;
 		}
 		table.download td:first-child + td + td {
 			text-align: right;
 		}
+		a[href] { color: blue; }
+		a[href]:visited { color: blue; }
+		a[href]:hover { color: red; }
+	</script>
 	</style>
 	<script>
 		try {
 			var readyTriggered = false,
 				secondsToWait = 3;
 			setTimeout(function() {
-				if( ! readyTriggered ) {
+				if( ! readyTriggered )
 					alert("document wasn't ready after "+secondsToWait+" seconds")
-				}
 			}, secondsToWait * 1000)
 			$(document).ready(function() {
 				readyTriggered = true
 			})
 			.ready(function() {
 				// find unsupported fraction markup
-				// and insert a fall-back
+				// and insert fall-back text
 				var num_re = /&frac(\d)(\d);/
 				$("p").each(function() {
 					var p = $(this),
 						text = p.text()[0]
-					if( num_re.test(text) ) {
+					if( num_re.test(text) )
 						p.text(text.replace(num_re, "$1/$2"))
-					}
 				})
 			})
 			.ready(function(){
@@ -107,10 +110,11 @@
 				// replace tabs with spaces in <pre>'s
 				// make all <pre>'s pretty-printable
 				$("pre").each(function(){
-					var html = this.innerHTML.replace(initial_tab,'$1').replace(all_tabs,"  ")
+					var html = this.innerHTML
+						.replace(initial_tab,'$1')
+						.replace(all_tabs,"  ")
 					html = $.HTML.escape(html)
 					this.innerHTML = Function.PrettyPrint(html)
-					// $(this).replace($(Function.PrettyPrint(html)))
 				})
 				// clean up textarea's also
 				$("textarea").each(function() {
@@ -135,14 +139,14 @@
 <body>
 	<h1><a name="top">BlingJS</a><h1>
 	<h2>A JavaScript library</h2>
-	<div class="bold right">by Jesse Dailey</div>
+	<div class="bold">by <a href="mailto:jesse.dailey@gmail.com">Jesse Dailey</a></div>
 
 	<p>BlingJS is named after the "<span class='bln'>$</span>", the default alias for the constructor.
 	<pre>
 	$("body").append('<div></div>'); </pre>
 
 	<h3>Download</h3>
-	<table class='download'>
+	<table class='download' cellspacing="0">
 		<tr>
 			<td><a href="../bling.js">Full Source</a><td><td>[80k]
 		<tr>
@@ -151,16 +155,9 @@
 			<td><a href="min.bling.js.gz">Compressed</a><td><td>[<b>9k</b>]
 	</table>
 	<p class='small'>About &frac13;rd the size of jQuery.<br> (compare v1.4.4: 179k, 78k, 28k)</p>
-	<script>
-		$("table.download")
-			.find("td:first-child + td")
-			.attr("width", "100%")
-			.css("border-bottom", "1px dotted black")
-	</script>
 
 	<h3>Introduction</h3>
-	<p><i>A Bling</i> is an ordered set of items of any type.  
-	This library defines functional operations to collect and manipulate sets and their members.
+	<p><i>BlingJS</i> defines operations to collect and manipulate sets.
 	<p>You create a set by wrapping up or selecting other items, sets, or subsets:
 	<pre>
 	$("button") // css expressions
@@ -176,8 +173,11 @@
 	<h4>What makes BlingJS special?</h4>
 	<p>Sets.
 	<p>BlingJS is similar to jQuery, with an emphasis on sets.
-	<p>BlingJS operations <b>always <i>try</i> to return a set</b>.
-	<p>If you want just one element, then consider using <a href='#doc:first'>first</a>, or <a href='#doc:last'>last</a>, or standard array notation; <code class="bold">[i]</code>.
+	<p>Operations <b>always <i>try</i> to return a set</b>.
+	<p>If you want just one element, then consider using 
+	<a href='#doc:first'>first</a>, 
+	<a href='#doc:last'>last</a>,
+	<a href="#doc:eq">eq</a>, or standard array notation; <code class="bold">[i]</code>.
 	<p>Even methods that return scalar values (like <a href='#doc:width'>width</a> or <a href='#doc:height'>height</a>), return <b>a set of scalar values</b>.
 	<p>For complete documentation of everything BlingJS can do, see the <a href="html/doc.html">API Documentation</a>
 

@@ -209,15 +209,17 @@
 			i = 0, n = keys.length,
 			key = null, val = null
 		for(; i < n; i++) {
-			key = keys[i],
+			key = keys[i]
 			val = x[key]
-
-			if( Object.IsObject(val) ) {
-				// recurse
-				arguments.callee(key.charAt(0) == '$' ? '$.' + key.substr(1) : name + "." + key, val, visit)
-			} else if( Object.IsFunc(val) ) {
-				visit(key.charAt(0) == '$' ? '$.' + key.substr(1) : name + "." + key, val)
-			}
+			key = Object.IsNumber(key)
+				? x[key].name
+				: key[0] === '$' 
+				? '$.' + key.substr(1) 
+				: "" + name + "." + key
+			if( Object.IsObject(val) ) // recurse
+				arguments.callee(key, val, visit)
+			else if( Object.IsFunc(val) )
+				visit(key, val)
 		}
 	}
 
@@ -225,6 +227,7 @@
 		return {
 			$doc: {
 				module: function (name, func_template) {
+					// $.doc.module(name, template) - render docs into template
 					var ret = $([])
 					if( ! func_template )
 						func_template = $.synth("li a[href=api:%(reference)s] '%(definition)s' + div '%(description)s' + div '%(examples)s'")
@@ -233,13 +236,14 @@
 							nodes = $(text),
 							examples = getExamples(nodes),
 							description = getDescription(nodes),
+							reference = name.replace("Bling.prototype.","").replace("Bling.",""),
 							output = func_template.render({
-								reference: name.replace("Bling.prototype.","").replace("Bling.",""),
+								reference: reference,
 								definition: description[0],
 								description: description[1],
 								examples: examples.map($.HTML.stringify).join("")
 							})
-						ret.push($(output))
+						ret.push(output)
 					})
 					return ret
 				}

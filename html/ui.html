@@ -108,13 +108,20 @@
 					line-height: 16px;
 					padding: 2px 4px;
 					margin: 2px;
-					border-left: 1px solid black;
-					border-top: 1px solid black;
-					border-right: 1px solid #bababa;
+					border-left: 1px solid #999;
+					border-top: 1px solid #999;
+					border-right: 1px solid #ccc;
 					border-radius: 3px;
+					background-color: #ffc;
+				}
+				#tab-demo .tabs > li:hover {
+					background-color: #feb;
 				}
 				#tab-demo .tabs > .active {
-					background-color: #ffc;
+					background-color: #fda;
+				}
+				#tab-demo .tabs > .active:hover {
+					background-color: #dc9;
 				}
 
 				#tab-demo .views > * {
@@ -158,7 +165,7 @@
 				}
 				.accordion .title {
 					width: 120px;
-					background: #ffc; /*-webkit-gradient(linear, 0 0, 100% 100%, from(#ffc), to(#003));*/
+					background: #ffc;
 					border-radius: 3px;
 					border-bottom: 1px solid #999;
 					border-right: 1px solid #ccc;

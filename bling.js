@@ -385,11 +385,38 @@ String.prototype.trimLeft = Array.Coalesce(
 		return this.replace(/^\s+/,"")
 	}
 )
-Element.prototype.matchesSelector = Array.Coalesce(
-	Element.prototype.webkitMatchesSelector,
-	Element.prototype.mozMatchesSelector,
-	Element.prototype.matchesSelector
-)
+
+// if the browser doesn't support the Selectors API
+// patch in support from the Sizzle JS library
+if( ! document.querySelectorAll ) {
+	var scripts = document.getElementsByTagName("script"),
+		i = 0, nn = scripts.length,
+		re = /bling.js$/,
+		script = document.createElement("script")
+	// find the script tag that imports bling.js
+	for(; i < nn; i++ )
+		if( re.test(scripts[i].src) )
+			script.src = scripts[i].src.replace(re, "plugins/sizzle.js")
+	// when the sizzle is loaded, monkeypatch its API into the DOM
+	script.onload = function(evt) { 
+		Node.prototype.querySelector = function(x) {
+			return Sizzle(x, this)[0]
+		}
+		Node.prototype.querySelectorAll = function(x) {
+			return Sizzle(x, this)
+		}
+		Element.prototype.matchesSelector = function(x) {
+			return Sizzle.matchesSelector(this, x)
+		}
+	}
+	// inject the new script tag into the head
+	document.getElementsByTagName("head")[0].appendChild(script)
+} else
+	Element.prototype.matchesSelector = Array.Coalesce(
+		Element.prototype.webkitMatchesSelector,
+		Element.prototype.mozMatchesSelector,
+		Element.prototype.matchesSelector
+	)
 
 /** $.plugin adds a new plugin to the library.
  * @param {Function} constructor the closure to execute to get a copy of the plugin

@@ -1,8 +1,8 @@
 ;(function() {
 /** bling.js
  * --------
- * Named after the bling operator ($) to which it is bound by default.
- * This is a jQuery-like framework, using any WebKit shortcuts that we can.
+ * Named after the bling symbol ($) to which it is bound by default.
+ * This is a jQuery-like framework.
  * All other browsers play at your own risk.
  * Blame: Jesse Dailey <jesse.dailey@gmail.com>
  */
@@ -36,7 +36,7 @@ function Bling (selector, context) {
 		// html begins with "<", and we create a set of nodes by parsing it
 		// any other string is considered css
 
-		selector = selector.trimLeft()
+		selector = String.TrimLeft(selector)
 
 		if( selector[0] === "<" )
 			set = [Bling.HTML.parse(selector)]
@@ -55,7 +55,7 @@ function Bling (selector, context) {
 					a.push(s[i])
 				return a
 			}, [])
-		else throw Error("invalid context: " + context)
+		else throw Error("invalid context: " + context + " (type: " + typeof(context) + ")")
 	}
 	else
 		set = selector
@@ -122,7 +122,7 @@ Object.Keys = function (o, inherited) {
  * @param {Object} b the object to copy from
  * @param {Array=} k if present, a list of field names to limit to
  */
-Object.Extend = function extend(a, b, k) {
+Object.Extend = function (a, b, k) {
 	// Object.Extend(a, b, [k]) - merge values from b into a
 	// if k is present, it should be a list of property names to copy
 	var i, j, undefined
@@ -158,17 +158,17 @@ Object.Extend(Object, {
 
 		*/
 	},
-	IsType: function (a,T) {
-		// Object.IsType(a,T) - true if object a is of type T (directly or indirectly)
-		return a == null ? a === T
-			: a.__proto__ == null ? false
-			: a.__proto__.constructor === T ? true
-			: typeof T === "string" ? a.__proto__.constructor.name === T
-			: Object.IsType(a.__proto__, T) // recursive
+	IsType: function (o,T) {
+		// Object.IsType(o,T) - true if object o is of type T (directly or indirectly)
+		return o == null ? o === T
+			: o.__proto__ == null ? false
+			: o.__proto__.constructor === T ? true
+			: typeof T === "string" ? o.__proto__.constructor.name === T
+			: Object.IsType(o.__proto__, T) // recursive
 	},
-	IsString: function (a) {
+	IsString: function (o) {
 		// Object.IsString(a) - true if object a is a string
-		return typeof a === "string" || Object.IsType(a, String)
+		return typeof o === "string" || Object.IsType(o, String)
 	},
 	IsNumber: isFinite,
 	IsFunc: function (a) {
@@ -176,29 +176,29 @@ Object.Extend(Object, {
 		return (typeof a === "function" || Object.IsType(a, Function))
 			&& a.call !== undefined
 	},
-	IsNode: function (a) {
-		// Object.IsNode(a) - true if object is a DOM node
-		return a ? a.nodeType > 0 : false
+	IsNode: function (o) {
+		// Object.IsNode(o) - true if object is a DOM node
+		return o ? o.nodeType > 0 : false
 	},
-	IsFragment: function (a) {
-		// Object.IsFragment(a) - true if object is a DocumentFragment node
-		return a ? a.nodeType === 11 : false
+	IsFragment: function (o) {
+		// Object.IsFragment(o) - true if object is a DocumentFragment node
+		return o ? o.nodeType === 11 : false
 	},
-	IsArray: function (a) {
-		// Object.IsArray(a) - true if object is an Array (or inherits Array)
-		return a ? Function.ToString(a) === "[object Array]"
-			|| Object.IsType(a, Array) : false
+	IsArray: function (o) {
+		// Object.IsArray(o) - true if object is an Array (or inherits Array)
+		return o ? Function.ToString(o) === "[object Array]"
+			|| Object.IsType(o, Array) : false
 	},
-	IsBling: function (a) {
-		return Object.IsType(a, Bling)
+	IsBling: function (o) {
+		return Object.IsType(o, Bling)
 	},
-	IsObject: function (a) {
-		// Object.IsObject(a) - true if a is an object
-		return typeof a === "object"
+	IsObject: function (o) {
+		// Object.IsObject(o) - true if a is an object
+		return typeof o === "object"
 	},
-	HasValue: function (a) {
-		// Object.HasValue(a) - true if a is not null nor undefined
-		return !(a == null)
+	HasValue: function (o) {
+		// Object.HasValue(o) - true if a is not null nor undefined
+		return !(o == null)
 	},
 	Unbox: function (a) {
 		// Object.Unbox(o) - primitive types can be 'boxed' in an object
@@ -231,7 +231,7 @@ Object.Extend(Function, {
 			r = f.bind.apply(f, args)
 		} else
 			r = function () {
-				f.apply(t ? t : this, args ? args : arguments)
+				f.apply(t, args.length > 0 ? args : arguments)
 			}
 		r.toString = function() { return "bound-method of "+t+"."+f.name }
 		return r
@@ -272,7 +272,7 @@ Object.Extend(Function, {
  * ---------------- */
 Object.Extend(Array, {
 	/** Array.Slice works like python's slice (negative indexes, etc)
-	 * and works on any indexable (not just array instances, notably 'arguments')
+	 * and works on any indexable (not just arrays, notably 'arguments')
 	 * @param {Object} o the iterable to get a slice of
 	 * @param {number} i the start index
 	 * @param {number=} j the end index
@@ -322,6 +322,12 @@ Object.Extend(Number, {
 /* String Extensions
  * ----------------- */
 Object.Extend(String, {
+	TrimLeft: function triml(s) {
+		if( s.trimLeft )
+			return s.trimLeft()
+		else
+			return s.replace(/^\s+/,"")
+	},
 	PadLeft: function padl(s, n, c) {
 		// String.PadLeft(string, width, fill=" ")
 		c = c || space
@@ -377,8 +383,8 @@ Object.Extend(Error, {
 	TypeError: TypeError
 })
 
-/* Prototypes
- * ---------- */
+/* Compatibility
+ * ------------- */
 String.prototype.trimLeft = Array.Coalesce(
 	String.prototype.trimLeft,
 	function trimLeft() {
@@ -1164,7 +1170,7 @@ $.plugin(function Html() {
 	}
 	// a helper that will recursively clone a sub-tree of the DOM
 	function deepClone(node) { // TODO: check for support for .cloneNode(deep=true)
-		var n = node.cloneNode(), i = 0,
+		var n = node.cloneNode(false), i = 0,
 			nn = node.childNodes.length
 		for(; i < nn; i++) {
 			n.appendChild(deepClone(node.childNodes[i]))
@@ -1189,16 +1195,15 @@ $.plugin(function Html() {
 			parse: function parse(h) {
 				// $.HTML.parse(/h/) - parse the html in string h, return a Node.
 				// will return a DocumentFragment if not well-formed.
-				var d = document.createElement("html"),
-					df = document.createDocumentFragment()
-				d.innerHTML = h
-				// since d is an "html" node, it always has two children, head and body
-				var node = d.childNodes[1],
-					childNodes = node.childNodes,
-					n = childNodes.length
+				var i, df, node, childNodes, n,
+					node = document.createElement("div")
+				node.innerHTML = h
+				childNodes = node.childNodes
+				n = childNodes.length
 				if( n === 1 )
 					return node.removeChild(childNodes[0])
-				for(var i = 0; i < n; i++)
+				df = document.createDocumentFragment()
+				for(i = 0; i < n; i++)
 					df.appendChild(node.removeChild(childNodes[0]))
 				return df
 			},
@@ -1209,7 +1214,8 @@ $.plugin(function Html() {
 				d.appendChild(n)
 				var ret = d.innerHTML
 				d.removeChild(n) // clean up to prevent leaks
-				n.parentNode = null
+				try { n.parentNode = null }
+				catch( err ) { }
 				return ret
 			},
 			escape: function escape(h) {
@@ -1497,16 +1503,18 @@ $.plugin(function Html() {
 			if( Object.HasValue(v) || Object.IsObject(k) ) {
 				var setter = this.zip('style.setProperty'),
 					i = 0, n = 0, nn = setter.length
-				if( Object.IsString(k) )
-					setter.call(k, v)
-				else if ( Object.IsArray(v) ) {
-					n = Math_max(v.length, nn)
-					for(;i < n; i++)
-						setter[i%nn](v[i%n])
+				if( Object.IsString(k) ) {
+					if( Object.IsString(v) )
+						setter.call(k, v, emptyString)
+					else if ( Object.IsArray(v) ) {
+						n = Math_max(v.length, nn)
+						for(;i < n; i++)
+							setter[i%nn](k, v[i%n], emptyString)
+					}
 				}
 				else if ( Object.IsObject(k) ) {
 					for(i in k)
-						setter.call(i, k[i])
+						setter.call(i, k[i], emptyString)
 				}
 				return this
 			}
@@ -1917,9 +1925,9 @@ $.plugin(function Events() {
 				return
 			$(document).trigger('ready').unbind('ready')
 			if( document.removeEventListener )
-				document.removeEventListener("DOMContentLoaded", triggerReady)
+				document.removeEventListener("DOMContentLoaded", triggerReady, false)
 			if( window.removeEventListener )
-				window.removeEventListener("load", triggerReady)
+				window.removeEventListener("load", triggerReady, false)
 		},
 		bindReady = function() {
 			if( readyBound++ )
@@ -1952,7 +1960,7 @@ $.plugin(function Events() {
 				n = c.length, i = 0
 			return this.each(function() {
 				for(i = 0; i < n; i++) {
-					this.addEventListener(c[i], f)
+					this.addEventListener(c[i], f, false)
 				}
 			})
 		},
@@ -1965,7 +1973,7 @@ $.plugin(function Events() {
 				n = c.length
 			return this.each(function() {
 				for(; i < n; i++) {
-					this.removeEventListener(c[i],f)
+					this.removeEventListener(c[i],f,null)
 				}
 			})
 		},
@@ -2133,7 +2141,8 @@ $.plugin(function Events() {
 					default:
 						e = document.createEvent("Events")
 						e.initEvent(evt_i, args.bubbles, args.cancelable)
-						e = Object.Extend(e, args)
+						try{ e = Object.Extend(e, args) }
+						catch( err ) { }
 						// console.log('triggering '+evt_i, e, args)
 				}
 				if( !e ) continue

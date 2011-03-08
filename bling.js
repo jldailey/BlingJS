@@ -3,7 +3,6 @@
  * --------
  * Named after the bling symbol ($) to which it is bound by default.
  * This is a jQuery-like framework.
- * All other browsers play at your own risk.
  * Blame: Jesse Dailey <jesse.dailey@gmail.com>
  */
 
@@ -1881,7 +1880,8 @@ $.plugin(function Events() {
 		'load','unload','reset','submit','keyup','keydown','change',
 		'abort','cut','copy','paste','selection','drag','drop','orientationchange',
 		'touchstart','touchmove','touchend','touchcancel',
-		'gesturestart','gestureend','gesturecancel']
+		'gesturestart','gestureend','gesturecancel',
+		'hashchange']
 
 	function binder(e) {
 		// carefully create a non-anonymous function
@@ -1957,10 +1957,16 @@ $.plugin(function Events() {
 			// e is a string like 'click', 'mouseover', etc.
 			// e can be comma-separated to bind multiple events at once
 			var c = (e||emptyString).split(commasep_re),
-				n = c.length, i = 0
+				n = c.length, i = 0,
+				h = function (evt) {
+					var ret = f.apply(this, arguments)
+					if( ret === false )
+						Event.Prevent(evt)
+					return ret
+				}
 			return this.each(function() {
 				for(i = 0; i < n; i++) {
-					this.addEventListener(c[i], f, false)
+					this.addEventListener(c[i], h, false)
 				}
 			})
 		},
@@ -2146,11 +2152,13 @@ $.plugin(function Events() {
 						// console.log('triggering '+evt_i, e, args)
 				}
 				if( !e ) continue
-				else this.each(function() {
-					this.dispatchEvent(e)
-					delete e.result
-					delete e.returnValue
-				})
+				else try {
+					this.each(function() {
+						this.dispatchEvent(e)
+					})
+				} catch( err ) {
+					console.log("dispatchEvent error:",err)
+				}
 			}
 
 			return this
@@ -2212,7 +2220,7 @@ $.plugin(function Events() {
 
 		function ready(f) {
 			return Object.IsFunc(f) ?
-				readyTriggered ? f.apply(this)
+				readyTriggered ? f.call(this)
 					: this.bind('ready', f)
 				: this.trigger('ready', f ? f : {})
 		}

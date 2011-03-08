@@ -6,6 +6,42 @@
  * Blame: Jesse Dailey <jesse.dailey@gmail.com>
  */
 
+;(function () {
+
+// constants
+var undefined,
+	commasep = ", ",
+	commasep_re = /, */,
+	space = " ",
+	leftSpaces_re = /^\s+/,
+	emptyString = "",
+	object_cruft = /\[object (\w+)\]/,
+	_1 = "$1",
+	Math_min = Math.min,
+	Math_max = Math.max,
+	Math_ceil = Math.ceil,
+	Math_sqrt = Math.sqrt,
+	Obj_toString = Object.prototype.toString,
+	_log = (console && console.log) || alert,
+	_none = "none",
+	_relative = "relative",
+	_absolute = "absolute",
+	_width = "width",
+	_height = "height",
+	_top = "top",
+	_left = "left",
+	_right = "right",
+	_bottom = "bottom",
+	_string = "string",
+	_number = "number",
+	_function = "function",
+	_object = "object",
+	_object_Array = "[object Array]",
+	_px = "px",
+	_dot = ".",
+	_undefined = "undefined",
+	_null = "null"
+
 /** Bling, the "constructor".
  * -----------------------
  * Bling(selector, context):
@@ -26,11 +62,11 @@ function Bling (selector, context) {
 
 	if( selector == null)
 		set = []
-	else if( typeof selector === "number" )
+	else if( typeof selector === _number )
 		set = new Array(selector)
 	else if( selector === window || Object.IsNode(selector) )
 		set = [selector]
-	else if( typeof selector === "string" ) { // strings, search css or parse html
+	else if( typeof selector === _string ) { // strings, search css or parse html
 		// accept two different kinds of strings: html, and css expression
 		// html begins with "<", and we create a set of nodes by parsing it
 		// any other string is considered css
@@ -69,34 +105,8 @@ function Bling (selector, context) {
 Bling.fn = new Array // a copy(!) of the Array prototype, Blings extend the ordered sets
 Bling.fn.constructor = Bling
 Bling.symbol = "$" // for display purposes
-// public exports:
-window[Bling.symbol] =
-	window["Bling"] =
-		Bling
-
-// move into an even safer namespace, where $ can't be hijacked
-;(function ($) {
-
-// constants
-var commasep = ", ",
-	commasep_re = /, */,
-	space = " ",
-	emptyString = "",
-	object_cruft = /\[object (\w+)\]/,
-	Math_min = Math.min,
-	Math_max = Math.max,
-	Math_ceil = Math.ceil,
-	Math_sqrt = Math.sqrt,
-	Obj_toString = Object.prototype.toString,
-	_none = "none",
-	_relative = "relative",
-	_absolute = "absolute",
-	_width = "width",
-	_height = "height",
-	_top = "top",
-	_left = "left",
-	_right = "right",
-	_bottom = "bottom"
+// exports:
+var $ = window[Bling.symbol] = window["Bling"] = Bling
 
 /** Object.Keys
  * @param {Object} o the object to get property names from
@@ -125,7 +135,7 @@ Object.Extend = function (a, b, k) {
 	// Object.Extend(a, b, [k]) - merge values from b into a
 	// if k is present, it should be a list of property names to copy
 	var i, j, undefined
-	if( Obj_toString.apply(k) === "[object Array]" ) // cant use Object.IsArray yet
+	if( Obj_toString.apply(k) === _object_Array ) // cant use Object.IsArray yet
 		for( i in k )
 			a[k[i]] = b[k[i]] !== undefined ? b[k[i]] : a[k[i]]
 	else
@@ -162,17 +172,17 @@ Object.Extend(Object, {
 		return o == null ? o === T
 			: o.__proto__ == null ? false
 			: o.__proto__.constructor === T ? true
-			: typeof T === "string" ? o.__proto__.constructor.name === T
+			: typeof T === _string ? Obj_toString(o).replace(object_cruft, _1) === T
 			: Object.IsType(o.__proto__, T) // recursive
 	},
 	IsString: function (o) {
 		// Object.IsString(a) - true if object a is a string
-		return typeof o === "string" || Object.IsType(o, String)
+		return typeof o === _string || Object.IsType(o, String)
 	},
 	IsNumber: isFinite,
 	IsFunc: function (a) {
 		// Object.IsFunc(a) - true if object a is a function
-		return (typeof a === "function" || Object.IsType(a, Function))
+		return (typeof a === _function || Object.IsType(a, Function))
 			&& a.call !== undefined
 	},
 	IsNode: function (o) {
@@ -185,7 +195,7 @@ Object.Extend(Object, {
 	},
 	IsArray: function (o) {
 		// Object.IsArray(o) - true if object is an Array (or inherits Array)
-		return o ? Function.ToString(o) === "[object Array]"
+		return o ? Object.ToString(o) === _object_Array
 			|| Object.IsType(o, Array) : false
 	},
 	IsBling: function (o) {
@@ -193,7 +203,7 @@ Object.Extend(Object, {
 	},
 	IsObject: function (o) {
 		// Object.IsObject(o) - true if a is an object
-		return typeof o === "object"
+		return typeof o === _object
 	},
 	HasValue: function (o) {
 		// Object.HasValue(o) - true if a is not null nor undefined
@@ -208,7 +218,8 @@ Object.Extend(Object, {
 				return Number(a)
 		}
 		return a
-	}
+	},
+	ToString: function (x) { return Obj_toString.apply(x) }
 })
 
 /* Function Extensions
@@ -232,7 +243,7 @@ Object.Extend(Function, {
 			r = function () {
 				f.apply(t, args.length > 0 ? args : arguments)
 			}
-		r.toString = function() { return "bound-method of "+t+"."+f.name }
+		r.toString = function() { return "bound-method of "+t+_dot+f.name }
 		return r
 		/* Example:
 			> var log = window.console ? Function.Bound(console.log, console)
@@ -244,14 +255,15 @@ Object.Extend(Function, {
 	 * @param {Function} f the function to trace
 	 * @param {string=} label (optional)
 	 */
-	Trace: function (f, label) {
-		var r = function () {
-			console.log(label ? label : emptyString + (this.name ? this.name : this), "." + f.name + "(",
-				Array.Slice(arguments, 0), ")")
-			return f.apply(this, arguments)
-		}
+	Trace: function (f, label, tracer) {
+		var tracer = tracer || _log,
+			r = function () {
+				tracer(label ? label : emptyString + (this.name ? this.name : this), _dot + f.name + "(",
+					Array.Slice(arguments, 0), ")")
+				return f.apply(this, arguments)
+			}
 		r.toString = function() { return f.toString() }
-		console.log("Function.Trace:", label ? label : f.name,"created")
+		tracer("Function.Trace:", label ? label : f.name,"created")
 		return r
 		/* Example:
 			> function someFunction() { }
@@ -263,7 +275,6 @@ Object.Extend(Function, {
 	ReduceAnd: function (x) { return x && this },
 	UpperLimit: function (x) { return function(y) { return Math_min(x, y) }},
 	LowerLimit: function (x) { return function(y) { return Math_max(x, y) }},
-	ToString: function (x) { return Obj_toString.apply(x) },
 	Px: function (d) { return function() { return Number.Px(this,d) } }
 })
 
@@ -277,7 +288,7 @@ Object.Extend(Array, {
 	 * @param {number=} j the end index
 	 */
 	Slice: function (o, i, j) {
-		var a = [], k = 0, n = o.length,
+		var a = [], k = 0, n = (Object.IsFunc(o.len) && o.len()) || o.length,
 			end = j == null ? n
 				: j < 0 ? n + j
 				: j,
@@ -312,7 +323,7 @@ Object.Extend(Number, {
 	 * @param {(number|string)} x a number-ish
 	 * @param {number=} d delta for adjusting the number before output
 	 */
-	Px: function (x,d) { return x == null ? undefined : (parseInt(x,10)+(d|0))+"px" },
+	Px: function (x,d) { return x == null ? undefined : (parseInt(x,10)+(d|0))+_px },
 	// mappable versions of max() and min()
 	AtLeast: function (x) { return function (y) { return Math_max(parseFloat(y||0), x) } },
 	AtMost: function (x) { return function (y) { return Math_min(parseFloat(y||0), x) } }
@@ -325,7 +336,7 @@ Object.Extend(String, {
 		if( s.trimLeft )
 			return s.trimLeft()
 		else
-			return s.replace(/^\s+/,"")
+			return s.replace(leftSpaces_re,emptyString)
 	},
 	PadLeft: function padl(s, n, c) {
 		// String.PadLeft(string, width, fill=" ")
@@ -386,8 +397,8 @@ Object.Extend(Error, {
  * ------------- */
 String.prototype.trimLeft = Array.Coalesce(
 	String.prototype.trimLeft,
-	function trimLeft() {
-		return this.replace(/^\s+/,"")
+	function () {
+		return this.replace(leftSpaces_re, emptyString)
 	}
 )
 
@@ -512,7 +523,7 @@ $.plugin(function Core() {
 	}
 	// used in .zip()
 	function _zipper(p) {
-		var i = p.indexOf(".")
+		var i = p.indexOf(_dot)
 		// split and recurse ?
 		return i > -1 ? this.zip(p.substr(0, i)).zip(p.substr(i+1))
 			// or map a getter across the values
@@ -529,7 +540,7 @@ $.plugin(function Core() {
 		function each(f) {
 			// .each(/f/) - apply function /f/ to every item /x/ in _this_.
 			var i = -1,
-				n = this.length,
+				n = this.len(),
 				t = null
 			while( ++i < n ) {
 				t = this[i]
@@ -635,13 +646,14 @@ $.plugin(function Core() {
 			// .intersect(/other/) - collect all /x/ that are in _this_ and _other_.
 			var ret = $(),
 				i = 0, j = 0, x = null,
-				n = this.length, nn = other.length
+				n = this.len(), nn = other.len()
+				m = 0 // ret.length
 			ret.context = this.context
 			ret.selector = this.selector
 			for(; i < n; i++)
 				for(j = 0; j < nn; j++)
 					if( this[i] === other[j] ) {
-						ret[ret.length] = this[i]
+						ret[m++] = this[i]
 						break
 					}
 
@@ -672,7 +684,6 @@ $.plugin(function Core() {
 
 		function count(item, strict) {
 			// .count(/x/) - returns how many times /x/ occurs in _this_.
-			var undefined // an extra careful check here
 			// since we want to be able to search for null values with .count(null)
 			// but if you just call .count(), it returns the total length
 			if( item === undefined )
@@ -706,7 +717,7 @@ $.plugin(function Core() {
 					// with only those properties, will be returned
 					// like a "select" query in SQL
 					var master = {},
-						b = $(), n = arguments.length, nn = this.length,
+						b = $(), n = arguments.length, nn = this.len(),
 						i = 0, j = 0, k = null
 					// first collect a set of lists
 					for(; i < n; i++)
@@ -755,7 +766,7 @@ $.plugin(function Core() {
 			// just like zip, zap("a.b") == zip("a").zap("b")
 			// but unlike zip, you cannot assign to many /p/ at once
 			if( !p ) return this
-			var i = p.indexOf(".")
+			var i = p.indexOf(_dot)
 			return i > -1 ?  // is /p/ a compound name like "foo.bar"?
 				this.zip(p.substr(0, i)) // if so, break off the front
 					.zap(p.substr(i+1), v) // and recurse
@@ -838,8 +849,9 @@ $.plugin(function Core() {
 		function last(n) {
 			// .last([/n/]) - collect the last [/n/] elements from _this_.
 			// if n is not passed, returns just the last item (no bling)
-			return n ? this.skip(this.len() - n)
-				: this[this.length - 1]
+			var nn = this.len()
+			return n ? this.skip(nn - n)
+				: this[nn - 1]
 			/* Example:
 				> $([1, 2, 3, 4, 5]).last()
 				> == 5
@@ -852,7 +864,7 @@ $.plugin(function Core() {
 
 		function join(sep) {
 			// .join(/sep/) - concatenates all /x/ in _this_ using /sep/
-			if( this.length === 0 ) return emptyString
+			if( this.len() === 0 ) return emptyString
 			return this.reduce(function(j) {
 				return j + sep + this
 			})
@@ -887,7 +899,7 @@ $.plugin(function Core() {
 			// note: also, does not create a new array, uses _this_
 			var i = this.len() - 1,
 				j = -1,
-				n = b.length
+				n = b.len()
 			while( j < n-1 )
 				this[++i] = b[++j]
 			return this
@@ -907,7 +919,7 @@ $.plugin(function Core() {
 			// .filter(/f/) - collect all /x/ from _this_ where /x/./f/(/x/) is true
 			// or if f is a selector string, collects nodes that match the selector
 			// or if f is a RegExp, collect nodes where f.test(x) is true
-			var i = 0, j = -1, n = this.length,
+			var i = 0, j = -1, n = this.len(),
 				b = $(), it = null
 			b.context = this
 			b.selector = f
@@ -967,8 +979,8 @@ $.plugin(function Core() {
 			// note: if b and this are different lengths, the shorter
 			// will yield undefineds into the result, which always has
 			// 2 * max(length) items
-			var n = b.length,
-				nn = this.length,
+			var n = b.len(),
+				nn = this.len(),
 				c = $(2 * Math_max(nn, n)),
 				i = nn - 1
 			c.context = this.context
@@ -1023,7 +1035,7 @@ $.plugin(function Core() {
 			b.context = this.context
 			b.selector = this.selector
 			for(; i < n; i++)
-				for(c = this[i], j = 0, d = c.length; j < d;)
+				for(c = this[i], j = 0, d = (Object.IsFunc(c.len) ? c.len() : c.length); j < d;)
 					b[k++] = c[j++]
 			return b
 			/* Example:
@@ -1076,12 +1088,11 @@ $.plugin(function Core() {
 
 		function toString() {
 			// .toString() - maps toString across this
-			var _1 = "$1"
 			return $.symbol
 				+"(["
 				+this.map(function(){
-					return this === undefined || this === window ? "undefined"
-						: this === null ? "null"
+					return this === undefined || this === window ? _undefined
+						: this === null ? _null
 						: this.toString().replace(object_cruft,_1)
 				}).join(commasep)
 				+"])"
@@ -1110,24 +1121,29 @@ $.plugin(function Core() {
 
 		function log(label) {
 			// .log([label]) - console.log([/label/] + /x/) for /x/ in _this_
-			if( label ) console.log(label, this, this.length + " items")
-			else console.log(this, this.length + " items")
+			var len = this.len()
+			if( label ) _log(label, this, len + " items")
+			else _log(this, len + " items")
 			return this
 			/* Example:
-				$("a + pre").text().log("example")
-				// this will log: "example: some text content"
-				// for every matching node
+				$("a + pre").log("example")
+				// logs, "example: [...nodes...] (N items)"
 			*/
 		},
 
 		function len() {
 			// .len() - returns the max defined index + 1
 			// the .length of an array is more like capacity than length
-			// this counts backward from .length, looking for a valid item
+			// this counts backward or forward from .length, looking for valid items
 			// returns the largest found index + 1
 			var i = this.length
-			while( i > -1 && this[--i] === undefined) {/*spin*/}
-			return i+1
+			if( i === 0 )
+				try {
+					while( this[i] !== undefined ) { i += 1 }
+				} catch( err ) { }
+			else
+				while( i > -1 && this[i] === undefined) { i -= 1 }
+			return i
 			/* Example:
 				If you create an empty array with spare capacity
 				> var b = new Array(10)
@@ -1185,6 +1201,14 @@ $.plugin(function Html() {
 		// so define something that does work right for use in .css
 		return function() {
 			window.getComputedStyle(this, null).getPropertyValue(k)
+		}
+	}
+
+	var cssVendors = ['-webkit-', '-moz-', '-o-']
+
+	function setCSSProperty(k, v) {
+		var i = 0, n = cssVendors.length
+		for(; i < n; i++) {
 		}
 	}
 
@@ -1501,7 +1525,7 @@ $.plugin(function Html() {
 			// called with object k and undefd v -> set css(x, k[x]) for x in k
 			if( Object.HasValue(v) || Object.IsObject(k) ) {
 				var setter = this.zip('style.setProperty'),
-					i = 0, n = 0, nn = setter.length
+					i = 0, n = 0, nn = setter.len()
 				if( Object.IsString(k) ) {
 					if( Object.IsString(v) )
 						setter.call(k, v, emptyString)
@@ -1779,7 +1803,7 @@ $.plugin(function Html() {
 			// The third search is searching the document object,
 			// to which the inputs are no longer attached, and it finds 0.
 			// They are attached to the fragment, whose reference we discarded.
-			if( this.length === 1 )
+			if( this.len() === 1 )
 				return toNode(this[0])
 			var f = document.createDocumentFragment()
 			this.map(toNode).map(Function.Bound(f.appendChild, f))
@@ -1830,7 +1854,7 @@ $.plugin(function Maths() {
 
 		function average() {
 			// .average() - compute the average of all /x/ in _this_
-			return this.sum() / this.length
+			return this.sum() / this.len()
 		},
 
 		function sum() {
@@ -1965,9 +1989,8 @@ $.plugin(function Events() {
 					return ret
 				}
 			return this.each(function() {
-				for(i = 0; i < n; i++) {
+				for(i = 0; i < n; i++)
 					this.addEventListener(c[i], h, false)
-				}
 			})
 		},
 
@@ -2149,7 +2172,7 @@ $.plugin(function Events() {
 						e.initEvent(evt_i, args.bubbles, args.cancelable)
 						try{ e = Object.Extend(e, args) }
 						catch( err ) { }
-						// console.log('triggering '+evt_i, e, args)
+						// _log('triggering '+evt_i, e, args)
 				}
 				if( !e ) continue
 				else try {
@@ -2157,7 +2180,7 @@ $.plugin(function Events() {
 						this.dispatchEvent(e)
 					})
 				} catch( err ) {
-					console.log("dispatchEvent error:",err)
+					_log("dispatchEvent error:",err)
 				}
 			}
 
@@ -2255,6 +2278,18 @@ $.plugin(function Transform() {
 		_hide = "hide",
 		_show = "show",
 		updateDelay = 50 // ms to wait for DOM changes to apply
+
+		if( "MozTransform" in CSSStyleDeclaration.prototype ) {
+			transformCSS = "-moz-transform"
+			transitionProperty = "-moz-transition-property"
+			transitionDuration = "-moz-transition-duration"
+			transitionTiming = "-moz-transition-timing-function"
+		} else if ( document.createElement("div").style.OTransform != undefined) {
+			transformCSS = "-o-transform"
+			transitionProperty = "-o-transition-property"
+			transitionDuration = "-o-transition-duration"
+			transitionTiming = "-o-transition-timing-function"
+		}
 
 	/// Transformation Module: provides wrapper for using -webkit-transform ///
 	return [
@@ -2364,7 +2399,7 @@ $.plugin(function Transform() {
 			var y, x = y = null,
 				// p is a set of nodes that enforce overflow cutoffs
 				p = this.parents().map(function (parents) {
-					var i = -1, n = parents.length;
+					var i = -1, n = parents.len();
 					while( ++i < n ) {
 						var pp = $(parents[i])
 						if( pp[0] === document ) {
@@ -2708,12 +2743,12 @@ $.plugin(function Template() {
 				parent = parent ? parent.parentNode : parent
 			else if( c === '#' && (mode === TAGMODE || mode === CLSMODE || mode === ATTRMODE) )
 				mode = IDMODE
-			else if( c === '.' && (mode === TAGMODE || mode === IDMODE || mode === ATTRMODE) ) {
+			else if( c === _dot && (mode === TAGMODE || mode === IDMODE || mode === ATTRMODE) ) {
 				if( cls.length > 0 )
 					cls += space
 				mode = CLSMODE
 			}
-			else if( c === '.' && cls.length > 0 )
+			else if( c === _dot && cls.length > 0 )
 				cls += space
 			else if( c === '[' && (mode === TAGMODE || mode === IDMODE || mode === CLSMODE || mode === ATTRMODE) )
 				mode = ATTRMODE
@@ -2830,6 +2865,6 @@ $.plugin(function Template() {
 	]
 })
 
-})(Bling)
+})()
 
 })()

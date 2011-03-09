@@ -1,12 +1,11 @@
 ;(function() {
+
 /** bling.js
  * --------
  * Named after the bling symbol ($) to which it is bound by default.
  * This is a jQuery-like framework.
  * Blame: Jesse Dailey <jesse.dailey@gmail.com>
  */
-
-;(function () {
 
 // constants
 var undefined,
@@ -44,7 +43,7 @@ var undefined,
 
 /** Bling, the "constructor".
  * -----------------------
- * Bling(selector, context):
+ * Bling (selector, context):
  * @param {(string|number|Array|NodeList|Node|Window)=} selector
  *   accepts strings, as css expression to select, ("body div + p", etc.)
  *     or as html to create (must start with "<")
@@ -54,7 +53,7 @@ var undefined,
  * @param {Object=} context the item to consider the root of the search when using a css expression
  *
  */
-function Bling (selector, context) {
+function Bling(selector, context) {
 	if( Object.IsBling(selector) )
 		return selector
 	context = context || document
@@ -78,6 +77,7 @@ function Bling (selector, context) {
 		else if( context.querySelectorAll )
 			try {
 				set = context.querySelectorAll(selector)
+				// console.log(context, "querySelectorAll(", selector, ") == ", set)
 			} catch ( err ) {
 				throw Error("invalid selector: " + selector, err)
 			}
@@ -172,7 +172,7 @@ Object.Extend(Object, {
 		return o == null ? o === T
 			: o.__proto__ == null ? false
 			: o.__proto__.constructor === T ? true
-			: typeof T === _string ? Obj_toString(o).replace(object_cruft, _1) === T
+			: typeof T === _string ? o.constructor.name === T || Obj_toString.apply(o).replace(object_cruft, _1) === T
 			: Object.IsType(o.__proto__, T) // recursive
 	},
 	IsString: function (o) {
@@ -241,7 +241,7 @@ Object.Extend(Function, {
 			r = f.bind.apply(f, args)
 		} else
 			r = function () {
-				f.apply(t, args.length > 0 ? args : arguments)
+				return f.apply(t, args.length > 0 ? args : arguments)
 			}
 		r.toString = function() { return "bound-method of "+t+_dot+f.name }
 		return r
@@ -402,9 +402,16 @@ String.prototype.trimLeft = Array.Coalesce(
 	}
 )
 
-// if the browser doesn't support the Selectors API
+// clean up support for Selectors
+Element.prototype.matchesSelector = Array.Coalesce(
+	Element.prototype.webkitMatchesSelector,
+	Element.prototype.mozMatchesSelector,
+	Element.prototype.matchesSelector
+)
 // patch in support from the Sizzle JS library
-if( ! document.querySelectorAll ) {
+if( !("querySelectorAll" in Node.prototype
+	&& "querySelector" in Node.prototype
+	&& "matchesSelector" in Element.prototype)) {
 	var scripts = document.getElementsByTagName("script"),
 		i = 0, nn = scripts.length,
 		re = /bling.js$/,
@@ -415,24 +422,19 @@ if( ! document.querySelectorAll ) {
 			script.src = scripts[i].src.replace(re, "plugins/sizzle.js")
 	// when the sizzle is loaded, monkeypatch its API into the DOM
 	script.onload = function(evt) { 
-		Node.prototype.querySelector = function(x) {
+		Node.prototype.querySelector = Node.prototype.querySelector || function(x) {
 			return Sizzle(x, this)[0]
 		}
-		Node.prototype.querySelectorAll = function(x) {
+		Node.prototype.querySelectorAll = Node.prototype.querySelectorAll || function(x) {
 			return Sizzle(x, this)
 		}
-		Element.prototype.matchesSelector = function(x) {
+		Element.prototype.matchesSelector = Element.prototype.matchesSelector || function(x) {
 			return Sizzle.matchesSelector(this, x)
 		}
 	}
 	// inject the new script tag into the head
 	document.getElementsByTagName("head")[0].appendChild(script)
-} else
-	Element.prototype.matchesSelector = Array.Coalesce(
-		Element.prototype.webkitMatchesSelector,
-		Element.prototype.mozMatchesSelector,
-		Element.prototype.matchesSelector
-	)
+}
 
 /** $.plugin adds a new plugin to the library.
  * @param {Function} constructor the closure to execute to get a copy of the plugin
@@ -443,8 +445,9 @@ $.plugin = function (constructor) {
 	// execute the plugin
 	var plugin = constructor.call($, $),
 		// get $.plugin.s, the array of installed plugins
-		plugins = (arguments.callee.s = arguments.callee.s || []),
-		i = 0, nn = 0, key = null, keys = null
+		plugins = Bling.plugin.s,
+		i = 0, nn = 0,
+		key = null, keys = null
 
 	function load(name, func) {
 		if( name[0] === Bling.symbol )
@@ -464,6 +467,7 @@ $.plugin = function (constructor) {
 	plugins.push(constructor.name)
 	plugins[constructor.name] = plugin
 }
+$.plugin.s = []
 
 $.plugin(function Core() {
 	// Core - the functional basis for all other modules
@@ -646,7 +650,7 @@ $.plugin(function Core() {
 			// .intersect(/other/) - collect all /x/ that are in _this_ and _other_.
 			var ret = $(),
 				i = 0, j = 0, x = null,
-				n = this.len(), nn = other.len()
+				n = this.len(), nn = (Object.IsFunc(other.len) ? other.len() : other.length),
 				m = 0 // ret.length
 			ret.context = this.context
 			ret.selector = this.selector
@@ -899,7 +903,7 @@ $.plugin(function Core() {
 			// note: also, does not create a new array, uses _this_
 			var i = this.len() - 1,
 				j = -1,
-				n = b.len()
+				n = (Object.IsFunc(b.len) ? b.len() : b.length)
 			while( j < n-1 )
 				this[++i] = b[++j]
 			return this
@@ -1137,13 +1141,11 @@ $.plugin(function Core() {
 			// this counts backward or forward from .length, looking for valid items
 			// returns the largest found index + 1
 			var i = this.length
-			if( i === 0 )
-				try {
-					while( this[i] !== undefined ) { i += 1 }
-				} catch( err ) { }
-			else
-				while( i > -1 && this[i] === undefined) { i -= 1 }
-			return i
+			// scan forward to the end (or past it)
+			while( i > -1 && this[i] !== undefined ) { i += 1 }
+			// scan back to the real end
+			while( i > -1 && this[i] === undefined ) { i -= 1 }
+			return i+1
 			/* Example:
 				If you create an empty array with spare capacity
 				> var b = new Array(10)
@@ -1263,18 +1265,28 @@ $.plugin(function Html() {
 					var d = document.createElement("div")
 					d.style.display = _none
 					d.style.color = css
-					var $d = $(d).appendTo(document.body)
-					var rgb = window.getComputedStyle(d,null).getPropertyValue('color')
+					var $d = $(d).appendTo(document.body),
+						rgb = window.getComputedStyle(d,null).getPropertyValue('color')
 					$d.remove()
 					if( rgb ) {
-						// grab between the parens
-						rgb = rgb.slice(rgb.indexOf('(')+1, rgb.indexOf(')'))
-							// then make an array
-							.split(commasep_re)
-						if( rgb.length === 3 )
-							rgb[3] = "1.0"
-						// return floats
-						return $( rgb ).floats()
+						// if it's in "rgba(r, g, b, a)" format
+						if( rgb.indexOf('(') != -1 ) {
+							// grab between the parens
+							rgb = rgb.slice(rgb.indexOf('(')+1, rgb.indexOf(')'))
+								// then make an array
+								.split(commasep_re)
+							if( rgb.length === 3 )
+								rgb[3] = "1.0"
+							// return floats
+							return $( rgb ).floats()
+						} else if ( rgb.indexOf('#') === 0 ) {
+							// if it's in #rrggbb[aa] format
+							rgb = [rgb.substr(1,2), rgb.substr(3,2), rgb.substr(5,2), rgb.substr(7,2)]
+								.map(function(x) { return parseInt(x, 16) })
+							if( ! isFinite(rgb[3]) )
+								rgb[3] = 1.0
+							return $(rgb)
+						}
 					}
 				}
 				/* Example:
@@ -1297,11 +1309,10 @@ $.plugin(function Html() {
 				// accept either a $ of $s
 				// or a single $ of numbers
 				b = b || this
-				if( Object.IsBling(b[0]) ) {
+				if( Object.IsBling(b[0]) )
 					return b.map(f)
-				} else {
+				else
 					return f(b)
-				}
 				/* Example:
 
 					> $([255, 255, 255, 1.0])
@@ -2864,7 +2875,5 @@ $.plugin(function Template() {
 
 	]
 })
-
-})()
 
 })()

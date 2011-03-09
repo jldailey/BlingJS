@@ -8,22 +8,22 @@
  */
 
 // constants
-var undefined,
-	commasep = ", ",
-	commasep_re = /, */,
-	space = " ",
-	leftSpaces_re = /^\s+/,
-	emptyString = "",
-	object_cruft = /\[object (\w+)\]/,
-	_1 = "$1",
-	Math_min = Math.min,
+var Math_min = Math.min,
 	Math_max = Math.max,
 	Math_ceil = Math.ceil,
 	Math_sqrt = Math.sqrt,
 	Obj_toString = Object.prototype.toString,
-	_log = (console && console.log) || alert,
+	commasep = ", ",
+	commasep_re = /, */,
+	leftSpaces_re = /^\s+/,
+	object_re = /\[object (\w+)\]/,
+	_1 = "$1",
+	_space = " ",
+	_dot = ".",
+	_comma = ",",
+	_empty = "",
+	_log = (console && function log(){ console.log.apply(console, arguments) }) || function(){ alert(Array.Join(arguments)) },
 	_none = "none",
-	_relative = "relative",
 	_absolute = "absolute",
 	_width = "width",
 	_height = "height",
@@ -37,9 +37,8 @@ var undefined,
 	_object = "object",
 	_object_Array = "[object Array]",
 	_px = "px",
-	_dot = ".",
 	_undefined = "undefined",
-	_null = "null"
+	_null = "null",
 
 /** Bling, the "constructor".
  * -----------------------
@@ -49,11 +48,12 @@ var undefined,
  *     or as html to create (must start with "<")
  *   accepts existing Bling
  *   accepts arrays of anything
- *   accepts a single number, used as the argument in new Array(n), to pre-allocate space
+ *   accepts a single number, used as the argument in new Array(n), to pre-allocate _space
  * @param {Object=} context the item to consider the root of the search when using a css expression
  *
  */
-function Bling(selector, context) {
+$ = window["$"] = window["Bling"] = 
+function (selector, context) {
 	if( Object.IsBling(selector) )
 		return selector
 	context = context || document
@@ -73,7 +73,7 @@ function Bling(selector, context) {
 		selector = String.TrimLeft(selector)
 
 		if( selector[0] === "<" )
-			set = [Bling.HTML.parse(selector)]
+			set = [$.HTML.parse(selector)]
 		else if( context.querySelectorAll )
 			try {
 				set = context.querySelectorAll(selector)
@@ -96,17 +96,15 @@ function Bling(selector, context) {
 		set = selector
 
 	// parasitic type replacement
-	set.__proto__ = Bling.fn
+	set.__proto__ = $.fn
 	set.selector = selector
 	set.context = context
 
 	return set
 }
-Bling.fn = new Array // a copy(!) of the Array prototype, Blings extend the ordered sets
-Bling.fn.constructor = Bling
-Bling.symbol = "$" // for display purposes
-// exports:
-var $ = window[Bling.symbol] = window["Bling"] = Bling
+$.fn = new Array // a copy(!) of the Array prototype, Blings extend the ordered sets
+$.fn.constructor = $
+$.symbol = "$" // for display purposes
 
 /** Object.Keys
  * @param {Object} o the object to get property names from
@@ -134,7 +132,7 @@ Object.Keys = function (o, inherited) {
 Object.Extend = function (a, b, k) {
 	// Object.Extend(a, b, [k]) - merge values from b into a
 	// if k is present, it should be a list of property names to copy
-	var i, j, undefined
+	var i
 	if( Obj_toString.apply(k) === _object_Array ) // cant use Object.IsArray yet
 		for( i in k )
 			a[k[i]] = b[k[i]] !== undefined ? b[k[i]] : a[k[i]]
@@ -172,7 +170,7 @@ Object.Extend(Object, {
 		return o == null ? o === T
 			: o.__proto__ == null ? false
 			: o.__proto__.constructor === T ? true
-			: typeof T === _string ? o.constructor.name === T || Obj_toString.apply(o).replace(object_cruft, _1) === T
+			: typeof T === _string ? o.constructor.name === T || Obj_toString.apply(o).replace(object_re, _1) === T
 			: Object.IsType(o.__proto__, T) // recursive
 	},
 	IsString: function (o) {
@@ -199,7 +197,7 @@ Object.Extend(Object, {
 			|| Object.IsType(o, Array) : false
 	},
 	IsBling: function (o) {
-		return Object.IsType(o, Bling)
+		return Object.IsType(o, $)
 	},
 	IsObject: function (o) {
 		// Object.IsObject(o) - true if a is an object
@@ -256,9 +254,9 @@ Object.Extend(Function, {
 	 * @param {string=} label (optional)
 	 */
 	Trace: function (f, label, tracer) {
-		var tracer = tracer || _log,
-			r = function () {
-				tracer(label ? label : emptyString + (this.name ? this.name : this), _dot + f.name + "(",
+		tracer = tracer || _log
+		var r = function () {
+				tracer(label ? label : _empty + (this.name ? this.name : this), _dot + f.name + "(",
 					Array.Slice(arguments, 0), ")")
 				return f.apply(this, arguments)
 			}
@@ -302,17 +300,29 @@ Object.Extend(Array, {
 	/** Array.Coalesce returns the first non-null argument
 	*/
 	Coalesce: function() {
-		var a
+		var a, n, i = 0
 		if( arguments.length > 1 )
 			a = arguments
 		else if( Object.IsArray(arguments[0]) )
 			a = arguments[0]
 		else
 			throw Error.ArgumentError("expected either multiple arguments or an Array as first argument")
-		var n = a.length, i = 0
+		n = a.length
 		for(; i < n; i++)
 			if( a[i] != null )
 				return a[i]
+	},
+	/** Array.Join joins any indexable as if it were an array
+	*/
+	Join: function(a, sep) {
+		if( a.length === 0 )
+			return _empty
+		var i = a.length,
+			ret = a[i-1]
+		sep = sep || commasep
+		while( --i > 0 )
+			ret = a[i-1] + sep + ret
+		return ret
 	}
 })
 
@@ -332,27 +342,27 @@ Object.Extend(Number, {
 /* String Extensions
  * ----------------- */
 Object.Extend(String, {
-	TrimLeft: function triml(s) {
+	TrimLeft: function (s) {
 		if( s.trimLeft )
 			return s.trimLeft()
 		else
-			return s.replace(leftSpaces_re,emptyString)
+			return s.replace(leftSpaces_re,_empty)
 	},
-	PadLeft: function padl(s, n, c) {
+	PadLeft: function (s, n, c) {
 		// String.PadLeft(string, width, fill=" ")
-		c = c || space
+		c = c || _space
 		while( s.length < n )
 			s = c + s
 		return s
 	},
-	PadRight: function padr(s, n, c) {
+	PadRight: function (s, n, c) {
 		// String.PadRight(string, width, fill=" ")
-		c = c || space
+		c = c || _space
 		while( s.length < n )
 			s = s + c
 		return s
 	},
-	Splice: function splice(s, i, j, n) {
+	Splice: function (s, i, j, n) {
 		// String.Splice(string, start, end, ...) - replace a substring with ...
 		var nn = s.length,
 			end = j == null ? nn
@@ -368,17 +378,17 @@ Object.Extend(String, {
 /* Event Extensions
  * ---------------- */
 Object.Extend(Event, {
-	Prevent: function prevent(evt) {
+	Prevent: function (evt) {
 	 evt.stopPropagation()
 	 evt.preventDefault()
 	 evt.cancelBubble = true
 	 evt.returnValue = false
 	},
-	Stop: function stop(evt) {
+	Stop: function (evt) {
 	 evt.preventDefault()
 	 evt.cancelBubble = true
 	},
-	Cancel: function cancel(evt) {
+	Cancel: function (evt) {
 	 evt.stopPropagation()
 	 evt.returnValue = false
 	}
@@ -387,7 +397,7 @@ Object.Extend(Event, {
 /* Error Extensions
  * ---------------- */
 Object.Extend(Error, {
-	ArgumentError: function ArgumentError() {
+	ArgumentError: function() {
 		return Error.apply(this, arguments)
 	},
 	TypeError: TypeError
@@ -398,7 +408,7 @@ Object.Extend(Error, {
 String.prototype.trimLeft = Array.Coalesce(
 	String.prototype.trimLeft,
 	function () {
-		return this.replace(leftSpaces_re, emptyString)
+		return this.replace(leftSpaces_re, _empty)
 	}
 )
 
@@ -412,28 +422,31 @@ Element.prototype.matchesSelector = Array.Coalesce(
 if( !("querySelectorAll" in Node.prototype
 	&& "querySelector" in Node.prototype
 	&& "matchesSelector" in Element.prototype)) {
-	var scripts = document.getElementsByTagName("script"),
-		i = 0, nn = scripts.length,
-		re = /bling.js$/,
-		script = document.createElement("script")
-	// find the script tag that imports bling.js
-	for(; i < nn; i++ )
-		if( re.test(scripts[i].src) )
-			script.src = scripts[i].src.replace(re, "plugins/sizzle.js")
-	// when the sizzle is loaded, monkeypatch its API into the DOM
-	script.onload = function(evt) { 
-		Node.prototype.querySelector = Node.prototype.querySelector || function(x) {
-			return Sizzle(x, this)[0]
+	_log("Sizzle being imported.")
+	(function() {
+		var scripts = document.getElementsByTagName("script"),
+			i = 0, nn = scripts.length,
+			re = /(\/*)[a-z.]*bling.js$/,
+			script = document.createElement("script")
+		// find the script tag that imports bling.js
+		for(; i < nn; i++ )
+			if( re.test(scripts[i].src) )
+				script.src = scripts[i].src.replace(re, "$1plugins/sizzle.js")
+		// when the sizzle is loaded, monkeypatch its API into the DOM
+		script.onload = function(evt) { 
+			Node.prototype.querySelector = Node.prototype.querySelector || function(x) {
+				return Sizzle(x, this)[0]
+			}
+			Node.prototype.querySelectorAll = Node.prototype.querySelectorAll || function(x) {
+				return Sizzle(x, this)
+			}
+			Element.prototype.matchesSelector = Element.prototype.matchesSelector || function(x) {
+				return Sizzle.matchesSelector(this, x)
+			}
 		}
-		Node.prototype.querySelectorAll = Node.prototype.querySelectorAll || function(x) {
-			return Sizzle(x, this)
-		}
-		Element.prototype.matchesSelector = Element.prototype.matchesSelector || function(x) {
-			return Sizzle.matchesSelector(this, x)
-		}
-	}
-	// inject the new script tag into the head
-	document.getElementsByTagName("head")[0].appendChild(script)
+		// inject the new script tag into the head
+		document.getElementsByTagName("head")[0].appendChild(script)
+	})()
 }
 
 /** $.plugin adds a new plugin to the library.
@@ -445,15 +458,15 @@ $.plugin = function (constructor) {
 	// execute the plugin
 	var plugin = constructor.call($, $),
 		// get $.plugin.s, the array of installed plugins
-		plugins = Bling.plugin.s,
+		plugins = $.plugin.s,
 		i = 0, nn = 0,
-		key = null, keys = null
+		keys = null
 
 	function load(name, func) {
-		if( name[0] === Bling.symbol )
-			Bling[name.substr(1)] = func
+		if( name[0] === $.symbol )
+			$[name.substr(1)] = func
 		else
-			Bling.fn[name] = func
+			$.fn[name] = func
 	}
 
 	if( Object.IsArray(plugin)
@@ -484,24 +497,23 @@ $.plugin(function Core() {
 		// always fire in the order they were scheduled
 		this.queue = []
 		// next() consumes the next handler on the queue
-		this.next = Function.Bound(function tqnext() {
+		this.next = Function.Bound(function () {
 			// consume all 'due' handlers
 			if( this.queue.length > 0 )
 				// shift AND call
 				this.queue.shift()()
 		}, this)
 		// schedule(f, n) sets f to run after n or more milliseconds
-		this.schedule = function schedule(f, n) {
+		this.schedule = function (f, n) {
 			if( !Object.IsFunc(f) ) return
-			var nn = this.queue.length
+			var nn = this.queue.length, i = 0, inserted = false
 			// get the absolute scheduled time
 			f.order = n + new Date().getTime()
 			// shortcut some special cases: empty queue, or f.order greater than the last item
 			if( nn === 0 || f.order > this.queue[nn-1].order ) {
 				this.queue[nn] = f
 			} else { // search the queue for the sorted position to insert f
-				var inserted = false
-				for( var i = 0; i < nn; i++) { // find i such that
+				for(; i < nn; i++) { // find i such that
 					if( this.queue[i].order > f.order ) { // i is the first item > f
 						this.queue.splice(i,0,f) // insert f before i
 						inserted = true
@@ -722,13 +734,13 @@ $.plugin(function Core() {
 					// like a "select" query in SQL
 					var master = {},
 						b = $(), n = arguments.length, nn = this.len(),
-						i = 0, j = 0, k = null
+						i = 0, j = 0, k = null,
+						o = {}
 					// first collect a set of lists
 					for(; i < n; i++)
 						master[arguments[i]] = _zipper.call(this, arguments[i])
 					// then convert to a list of sets
 					for(i = 0; i < nn; i++) {
-						var o = {}
 						for(k in master)
 							o[k] = master[k].shift() // the first property from each list
 						b[j++] = o // as a new object in the results
@@ -868,7 +880,7 @@ $.plugin(function Core() {
 
 		function join(sep) {
 			// .join(/sep/) - concatenates all /x/ in _this_ using /sep/
-			if( this.len() === 0 ) return emptyString
+			if( this.len() === 0 ) return _empty
 			return this.reduce(function(j) {
 				return j + sep + this
 			})
@@ -1010,10 +1022,10 @@ $.plugin(function Core() {
 			// .fold() will always return a set with half as many items
 			// tip: use as a companion to weave.  weave two blings together,
 			// then fold them to a bling the original size
-			var n = this.len(), j = 0
+			var n = this.len(), j = 0,
 			// at least 2 items are required in the set
-			var b = $(Math_ceil(n/2)),
-				 i = 0
+				b = $(Math_ceil(n/2)),
+				i = 0
 			b.context = this.context
 			b.selector = this.selector
 			for( i = 0; i < n - 1; i += 2)
@@ -1097,7 +1109,7 @@ $.plugin(function Core() {
 				+this.map(function(){
 					return this === undefined || this === window ? _undefined
 						: this === null ? _null
-						: this.toString().replace(object_cruft,_1)
+						: this.toString().replace(object_re,_1)
 				}).join(commasep)
 				+"])"
 			/* Example:
@@ -1195,7 +1207,8 @@ $.plugin(function Html() {
 		return n
 	}
 	// make a #text node, for escapeHTML
-	var escaper = null
+	var escaper = null,
+		cssVendors = ['-webkit-', '-moz-', '-o-']
 
 	function getCSSProperty(k) {
 		// window.getComputeStyle is not a normal function
@@ -1206,7 +1219,6 @@ $.plugin(function Html() {
 		}
 	}
 
-	var cssVendors = ['-webkit-', '-moz-', '-o-']
 
 	function setCSSProperty(k, v) {
 		var i = 0, n = cssVendors.length
@@ -1217,10 +1229,10 @@ $.plugin(function Html() {
 	return {
 		$HTML: {
 			// $.HTML.* - HTML methods similar to the global JSON object
-			parse: function parse(h) {
+			parse: function(h) {
 				// $.HTML.parse(/h/) - parse the html in string h, return a Node.
 				// will return a DocumentFragment if not well-formed.
-				var i, df, node, childNodes, n,
+				var i, df, childNodes, n,
 					node = document.createElement("div")
 				node.innerHTML = h
 				childNodes = node.childNodes
@@ -1232,18 +1244,18 @@ $.plugin(function Html() {
 					df.appendChild(node.removeChild(childNodes[0]))
 				return df
 			},
-			stringify: function stringify(n) {
+			stringify: function(n) {
 				// $.HTML.stringify(/n/) - return the _Node_ /n/ in it's html-string form
 				n = deepClone(n)
-				var d = document.createElement("div")
+				var d = document.createElement("div"), ret
 				d.appendChild(n)
-				var ret = d.innerHTML
+				ret = d.innerHTML
 				d.removeChild(n) // clean up to prevent leaks
 				try { n.parentNode = null }
 				catch( err ) { }
 				return ret
 			},
-			escape: function escape(h) {
+			escape: function(h) {
 				// $.HTML.escape(/h/) - accept html string /h/, return a string with html-escapes like &amp;
 				escaper = escaper || $("<div>&nbsp;</div>").child(0)
 				// insert html using the text node's .data property
@@ -1251,22 +1263,22 @@ $.plugin(function Html() {
 					// then get escaped html from the parent's .innerHTML
 					.zip("parentNode.innerHTML").first()
 				// clean up so escaped content isn't leaked into the DOM
-				escaper.zap('data', emptyString)
+				escaper.zap('data', _empty)
 				return ret
 			}
 		},
 
 		$Color: {
 			// $.Color - provides functions for parsing and creating css colors
-			fromCss: function fromCss(css) {
+			fromCss: function(css) {
 				// $.Color.fromCss(css) - convert any css color strings to numbers
 				css = css || this
 				if( Object.IsString(css) ) {
-					var d = document.createElement("div")
+					var d = document.createElement("div"), $d, rgb
 					d.style.display = _none
 					d.style.color = css
-					var $d = $(d).appendTo(document.body),
-						rgb = window.getComputedStyle(d,null).getPropertyValue('color')
+					$d = $(d).appendTo(document.body)
+					rgb = window.getComputedStyle(d,null).getPropertyValue('color')
 					$d.remove()
 					if( rgb ) {
 						// if it's in "rgba(r, g, b, a)" format
@@ -1298,7 +1310,7 @@ $.plugin(function Html() {
 					> == $([$([255,255,255,1.0]), ...])
 				*/
 			},
-			toCss: function toCss(b) {
+			toCss: function(b) {
 				// $.Color.toCss(/b/) - convert a color array to a css string
 				function f(t) {
 					var r = t.map(Function.UpperLimit(255))
@@ -1322,7 +1334,7 @@ $.plugin(function Html() {
 					> == $(["rgba(255, 255, 255, 1.0)"])
 				*/
 			},
-			invert: function invert(c) {
+			invert: function(c) {
 				// $.Color.invert(/c/) - compute the highest contrast color
 				var b = $(4)
 				if( Object.IsString(c) )
@@ -1342,7 +1354,7 @@ $.plugin(function Html() {
 			}
 		},
 
-		html: function html(h) {
+		html: function (h) {
 			// .html([h]) - get [or set] /x/.innerHTML for each node
 			return h === undefined ? this.zip('innerHTML')
 				: Object.IsString(h) ? this.zap('innerHTML', h)
@@ -1356,7 +1368,7 @@ $.plugin(function Html() {
 				: undefined
 		},
 
-		append: function append(x) {
+		append: function (x) {
 			// .append(/n/) - insert /n/ [or a clone] as the last child of each node
 			if( x == null ) return this
 			x = toNode(x) // parse, cast, do whatever it takes to get a Node or Fragment
@@ -1368,14 +1380,14 @@ $.plugin(function Html() {
 			return this
 		},
 
-		appendTo: function appendTo(x) {
+		appendTo: function (x) {
 			// .appendTo(/n/) - each node [or a fragment] will become the last child of n
 			if( x == null ) return this
 			$(x).append(this)
 			return this
 		},
 
-		prepend: function prepend(x) {
+		prepend: function (x) {
 			// .prepend(/n/) - insert n [or a clone] as the first child of each node
 			if( x == null ) return this
 			x = toNode(x)
@@ -1384,14 +1396,14 @@ $.plugin(function Html() {
 			return this
 		},
 
-		prependTo: function prependTo(x) {
+		prependTo: function (x) {
 			// .prependTo(/n/) - each node [or a fragment] will become the first child of n
 			if( x == null ) return this
 			$(x).prepend(this)
 			return this
 		},
 
-		before: function before(x) {
+		before: function (x) {
 			// .before(/n/) - insert content n before each node
 			if( x == null ) return this
 			x = toNode(x)
@@ -1400,7 +1412,7 @@ $.plugin(function Html() {
 			return this
 		},
 
-		after: function after(x) {
+		after: function (x) {
 			// .after(/n/) - insert content n after each node
 			if( x == null ) return this
 			x = toNode(x)
@@ -1409,10 +1421,11 @@ $.plugin(function Html() {
 			return this
 		},
 
-		wrap: function wrap(parent) {
+		wrap: function (parent) {
 			// .wrap(/p/) - p becomes the new .parentNode of each node
 			// all items of this will become children of parent
 			// parent will take each child's position in the DOM
+			var marker, p
 			parent = toNode(parent)
 			if( Object.IsFragment(parent) )
 				throw new Error("cannot wrap something with a fragment")
@@ -1420,12 +1433,12 @@ $.plugin(function Html() {
 				if( Object.IsFragment(child) ) {
 					parent.appendChild(child)
 				} else if( Object.IsNode(child) ) {
-					var p = child.parentNode
+					p = child.parentNode
 					if( ! p ) {
 						parent.appendChild(child)
 					} else {
 						// swap out the DOM nodes using a placeholder element
-						var marker = document.createElement("dummy")
+						marker = document.createElement("dummy")
 						// put a marker in the DOM, put removed node in new parent
 						parent.appendChild( p.replaceChild(marker, child) )
 						// replace marker with new parent
@@ -1436,7 +1449,7 @@ $.plugin(function Html() {
 			})
 		},
 
-		unwrap: function unwrap() {
+		unwrap: function () {
 			// .unwrap() - replace each node's parent with the node
 			return this.each(function() {
 				if( this.parentNode && this.parentNode.parentNode )
@@ -1445,7 +1458,7 @@ $.plugin(function Html() {
 			})
 		},
 
-		replace: function replace(n) {
+		replace: function (n) {
 			// .replace(/n/) - replace each node with n [or a clone]
 			n = toNode(n)
 			var b = $(), j = -1
@@ -1468,94 +1481,97 @@ $.plugin(function Html() {
 			return b
 		},
 
-		attr: function attr(a,v) {
+		attr: function (a,v) {
 			// .attr(a, [v]) - get [or set] an /a/ttribute [/v/]alue
 			var f = v === undefined ? "getAttribute"
 				: v === null ? "removeAttribute"
-				: "setAttribute"
-			var ret = this.zip(f).call(a,v)
+				: "setAttribute",
+				ret = this.zip(f).call(a,v)
 			return v ? this : ret
 		},
 
-		addClass: function addClass(x) {
+		addClass: function (x) {
 			// .addClass(/x/) - add x to each node's .className
 			// remove the node and then add it to avoid dups
 			return this.removeClass(x).each(function() {
-				var c = this.className.split(space).filter(function(y){return y && y != emptyString})
+				var c = this.className.split(_space).filter(function(y){return y && y != _empty})
 				c.push(x) // since we dont know the len, its still faster to push, rather than insert at len()
-				this.className = c.join(space)
+				this.className = c.join(_space)
 			})
 		},
 
-		removeClass: function removeClass(x) {
+		removeClass: function (x) {
 			// .removeClass(/x/) - remove class x from each node's .className
 			var notx = function(y){ return y != x }
 			return this.each(function() {
-				this.className = this.className.split(space).filter(notx).join(space)
+				this.className = this.className.split(_space).filter(notx).join(_space)
 			})
 		},
 
-		toggleClass: function toggleClass(x) {
+		toggleClass: function (x) {
 			// .toggleClass(/x/) - add, or remove if present, class x from each node
 			function notx(y) { return y != x }
 			return this.each(function(node) {
-				var cls = node.className.split(space)
+				var cls = node.className.split(_space)
 				if( cls.indexOf(x) > -1 )
-					node.className = cls.filter(notx).join(space)
+					node.className = cls.filter(notx).join(_space)
 				else {
 					cls.push(x)
-					node.className = cls.join(space)
+					node.className = cls.join(_space)
 				}
 			})
 		},
 
-		hasClass: function hasClass(x) {
+		hasClass: function (x) {
 			// .hasClass(/x/) - true/false for each node: whether .className contains x
 			// note: different from jQuery, we always return sets when possible
-			return this.zip('className.split').call(space)
+			return this.zip('className.split').call(_space)
 				.zip('indexOf').call(x)
 				.map(Function.IndexFound)
 		},
 
-		text: function text(t) {
+		text: function (t) {
 			// .text([t]) - get [or set] each node's .innerText
 			return t ? this.zap('textContent', t)
 				: this.zip('textContent')
 		},
 
-		val: function val(v) {
+		val: function (v) {
 			// .val([v]) - get [or set] each node's .value
 			return v != null ? this.zap('value', v)
 				: this.zip('value')
 		},
 
-		css: function css(k,v) {
+		css: function (k,v) {
 			// .css(k, [v]) - get/set css properties for each node
 			// called with string k and undefd v -> return value of k
 			// called with string k and string v -> set property k = v
 			// called with object k and undefd v -> set css(x, k[x]) for x in k
+			var setter, cv, ov, i, n, nn
 			if( Object.HasValue(v) || Object.IsObject(k) ) {
-				var setter = this.zip('style.setProperty'),
-					i = 0, n = 0, nn = setter.len()
+				setter = this.zip('style.setProperty')
+				i = 0
+				n = 0
+				nn = setter.len()
 				if( Object.IsString(k) ) {
 					if( Object.IsString(v) )
-						setter.call(k, v, emptyString)
+						setter.call(k, v, _empty)
 					else if ( Object.IsArray(v) ) {
 						n = Math_max(v.length, nn)
 						for(;i < n; i++)
-							setter[i%nn](k, v[i%n], emptyString)
+							setter[i%nn](k, v[i%n], _empty)
 					}
 				}
 				else if ( Object.IsObject(k) ) {
 					for(i in k)
-						setter.call(i, k[i], emptyString)
+						setter.call(i, k[i], _empty)
 				}
 				return this
 			}
 			// collect the computed values
-			var cv = this.map(getCSSProperty(k))
+			cv = this.map(getCSSProperty(k))
 			// collect the values specified directly on the node
-			var ov = this.zip('style').zip(k)
+			ov = this.zip('style').zip(k)
 			// weave and fold them so that object values override computed values
 			return ov.weave(cv).fold(function(x,y) { return x ? x : y })
 			/* Example:
@@ -1566,7 +1582,7 @@ $.plugin(function Html() {
 			*/
 		},
 
-		defaultCss: function defaultCss(k, v) {
+		defaultCss: function (k, v) {
 			// .defaultCss(k, [v]) - adds an inline style tag to the head for the current selector.
 			// If k is an object of k:v pairs, then no second argument is needed.
 			// Unlike css() which applies css directly to the style attribute,
@@ -1574,14 +1590,15 @@ $.plugin(function Html() {
 			// so it can still be over-ridden by external css files (such as themes)
 			// also, this.selector need not match any nodes at the time of the call
 			var sel = this.selector,
-				style = emptyString
+				style = _empty,
+				i
 			if( Object.IsString(k) )
 				if( Object.IsString(v) )
 					style += sel+" { "+k+": "+v+" } "
 				else throw Error("defaultCss requires a value with a string key")
 			else if( Object.IsObject(k) ) {
 				style += sel+" { "
-				for( var i in k )
+				for( i in k )
 					style += i+": "+k[i]+"; "
 				style += "} "
 			}
@@ -1589,56 +1606,56 @@ $.plugin(function Html() {
 			return this
 		},
 
-		empty: function empty() {
+		empty: function () {
 			// .empty() - remove all children
-			return this.html(emptyString)
+			return this.html(_empty)
 		},
 
-		rect: function rect() {
+		rect: function () {
 			// .rect() - collect a ClientRect for each node in this
 			return this.zip('getBoundingClientRect').call()
 		},
-		width: function width(w) {
+		width: function (w) {
 			// .width([/w/]) - get [or set] each node's width value
 			return  w == null ? this.rect().zip(_width)
 				: this.css(_width, w)
 		},
-		height: function height(h) {
+		height: function (h) {
 			// .height([/h/]) - get [or set] each node's height value
 			return h == null ? this.rect().zip(_height)
 				: this.css(_height, h)
 		},
-		top: function top(y) {
+		top: function (y) {
 			// .top([/y/]) - get [or set] each node's top value
-			return y == null ? this.rect().zip('top')
-				: this.css('top', y)
+			return y == null ? this.rect().zip(_top)
+				: this.css(_top, y)
 		},
-		left: function left(x) {
+		left: function (x) {
 			// .left([/x/]) - get [or set] each node's left value
-			return x == null ? this.rect().zip("left")
-				: this.css("left", x)
+			return x == null ? this.rect().zip(_left)
+				: this.css(_left, x)
 		},
-		bottom: function bottom(x) {
+		bottom: function (x) {
 			// .bottom([/x/]) - get [or set] each node's bottom value
-			return x == null ? this.rect().zip("bottom")
-				: this.css("bottom", x)
+			return x == null ? this.rect().zip(_bottom)
+				: this.css(_bottom, x)
 		},
-		right: function right(x) {
+		right: function (x) {
 			// .right([/x/]) - get [or set] each node's right value
-			return x == null ? this.rect().zip("right")
-				: this.css("right", x)
+			return x == null ? this.rect().zip(_right)
+				: this.css(_right, x)
 		},
-		position: function position(x, y) {
+		position: function (x, y) {
 			// .position([/x/, [/y/]]) - get [or set] each node's top and left values
 			// with no args, return the entire current position
 			return x == null ? this.rect()
 				// with just x, just set style.left
-				: y == null ? this.css("left", Number.Px(x))
+				: y == null ? this.css(_left, Number.Px(x))
 				// with x and y, set style.top and style.left
-				: this.css({"top": Number.Px(y), "left": Number.Px(x)})
+				: this.css({_top: Number.Px(y), _left: Number.Px(x)})
 		},
 
-		center: function center(mode) {
+		center: function (mode) {
 			// .center([mode]) - move the elements to the center of the screen
 			// mode is "viewport" (default), "horizontal" or "vertical"
 			mode = mode || "viewport"
@@ -1663,14 +1680,14 @@ $.plugin(function Html() {
 			})
 		},
 
-		scrollToCenter: function scrollToCenter() {
+		scrollToCenter: function () {
 			// .scrollToCenter() - scroll .first() to center of viewport
 			var t = this.eq(0).zip('offsetTop')[0] - (window.innerHeight / 2)
 			document.body.scrollTop = t
 			return this
 		},
 
-		trueColor: function trueColor(prop, reducer) {
+		trueColor: function (prop, reducer) {
 			// .trueColor() - compute the visible background-color for each node.
 			// getComputedStyle won't tell us what the actual visible
 			// color of an element is, if there is transparency involved
@@ -1680,7 +1697,7 @@ $.plugin(function Html() {
 			// by default, compute the background color, but call with 'color'
 			// to compute the foreground color
 			prop = prop || "background-color"
-			reducer = reducer || function _reducer(a) {
+			reducer = reducer || function (a) {
 				// combine two rgba color arrays
 				a[0] += (this[0] - a[0]) * this[3]
 				a[1] += (this[1] - a[1]) * this[3]
@@ -1711,7 +1728,7 @@ $.plugin(function Html() {
 				})
 		},
 
-		child: function child(n) {
+		child: function (n) {
 			// .child(/n/) - returns the /n/th childNode for each in _this_
 			return this.map(function() {
 				var nn = this.childNodes.length,
@@ -1722,19 +1739,19 @@ $.plugin(function Html() {
 			})
 		},
 
-		children: function children() {
+		children: function () {
 			// .children() - collect all children of each node
 			return this.map(function() {
 				return $(this.childNodes, this)
 			})
 		},
 
-		parent: function parent() {
+		parent: function() {
 			// .parent() - collect .parentNode from each of _this_
 			return this.zip('parentNode')
 		},
 
-		parents: function parents() {
+		parents: function() {
 			// .parents() - collects the full ancestry up to the owner
 			return this.map(function () {
 				var b = $(), j = -1,
@@ -1745,7 +1762,7 @@ $.plugin(function Html() {
 			})
 		},
 
-		prev: function prev() {
+		prev: function() {
 			// .prev() - collects the chain of .previousSibling nodes
 			return this.map(function () {
 				var b = $(), j = -1,
@@ -1756,7 +1773,7 @@ $.plugin(function Html() {
 			})
 		},
 
-		next: function next() {
+		next: function() {
 			// .next() - collect the chain of .nextSibling nodes
 			return this.map(function () {
 				var b = $(), j = -1,
@@ -1767,7 +1784,7 @@ $.plugin(function Html() {
 			})
 		},
 
-		remove: function remove() {
+		remove: function() {
 			// .remove() - removes each node in _this_ from the DOM
 			return this.each(function(){
 				if( this.parentNode ) {
@@ -1776,20 +1793,20 @@ $.plugin(function Html() {
 			})
 		},
 
-		find: function find(css) {
+		find: function(css) {
 			// .find(/css/) - collect nodes matching /css/
 			return this.filter("*") // limit to only nodes
 				.map(function () { return $(css, this) })
 				.flatten()
 		},
 
-		clone: function clone() {
+		clone: function() {
 			// .clone() - deep copies a set of DOM nodes
 			// note: does not copy event handlers
 			return this.map(deepClone)
 		},
 
-		toFragment: function toFragment() {
+		toFragment: function() {
 			// .toFragment() - converts a bling of convertible stuff to a Node or DocumentFragment.
 			// FOR ADVANCED USERS.
 			// (nodes, strings, fragments, blings) into a single Node if well-formed,
@@ -1909,14 +1926,6 @@ $.plugin(function Maths() {
 })
 
 $.plugin(function Events() {
-	// support these generic events
-	// (click and ready are done separately)
-	var events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
-		'load','unload','reset','submit','keyup','keydown','change',
-		'abort','cut','copy','paste','selection','drag','drop','orientationchange',
-		'touchstart','touchmove','touchend','touchcancel',
-		'gesturestart','gestureend','gesturecancel',
-		'hashchange']
 
 	function binder(e) {
 		// carefully create a non-anonymous function
@@ -1952,8 +1961,16 @@ $.plugin(function Events() {
 		})
 	}
 
+	// support these generic events
+	// (click and ready are done separately)
+	var events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
+		'load','unload','reset','submit','keyup','keydown','change',
+		'abort','cut','copy','paste','selection','drag','drop','orientationchange',
+		'touchstart','touchmove','touchend','touchcancel',
+		'gesturestart','gestureend','gesturecancel',
+		'hashchange'],
 	// detect and fire the document.ready event
-	var readyTriggered = 0,
+		readyTriggered = 0,
 		readyBound = 0,
 		triggerReady = function() {
 			if( readyTriggered++ )
@@ -1964,301 +1981,288 @@ $.plugin(function Events() {
 			if( window.removeEventListener )
 				window.removeEventListener("load", triggerReady, false)
 		},
-		bindReady = function() {
+		bindReady = (function() {
 			if( readyBound++ )
 				return
 			if( document.addEventListener )
 				document.addEventListener("DOMContentLoaded", triggerReady, false)
 			if( window.addEventListener )
 				window.addEventListener("load", triggerReady, false)
-			/* TODO: remove
-			setTimeout(function() {
-				if( readyTriggered )
-					return
-				if( $.fn.trigger != null
-					&& document.readyState === "complete")
-					triggerReady()
-				else
-					setTimeout(arguments.callee, 20)
-			}, 1)
-			*/
-		}
-
-	bindReady()
-
-	var ret = [
-		function bind(e, f) {
-			// .bind(e, f) - adds handler f for event type e
-			// e is a string like 'click', 'mouseover', etc.
-			// e can be comma-separated to bind multiple events at once
-			var c = (e||emptyString).split(commasep_re),
-				n = c.length, i = 0,
-				h = function (evt) {
-					var ret = f.apply(this, arguments)
-					if( ret === false )
-						Event.Prevent(evt)
-					return ret
-				}
-			return this.each(function() {
-				for(i = 0; i < n; i++)
-					this.addEventListener(c[i], h, false)
-			})
-		},
-
-		function unbind(e, f) {
-			// .unbind(e, [f]) - removes handler f from event e
-			// if f is not present, removes all handlers from e
-			var i = 0,
-				c = (e||emptyString).split(commasep_re),
-				n = c.length
-			return this.each(function() {
-				for(; i < n; i++) {
-					this.removeEventListener(c[i],f,null)
-				}
-			})
-		},
-
-		function once(e, f) {
-			// .once(e, f) - adds a handler f that will be called only once
-			var i = 0,
-				c = (e||emptyString).split(commasep_re),
-				n = c.length
-			for(; i < n; i++) {
-				this.bind(c[i], function(evt) {
-					f.call(this, evt)
-					this.unbind(evt.type, arguments.callee)
+			return arguments.callee
+		})(),
+		ret = [
+			function bind(e, f) {
+				// .bind(e, f) - adds handler f for event type e
+				// e is a string like 'click', 'mouseover', etc.
+				// e can be comma-separated to bind multiple events at once
+				var c = (e||_empty).split(commasep_re),
+					n = c.length, i = 0,
+					h = function (evt) {
+						var ret = f.apply(this, arguments)
+						if( ret === false )
+							Event.Prevent(evt)
+						return ret
+					}
+				return this.each(function() {
+					for(i = 0; i < n; i++)
+						this.addEventListener(c[i], h, false)
 				})
-			}
-		},
+			},
 
-		function cycle(e) {
-			// .cycle(e, ...) - bind handlers for e that trigger in a cycle
-			// one call per trigger. when the last handler is executed
-			// the next trigger will call the first handler again
-			var j = 0,
-				funcs = Array.Slice(arguments, 1, arguments.length),
-				c = (e||emptyString).split(commasep_re),
-				ne = c.length,
-				nf = funcs.length
-			function cycler() {
-				var i = 0
-				return function(evt) {
-					funcs[i].call(this, evt)
-					i = ++i % nf
-				}
-			}
-			while( j < ne )
-				this.bind(c[j++], cycler())
-			return this
-		},
+			function unbind(e, f) {
+				// .unbind(e, [f]) - removes handler f from event e
+				// if f is not present, removes all handlers from e
+				var i = 0,
+					c = (e||_empty).split(commasep_re),
+					n = c.length
+				return this.each(function() {
+					for(; i < n; i++) {
+						this.removeEventListener(c[i],f,null)
+					}
+				})
+			},
 
-		function trigger(evt, args) {
-			// .trigger(e, a) - initiates a fake event
-			// evt is the type, 'click'
-			// args is an optional mapping of properties to set,
-			//   {screenX: 10, screenY: 10}
-			// note: not all browsers support manually creating all event types
-			var e, i = 0,
-				evts = (evt||emptyString).split(commasep_re),
-				n = evts.length,
-				evt_i = null
-			args = Object.Extend({
-				bubbles: true,
-				cancelable: true
-			}, args)
-
-			for(; i < n; i++) {
-				evt_i = evts[i]
-				switch(evt_i) {
-					// mouse events
-					case "click":
-					case "mousemove":
-					case "mousedown":
-					case "mouseup":
-					case "mouseover":
-					case "mouseout":
-						e = document.createEvent("MouseEvents")
-						args = Object.Extend({
-							detail: 1,
-							screenX: 0,
-							screenY: 0,
-							clientX: 0,
-							clientY: 0,
-							ctrlKey: false,
-							altKey: false,
-							shiftKey: false,
-							metaKey: false,
-							button: 0,
-							relatedTarget: null
-						}, args)
-						e.initMouseEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
-							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-							args.button, args.relatedTarget)
-						break
-
-					// UI events
-					case "blur":
-					case "focus":
-					case "reset":
-					case "submit":
-					case "abort":
-					case "change":
-					case "load":
-					case "unload":
-						e = document.createEvent("UIEvents")
-						e.initUIEvent(evt_i, args.bubbles, args.cancelable, window, 1)
-						break
-
-					// iphone touch events
-					case "touchstart":
-					case "touchmove":
-					case "touchend":
-					case "touchcancel":
-						e = document.createEvent("TouchEvents")
-						args = Object.Extend({
-							detail: 1,
-							screenX: 0,
-							screenY: 0,
-							clientX: 0,
-							clientY: 0,
-							ctrlKey: false,
-							altKey: false,
-							shiftKey: false,
-							metaKey: false,
-							// touch values:
-							touches: [],
-							targetTouches: [],
-							changedTouches: [],
-							scale: 1.0,
-							rotation: 0.0
-						}, args)
-						e.initTouchEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
-							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-							args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
-						break
-
-					// iphone gesture events
-					case "gesturestart":
-					case "gestureend":
-					case "gesturecancel":
-						e = document.createEvent("GestureEvents")
-						args = Object.Extend({
-							detail: 1,
-							screenX: 0,
-							screenY: 0,
-							clientX: 0,
-							clientY: 0,
-							ctrlKey: false,
-							altKey: false,
-							shiftKey: false,
-							metaKey: false,
-							// gesture values:
-							target: null,
-							scale: 1.0,
-							rotation: 0.0
-						}, args)
-						e.initGestureEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
-							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-							args.target, args.scale, args.rotation)
-						break
-
-					// iphone events that are not supported yet
-					// (dont know how to create yet, needs research)
-					case "drag":
-					case "drop":
-					case "selection":
-
-					// iphone events that we cant properly emulate
-					// (because we cant create our own Clipboard objects)
-					case "cut":
-					case "copy":
-					case "paste":
-
-					// iphone events that are just plain events
-					case "orientationchange":
-
-					// a general event
-					default:
-						e = document.createEvent("Events")
-						e.initEvent(evt_i, args.bubbles, args.cancelable)
-						try{ e = Object.Extend(e, args) }
-						catch( err ) { }
-						// _log('triggering '+evt_i, e, args)
-				}
-				if( !e ) continue
-				else try {
-					this.each(function() {
-						this.dispatchEvent(e)
-					})
-				} catch( err ) {
-					_log("dispatchEvent error:",err)
-				}
-			}
-
-			return this
-		},
-
-		function live(e, f) {
-			// .live(e, f) - handle events for nodes that will exist in the future
-			var selector = this.selector,
-				context = this.context
-			// wrap f
-			function _handler(evt) {
-				// when the 'live' event is fired
-				// re-execute the selector in the original context
-				$(selector, context)
-					// then see if the event would bubble into a match
-					.intersect($(evt.target).parents().first().union($(evt.target)))
-					// then fire the real handler on the matched nodes
-					.each(function() {
-						evt.target = this
+			function once(e, f) {
+				// .once(e, f) - adds a handler f that will be called only once
+				var i = 0,
+					c = (e||_empty).split(commasep_re),
+					n = c.length
+				for(; i < n; i++) {
+					this.bind(c[i], function(evt) {
 						f.call(this, evt)
+						this.unbind(evt.type, arguments.callee)
 					})
+				}
+			},
+
+			function cycle(e) {
+				// .cycle(e, ...) - bind handlers for e that trigger in a cycle
+				// one call per trigger. when the last handler is executed
+				// the next trigger will call the first handler again
+				var j = 0,
+					funcs = Array.Slice(arguments, 1, arguments.length),
+					c = (e||_empty).split(commasep_re),
+					ne = c.length,
+					nf = funcs.length
+				function cycler() {
+					var i = 0
+					return function(evt) {
+						funcs[i].call(this, evt)
+						i = ++i % nf
+					}
+				}
+				while( j < ne )
+					this.bind(c[j++], cycler())
+				return this
+			},
+
+			function trigger(evt, args) {
+				// .trigger(e, a) - initiates a fake event
+				// evt is the type, 'click'
+				// args is an optional mapping of properties to set,
+				//   {screenX: 10, screenY: 10}
+				// note: not all browsers support manually creating all event types
+				var e, i = 0,
+					evts = (evt||_empty).split(commasep_re),
+					n = evts.length,
+					evt_i = null
+				args = Object.Extend({
+					bubbles: true,
+					cancelable: true
+				}, args)
+
+				for(; i < n; i++) {
+					evt_i = evts[i]
+					switch(evt_i) {
+						// mouse events
+						case "click":
+						case "mousemove":
+						case "mousedown":
+						case "mouseup":
+						case "mouseover":
+						case "mouseout":
+							e = document.createEvent("MouseEvents")
+							args = Object.Extend({
+								detail: 1,
+								screenX: 0,
+								screenY: 0,
+								clientX: 0,
+								clientY: 0,
+								ctrlKey: false,
+								altKey: false,
+								shiftKey: false,
+								metaKey: false,
+								button: 0,
+								relatedTarget: null
+							}, args)
+							e.initMouseEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+								args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+								args.button, args.relatedTarget)
+							break
+
+						// UI events
+						case "blur":
+						case "focus":
+						case "reset":
+						case "submit":
+						case "abort":
+						case "change":
+						case "load":
+						case "unload":
+							e = document.createEvent("UIEvents")
+							e.initUIEvent(evt_i, args.bubbles, args.cancelable, window, 1)
+							break
+
+						// iphone touch events
+						case "touchstart":
+						case "touchmove":
+						case "touchend":
+						case "touchcancel":
+							e = document.createEvent("TouchEvents")
+							args = Object.Extend({
+								detail: 1,
+								screenX: 0,
+								screenY: 0,
+								clientX: 0,
+								clientY: 0,
+								ctrlKey: false,
+								altKey: false,
+								shiftKey: false,
+								metaKey: false,
+								// touch values:
+								touches: [],
+								targetTouches: [],
+								changedTouches: [],
+								scale: 1.0,
+								rotation: 0.0
+							}, args)
+							e.initTouchEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+								args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+								args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
+							break
+
+						// iphone gesture events
+						case "gesturestart":
+						case "gestureend":
+						case "gesturecancel":
+							e = document.createEvent("GestureEvents")
+							args = Object.Extend({
+								detail: 1,
+								screenX: 0,
+								screenY: 0,
+								clientX: 0,
+								clientY: 0,
+								ctrlKey: false,
+								altKey: false,
+								shiftKey: false,
+								metaKey: false,
+								// gesture values:
+								target: null,
+								scale: 1.0,
+								rotation: 0.0
+							}, args)
+							e.initGestureEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+								args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+								args.target, args.scale, args.rotation)
+							break
+
+						// iphone events that are not supported yet
+						// (dont know how to create yet, needs research)
+						case "drag":
+						case "drop":
+						case "selection":
+
+						// iphone events that we cant properly emulate
+						// (because we cant create our own Clipboard objects)
+						case "cut":
+						case "copy":
+						case "paste":
+
+						// iphone events that are just plain events
+						case "orientationchange":
+
+						// a general event
+						default:
+							e = document.createEvent("Events")
+							e.initEvent(evt_i, args.bubbles, args.cancelable)
+							try{ e = Object.Extend(e, args) }
+							catch( err ) { }
+							// _log('triggering '+evt_i, e, args)
+					}
+					if( !e ) continue
+					else try {
+						this.each(function() {
+							this.dispatchEvent(e)
+						})
+					} catch( err ) {
+						_log("dispatchEvent error:",err)
+					}
+				}
+
+				return this
+			},
+
+			function live(e, f) {
+				// .live(e, f) - handle events for nodes that will exist in the future
+				var selector = this.selector,
+					context = this.context
+				// wrap f
+				function _handler(evt) {
+					// when the 'live' event is fired
+					// re-execute the selector in the original context
+					$(selector, context)
+						// then see if the event would bubble into a match
+						.intersect($(evt.target).parents().first().union($(evt.target)))
+						// then fire the real handler on the matched nodes
+						.each(function() {
+							evt.target = this
+							f.call(this, evt)
+						})
+				}
+				// bind the handler to the context
+				$(context).bind(e, _handler)
+				// record f so we can 'die' it if needed
+				register_live(selector, context, e, f, _handler)
+				return this
+			},
+
+			function die(e, f) {
+				// die(e, [f]) - stop f [or all] from living for event e
+				var selector = this.selector,
+					context = this.context,
+					h = unregister_live(selector, context, e, f)
+				$(context).unbind(e, h)
+				return this
+			},
+
+			function liveCycle(e) {
+				// .liveCycle(e, ...) - bind each /f/ in /.../ to /e/
+				// one call per trigger. when the last handler is executed
+				// the next trigger will call the first handler again
+				var i = 0,
+					funcs = Array.Slice(arguments, 1, arguments.length)
+				return this.live(e, function(evt) {
+					funcs[i].call(this, evt)
+					i = ++i % funcs.length
+				})
+			},
+
+			function click(f) {
+				// .click([f]) - trigger [or bind] the 'click' event
+				// if the cursor is just default then make it look clickable
+				if( this.css("cursor").intersect(["auto",_empty]).len() > 0 )
+					this.css("cursor", "pointer")
+				return Object.IsFunc(f) ? this.bind('click', f)
+					: this.trigger('click', f ? f : {})
+			},
+
+			function ready(f) {
+				return Object.IsFunc(f) ?
+					readyTriggered ? f.call(this)
+						: this.bind('ready', f)
+					: this.trigger('ready', f ? f : {})
 			}
-			// bind the handler to the context
-			$(context).bind(e, _handler)
-			// record f so we can 'die' it if needed
-			register_live(selector, context, e, f, _handler)
-			return this
-		},
-
-		function die(e, f) {
-			// die(e, [f]) - stop f [or all] from living for event e
-			var selector = this.selector,
-				context = this.context,
-				h = unregister_live(selector, context, e, f)
-			$(context).unbind(e, h)
-			return this
-		},
-
-		function liveCycle(e) {
-			// .liveCycle(e, ...) - bind each /f/ in /.../ to /e/
-			// one call per trigger. when the last handler is executed
-			// the next trigger will call the first handler again
-			var i = 0,
-				funcs = Array.Slice(arguments, 1, arguments.length)
-			return this.live(e, function(evt) {
-				funcs[i].call(this, evt)
-				i = ++i % funcs.length
-			})
-		},
-
-		function click(f) {
-			// .click([f]) - trigger [or bind] the 'click' event
-			// if the cursor is just default then make it look clickable
-			if( this.css("cursor").intersect(["auto",emptyString]).len() > 0 )
-				this.css("cursor", "pointer")
-			return Object.IsFunc(f) ? this.bind('click', f)
-				: this.trigger('click', f ? f : {})
-		},
-
-		function ready(f) {
-			return Object.IsFunc(f) ?
-				readyTriggered ? f.call(this)
-					: this.bind('ready', f)
-				: this.trigger('ready', f ? f : {})
-		}
-	]
+		]
 
 	// add event binding/triggering shortcuts for the generic events
 	events.forEach(function(x) {
@@ -2335,7 +2339,7 @@ $.plugin(function Transform() {
 			var duration = $.duration(speed),
 				props = [], j = 0, i = 0, ii = null,
 				// what to send to the -webkit-transform
-				trans = emptyString,
+				trans = _empty,
 				// real css values to be set (end_css without the transform values)
 				css = {}
 			for( i in end_css )
@@ -2346,7 +2350,7 @@ $.plugin(function Transform() {
 						ii = $(ii).px().join(commasep)
 					else if( ii.toString )
 						ii = ii.toString()
-					trans += space + i + "(" + ii + ")"
+					trans += _space + i + "(" + ii + ")"
 				}
 				else // stick real css values in the css dict
 					css[i] = end_css[i]
@@ -2385,7 +2389,7 @@ $.plugin(function Transform() {
 			// .hide() - each node gets display:none
 			return this.each(function() {
 				if( this.style ) {
-					this._display = this.style.display === _none ? emptyString : this.style.display
+					this._display = this.style.display === _none ? _empty : this.style.display
 					this.style.display = _none
 				}
 			})
@@ -2410,9 +2414,9 @@ $.plugin(function Transform() {
 			var y, x = y = null,
 				// p is a set of nodes that enforce overflow cutoffs
 				p = this.parents().map(function (parents) {
-					var i = -1, n = parents.len();
+					var i = -1, n = parents.len(), pp
 					while( ++i < n ) {
-						var pp = $(parents[i])
+						pp = $(parents[i])
 						if( pp[0] === document ) {
 							x = x || document
 							y = y || document
@@ -2436,7 +2440,7 @@ $.plugin(function Transform() {
 			this.weave(this.css("display"))
 				.fold(function(display, node) {
 					if( display === _none ) {
-						node.style.display = node._display || emptyString
+						node.style.display = node._display || _empty
 						delete node._display
 						$(node).trigger(_show)
 					} else {
@@ -2493,8 +2497,8 @@ $.plugin(function Http() {
 
 	// static helper to create &foo=bar strings from object properties
 	function formencode(obj) {
-		var s = [], j = 0, o = JSON.parse(JSON.stringify(obj)) // quickly remove all non-stringable items
-		for( var i in o )
+		var s = [], i, j = 0, o = JSON.parse(JSON.stringify(obj)) // quickly remove all non-stringable items
+		for( i in o )
 			s[j++] = i + "=" + escape(o[i])
 		return s.join("&")
 	}
@@ -2529,7 +2533,7 @@ $.plugin(function Http() {
 			xhr.asBlob = opts.asBlob
 			xhr.timeout = opts.timeout
 			xhr.followRedirects = opts.followRedirects
-			xhr.onreadystatechange = function onreadystatechange() {
+			xhr.onreadystatechange = function () {
 				if( opts.state ) opts.state()
 				if( xhr.readyState === 4 )
 					if( xhr.status === 200 )
@@ -2614,10 +2618,10 @@ $.plugin(function Database() {
 $.plugin(function Template() {
 
 	function match_forward(text, find, against, start, stop) {
-		var count = 1
+		var count = 1, i = start
 		if( stop == null || stop === -1 )
 			stop = text.length
-		for( var i = start; i < stop; i++ ) {
+		for( ; i < stop; i++ ) {
 			if( text[i] === against )
 				count += 1
 			else if( text[i] === find )
@@ -2629,7 +2633,9 @@ $.plugin(function Template() {
 	}
 
 	// the regex for the format specifiers in templates (from python)
-	var type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/
+	var type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/,
+		// modes for the synth machine
+		TAGMODE = 1, IDMODE = 2, CLSMODE = 3, ATTRMODE = 4, VALMODE = 5, DTEXTMODE = 6, STEXTMODE = 7
 
 	function compile(text) {
 		var ret = [],
@@ -2666,23 +2672,25 @@ $.plugin(function Template() {
 			// the first block is always just text
 			output = [cache[0]],
 			// j is an insert marker into output
-			j = 1 // (because .push() is slow on an iphone, but inserting at length is fast everywhere)
+			j = 1, // (because .push() is slow on an iphone, but inserting at length is fast everywhere)
 			// (and because building up this list is the bulk of what render does)
+			i = 1, n = cache.length,
+			key, pad, fixed, type, rest, value
 
 		// then the rest of the cache items are: [key, pad, fixed, type, text remainder] 5-lets
-		for( var i = 1, n = cache.length; i < n-4; i += 5) {
-			var key = cache[i],
-				// the format in three pieces
-				// (\d).\d\w
-				pad = cache[i+1],
-				// \d.(\d)\w
-				fixed = cache[i+2],
-				// \d.\d(\w)
-				type = cache[i+3],
-				// the text remaining after the end of the format
-				rest = cache[i+4],
-				// the value to render for this key
-				value = values[key]
+		for( ; i < n-4; i += 5) {
+			key = cache[i],
+			// the format in three pieces
+			// (\d).\d\w
+			pad = cache[i+1],
+			// \d.(\d)\w
+			fixed = cache[i+2],
+			// \d.\d(\w)
+			type = cache[i+3],
+			// the text remaining after the end of the format
+			rest = cache[i+4],
+			// the value to render for this key
+			value = values[key]
 
 			// require the value
 			if( value == null )
@@ -2692,7 +2700,7 @@ $.plugin(function Template() {
 			// currently supports 'd', 'f', and 's'
 			switch( type ) {
 				case 'd':
-					output[j++] = emptyString + parseInt(value, 10)
+					output[j++] = _empty + parseInt(value, 10)
 					break
 				case 'f':
 					output[j++] = parseFloat(value).toFixed(fixed)
@@ -2701,22 +2709,19 @@ $.plugin(function Template() {
 				// TODO: add support for more formats
 				case 's':
 				default:
-					output[j++] = emptyString + value
+					output[j++] = _empty + value
 			}
 			if( pad > 0 )
 				output[j] = String.PadLeft(output[j], pad)
 			output[j++] = rest
 		}
-		return output.join(emptyString)
+		return output.join(_empty)
 	}
-
-	// modes for the synth machine
-	var TAGMODE = 1, IDMODE = 2, CLSMODE = 3, ATTRMODE = 4, VALMODE = 5, DTEXTMODE = 6, STEXTMODE = 7
 
 	function $synth(expr) {
 		// $.synth(/expr/) - given a CSS expression, create DOM nodes that match
-		var tagname = emptyString, id = emptyString, cls = emptyString, attr = emptyString, val = emptyString,
-			text = emptyString, attrs = {}, parent = null, mode = TAGMODE,
+		var tagname = _empty, id = _empty, cls = _empty, attr = _empty, val = _empty,
+			text = _empty, attrs = {}, parent = null, mode = TAGMODE,
 			ret = $([]), i = 0, c = null
 		ret.selector = expr
 		ret.context = document
@@ -2727,23 +2732,23 @@ $.plugin(function Template() {
 				parent.appendChild(node)
 			else
 				ret.push(node)
-			text = emptyString
+			text = _empty
 			mode = TAGMODE
 		}
 		function emitNode() {
 			// puts a Node in the results
-			var node = document.createElement(tagname)
+			var node = document.createElement(tagname), k
 			node.id = id ? id : null
 			node.className = cls ? cls : null
-			for(var k in attrs)
+			for(k in attrs)
 				node.setAttribute(k, attrs[k])
 			if( parent )
 				parent.appendChild(node)
 			else
 				ret.push(node)
 			parent = node
-			tagname = emptyString; id = emptyString; cls = emptyString
-			attr = emptyString; val = emptyString; text = emptyString
+			tagname = _empty; id = _empty; cls = _empty
+			attr = _empty; val = _empty; text = _empty
 			attrs = {}
 			mode = TAGMODE
 		}
@@ -2756,11 +2761,11 @@ $.plugin(function Template() {
 				mode = IDMODE
 			else if( c === _dot && (mode === TAGMODE || mode === IDMODE || mode === ATTRMODE) ) {
 				if( cls.length > 0 )
-					cls += space
+					cls += _space
 				mode = CLSMODE
 			}
 			else if( c === _dot && cls.length > 0 )
-				cls += space
+				cls += _space
 			else if( c === '[' && (mode === TAGMODE || mode === IDMODE || mode === CLSMODE || mode === ATTRMODE) )
 				mode = ATTRMODE
 			else if( c === '=' && (mode === ATTRMODE))
@@ -2771,21 +2776,21 @@ $.plugin(function Template() {
 				mode = STEXTMODE
 			else if( c === ']' && (mode === ATTRMODE || mode === VALMODE) ) {
 				attrs[attr] = val
-				attr = emptyString
-				val = emptyString
+				attr = _empty
+				val = _empty
 				mode = TAGMODE
 			}
 			else if( c === '"' && mode === DTEXTMODE )
 				emitText()
 			else if( c === "'" && mode === STEXTMODE )
 				emitText()
-			else if( (c === space || c === ',') && (mode !== VALMODE && mode !== ATTRMODE) && tagname.length > 0 ) {
+			else if( (c === _space || c === _comma) && (mode !== VALMODE && mode !== ATTRMODE) && tagname.length > 0 ) {
 				emitNode()
-				if( c == ',' )
+				if( c == _comma )
 					parent = null
 			}
 			else if( mode === TAGMODE )
-				tagname += c != space ? c : emptyString
+				tagname += c != _space ? c : _empty
 			else if( mode === IDMODE ) id += c
 			else if( mode === CLSMODE ) cls += c
 			else if( mode === ATTRMODE ) attr += c
@@ -2812,7 +2817,7 @@ $.plugin(function Template() {
 			// if defaults is passed, these will be the default values for v in .render(v)
 			this.render = function(args) {
 				// an over-ride of the basic .render() that applies these defaults
-				return $render(this.map($.HTML.stringify).join(emptyString), Object.Extend(defaults,args))
+				return $render(this.map($.HTML.stringify).join(_empty), Object.Extend(defaults,args))
 			}
 
 			return this.remove() // the template item itself should not be in the DOM
@@ -2821,7 +2826,7 @@ $.plugin(function Template() {
 		function render(args) {
 			// .render(args) - replace %(var)s-type strings with values from args
 			// accepts nodes, returns a string
-			return $render(this.map($.HTML.stringify).join(emptyString), args)
+			return $render(this.map($.HTML.stringify).join(_empty), args)
 		},
 
 		function synth(expr) {

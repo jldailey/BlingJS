@@ -22,7 +22,7 @@ var Math_min = Math.min,
 	_dot = ".",
 	_comma = ",",
 	_empty = "",
-	_log = (console && function log(){ console.log.apply(console, arguments) }) || function(){ alert(Array.Join(arguments)) },
+	_log = console ? function (){ console.log.apply(console, arguments) } : function(){ alert(Array.Join(arguments)) },
 	_none = "none",
 	_absolute = "absolute",
 	_width = "width",
@@ -39,6 +39,8 @@ var Math_min = Math.min,
 	_px = "px",
 	_undefined = "undefined",
 	_null = "null",
+	needSizzle = false,
+
 
 /** Bling, the "constructor".
  * -----------------------
@@ -52,13 +54,11 @@ var Math_min = Math.min,
  * @param {Object=} context the item to consider the root of the search when using a css expression
  *
  */
-$ = window["$"] = window["Bling"] = 
-function (selector, context) {
+$ = window["$"] = window["Bling"] = function Bling(selector, context) {
 	if( Object.IsBling(selector) )
 		return selector
 	context = context || document
 	var set = null // the set of things to wrap
-
 	if( selector == null)
 		set = []
 	else if( typeof selector === _number )
@@ -69,18 +69,11 @@ function (selector, context) {
 		// accept two different kinds of strings: html, and css expression
 		// html begins with "<", and we create a set of nodes by parsing it
 		// any other string is considered css
-
 		selector = String.TrimLeft(selector)
-
 		if( selector[0] === "<" )
 			set = [$.HTML.parse(selector)]
 		else if( context.querySelectorAll )
-			try {
-				set = context.querySelectorAll(selector)
-				// console.log(context, "querySelectorAll(", selector, ") == ", set)
-			} catch ( err ) {
-				throw Error("invalid selector: " + selector, err)
-			}
+			set = context.querySelectorAll(selector)
 		else if( Object.IsBling(context) )
 			// search every item in the context
 			set = context.reduce(function(a, x) {
@@ -94,17 +87,15 @@ function (selector, context) {
 	}
 	else
 		set = selector
-
 	// parasitic type replacement
 	set.__proto__ = $.fn
 	set.selector = selector
 	set.context = context
-
 	return set
 }
 $.fn = new Array // a copy(!) of the Array prototype, Blings extend the ordered sets
 $.fn.constructor = $
-$.symbol = "$" // for display purposes
+$.symbol = "$" // for display purposes (in toString)
 
 /** Object.Keys
  * @param {Object} o the object to get property names from
@@ -256,8 +247,8 @@ Object.Extend(Function, {
 	Trace: function (f, label, tracer) {
 		tracer = tracer || _log
 		var r = function () {
-				tracer(label ? label : _empty + (this.name ? this.name : this), _dot + f.name + "(",
-					Array.Slice(arguments, 0), ")")
+				tracer(label ? label : _empty + (this.name ? this.name : this), 
+					_dot + f.name + "(", Array.Slice(arguments, 0), ")")
 				return f.apply(this, arguments)
 			}
 		r.toString = function() { return f.toString() }
@@ -418,12 +409,14 @@ Element.prototype.matchesSelector = Array.Coalesce(
 	Element.prototype.mozMatchesSelector,
 	Element.prototype.matchesSelector
 )
-// patch in support from the Sizzle JS library
-if( !("querySelectorAll" in Node.prototype
+
+needSizzle = "querySelectorAll" in Node.prototype
 	&& "querySelector" in Node.prototype
-	&& "matchesSelector" in Element.prototype)) {
-	_log("Sizzle being imported.")
-	(function() {
+	&& "matchesSelector" in Element.prototype
+
+if( needSizzle ) {
+	// patch in support from the Sizzle JS library
+	;(function() {
 		var scripts = document.getElementsByTagName("script"),
 			i = 0, nn = scripts.length,
 			re = /(\/*)[a-z.]*bling.js$/,
@@ -432,7 +425,7 @@ if( !("querySelectorAll" in Node.prototype
 		for(; i < nn; i++ )
 			if( re.test(scripts[i].src) )
 				script.src = scripts[i].src.replace(re, "$1plugins/sizzle.js")
-		// when the sizzle is loaded, monkeypatch its API into the DOM
+		// when the sizzle is loaded, monkeypatch its API into the DOM (where needed)
 		script.onload = function(evt) { 
 			Node.prototype.querySelector = Node.prototype.querySelector || function(x) {
 				return Sizzle(x, this)[0]
@@ -1104,14 +1097,13 @@ $.plugin(function Core() {
 
 		function toString() {
 			// .toString() - maps toString across this
-			return $.symbol
-				+"(["
+			return $.symbol+"(["
 				+this.map(function(){
 					return this === undefined || this === window ? _undefined
 						: this === null ? _null
 						: this.toString().replace(object_re,_1)
 				}).join(commasep)
-				+"])"
+			+"])"
 			/* Example:
 				> $("body").toString()
 				> == "$([HTMLBodyElement])"

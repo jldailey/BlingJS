@@ -660,7 +660,7 @@
 			}
 
 			$(document).ready(function() {
-				// $("button").click(function() {
+				$("button").click(function() {
 					var n = $("#runcount").val().first(), i = 0,
 						start = new Date().getTime(), end = start,
 						duration = 0, complete = 0,
@@ -678,7 +678,8 @@
 							RunAllAsyncTests(done)
 						}, 0)
 					}
-				// })
+				})
+				.trigger('click')
 			})
 
 		</script>

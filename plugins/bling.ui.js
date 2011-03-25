@@ -7,28 +7,33 @@ $.plugin(function UI() {
 		var dialog = $(selector)
 			.addClass("dialog")
 			.center()
+			.draggable()
+		dialog
+			.find("button.close, .close-button")
+			.bind("click, touchstart", function () {
+				dialog.hide()
+				return false
+			})
 		opts = Object.Extend({
 			autoOpen: false
 		}, opts)
-		dialog.open = dialog.show
-		dialog.close = dialog.hide
-		if( opts.autoOpen ) dialog.open()
+		if( opts.autoOpen ) dialog.show()
 		return dialog
 	}
 	
 	function Draggable(selector, opts) {
 		// $.UI.Dialog(selector, opts) - make an object draggable
 		opts = Object.Extend({
-			handlePosition: {}
+			handleLayout: {},
 		}, opts)
 
-		opts.handlePosition = Object.Extend({
+		opts.handleLayout = Object.Extend({
 			position: "absolute",
 			top: "0px",
 			left: "0px",
 			width: "100%",
 			height: "5px"
-		}, opts.handlePosition)
+		}, opts.handleLayout)
 
 		var dragObject = $(selector),
 			moving = false,
@@ -45,28 +50,28 @@ $.plugin(function UI() {
 					cursor: "move",
 				})
 				// force the handle's position
-				.css(opts.handlePosition)
+				.css(opts.handleLayout)
 				// activate the handle with events for starting the drag
 				.bind('mousedown, touchstart', function (evt) {
 					moving = true
 					originX = originX || evt.pageX
 					originY = originY || evt.pageY
-					evt.preventDefault()
-					evt.stopPropagation()
+					console.log("origin:", [originX, originY])
+					return false
 				})
 		$(document).bind('mousemove, touchmove', function (evt) {
 			if( moving ) {
-				evt.preventDefault()
-				evt.stopPropagation()
 				var deltaX = (evt.pageX - originX),
 					deltaY = (evt.pageY - originY)
 				dragObject.transform({
-					position: "absolute", 
+					// position: "absolute", 
 					translate: [ deltaX, deltaY ] 
 				}, 0)
 				.trigger('drag',{
 					dragObject: dragObject
 				})
+				console.log("delta:", [ deltaX, deltaY ])
+				return false
 			}
 		})
 		.bind('mouseup, touchend', function (evt) {
@@ -254,26 +259,31 @@ $.plugin(function UI() {
 			Accordion: Accordion
 		},
 
-		dialog: function dialog(opts) {
+		dialog: function (opts) {
 			// .dialog([opts]) - create a dialog from each node
 			return Dialog(this, opts)
 		},
-		progressBar: function progressBar(opts) {
+		progressBar: function (opts) {
 			// .progressBar([opts]) - create a progress bar from each node
 			return ProgressBar(this, opts)
 		},
-		viewStack: function viewStack(opts) {
+		viewStack: function (opts) {
 			// .viewStack([opts]) - make a set of nodes visually exclusive
 			return ViewStack(this, opts)
 		},
-		tabs: function tabs(views) {
+		tabs: function (views) {
 			// .tabs([views]) - make a set of nodes control a viewstack
 			return Tabs(this, views)
 		},
-		accordion: function accordion(opts) {
-			// .accordion([opts]) - make an accordion
+		accordion: function (opts) {
+			// .accordion([opts]) - make this an accordion
 			return Accordion(this, opts)
+		},
+		draggable: function (opts) {
+			// .draggable([opts]) - make this draggable
+			return Draggable(this, opts)
 		}
+
 	}
 })
 

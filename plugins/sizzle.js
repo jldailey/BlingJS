@@ -168,7 +168,7 @@ var Sizzle = function( selector, context, results, seed ) {
 	return results;
 };
 
-Sizzle.uniqueSort = function( results ) {
+Sizzle['uniqueSort'] = function( results ) {
 	if ( sortOrder ) {
 		hasDuplicate = baseHasDuplicate;
 		results.sort( sortOrder );
@@ -185,15 +185,15 @@ Sizzle.uniqueSort = function( results ) {
 	return results;
 };
 
-Sizzle.matches = function( expr, set ) {
+Sizzle['matches'] = function( expr, set ) {
 	return Sizzle( expr, null, null, set );
 };
 
-Sizzle.matchesSelector = function( node, expr ) {
+Sizzle['matchesSelector'] = function( node, expr ) {
 	return Sizzle( expr, null, null, [node] ).length > 0;
 };
 
-Sizzle.find = function( expr, context, isXML ) {
+Sizzle['find'] = function( expr, context, isXML ) {
 	var set;
 
 	if ( !expr ) {
@@ -229,7 +229,7 @@ Sizzle.find = function( expr, context, isXML ) {
 	return { set: set, expr: expr };
 };
 
-Sizzle.filter = function( expr, set, inplace, not ) {
+Sizzle['filter'] = function( expr, set, inplace, not ) {
 	var match, anyFound,
 		old = expr,
 		result = [],
@@ -320,11 +320,11 @@ Sizzle.filter = function( expr, set, inplace, not ) {
 	return curLoop;
 };
 
-Sizzle.error = function( msg ) {
+Sizzle['error'] = function( msg ) {
 	throw "Syntax error, unrecognized expression: " + msg;
 };
 
-var Expr = Sizzle.selectors = {
+var Expr = Sizzle['selectors'] = {
 	order: [ "ID", "NAME", "TAG" ],
 
 	match: {
@@ -976,7 +976,7 @@ if ( document.documentElement.compareDocumentPosition ) {
 }
 
 // Utility function for retreiving the text value of an array of DOM nodes
-Sizzle.getText = function( elems ) {
+Sizzle['getText'] = function( elems ) {
 	var ret = "", elem;
 
 	for ( var i = 0; elems[i]; i++ ) {
@@ -1203,7 +1203,7 @@ if ( document.querySelectorAll ) {
 	}
 
 	if ( matches ) {
-		Sizzle.matchesSelector = function( node, expr ) {
+		Sizzle['matchesSelector'] = function( node, expr ) {
 			// Make sure that attribute selectors are quoted
 			expr = expr.replace(/\=\s*([^'"\]]*)\s*\]/g, "='$1']");
 
@@ -1324,22 +1324,22 @@ function dirCheck( dir, cur, doneName, checkSet, nodeCheck, isXML ) {
 }
 
 if ( document.documentElement.contains ) {
-	Sizzle.contains = function( a, b ) {
+	Sizzle['contains'] = function( a, b ) {
 		return a !== b && (a.contains ? a.contains(b) : true);
 	};
 
 } else if ( document.documentElement.compareDocumentPosition ) {
-	Sizzle.contains = function( a, b ) {
+	Sizzle['contains'] = function( a, b ) {
 		return !!(a.compareDocumentPosition(b) & 16);
 	};
 
 } else {
-	Sizzle.contains = function() {
+	Sizzle['contains'] = function() {
 		return false;
 	};
 }
 
-Sizzle.isXML = function( elem ) {
+Sizzle['isXML'] = function( elem ) {
 	// documentElement is verified for cases where it doesn't yet exist
 	// (such as loading iframes in IE - #4833) 
 	var documentElement = (elem ? elem.ownerDocument || elem : 0).documentElement;
@@ -1371,6 +1371,6 @@ var posProcess = function( selector, context ) {
 
 // EXPOSE
 
-window.Sizzle = Sizzle;
+window['Sizzle'] = Sizzle;
 
 })();

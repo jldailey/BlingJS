@@ -260,6 +260,37 @@
 			</script>
 		</div>
 
+		<h2>Dialog</h2>
+		<div id="dialog-demo">
+			<div class="dialog">
+				<title>A Dialog Title</title>
+				<p>This is a dialog.</p>
+				<button class="close">OK</button>
+			</div>
+			<style type="text/css">
+				.dialog {
+					background: white;
+					border: 2px solid #bbb;
+					border-radius: 7px;
+				}
+
+				.dialog > title {
+					text-align: center;
+					display: block;
+					background: -webkit-gradient(linear, 0 0, 0 100%, from(#aaa), color-stop(.5, #ccc), to(#aaa));
+				}
+
+				.dialog > p {
+					margin: 2px 8px;
+				}
+			</style>
+			<script type="text/javascript">
+				$(document).ready(function() {
+					$("#dialog-demo div.dialog").dialog()
+				})
+			</script>
+		</div>
+
 	</body>
 </html>
 

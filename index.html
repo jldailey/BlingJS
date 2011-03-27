@@ -83,16 +83,7 @@
 	</style>
 	<script>
 		try {
-			var readyTriggered = false,
-				secondsToWait = 3;
-			setTimeout(function() {
-				if( ! readyTriggered )
-					alert("document wasn't ready after "+secondsToWait+" seconds")
-			}, secondsToWait * 1000)
-			$(document).ready(function() {
-				readyTriggered = true
-			})
-			.ready(function() {
+			$(document).ready(function () {
 				// find unsupported fraction markup
 				// and insert fall-back text
 				var num_re = /&frac(\d)(\d);/
@@ -103,7 +94,7 @@
 						p.text(text.replace(num_re, "$1/$2"))
 				})
 			})
-			.ready(function(){
+			.ready(function (){
 				var initial_tab = /(^|\n)\t/g,
 					all_tabs = /\t/g
 

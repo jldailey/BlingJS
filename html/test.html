@@ -64,9 +64,9 @@
 					assert(b[0] === document.body)
 				},
 				function _BlingSelector() {
-					var b = Bling("head")
-					assert(Object.IsBling(b))
-					assert(b[0] === document.head)
+					var b = Bling("body")
+					assert(Object.IsBling(b), "Object.IsBling must equal true")
+					assert(b[0] === document.body)
 				},
 				function _BlingSelectorContext() {
 					var b = Bling("script", Bling("head"))
@@ -243,7 +243,7 @@
 			Bling.tests['HTML'] = [
 				function _parse() {
 					assertEqual(Bling.HTML.parse("<p>").nodeName, "P")
-					assertEqual(Bling.HTML.parse("<p></p><span>").__proto__.constructor.name, "DocumentFragment")
+					assertEqual(Bling.HTML.parse("<p></p><span>").constructor, DocumentFragment)
 				},
 				function _stringify() {
 					assertEqual(Bling.HTML.stringify(Bling.HTML.parse("<p>")), "<p></p>")
@@ -660,7 +660,7 @@
 			}
 
 			$(document).ready(function() {
-				$("button").click(function() {
+				// $("button").click(function() {
 					var n = $("#runcount").val().first(), i = 0,
 						start = new Date().getTime(), end = start,
 						duration = 0, complete = 0,
@@ -670,6 +670,7 @@
 							duration = (end - start) + " ms"
 							$("#report").html("<span>" + complete + " iterations in " + duration +"</span>")
 						}
+					console.log(n, i, start, end)
 
 					for( ;i < n; i++ ) {
 						setTimeout(function() {
@@ -677,7 +678,7 @@
 							RunAllAsyncTests(done)
 						}, 0)
 					}
-				})
+				// })
 			})
 
 		</script>

@@ -393,7 +393,7 @@ String.prototype.trimLeft = Array.Coalesce(
 )
 
 // if the browser doesn't support the Selectors API
-// patch in support from the Sizzle JS library
+// patch in the Sizzle JS library
 if( ! document.querySelectorAll ) {
 	var scripts = document.getElementsByTagName("script"),
 		i = 0, nn = scripts.length,
@@ -403,7 +403,7 @@ if( ! document.querySelectorAll ) {
 	for(; i < nn; i++ )
 		if( re.test(scripts[i].src) )
 			script.src = scripts[i].src.replace(re, "plugins/sizzle.js")
-	// when the sizzle is loaded, monkeypatch its API into the DOM
+	// when the sizzle is loaded, patch its API into the DOM
 	script.onload = function(evt) { 
 		Node.prototype.querySelector = function(x) {
 			return Sizzle(x, this)[0]
@@ -1148,7 +1148,6 @@ $.plugin(function Core() {
 
 $.plugin(function Html() {
 
-	// these static DOM helpers are used inside some of the html methods
 	// insert b before a
 	function _before(a,b) { if( a && b ) a.parentNode.insertBefore(b, a) }
 	// insert b after a
@@ -1172,9 +1171,8 @@ $.plugin(function Html() {
 	function deepClone(node) { // TODO: check for support for .cloneNode(deep=true)
 		var n = node.cloneNode(false), i = 0,
 			nn = node.childNodes.length
-		for(; i < nn; i++) {
+		for(; i < nn; i++)
 			n.appendChild(deepClone(node.childNodes[i]))
-		}
 		return n
 	}
 	// make a #text node, for escapeHTML
@@ -1220,7 +1218,7 @@ $.plugin(function Html() {
 			},
 			escape: function escape(h) {
 				// $.HTML.escape(/h/) - accept html string /h/, return a string with html-escapes like &amp;
-				escaper = escaper || $("<div>&nbsp;</div>").child(0)
+				escaper = escaper || $("<div>&nbsp;</div>").child(1)
 				// insert html using the text node's .data property
 				var ret = escaper.zap('data', h)
 					// then get escaped html from the parent's .innerHTML

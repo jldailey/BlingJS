@@ -47,11 +47,6 @@ _show = "show"
 _ready = "ready"
 _load = "load"
 
-Array::extend = (a) ->
-	j = @length
-	for i in a
-		@[j++] = i
-	@
 
 ### Bling, the "constructor".
 # -----------------------
@@ -83,20 +78,20 @@ class Bling extends Array
 				if selector[0] is "<"
 					@[0] = Bling.HTML.parse(selector)
 				else if context.querySelectorAll
-					@extend context.querySelectorAll selector
+					Array.Extend @, context.querySelectorAll(selector)
 				else if Object.IsBling context
 					# search every item in the context
-					@extend context.reduce (a, x) ->
-						a.extend(x.querySelectorAll?(selector))
+					Array.Extend @, context.reduce (a, x) ->
+						Array.Extend a, x.querySelectorAll?(selector)
 					, []
 				else throw Error "invalid context: #{context} (type: #{typeof context})"
 			else if "length" of selector
-				@extend selector
+				Array.Extend @, selector
 			else throw Error "invalid selector: #{selector} (type: #{typeof selector})"
 
 window["$"] = window["Bling"] = $ = Bling
 
-Object.Keys = (o, inherited) ->
+Object.Keys = (o, inherited = false) ->
 	# Object.Keys(/o/, [/inherited/]) - get a list of key names
 	# by default, does not include properties inherited from a prototype
 	###
@@ -222,6 +217,11 @@ Object.Extend Array, {
 		else
 			for i in a
 				return i if i?
+	Extend: (a, b) ->
+		j = a.length
+		for i in b
+			a[j++] = i
+		a
 }
 
 ### Number Extensions
@@ -319,16 +319,13 @@ Element::matchesSelector = Array.Coalesce(
 	Element::matchesSelector
 )
 
-Element::toString = (precise = false) ->
-	if not precise
-		Element::toString.apply(@)
-	else
-		ret = @nodeName.toLowerCase()
-		if @id?
-			ret += "##{@id}"
-		else if @className?
-			ret += ".#{@className.split(space).join(_dot)}"
-		ret
+Element::toString = () ->
+	ret = @nodeName.toLowerCase()
+	if @id?
+		ret += "##{@id}"
+	else if @className?
+		ret += ".#{@className.split(space).join(_dot)}"
+	ret
 
 if Element::cloneNode.length is 0
 	Element::cloneNode = (deep = false) ->
@@ -1256,7 +1253,7 @@ $.plugin () -> # Events Module
 				@bind j, cycler()
 			@
 
-		trigger: (evt, args) ->
+		trigger: (evt, args = {}) ->
 			# .trigger(e, a) - initiates a fake event
 			# evt is the type, 'click'
 			# args is an optional mapping of properties to set,
@@ -1264,13 +1261,12 @@ $.plugin () -> # Events Module
 			# note: not all browsers support manually creating all event types
 			evts = (evt or emptyString).split(commasep_re)
 			args = Object.Extend {
-				bubbles: true,
+				bubbles: true
 				cancelable: true
 			}, args
 
 			for evt_i in evts
-				# mouse events
-				if evt_i in ["click", "mousemove", "mousedown", "mouseup", "mouseover", "mouseout"]
+				if evt_i in ["click", "mousemove", "mousedown", "mouseup", "mouseover", "mouseout"] # mouse events
 					e = document.createEvent "MouseEvents"
 					args = Object.Extend {
 						detail: 1,
@@ -1289,13 +1285,11 @@ $.plugin () -> # Events Module
 						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
 						args.button, args.relatedTarget
 
-				# UI events
-				else if evt_i in ["blur", "focus", "reset", "submit", "abort", "change", "load", "unload"]
+				else if evt_i in ["blur", "focus", "reset", "submit", "abort", "change", "load", "unload"] # UI events
 					e = document.createEvent "UIEvents"
 					e.initUIEvent evt_i, args.bubbles, args.cancelable, window, 1
 
-				# touch events
-				else if evt_i in ["touchstart", "touchmove", "touchend", "touchcancel"]
+				else if evt_i in ["touchstart", "touchmove", "touchend", "touchcancel"] # touch events
 					e = document.createEvent "TouchEvents"
 					args = Object.Extend {
 						detail: 1,
@@ -1318,8 +1312,7 @@ $.plugin () -> # Events Module
 						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
 						args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
 
-				# gesture events
-				else if evt_i in ["gesturestart", "gestureend", "gesturecancel"]
+				else if evt_i in ["gesturestart", "gestureend", "gesturecancel"] # gesture events
 					e = document.createEvent "GestureEvents"
 					args = Object.Extend {
 						detail: 1,
@@ -1344,7 +1337,6 @@ $.plugin () -> # Events Module
 				# iphone events that we cant properly emulate (because we cant create our own Clipboard objects)
 				# iphone events that are just plain events
 				# and general events
-
 				# else if evt_i in ["drag", "drop", "selection", "cut", "copy", "paste", "orientationchange"]
 				else
 					e = document.createEvent "Events"

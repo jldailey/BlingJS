@@ -297,17 +297,17 @@
   # ---------------- */
   Object.Extend(Array, {
     Coalesce: function() {
-      var a, i, _i, _len, _results;
+      var a, i, _i, _len;
       a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
       if (Object.IsArray(a[0])) {
         return Array.Coalesce.apply(Array, a[0]);
       } else {
-        _results = [];
         for (_i = 0, _len = a.length; _i < _len; _i++) {
           i = a[_i];
-          _results.push(i != null ? i : void 0);
+          if (i != null) {
+            return i;
+          }
         }
-        return _results;
       }
     }
   });

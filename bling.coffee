@@ -38,6 +38,9 @@ _px = "px"
 _dot = "."
 _undefined = "undefined"
 _null = "null"
+_ms = "ms"
+_hide = "hide"
+_show = "show"
 
 Array::extend = (a) ->
 	j = @length
@@ -824,7 +827,7 @@ $.plugin(Core() ->
 			# at least 2 items are required in the set
 			b = $()
 			b.context = @
-			b.selector = ['fold', f] 
+			b.selector = ['fold', f]
 			for i in [0...n-1] by 2
 				b[j++] = f.call @, @[i], @[i+1]
 			# if there is an odd man out, make one last call
@@ -889,7 +892,7 @@ $.plugin(Core() ->
 				> $([a.getOne, b.getTwo]).apply(a)
 				> == $([1, 1])
 
-				This happens because both functions are called with 'a' as 'this', 
+				This happens because both functions are called with 'a' as 'this',
 				since it is the context argument to .apply()
 
 				(In other words, it happens because b.getTwo.apply(a) == 1, because a.x == 1)
@@ -1483,7 +1486,7 @@ $.plugin Html() ->
 			df
 	}
 
-$.plugin(Maths() ->
+$.plugin Maths() ->
 	{
 		floats: () ->
 			# .floats() - parseFloat(/x/) for /x/ in _this_
@@ -1530,7 +1533,7 @@ $.plugin(Maths() ->
 			@scale(1/@magnitude())
 	}
 
-$.plugin(Events() ->
+$.plugin Events() ->
 	# support these generic events
 	# (click and ready are done separately)
 	events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
@@ -1544,11 +1547,13 @@ $.plugin(Events() ->
 	binder = (e) ->
 		# carefully create a non-anonymous function
 		# using an anonymous one to avoid using eval()
-		(new Function('''return function #{e}(f) { 
-			// .#{e}([f]) - trigger [or bind] the '#{e}' event
-			Object.IsFunc(f) ? this.bind('#{e}',f)
-			 : this.trigger('#{e}', f ? f : {}) 
-		}''')
+		(new Function('''
+			return function #{e}(f) {
+				// .#{e}([f]) - trigger [or bind] the '#{e}' event
+				Object.IsFunc(f)
+					? this.bind('#{e}', f)
+					: this.trigger('#{e}', f || {})
+			}''')
 		)()
 
 	register_live = (selector, context, e, f, h) ->
@@ -1575,348 +1580,269 @@ $.plugin(Events() ->
 	readyTriggered = 0
 	readyBound = 0
 	triggerReady = () ->
-		if( readyTriggered++ )
-			return
-		$(document).trigger('ready').unbind('ready')
-		if( document.removeEventListener )
-			document.removeEventListener("DOMContentLoaded", triggerReady, false)
-		if( window.removeEventListener )
-			window.removeEventListener("load", triggerReady, false)
+		if not readyTriggered++
+			$(document).trigger('ready').unbind('ready')
+			document.removeEventListener?("DOMContentLoaded", triggerReady, false)
+			window.removeEventListener?("load", triggerReady, false)
 	bindReady = () ->
-		if( readyBound++ )
-			return
-		if( document.addEventListener )
-			document.addEventListener("DOMContentLoaded", triggerReady, false)
-		if( window.addEventListener )
-			window.addEventListener("load", triggerReady, false)
+		if not readyBound++
+			document.addEventListener?("DOMContentLoaded", triggerReady, false)
+			window.addEventListener?("load", triggerReady, false)
 	bindReady()
 
-	ret = [
-		bind(e, f) ->
+	ret = {
+		bind: (e, f) ->
 			# .bind(e, f) - adds handler f for event type e
 			# e is a string like 'click', 'mouseover', etc.
 			# e can be comma-separated to bind multiple events at once
-			var c = (e||emptyString).split(commasep_re),
-				n = c.length, i = 0,
-				h = (evt) ->
-					var ret = f.apply(@, arguments)
-					if( ret is false )
-						Event.Prevent(evt)
-					ret
-				}
-			@each(() ->
-				for(i = 0; i < n; i++)
-					@addEventListener(c[i], h, false)
-			})
-		,
+			c = (e or emptyString).split(commasep_re)
+			h = (evt) ->
+				ret = f.apply @, arguments
+				if ret is false
+					Event.Prevent evt
+				ret
+			@each () ->
+				for i in c
+					@addEventListener i, h, false
 
-		unbind(e, f) ->
+		unbind: (e, f) ->
 			# .unbind(e, [f]) - removes handler f from event e
 			# if f is not present, removes all handlers from e
-			var i = 0,
-				c = (e||emptyString).split(commasep_re),
-				n = c.length
-			@each(() ->
-				for(; i < n; i++) {
-					@removeEventListener(c[i],f,null)
-				}
-			})
-		,
+			c = (e or emptyString).split(commasep_re)
+			@each () ->
+				for i in c
+					@removeEventListener(i, f, null)
 
-		once(e, f) ->
+		once: (e, f) ->
 			# .once(e, f) - adds a handler f that will be called only once
-			var i = 0,
-				c = (e||emptyString).split(commasep_re),
-				n = c.length
-			for(; i < n; i++) {
-				@bind(c[i], (evt) ->
+			c = (e or emptyString).split(commasep_re)
+			for i in c
+				@bind i, (evt) ->
 					f.call(@, evt)
-					@unbind(evt.type, arguments.callee)
-				})
-			}
-		,
+					@removeEventListener(evt.type, arguments.callee, null)
 
-		cycle(e) ->
+		cycle: (e, funcs...) ->
 			# .cycle(e, ...) - bind handlers for e that trigger in a cycle
 			# one call per trigger. when the last handler is executed
 			# the next trigger will call the first handler again
-			var j = 0,
-				funcs = Array.Slice(arguments, 1, arguments.length),
-				c = (e||emptyString).split(commasep_re),
-				ne = c.length,
-				nf = funcs.length
-			cycler() ->
-				var i = 0
+			c = (e or emptyString).split(commasep_re)
+			nf = funcs.length
+			cycler = () ->
+				i = 0
 				(evt) ->
 					funcs[i].call(@, evt)
 					i = ++i % nf
-				}
-			}
-			while( j < ne )
-				@bind(c[j++], cycler())
+			for j in c
+				@bind j, cycler()
 			@
-		,
 
-		trigger(evt, args) ->
+		trigger: (evt, args) ->
 			# .trigger(e, a) - initiates a fake event
 			# evt is the type, 'click'
 			# args is an optional mapping of properties to set,
 			#   {screenX: 10, screenY: 10}
 			# note: not all browsers support manually creating all event types
-			var e, i = 0,
-				evts = (evt||emptyString).split(commasep_re),
-				n = evts.length,
-				evt_i = null
-			args = Object.Extend({
+			evts = (evt or emptyString).split(commasep_re)
+			args = Object.Extend {
 				bubbles: true,
 				cancelable: true
-			, args)
+			}, args
 
-			for(; i < n; i++) {
-				evt_i = evts[i]
-				switch(evt_i) {
-					# mouse events
-					case "click":
-					case "mousemove":
-					case "mousedown":
-					case "mouseup":
-					case "mouseover":
-					case "mouseout":
-						e = document.createEvent("MouseEvents")
-						args = Object.Extend({
-							detail: 1,
-							screenX: 0,
-							screenY: 0,
-							clientX: 0,
-							clientY: 0,
-							ctrlKey: false,
-							altKey: false,
-							shiftKey: false,
-							metaKey: false,
-							button: 0,
-							relatedTarget: null
-						, args)
-						e.initMouseEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
-							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-							args.button, args.relatedTarget)
-						break
+			for evt_i in evts
+				# mouse events
+				if evt_i in ["click", "mousemove", "mousedown", "mouseup", "mouseover", "mouseout"]
+					e = document.createEvent "MouseEvents"
+					args = Object.Extend {
+						detail: 1,
+						screenX: 0,
+						screenY: 0,
+						clientX: 0,
+						clientY: 0,
+						ctrlKey: false,
+						altKey: false,
+						shiftKey: false,
+						metaKey: false,
+						button: 0,
+						relatedTarget: null
+					}, args
+					e.initMouseEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+						args.button, args.relatedTarget
 
-					# UI events
-					case "blur":
-					case "focus":
-					case "reset":
-					case "submit":
-					case "abort":
-					case "change":
-					case "load":
-					case "unload":
-						e = document.createEvent("UIEvents")
-						e.initUIEvent(evt_i, args.bubbles, args.cancelable, window, 1)
-						break
+				# UI events
+				else if evt_i in ["blur", "focus", "reset", "submit", "abort", "change", "load", "unload"]
+					e = document.createEvent "UIEvents"
+					e.initUIEvent evt_i, args.bubbles, args.cancelable, window, 1
 
-					# iphone touch events
-					case "touchstart":
-					case "touchmove":
-					case "touchend":
-					case "touchcancel":
-						e = document.createEvent("TouchEvents")
-						args = Object.Extend({
-							detail: 1,
-							screenX: 0,
-							screenY: 0,
-							clientX: 0,
-							clientY: 0,
-							ctrlKey: false,
-							altKey: false,
-							shiftKey: false,
-							metaKey: false,
-							# touch values:
-							touches: [],
-							targetTouches: [],
-							changedTouches: [],
-							scale: 1.0,
-							rotation: 0.0
-						, args)
-						e.initTouchEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
-							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-							args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
-						break
+				# touch events
+				else if evt_i in ["touchstart", "touchmove", "touchend", "touchcancel"]
+					e = document.createEvent "TouchEvents"
+					args = Object.Extend {
+						detail: 1,
+						screenX: 0,
+						screenY: 0,
+						clientX: 0,
+						clientY: 0,
+						ctrlKey: false,
+						altKey: false,
+						shiftKey: false,
+						metaKey: false,
+						# touch values:
+						touches: [],
+						targetTouches: [],
+						changedTouches: [],
+						scale: 1.0,
+						rotation: 0.0
+					}, args
+					e.initTouchEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+						args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
 
-					# iphone gesture events
-					case "gesturestart":
-					case "gestureend":
-					case "gesturecancel":
-						e = document.createEvent("GestureEvents")
-						args = Object.Extend({
-							detail: 1,
-							screenX: 0,
-							screenY: 0,
-							clientX: 0,
-							clientY: 0,
-							ctrlKey: false,
-							altKey: false,
-							shiftKey: false,
-							metaKey: false,
-							# gesture values:
-							target: null,
-							scale: 1.0,
-							rotation: 0.0
-						, args)
-						e.initGestureEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
-							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-							args.target, args.scale, args.rotation)
-						break
+				# gesture events
+				else if evt_i in ["gesturestart", "gestureend", "gesturecancel"]
+					e = document.createEvent "GestureEvents"
+					args = Object.Extend {
+						detail: 1,
+						screenX: 0,
+						screenY: 0,
+						clientX: 0,
+						clientY: 0,
+						ctrlKey: false,
+						altKey: false,
+						shiftKey: false,
+						metaKey: false,
+						# gesture values:
+						target: null,
+						scale: 1.0,
+						rotation: 0.0
+					}, args
+					e.initGestureEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+						args.target, args.scale, args.rotation
 
-					# iphone events that are not supported yet
-					# (dont know how to create yet, needs research)
-					case "drag":
-					case "drop":
-					case "selection":
+				# iphone events that are not supported yet (dont know how to create yet, needs research)
+				# iphone events that we cant properly emulate (because we cant create our own Clipboard objects)
+				# iphone events that are just plain events
+				# and general events
 
-					# iphone events that we cant properly emulate
-					# (because we cant create our own Clipboard objects)
-					case "cut":
-					case "copy":
-					case "paste":
+				# else if evt_i in ["drag", "drop", "selection", "cut", "copy", "paste", "orientationchange"]
+				else
+					e = document.createEvent "Events"
+					e.initEvent evt_i, args.bubbles, args.cancelable
+					try
+						e = Object.Extend e, args
+					catch err
 
-					# iphone events that are just plain events
-					case "orientationchange":
-
-					# a general event
-					default:
-						e = document.createEvent("Events")
-						e.initEvent(evt_i, args.bubbles, args.cancelable)
-						try{ e = Object.Extend(e, args) }
-						catch( err ) { }
-						# _log('triggering '+evt_i, e, args)
-				}
-				if( !e ) continue
-				else try {
-					@each(() ->
-						@dispatchEvent(e)
-					})
-				} catch( err ) {
-					_log("dispatchEvent error:",err)
-				}
-			}
-
+				if not e
+					continue
+				else
+					try
+						@each () ->
+							@dispatchEvent e
+					catch err
+						_log("dispatchEvent error:",err)
 			@
-		,
 
-		live(e, f) ->
+		live: (e, f) ->
 			# .live(e, f) - handle events for nodes that will exist in the future
-			var selector = @selector,
-				context = @context
+			selector = @selector
+			context = @context
 			# wrap f
-			_handler(evt) ->
+			_handler = (evt) ->
 				# when the 'live' event is fired
 				# re-execute the selector in the original context
 				$(selector, context)
 					# then see if the event would bubble into a match
 					.intersect($(evt.target).parents().first().union($(evt.target)))
 					# then fire the real handler on the matched nodes
-					.each(() ->
+					.each () ->
 						evt.target = @
 						f.call(@, evt)
-					})
-			}
 			# bind the handler to the context
-			$(context).bind(e, _handler)
+			$(context).bind e, _handler
 			# record f so we can 'die' it if needed
-			register_live(selector, context, e, f, _handler)
+			register_live selector, context, e, f, _handler
 			@
-		,
 
-		die(e, f) ->
+		die: (e, f) ->
 			# die(e, [f]) - stop f [or all] from living for event e
-			var selector = @selector,
-				context = @context,
-				h = unregister_live(selector, context, e, f)
-			$(context).unbind(e, h)
+			selector = @selector
+			context = @context
+			h = unregister_live selector, context, e, f
+			$(context).unbind e, h
 			@
-		,
 
-		liveCycle(e) ->
+		liveCycle: (e, funcs...) ->
 			# .liveCycle(e, ...) - bind each /f/ in /.../ to /e/
 			# one call per trigger. when the last handler is executed
 			# the next trigger will call the first handler again
-			var i = 0,
-				funcs = Array.Slice(arguments, 1, arguments.length)
-			@live(e, (evt) ->
-				funcs[i].call(@, evt)
+			i = 0
+			@live e, (evt) ->
+				funcs[i].call @, evt
 				i = ++i % funcs.length
-			})
-		,
 
-		click(f) ->
+		click: (f) ->
 			# .click([f]) - trigger [or bind] the 'click' event
 			# if the cursor is just default then make it look clickable
-			if( @css("cursor").intersect(["auto",emptyString]).len() > 0 )
-				@css("cursor", "pointer")
-			Object.IsFunc(f) ? @bind('click', f)
-				: @trigger('click', f ? f : {})
-		,
+			if @css("cursor").intersect(["auto",emptyString]).len() > 0
+				@css "cursor", "pointer"
+			Object.IsFunc f
+				? @bind 'click', f
+				: @trigger 'click', f or {}
 
-		ready(f) ->
-			Object.IsFunc(f) ?
-				readyTriggered ? f.call(@)
+		ready: (f) ->
+			Object.IsFunc(f)
+				? readyTriggered
+					? f.call(@)
 					: @bind('ready', f)
 				: @trigger('ready', f ? f : {})
-		}
-	]
+	}
 
 	# add event binding/triggering shortcuts for the generic events
-	events.forEach((x) ->
-		ret.push(binder(x))
-	})
-
+	events.forEach (x) ->
+		ret[x] = binder(x)
 	ret
-})
 
-$.plugin(Transform() ->
+$.plugin Transform() ->
 
-	# constant speed names
-	var speeds = {
-			"slow": 700,
-			"medium": 500,
-			"normal": 300,
-			"fast": 100,
-			"instant": 0,
-			"now": 0
-		,
-		# matches all the accelerated css property names
-		accel_props_re = /(?:scale(?:3d)*|translate(?:[XYZ]|3d)*|rotate(?:[XYZ]|3d)*)/,
-		transformCSS = "-webkit-transform",
-		transitionProperty = "-webkit-transition-property",
-		transitionDuration = "-webkit-transition-duration",
-		transitionTiming = "-webkit-transition-timing-function",
-		_ms = "ms",
-		_hide = "hide",
-		_show = "show",
-		updateDelay = 50 # ms to wait for DOM changes to apply
+	speeds = # constant speed names
+		"slow": 700
+		"medium": 500
+		"normal": 300
+		"fast": 100
+		"instant": 0
+		"now": 0
+	# matches all the accelerated css property names
+	accel_props_re = /(?:scale(?:3d)*|translate(?:[XYZ]|3d)*|rotate(?:[XYZ]|3d)*)/
+	updateDelay = 50 # ms to wait for DOM changes to apply
+	testStyle = document.createElement("div").style
 
-		if( "MozTransform" in CSSStyleDeclaration.prototype ) {
-			transformCSS = "-moz-transform"
-			transitionProperty = "-moz-transition-property"
-			transitionDuration = "-moz-transition-duration"
-			transitionTiming = "-moz-transition-timing-function"
-		} else if ( document.createElement("div").style.OTransform != undefined) {
-			transformCSS = "-o-transform"
-			transitionProperty = "-o-transition-property"
-			transitionDuration = "-o-transition-duration"
-			transitionTiming = "-o-transition-timing-function"
-		}
+	if "WebkitTransform" of testStyle
+		transformProperty = "-webkit-transform"
+		transitionProperty = "-webkit-transition-property"
+		transitionDuration = "-webkit-transition-duration"
+		transitionTiming = "-webkit-transition-timing-function"
+	else if "MozTransform" of testStyle
+		transformProperty = "-moz-transform"
+		transitionProperty = "-moz-transition-property"
+		transitionDuration = "-moz-transition-duration"
+		transitionTiming = "-moz-transition-timing-function"
+	else if "OTransform" of testStyle
+		transformProperty = "-o-transform"
+		transitionProperty = "-o-transition-property"
+		transitionDuration = "-o-transition-duration"
+		transitionTiming = "-o-transition-timing-function"
 
-	#/ Transformation Module: provides wrapper for using -webkit-transform ///
-	[
-		$duration(speed) ->
+	delete testStyle
+
+	return {
+		$duration: (speed) ->
 			# $.duration(/s/) - given a speed description (string|number), a number in milliseconds
-			var d = speeds[speed]
+			d = speeds[speed]
 			Object.IsDefined(d) ? d : parseFloat(speed)
-		,
 
 		# like jquery's animate(), but using only webkit-transition/transform
-		transform(end_css, speed, easing, callback) ->
+		transform: (end_css, speed, easing, callback) ->
 			# .transform(cssobject, [/speed/], [/callback/]) - animate css properties on each node
 			# animate css properties over a duration
 			# accelerated: scale, translate, rotate, scale3d,
@@ -1926,561 +1852,403 @@ $.plugin(Transform() ->
 			# | ease-in-out | step-start | step-end | steps(number[, start | end ])
 			# | cubic-bezier(number, number, number, number)
 
-			if( Object.IsFunc(speed) ) {
+			if Object.IsFunc(speed)
 				callback = speed
 				speed = null
 				easing = null
-			}
-			else if( Object.IsFunc(easing) ) {
+			else if Object.IsFunc(easing)
 				callback = easing
 				easing = null
-			}
-			speed = Object.IsDefined(speed) ? speed : "normal"
-			easing = easing or "ease"
-			var duration = $.duration(speed),
-				props = [], j = 0, i = 0, ii = null,
-				# what to send to the -webkit-transform
-				trans = emptyString,
-				# real css values to be set (end_css without the transform values)
-				css = {}
-			for( i in end_css )
+			speed = Object.IsDefined(speed)
+				? speed
+				: "normal"
+			easing or= "ease"
+			# duration is always in milliseconds
+			duration = $.duration(speed) + _ms
+			props = []
+			p = 0 # insert marker for props
+			# what to send to the -webkit-transform
+			trans = emptyString
+			# real css values to be set (end_css without the transform values)
+			css = {}
+			for i of end_css
 				# pull all the accelerated values out of end_css
-				if( accel_props_re.test(i) ) {
+				if accel_props_re.test(i)
 					ii = end_css[i]
-					if( ii.join )
+					if ii.join
 						ii = $(ii).px().join(commasep)
-					else if( ii.toString )
+					else if ii.toString
 						ii = ii.toString()
 					trans += space + i + "(" + ii + ")"
-				}
 				else # stick real css values in the css dict
 					css[i] = end_css[i]
 			# make a list of the properties to be modified
-			for( i in css )
-				props[j++] = i
+			for i of css
+				props[p++] = i
 			# and include -webkit-transform if we have transform values to set
-			if( trans )
-				props[j++] = transformCSS
+			if trans
+				props[p++] = transformProperty
 
-			# duration is always in milliseconds
-			duration = duration + _ms
 			# sets a list of properties to apply a duration to
-			css[transitionProperty] = props
-				.join(commasep)
+			css[transitionProperty] = props.join(commasep)
 			# apply the same duration to each property
 			css[transitionDuration] =
-				props.map(() -> duration })
+				props.map(() -> duration)
 					.join(commasep)
 			# apply an easing function to each property
 			css[transitionTiming] =
-				props.map(() -> easing })
+				props.map(() -> easing)
 					.join(commasep)
 
 			# apply the transformation
 			if( trans )
-				css[transformCSS] = trans
+				css[transformProperty] = trans
 			# apply the css to the actual node
 			@css(css)
 			# queue the callback to be executed at the end of the animation
 			# WARNING: NOT EXACT!
 			@delay(duration, callback)
-		,
 
-		hide(callback) ->
+		hide: (callback) ->
 			# .hide() - each node gets display:none
-			@each(() ->
-				if( @style ) {
+			@each () ->
+				if @style
 					@_display = @style.display is _none ? emptyString : @style.display
 					@style.display = _none
-				}
-			})
 			.trigger(_hide)
 			.delay(updateDelay, callback)
-		,
 
-		show(callback) ->
+		show: (callback) ->
 			# .show() - show each node
-			@each(() ->
-				if( @style ) {
+			@each () ->
+				if @style
 					@style.display = @_display
 					delete @_display
-				}
-			})
 			.trigger(_show)
 			.delay(updateDelay, callback)
-		,
 
-		visible() ->
-			# .visible(): TODO, incomplete
-			var y, x = y = null,
-				# p is a set of nodes that enforce overflow cutoffs
-				p = @parents().map((parents) ->
-					var i = -1, n = parents.len();
-					while( ++i < n ) {
-						var pp = $(parents[i])
-						if( pp[0] is document ) {
-							x = x or document
-							y = y or document
-						} else {
-							if( pp.css("overflow-x").first() == "hidden" )
-								x = pp
-							if( pp.css("overflow-y").first() == "hidden" )
-								y = pp
-							if(x && y)
-								break
-						}
-					}
-					$([x,y])
-				})
-			# TODO: should capture the viewport as well (window size, scrolling, etc)
-			p
-		,
-
-		toggle(callback) ->
+		toggle: (callback) ->
 			# .toggle() - show each hidden node, hide each visible one
 			@weave(@css("display"))
-				.fold((display, node) ->
-					if( display is _none ) {
+				.fold (display, node) ->
+					if display is _none
 						node.style.display = node._display or emptyString
 						delete node._display
 						$(node).trigger(_show)
-					} else {
+					else
 						node._display = display
 						node.style.display = _none
 						$(node).trigger(_hide)
-					}
 					node
-				})
 				.delay(updateDelay, callback)
-		,
 
-		fadeIn(speed, callback) ->
+		fadeIn: (speed, callback) ->
 			# .fadeIn() - fade each node to opacity 1.0
-			@
-				.css('opacity','0.0')
-				.show(()->
-					@transform({
+			@.css('opacity','0.0')
+				.show () ->
+					@transform {
 						opacity:"1.0",
-						translate3d:[0,0,0]
-					, speed, callback)
-				})
-		,
-		fadeOut(speed, callback, _x, _y) ->
+						translate3d: [0,0,0]
+					}, speed, callback
+		fadeOut: (speed, callback, _x = 0.0, _y = 0.0) ->
 			# .fadeOut() - fade each node to opacity:0.0
-			_x = _x or 0.0
-			_y = _y or 0.0
-			@transform({
+			@transform {
 				opacity:"0.0",
 				translate3d:[_x,_y,0.0]
-			, speed, () -> @hide(callback) })
-		,
-		fadeLeft(speed, callback)  ->
+			}, speed, () -> @hide(callback)
+		fadeLeft: (speed, callback) ->
 			# .fadeLeft() - fadeOut and move offscreen to the left
 			@fadeOut(speed, callback, "-"+@width().first(), 0.0)
-		,
-		fadeRight(speed, callback) ->
+		fadeRight: (speed, callback) ->
 			# .fadeRight() - fadeOut and move offscreen to the right
 			@fadeOut(speed, callback, @width().first(), 0.0)
-		,
-		fadeUp(speed, callback)    ->
+		fadeUp: (speed, callback) ->
 			# .fadeUp() - fadeOut and move off the top
 			@fadeOut(speed, callback, 0.0, "-"+@height().first())
-		,
-		fadeDown(speed, callback)  ->
+		fadeDown: (speed, callback)  ->
 			# .fadeDown() - fadeOut and move off the bottom
 			@fadeOut(speed, callback, 0.0, @height().first())
-		}
-	]
-})
-
-$.plugin(Http() ->
-	#/ HTTP Request Module: provides wrappers for making http requests ///
-
-	# static helper to create &foo=bar strings from object properties
-	formencode(obj) ->
-		var s = [], j = 0, o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
-		for( var i in o )
-			s[j++] = i + "=" + escape(o[i])
-		s.join("&")
 	}
 
-	[
-		$http(url, opts) ->
-			# $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
-			var xhr = new XMLHttpRequest()
-			if( Object.IsFunc(opts) )
+# HTTP Request Module: provides wrappers for making http requests
+$.plugin Http() ->
+
+	# create &foo=bar strings from object properties
+	formencode = (obj) ->
+		s = []
+		j = 0 # insert marker into s
+		o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
+		for i of o
+			s[j++] = "#{i}=#{escape o[i]}"
+		s.join("&")
+
+	return {
+		$http: (url, opts = {}) -> # $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
+			xhr = new XMLHttpRequest()
+			if Object.IsFunc(opts)
 				opts = {success: Function.Bound(opts, xhr)}
-			opts = Object.Extend({
-				method: "GET",
-				data: null,
-				state: Function.Empty, # onreadystatechange
-				success: Function.Empty, # onload
-				error: Function.Empty, # onerror
-				async: true,
-				timeout: 0, # milliseconds, 0 is forever
-				withCredentials: false,
-				followRedirects: false,
+			opts = Object.Extend {
+				method: "GET"
+				data: null
+				state: Function.Empty # onreadystatechange
+				success: Function.Empty # onload
+				error: Function.Empty # onerror
+				async: true
+				timeout: 0 # milliseconds, 0 is forever
+				withCredentials: false
+				followRedirects: false
 				asBlob: false
-			, opts)
+			}, opts
 			opts.state = Function.Bound(opts.state, xhr)
 			opts.success = Function.Bound(opts.success, xhr)
 			opts.error = Function.Bound(opts.error, xhr)
-			if( opts.data && opts.method is "GET" )
+			if opts.data and opts.method is "GET"
 				url += "?" + formencode(opts.data)
-			else if( opts.data && opts.method is "POST" )
+			else if opts.data and opts.method is "POST"
 				opts.data = formencode(opts.data)
 			xhr.open(opts.method, url, opts.async)
 			xhr.withCredentials = opts.withCredentials
 			xhr.asBlob = opts.asBlob
 			xhr.timeout = opts.timeout
 			xhr.followRedirects = opts.followRedirects
-			xhr.onreadystatechange = onreadystatechange() ->
-				if( opts.state ) opts.state()
-				if( xhr.readyState is 4 )
-					if( xhr.status is 200 )
-						opts.success(xhr.responseText)
+			xhr.onreadystatechange = () ->
+				if opts.state
+					opts.state()
+				if xhr.readyState is 4
+					if xhr.status is 200
+						opts.success xhr.responseText
 					else
-						opts.error(xhr.status, xhr.statusText)
-			}
-			xhr.send(opts.data)
-			$([xhr])
-		,
+						opts.error xhr.status, xhr.statusText
+			xhr.send opts.data
+			return $([xhr])
 
-		$post(url, opts) ->
-			# $.post(/url/, [/opts/]) - fetch /url/ with a POST request
-			if( Object.IsFunc(opts) )
+		$post: (url, opts = {}) -> # $.post(/url/, [/opts/]) - fetch /url/ with a POST request
+			if Object.IsFunc(opts)
 				opts = {success: opts}
-			opts = opts or {}
 			opts.method = "POST"
 			$.http(url, opts)
-		,
 
-		$get(url, opts) ->
-			# $.get(/url/, [/opts/]) - fetch /url/ with a GET request
+		$get: (url, opts = {}) -> # $.get(/url/, [/opts/]) - fetch /url/ with a GET request
 			if( Object.IsFunc(opts) )
 				opts = {success: opts}
-			opts = opts or {}
 			opts.method = "GET"
 			$.http(url, opts)
-		}
-	]
-})
-
-$.plugin(Database() ->
-	#/ Database Module: provides access to the sqlite database ///
-
-	# static error handler
-	SqlError(t, e) -> throw new Error("sql error ["+e.code+"] "+e.message) }
-
-	assert(cond, msg) ->
-		if( ! cond ) {
-			throw new Error("assert failed: "+msg)
-		}
 	}
 
-	execute(stmt, values, callback, errors) ->
-		# .execute(/sql/, [/values/], [/cb/], [/errcb/]) - shortcut for using transaction
-		if( stmt == null ) null
-		if( Object.IsFunc(values) ) {
-			errors = callback
-			callback = values
-			values = null
-		}
-		values = values or []
-		callback = callback or Function.Empty
-		errors = errors or SqlError
-		assert( Object.IsType(@[0], "Database"), "can only call .sql() on a bling of Database" )
-		@transaction((t) ->
-			t.executeSql(stmt, values, callback, errors)
-		})
-	}
-	transaction( f ) ->
-		# .transaction() - provides access to the db's raw transaction() method
-		# but, use .execute() instead, its friendlier
-		@zip('transaction').call(f)
-		@
-	}
-	[
-		$db(fileName, version, maxSize) ->
-			# $.db([/file/], [/ver/], [/maxSize/]) - new connection to the local database
-			var d = $([window.openDatabase(
-				fileName or "bling.db",
-				version or "0.0",
-				fileName or "bling.db",
-				maxSize or 1024)
-			])
-			d.transaction = transaction
-			d.execute = execute
-			d
-		}
-	]
-})
+$.plugin Template() ->
 
-$.plugin(Template() ->
-
-	match_forward(text, find, against, start, stop) ->
-		var count = 1
-		if( stop == null or stop is -1 )
+	match_forward = (text, find, against, start, stop) ->
+		count = 1
+		if stop == null or stop is -1
 			stop = text.length
-		for( var i = start; i < stop; i++ ) {
-			if( text[i] is against )
+		for i in [start...stop]
+			if text[i] is against
 				count += 1
-			else if( text[i] is find )
+			else if text[i] is find
 				count -= 1
-			if( count is 0 )
-				i
-		}
-		-1
-	}
+			if count is 0
+				return i
+		return -1
 
 	# the regex for the format specifiers in templates (from python)
-	var type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/
+	type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/
+	chunk_re = /%[\(\/]/
 
-	compile(text) ->
-		var ret = [],
-			chunks = text.split(/%[\(\/]/),
-			end = -1, i = 1, n = chunks.length,
-			key = null, rest = null, match = null
-		ret.push(chunks[0])
-		for( ; i < n; i++) {
-			end = match_forward(chunks[i], ')', '(', 0, -1)
-			if( end is -1 )
-				"Template syntax error: unmatched '%(' in chunk starting at: "+chunks[i].substring(0,15)
-			key = chunks[i].substring(0,end)
+	compile = (text) ->
+		chunks = text.split chunk_re
+		n = chunks.length
+		ret = [chunks[0]]
+		j = 1 # insert marker into ret
+		for i in [1...n]
+			end = match_forward chunks[i], ')', '(', 0, -1
+			if end is -1
+				return "Template syntax error: unmatched '%(' starting at: #{chunks[i].substring(0,15)}"
+			key = chunks[i].substring(0, end)
 			rest = chunks[i].substring(end)
 			match = type_re.exec(rest)
-			if( match is null )
-				"Template syntax error: invalid type specifier starting at '"+rest+"'"
+			if match is null
+				return "Template syntax error: invalid type specifier starting at '#{rest}'"
 			rest = match[4]
-			ret.push(key)
-			# the |0 operation coerces to a number, anything that doesnt map becomes 0, so "3" -> 3, "" -> 0, null -> 0, etc.
-			ret.push(match[1]|0)
-			ret.push(match[2]|0)
-			ret.push(match[3])
-			ret.push(rest)
-		}
-		ret
-	}
+			ret[j++] = key
+			# the |0 operation coerces to a number,
+			# anything that doesnt map becomes 0,
+			# so "3" -> 3, "" -> 0, null -> 0, etc.
+			ret[j++] = match[1]|0
+			ret[j++] = match[2]|0
+			ret[j++] = match[3]
+			ret[j++] = rest
+		return ret
 	compile.cache = {}
 
-	$render(text, values) ->
-		# $.render(/t/, /v/) - replace markers in string /t/ with values from /v/
-		var cache = compile.cache[text] # get the cached version
-			# or compile and cache it
-			|| (compile.cache[text] = compile(text)),
-			# the first block is always just text
-			output = [cache[0]],
-			# j is an insert marker into output
-			j = 1 # (because .push() is slow on an iphone, but inserting at length is fast everywhere)
-			# (and because building up @ list is the bulk of what render does)
+	render = (text, values) -> # $.render(/t/, /v/) - replace markers in string /t/ with values from /v/
+		cache = compile.cache[text] # get the cached version
+			or (compile.cache[text] = compile(text)) # or compile and cache it
+		output = [cache[0]] # the first block is always just text
+		j = 1 # insert marker into output
+		n = cache.length
 
 		# then the rest of the cache items are: [key, pad, fixed, type, text remainder] 5-lets
-		for( var i = 1, n = cache.length; i < n-4; i += 5) {
-			var key = cache[i],
-				# the format in three pieces
-				# (\d).\d\w
-				pad = cache[i+1],
-				# \d.(\d)\w
-				fixed = cache[i+2],
-				# \d.\d(\w)
-				type = cache[i+3],
-				# the text remaining after the end of the format
-				rest = cache[i+4],
-				# the value to render for @ key
-				value = values[key]
+		for i in [1...n-4] by 5
+			key = cache[i]
+			# the format in three pieces
+			# (\d).\d\w
+			pad = cache[i+1]
+			# \d.(\d)\w
+			fixed = cache[i+2]
+			# \d.\d(\w)
+			type = cache[i+3]
+			# the text remaining after the end of the format
+			rest = cache[i+4]
+			# the value to render for @ key
+			value = values[key]
 
 			# require the value
-			if( value == null )
-				value = "missing required value: "+key
+			if not value?
+				value = "missing value: #{key}"
 
 			# format the value according to the format options
 			# currently supports 'd', 'f', and 's'
-			switch( type ) {
-				case 'd':
+			switch type
+				when 'd'
 					output[j++] = emptyString + parseInt(value, 10)
-					break
-				case 'f':
+				when 'f'
 					output[j++] = parseFloat(value).toFixed(fixed)
-					break
 				# output unsupported formats like %s strings
 				# TODO: add support for more formats
-				case 's':
-				default:
+				when 's'
 					output[j++] = emptyString + value
-			}
-			if( pad > 0 )
-				output[j] = String.PadLeft(output[j], pad)
+				else
+					output[j++] = emptyString + value
+			if pad > 0
+				output[j] = String.PadLeft output[j], pad
 			output[j++] = rest
-		}
-		output.join(emptyString)
-	}
+		output.join emptyString
 
 	# modes for the synth machine
-	var TAGMODE = 1, IDMODE = 2, CLSMODE = 3, ATTRMODE = 4, VALMODE = 5, DTEXTMODE = 6, STEXTMODE = 7
+	TAGMODE = 1
+	IDMODE = 2
+	CLSMODE = 3
+	ATTRMODE = 4
+	VALMODE = 5
+	DTEXTMODE = 6
+	STEXTMODE = 7
 
-	$synth(expr) ->
-		# $.synth(/expr/) - given a CSS expression, create DOM nodes that match
-		var tagname = emptyString, id = emptyString, cls = emptyString, attr = emptyString, val = emptyString,
-			text = emptyString, attrs = {}, parent = null, mode = TAGMODE,
-			ret = $([]), i = 0, c = null
+	synth = (expr) -> # $.synth(/expr/) - given a CSS expression, create DOM nodes that match
+		parent = null
+		tagname = emptyString
+		id = emptyString
+		cls = emptyString
+		attr = emptyString
+		val = emptyString
+		text = emptyString
+		attrs = {}
+		mode = TAGMODE
+		ret = $([])
+		i = 0 # i is a marker to read from expr
 		ret.selector = expr
 		ret.context = document
-		emitText() ->
-			# puts a TextNode in the resulting tree
-			var node = $.HTML.parse(text)
-			if( parent )
-				parent.appendChild(node)
+		emitText() -> # puts a TextNode in the results
+			node = $.HTML.parse text
+			if parent
+				parent.appendChild node
 			else
-				ret.push(node)
+				ret.push node
 			text = emptyString
 			mode = TAGMODE
-		}
-		emitNode() ->
-			# puts a Node in the results
-			var node = document.createElement(tagname)
-			node.id = id ? id : null
-			node.className = cls ? cls : null
-			for(var k in attrs)
-				node.setAttribute(k, attrs[k])
-			if( parent )
-				parent.appendChild(node)
+		emitNode() -> # puts a Node in the results
+			node = document.createElement(tagname)
+			node.id = id or null
+			node.className = cls or null
+			for k of attrs
+				node.setAttribute k, attrs[k]
+			if parent
+				parent.appendChild node
 			else
-				ret.push(node)
+				ret.push node
 			parent = node
-			tagname = emptyString; id = emptyString; cls = emptyString
-			attr = emptyString; val = emptyString; text = emptyString
+			tagname = emptyString
+			id = emptyString
+			cls = emptyString
+			attr = emptyString
+			val = emptyString
+			text = emptyString
 			attrs = {}
 			mode = TAGMODE
-		}
 
 		# 'c' steps across the input, one character at a time
-		while( (c = expr[i++]) ) {
-			if( c is '+' && mode is TAGMODE)
+		while c = expr[i++]
+			if c is '+' and mode is TAGMODE
 				parent = parent ? parent.parentNode : parent
-			else if( c is '#' && (mode is TAGMODE or mode is CLSMODE or mode is ATTRMODE) )
+			else if c is '#' and mode in [TAGMODE, CLSMODE, ATTRMODE]
 				mode = IDMODE
-			else if( c is _dot && (mode is TAGMODE or mode is IDMODE or mode is ATTRMODE) ) {
-				if( cls.length > 0 )
+			else if c is _dot and mode in [TAGMODE, IDMODE, ATTRMODE]
+				if cls.length > 0
 					cls += space
 				mode = CLSMODE
-			}
-			else if( c is _dot && cls.length > 0 )
+			else if c is _dot and cls.length > 0
 				cls += space
-			else if( c is '[' && (mode is TAGMODE or mode is IDMODE or mode is CLSMODE or mode is ATTRMODE) )
+			else if c is '[' and mode in [TAGMODE, IDMODE, CLSMODE, ATTRMODE]
 				mode = ATTRMODE
-			else if( c is '=' && (mode is ATTRMODE))
+			else if c is '=' and mode is ATTRMODE
 				mode = VALMODE
-			else if( c is '"' && mode is TAGMODE)
+			else if c is '"' and mode is TAGMODE
 				mode = DTEXTMODE
-			else if( c is "'" && mode is TAGMODE)
+			else if c is "'" and mode is TAGMODE
 				mode = STEXTMODE
-			else if( c is ']' && (mode is ATTRMODE or mode is VALMODE) ) {
+			else if c is ']' and mode in [ATTRMODE, VALMODE]
 				attrs[attr] = val
 				attr = emptyString
 				val = emptyString
 				mode = TAGMODE
-			}
-			else if( c is '"' && mode is DTEXTMODE )
+			else if c is '"' and mode is DTEXTMODE
 				emitText()
-			else if( c is "'" && mode is STEXTMODE )
+			else if c is "'" and mode is STEXTMODE
 				emitText()
-			else if( (c is space or c is ',') && (mode isnt VALMODE && mode isnt ATTRMODE) && tagname.length > 0 ) {
+			else if c in [space, ','] and mode not in [VALMODE, ATTRMODE] and tagname.length > 0
 				emitNode()
-				if( c == ',' )
+				if c is ','
 					parent = null
-			}
-			else if( mode is TAGMODE )
+			else if mode is TAGMODE
 				tagname += c != space ? c : emptyString
-			else if( mode is IDMODE ) id += c
-			else if( mode is CLSMODE ) cls += c
-			else if( mode is ATTRMODE ) attr += c
-			else if( mode is VALMODE ) val += c
-			else if( mode is DTEXTMODE or mode is STEXTMODE ) text += c
+			else if mode is IDMODE
+				id += c
+			else if mode is CLSMODE
+				cls += c
+			else if mode is ATTRMODE
+				attr += c
+			else if mode is VALMODE
+				val += c
+			else if mode in [DTEXTMODE, STEXTMODE]
+				text += c
 			else throw new Error("Unknown input/state: '"+c+"'/"+mode)
-		}
 
-		if( tagname.length > 0 )
-			emitNode()
+		emitNode() if tagname.length > 0
+		emitText() if text.length > 0
+		return ret
 
-		if( text.length > 0 )
-			emitText()
+	return {
+		$render: render
+		$synth: synth
 
-		ret
-	}
-
-	[
-		$render,
-		$synth,
-
-		template(defaults) ->
+		template: (defaults) ->
 			# .template([defaults]) - mark nodes as templates, add optional defaults to .render()
 			# if defaults is passed, these will be the default values for v in .render(v)
 			@render = (args) ->
 				# an over-ride of the basic .render() that applies these defaults
-				$render(@map($.HTML.stringify).join(emptyString), Object.Extend(defaults,args))
-			}
-
+				render(@map($.HTML.stringify).join(emptyString), Object.Extend(defaults,args))
 			@remove() # the template item itself should not be in the DOM
-		,
 
-		render(args) ->
+		render: (args) ->
 			# .render(args) - replace %(var)s-type strings with values from args
 			# accepts nodes, returns a string
-			$render(@map($.HTML.stringify).join(emptyString), args)
-		,
+			render(@map($.HTML.stringify).join(emptyString), args)
 
-		synth(expr) ->
+		synth: (expr) ->
 			# .synth(expr) - create DOM nodes to match a simple css expression
 			# supports the following css selectors:
 			# tag, #id, .class, [attr=val]
 			# and the additional helper "text"
-			$synth(expr).appendTo(@)
+			synth(expr).appendTo @
+	}
 
-			###
- Example:
-				> $("body").synth("div#one.foo.bar[orb=bro] span + p")
-				> == $([<div id="one" class="foo bar" orb="bro"> <span></span> <p></p> </div>])
-
-				And, the new nodes would already be children of "body".
-
-				You can create the nodes on their own by using the global version:
-
-				> $.synth("div#one p")
-				> == $([<div id="one"><p></p></div>])
-
-				These will not be attached to anything when they are returned.
-
-				Each expression returns a single node that is the parent of the new tree.
-				But, you can pass in a comma-separated list of expressions to get multiple nodes back.
-
-				> $.synth("div#one, div#two")
-				> == $([<div id="one"></div>, <div id="two"></div>])
-
-				You can use the new quote selector to add text nodes.
-
-				> $.synth('div#one "hello" + div#two "world"')
-				> == $([<div id="one">hello<div id="two">world</div></div>])
-
-				You can use the '+' operator not only for adjacency:
-
-				> $.synth("div h3 'title' + p 'body'")
-				> == $([<div><h3>title</h3><p>body</p></div>])
-
-				But, you can also repeat the '+' in order to ascend any number of times.
-
-				> $.synth("ul li h3 'one' + p 'body' ++ li h3 'two' + p 'body'")
-				> == $([<ul><li><h3>one</h3><p>body</p><li><h3>two</h3><p>body</p></li></ul>])
-
-				If you ascend higher than the root, you get a list of separate nodes.
-
-				> $.synth("ul li p +++ span")
-				> == $([<ul><li><p></p></li></ul>, <span></span>])
-
-			###
-		}
-
-	]
-})
-
-})()
 # vim: ft=coffee

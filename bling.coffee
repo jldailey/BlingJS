@@ -54,11 +54,11 @@ Array::extend = (a) ->
 # -----------------------
 # Bling (selector, context):
 # @param {(string|number|Array|NodeList|Node|Window)=} selector
-#   accepts strings, as css expression to select, ("body div + p", etc.)
-#     or as html to create (must start with "<")
-#   accepts existing Bling
-#   accepts arrays of anything
-#   accepts a single number, used as the argument in new Array(n), to pre-allocate space
+#		accepts strings, as css expression to select, ("body div + p", etc.)
+#			or as html to create (must start with "<")
+#		accepts existing Bling
+#		accepts arrays of anything
+#		accepts a single number, used as the argument in new Array(n), to pre-allocate space
 # @param {Object=} context the item to consider the root of the search when using a css expression
 #
 ###
@@ -805,7 +805,7 @@ $.plugin () -> # Html Module
 				x = toNode(x)
 				@take(1).each () ->
 					before @childNodes[0], x
-				@skip(1).each(() ->
+				@skip(1).each () ->
 					before @childNodes[0], x.cloneNode(true)
 			@
 
@@ -858,18 +858,19 @@ $.plugin () -> # Html Module
 
 		replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
 			n = toNode(n)
-			b = $(), j = -1
+			b = $()
+			j = 0
 			# first node gets the real n
 			@take(1).each () ->
 				if @parentNode
 					@parentNode.replaceChild(n, @)
-					b[++j] = n
+					b[j++] = n
 			# the rest get clones of n
-			@skip(1).each(() ->
+			@skip(1).each () ->
 				if @parentNode
 					c = n.cloneNode(true)
 					@parentNode.replaceChild(c, @)
-					b[++j] = c
+					b[j++] = c
 			# the set of inserted nodes
 			b
 
@@ -897,7 +898,7 @@ $.plugin () -> # Html Module
 				@className = @className.split(space).filter(notx).join(space)
 
 		toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
-			notx(y) ->
+			notx = (y) ->
 				y != x
 			@each () ->
 				cls = @className.split(space)
@@ -1108,7 +1109,6 @@ $.plugin () -> # Html Module
 				@map(toNode).map Function.Bound(df.appendChild, df)
 				return df
 			return toNode(@[0])
-
 	}
 
 $.plugin () -> # Math Module
@@ -1257,7 +1257,7 @@ $.plugin () -> # Events Module
 			# .trigger(e, a) - initiates a fake event
 			# evt is the type, 'click'
 			# args is an optional mapping of properties to set,
-			#   {screenX: 10, screenY: 10}
+			#		{screenX: 10, screenY: 10}
 			# note: not all browsers support manually creating all event types
 			evts = (evt or emptyString).split(commasep_re)
 			args = Object.Extend {
@@ -1701,7 +1701,8 @@ $.plugin () -> # Template Module
 
 	render = (text, values) -> # $.render(/t/, /v/) - replace markers in string /t/ with values from /v/
 		cache = compile.cache[text] # get the cached version
-			or (compile.cache[text] = compile(text)) # or compile and cache it
+		if not cache
+			cache = (compile.cache[text] = compile(text)) # or compile and cache it
 		output = [cache[0]] # the first block is always just text
 		j = 1 # insert marker into output
 		n = cache.length
@@ -1766,7 +1767,7 @@ $.plugin () -> # Template Module
 		i = 0 # i is a marker to read from expr
 		ret.selector = expr
 		ret.context = document
-		emitText() -> # puts a TextNode in the results
+		emitText = () -> # puts a TextNode in the results
 			node = $.HTML.parse text
 			if parent
 				parent.appendChild node
@@ -1774,7 +1775,7 @@ $.plugin () -> # Template Module
 				ret.push node
 			text = emptyString
 			mode = TAGMODE
-		emitNode() -> # puts a Node in the results
+		emitNode = () -> # puts a Node in the results
 			node = document.createElement(tagname)
 			node.id = id or null
 			node.className = cls or null

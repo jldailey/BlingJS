@@ -43,4 +43,4 @@ min.%.js: %.js compiler.jar
 	gzip -vf9c $< > $@
 
 report:
-	@wc -c `ls *.js *.gz | sort` | grep -v total
+	@wc -c `ls *.js *.gz | sort` | grep -v total | grep -v externs.js

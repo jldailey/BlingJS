@@ -6,6 +6,9 @@
 # Blame: Jesse Dailey <jesse.dailey@gmail.com>
 ###
 
+if not "querySelectorAll" in document
+	alert "This browser is not supported"
+
 # constants
 commasep = ", "
 commasep_re = /, */

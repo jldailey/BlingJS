@@ -54,11 +54,11 @@ Array::extend = (a) ->
 # -----------------------
 # Bling (selector, context):
 # @param {(string|number|Array|NodeList|Node|Window)=} selector
-#   accepts strings, as css expression to select, ("body div + p", etc.)
-#     or as html to create (must start with "<")
-#   accepts existing Bling
-#   accepts arrays of anything
-#   accepts a single number, used as the argument in new Array(n), to pre-allocate space
+#		accepts strings, as css expression to select, ("body div + p", etc.)
+#			or as html to create (must start with "<")
+#		accepts existing Bling
+#		accepts arrays of anything
+#		accepts a single number, used as the argument in new Array(n), to pre-allocate space
 # @param {Object=} context the item to consider the root of the search when using a css expression
 #
 ###
@@ -859,18 +859,18 @@ $.plugin () -> # Html Module
 		replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
 			n = toNode(n)
 			b = $()
-			j = -1
+			j = 0
 			# first node gets the real n
 			@take(1).each () ->
 				if @parentNode
 					@parentNode.replaceChild(n, @)
-					b[++j] = n
+					b[j++] = n
 			# the rest get clones of n
 			@skip(1).each () ->
 				if @parentNode
 					c = n.cloneNode(true)
 					@parentNode.replaceChild(c, @)
-					b[++j] = c
+					b[j++] = c
 			# the set of inserted nodes
 			b
 
@@ -1109,7 +1109,6 @@ $.plugin () -> # Html Module
 				@map(toNode).map Function.Bound(df.appendChild, df)
 				return df
 			return toNode(@[0])
-
 	}
 
 $.plugin () -> # Math Module
@@ -1258,7 +1257,7 @@ $.plugin () -> # Events Module
 			# .trigger(e, a) - initiates a fake event
 			# evt is the type, 'click'
 			# args is an optional mapping of properties to set,
-			#   {screenX: 10, screenY: 10}
+			#		{screenX: 10, screenY: 10}
 			# note: not all browsers support manually creating all event types
 			evts = (evt or emptyString).split(commasep_re)
 			args = Object.Extend {

@@ -3,12 +3,18 @@ JAVA=/usr/lib/jvm/java-6-sun/bin/java
 LEVEL=SIMPLE_OPTIMIZATIONS
 # LEVEL=ADVANCED_OPTIMIZATIONS
 # LEVEL=WHITESPACE_ONLY
+DIST=../dist
 
-all: pack minify report
+all: dist report
 
 minify: min.bling.js min.bling.js.gz
 
 pack: pack.bling.js.gz
+
+dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
+
+bling.js: ../bling.coffee
+	cd .. && coffee -o build -c bling.coffee
 
 compiler-latest.zip:
 	@wget http://closure-compiler.googlecode.com/files/compiler-latest.zip
@@ -24,23 +30,18 @@ packer/packer2.perl.zip:
 packer/jsPacker.pl: packer/packer2.perl.zip
 	cd packer && unzip packer2.perl.zip && touch jsPacker.pl
 
-bling.js: ../bling.js
-	cp ../bling.js bling.js
-
-sizzle.js: ../plugins/sizzle.js
-	cp ../plugins/sizzle.js sizzle.js
-
-../bling.js: ../bling.coffee
-	cd .. && coffee -c bling.coffee
+$(DIST)/%: %
+	@mkdir -p $(DIST)
+	mv $< $(DIST)
 
 pack.%.js: %.js packer/jsPacker.pl
 	cd packer && perl jsPacker.pl -i ../$< -o ../$@
 
 min.%.js: %.js compiler.jar
-	$(JAVA) -jar compiler.jar --js=$< --js_output_file=$@ --warning_level=VERBOSE --compilation_level=$(LEVEL) --externs externs.js
+	$(JAVA) -jar compiler.jar --js=$< --js_output_file=$@ --warning_level=VERBOSE --compilation_level=$(LEVEL) --externs externs
 
-%.js.gz: %.js
+%.gz: %
 	gzip -vf9c $< > $@
 
 report:
-	@wc -c `ls *.js *.gz | sort` | grep -v total | grep -v externs.js
+	@cd $(DIST) && wc -c `ls *.js *.gz | sort` | grep -v total | grep -v externs.js

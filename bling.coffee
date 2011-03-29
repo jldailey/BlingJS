@@ -19,7 +19,7 @@ Math_max = Math.max
 Math_ceil = Math.ceil
 Math_sqrt = Math.sqrt
 Obj_toString = Object::toString
-_log = (console ? console.log : (a...) -> alert(a.join(", ")))
+_log = console.log
 _none = "none"
 _relative = "relative"
 _absolute = "absolute"
@@ -41,6 +41,8 @@ _null = "null"
 _ms = "ms"
 _hide = "hide"
 _show = "show"
+_ready = "ready"
+_load = "load"
 
 Array::extend = (a) ->
 	j = @length
@@ -119,102 +121,93 @@ Object.Extend = (a, b, k) ->
 ### Object Extensions
 # ----------------- ###
 Object.Extend Object, {
-	IsType: (o,T)->
-		# Object.IsType(o,T) - true if object o is of type T (directly or indirectly)
-		o == null ? o is T
-			: o.__proto__ == null ? false
-			: o.__proto__.constructor is T ? true
-			: typeof T is _string ? o.constructor.name is T or Obj_toString.apply(o).replace(object_cruft, _1) is T
-			: Object.IsType o.__proto__, T # recurse through sub-classes
-	,
-	IsString: (o)->
-		# Object.IsString(a) - true if object a is a string
+	IsType: (o,T) -> # Object.IsType(o,T) - true if object o is of type T (directly or indirectly)
+		if o == null
+			o is T
+		else if o.__proto__ == null
+			false
+		else if o.__proto__.constructor is T
+			true
+		else if typeof T is _string
+			o.constructor.name is T or Obj_toString.apply(o).replace(object_cruft, _1) is T
+		else
+			Object.IsType o.__proto__, T # recurse through sub-classes
+	Type: (o) ->
+		switch true
+			when Object.IsString o
+				"string"
+			when Object.IsNumber o
+				"number"
+			when Object.IsFragment o
+				"fragment"
+			when Object.IsNode o
+				"node"
+			when Object.IsFunc o
+				"function"
+			when Object.IsArray o
+				"array"
+			when Object.IsBling o
+				"bling"
+			when Object.IsType o, "RegExp"
+				"regexp"
+			when Object.IsObject o
+				"object"
+	IsString: (o) -> # Object.IsString(a) - true if object a is a string
 		o? and (typeof o is _string or Object.IsType(o, String))
-	,
-	IsNumber: isFinite,
-	IsFunc: (o)->
-		# Object.IsFunc(a) - true if object a is a function
-		o? and (typeof o is _function or Object.IsType(o, Function))
-			and o.call?
-	,
-	IsNode: (o)->
-		# Object.IsNode(o) - true if object is a DOM node
+	IsNumber: isFinite
+	IsFunc: (o) -> # Object.IsFunc(a) - true if object a is a function
+		o? and (typeof o is _function or Object.IsType(o, Function)) and o.call?
+	IsNode: (o) -> # Object.IsNode(o) - true if object is a DOM node
 		o? and o.nodeType > 0
-	,
-	IsFragment: (o)->
-		# Object.IsFragment(o) - true if object is a DocumentFragment node
+	IsFragment: (o) -> # Object.IsFragment(o) - true if object is a DocumentFragment node
 		o? and o.nodeType is 11
-	,
-	IsArray: (o)->
-		# Object.IsArray(o) - true if object is an Array (or inherits Array)
-		o? and (Object.ToString(o) is _object_Array
-			or Object.IsType(o, Array))
-	,
-	IsBling: (o)->
+	IsArray: (o) -> # Object.IsArray(o) - true if object is an Array (or inherits Array)
+		o? and (Object.ToString(o) is _object_Array or Object.IsType(o, Array))
+	IsBling: (o) ->
 		o? and Object.IsType(o, Bling)
-	,
-	IsObject: (o)->
-		# Object.IsObject(o) - true if a is an object
+	IsObject: (o) -> # Object.IsObject(o) - true if a is an object
 		o? and typeof o is _object
-	,
-	IsDefined: (o)->
-		# Object.IsDefined(o) - true if a is not null nor undefined
+	IsDefined: (o) -> # Object.IsDefined(o) - true if a is not null nor undefined
 		o?
-	,
-	Unbox: (a)->
-		# Object.Unbox(o) - primitive types can be 'boxed' in an object
+	Unbox: (a) -> # Object.Unbox(o) - primitive types can be 'boxed' in an object
 		if a? and Object.IsObject(a)
-			a.toString() if Object.IsString a
-			Number(a) if Object.IsNumber a
+			return a.toString() if Object.IsString a
+			return Number(a) if Object.IsNumber a
 		a
-	,
-	ToString: (x)-> Obj_toString.apply(x)
+	ToString: (x) ->
+		Obj_toString.apply(x)
 }
 
 ### Function Extensions
 # ------------------- ###
-Object.Extend(Function, {
-	# the empty function
-	Empty: ()->,
-	Bound: (f, t, args = []) ->
-		# Function.Bound(/f/, /t/) - whenever /f/ is called, _this_ is /t/
-		### Example:
-		> var log = window.console ? Function.Bound(console.log, console)
-		>		: Function.Empty
-		> log("hello", "world")
-		###
-		if "bind" in f
-			args.splice(0, 0, t)
-			r = f.bind.apply(f, args)
+Object.Extend Function, {
+	Empty: () -> # the empty function
+	Bound: (f, t, args = []) -> # Function.Bound(/f/, /t/) - whenever /f/ is called, _this_ is /t/
+		if "bind" of f
+			args.splice 0, 0, t
+			r = f.bind.apply f, args
 		else
-			r = (a...) -> f.apply(t, args.length > 0 ? args : a)
-		r.toString = () -> "bound-method of #{t}.#{f.name}"
+			r = (a...) ->
+				if args.length > 0
+					a = args
+				f.apply t, args
+		r.toString = () ->
+			"bound-method of #{t}.#{f.name}"
 		r
-	,
-	### Function.Trace - function decorator console.logs a message to record each call
-	* @param {Function} f the function to trace
-	* @param {string=} label (optional)
-	###
-	Trace: (f, label, tracer = _log) ->
-		# Function.Trace(/f/, /label/) - log calls to /f/
-		### Example:
-			> someFunction() -> }
-			> someFunction = Function.Trace(someFunction)
-		###
+	Trace: (f, label, tracer = _log) -> # Function.Trace(/f/, /label/) - log calls to /f/
 		r = (a...) ->
-			tracer("#{label or emptyString}#{@name or @}.#{f.name}(", a, ")")
-			f.apply(@, arguments)
+			tracer "#{label or emptyString}#{@name or @}.#{f.name}(", a, ")"
+			f.apply @, a
+		tracer "Function.Trace: #{label or f.name} created."
 		r.toString = f.toString
-		tracer("Function.Trace: #{label or f.name} created.")
 		r
-	,
-	NotNull: (x)-> x != null,
-	IndexFound: (x)-> x > -1,
-	ReduceAnd: (x)-> x and @,
-	UpperLimit: (x)-> (y)-> Math_min(x, y),
-	LowerLimit: (x)-> (y)-> Math_max(x, y),
-	Px:  (d)-> ()-> Number.Px(@,d)
-})
+	NotNull: (x) -> x != null
+	IndexFound: (x) -> x > -1
+	ReduceAnd: (x) -> x and @
+	UpperLimit: (x) -> (y) -> Math_min(x, y)
+	LowerLimit: (x) -> (y) -> Math_max(x, y)
+	Px: (d) -> () -> Number.Px(@,d)
+}
 
 ### Array Extensions
 # ---------------- ###
@@ -231,13 +224,16 @@ Object.Extend Array, {
 ### Number Extensions
 # ----------------- ###
 Object.Extend Number, {
-	Px: (x,d=0) ->
+	Px: (x, d=0) ->
 		# Px(/x/, /delta/=0) - convert a number-ish x to pixels
 		x? and (parseInt(x,10)+(d|0))+_px
-	,
 	# mappable versions of max() and min()
-	AtLeast: (x)-> (y)-> Math_max(parseFloat(y or 0), x),
-	AtMost: (x)-> (y)-> Math_min(parseFloat(y or 0), x)
+	AtLeast: (x) ->
+		(y) ->
+			Math_max parseFloat(y or 0), x
+	AtMost: (x) ->
+		(y) ->
+			Math_min parseFloat(y or 0), x
 }
 
 ### String Extensions
@@ -248,22 +244,20 @@ Object.Extend String, {
 		while s.length < n
 			s = c + s
 		s
-	,
 	PadRight: (s, n, c = space) ->
 		# String.PadRight(string, width, fill=" ")
 		while s.length < n
 			s = s + c
 		s
-	,
 	Splice: (s, i, j, n) ->
 		# String.Splice(string, start, end, n) - replace a substring with n
 		nn = s.length
-		end = j == null ? nn
-			: j < 0 ? nn + j
-			: j
-		start = i == null ? 0
-			: i < 0 ? nn + i
-			: i
+		end = j
+		if end < 0
+			end += nn
+		start = i
+		if start < 0
+			start += nn
 		s.substring(0,start) + n + s.substring(end)
 }
 
@@ -297,7 +291,7 @@ String::split = Array.Coalesce(
 		a = []
 		n = 0
 		i = 0
-		while (j = @indexOf(sep,i)) > -1
+		while (j = @indexOf sep,i) > -1
 			a[n++] = @substring(i+1,j+1)
 			i = j + 1
 		return a
@@ -316,9 +310,6 @@ Array::join = Array.Coalesce(
 	,
 )
 
-
-
-# clean up support for Selectors
 Element::matchesSelector = Array.Coalesce(
 	Element::webkitMatchesSelector,
 	Element::mozMatchesSelector,
@@ -329,43 +320,36 @@ Element::toString = (precise = false) ->
 	if not precise
 		Element::toString.apply(@)
 	else
-		@nodeName.toLowerCase()
-		+ ( @id ? "##{@id}" : emptyString )
-		+ ( @className ? ".#{@className.split(" ").join(".")}" : emptyString)
+		ret = @nodeName.toLowerCase()
+		if @id?
+			ret += "##{@id}"
+		else if @className?
+			ret += ".#{@className.split(space).join(_dot)}"
+		ret
 
-### $.plugin adds a new plugin to the library.
-# @param {Function} constructor the closure to execute to get a copy of the plugin
-# The constructor should either a list of functions (none anonymous),
-# or, an object whose key names will be used.
-###
+if Element::cloneNode.length is 0
+	Element::cloneNode = (deep = false) ->
+		n = @cloneNode()
+		if deep
+			for i in @childNodes
+				n.appendChild i.cloneNode deep
+		return n
+
 $.plugin = (constructor) ->
-	plugin = constructor.call($, $) # execute the plugin
-	load(name, func) ->
-		if( name[0] is Bling.symbol )
+	plugin = constructor.call $,$
+	load = (name, func) ->
+		if name[0] is Bling.symbol
 			Bling[name.substr(1)] = func
 		else
 			Bling::[name] = func
-	if Object.IsArray(plugin)
-		for i in plugin
-			load(i.name, i)
-	else
-		for i in Object.Keys(plugin, true)
+	for i in Object.Keys(plugin, true)
+		if i isnt 'name'
 			load(i, plugin[i])
-	$.plugins.push(constructor.name)
-	$.plugins[constructor.name] = plugin
+	$.plugins.push(plugin.name)
+	$.plugins[plugin.name] = plugin
 
-$.plugin(Core() ->
-	# Core - the functional basis for all other modules
-
+$.plugin () -> # Core - the functional basis for all other modules
 	class TimeoutQueue extends Array
-		# the basic problem with setTimeout happens when multiple handlers
-		# are scheduled to fire 'near' each other, values of 'near' depend on
-		# how busy the rest of your script is.  if the timer event handlers are
-		# blocked by other processing they might not check for 'due' execution
-		# over some arbitrary time period.  if multiple handlers were due to fire
-		# during that period, then all of the due handlers will fire
-		# in no particular order.  @ queue will re-order them so they
-		# always fire in the order they were scheduled
 		constructor: () ->
 			@next = () => # next() consumes the next handler on the queue
 				if @length > 0
@@ -382,57 +366,41 @@ $.plugin(Core() ->
 						if @[i].order > f.order
 							@splice(i, 0, f)
 							break
-				setTimeout(@next, n)
+				setTimeout @next, n
 	timeoutQueue = new TimeoutQueue()
 
-	# used in .zip()
-	_getter(p) ->
+	_getter = (p) -> # used in .zip()
 		() ->
 			v = @[p]
-			Object.IsFunc(v) ? Function.Bound(v, @) : v
-	# used in .zip()
-	_zipper(p) ->
+			return Function.Bound(v, @) if Object.IsFunc v
+			return v
+	_zipper = (p) -> # used in .zip()
 		i = p.indexOf(_dot)
-		# split and recurse ?
-		i > -1 ? @zip(p.substr(0, i)).zip(p.substr(i+1))
-			# or map a getter across the values
-			: @map _getter(p)
+		return @zip(p.substr(0, i)).zip(p.substr(i+1)) if i > -1 # recurse compound names
+		return @map _getter(p)
 
 	return {
-
-		eq: (i) ->
-			# .eq(/i/) - a new set containing only the /i/th item
+		name: 'Core'
+		eq: (i) -> # .eq(/i/) - a new set containing only the /i/th item
 			$([@[i]])
-		,
 
-		each: (f) ->
-			# .each(/f/) - apply function /f/ to every item /x/ in _this_.
+		each: (f) -> # .each(/f/) - apply function /f/ to every item /x/ in _this_.
 			for i in @
 				f.call(i, i)
 			@
-			### Example:
-				> $("input[type=text]").each(() -> @value = "HI!")
-			###
-		,
 
-		map: (f) ->
-			# .map(/f/) - collect /f/.call(/x/, /x/) for every item /x/ in _this_.
+		map: (f) -> # .map(/f/) - collect /f/.call(/x/, /x/) for every item /x/ in _this_.
 			a = $()
 			a.context = @
-			a.selector = f
+			a.selector = ['map', f]
 			nn = @len()
 			for i in [0...nn]
 				t = @[i]
 				try
-					a[i] = f.call(t, t)
-				catch( err )
+					a[i] = f.call t,t
+				catch err
 					a[i] = err
 			a
-			### Example:
-				> $([1, 2, 3]).map(() -> @ * 2 )
-				> == $([2, 4, 6])
-			###
-		,
 
 		reduce: (f, init) ->
 			# .reduce(/f/, [/init/]) - accumulate a = /f/(a, /x/) for /x/ in _this_.
@@ -446,27 +414,6 @@ $.plugin(Core() ->
 			t.each () ->
 				a = f.call(@, a, @)
 			a
-			### Example:
-
-				Here, reduce is used to mimic sum.
-
-				> $([12, 14, 9, 37])
-				>		.reduce (a, x) ->	a + x
-				> == 72
-
-				But, you can accumulate anything easily, given an initial value.
-
-				> $(["a", "a", "b"])
-				>		.reduce (a, x) ->	a[x] = 1, { }
-				> == {a: 1, b: 1}
-
-				You can use any function that takes 2 arguments, including several useful built-ins.
-				This is something you can't do with the native Array reduce.
-
-				> $([12, 13, 9, 22]).reduce(Math.min)
-				> == 9
-			###
-		,
 
 		union: (other, strict) ->
 			# .union(/other/) - collect all /x/ from _this_ and /y/ from _other_.
@@ -483,18 +430,16 @@ $.plugin(Core() ->
 				if not ret.contains(x, strict)
 					ret[i++] = x
 			ret
-			### Example:
-				> $([1, 2, 3]).union([3, 4, 5])
-				> == $([1, 2, 3, 4, 5])
-			###
-		,
 
 		intersect: (other) ->
 			# .intersect(/other/) - collect all /x/ that are in _this_ and _other_.
 			ret = $()
 			m = 0 # insert marker into ret
 			n = @len()
-			nn = (Object.IsFunc(other.len) ? other.len() : other.length),
+			if Object.IsFunc other.len
+				nn = other.len()
+			else
+				nn = other.length
 			ret.context = [@, other]
 			ret.selector = 'intersect'
 			for i in [0...n]
@@ -503,29 +448,14 @@ $.plugin(Core() ->
 						ret[m++] = @[i]
 						break
 			ret
-			### Example:
-				> $([1, 2, 3]).intersect([3, 4, 5])
-				> == $([3])
-			###
-		,
 
 		distinct: (strict) ->
 			# .distinct() - a copy of _this_ without duplicates.
 			@union(@, strict)
-			### Example:
-				> $([1, 2, 1, 3]).distinct()
-				> == $([1,2,3])
-			###
-		,
 
 		contains: (item, strict) ->
 			# .contains(/x/) - true if /x/ is in _this_, false otherwise.
 			@count(item, strict) > 0
-			### Example:
-				> $("body").contains(document.body)
-				> == true
-			###
-		,
 
 		count: (item, strict) ->
 			# .count(/x/) - returns how many times /x/ occurs in _this_.
@@ -535,15 +465,9 @@ $.plugin(Core() ->
 				return @len()
 			ret = 0
 			@each (t) ->
-				if (strict and t is item)
-					|| (not strict and t == item)
+				if (strict and t is item) or (not strict and t == item)
 					ret++
 			ret
-			### Example:
-				> $("body").count(document.body)
-				> == 1
-			###
-		,
 
 		zip: (a...) ->
 			# .zip([/p/, ...]) - collects /x/./p/ for all /x/ in _this_.
@@ -553,15 +477,17 @@ $.plugin(Core() ->
 			# zip("foo", "bar") == [ {foo: x.foo, bar: x.bar}, ... ]
 			n = a.length
 			switch n
+				when 0
+					return $()
 				when 1
 					return _zipper.call(@, a[0])
 				else # > 1
 					# if more than one argument is passed, new objects
 					# with only those properties, will be returned
-					# like a "select" query in SQL
 					master = {}
-					b = $()
 					nn = @len()
+					b = $()
+					j = 0
 					# first collect a set of lists
 					for i in [0...n]
 						master[a[i]] = _zipper.call(@, a[i])
@@ -572,83 +498,31 @@ $.plugin(Core() ->
 							o[k] = master[k].shift() # the first property from each list
 						b[j++] = o # as a new object in the results
 					b
-			### Example:
-				> $(["foo","bar","bank"]).zip("length")
-				> == $([3, 3, 4])
-
-				You can use compound property names.
-
-				> $("pre").first(3).zip("style.display")
-				> == $(["block", "block", "block"])
-
-				If you request many properties at once,
-				you get back raw objects with only those properties.
-				Similar to specifying columns on a SQL select query.
-
-				> $("pre").first(1)
-				>		.zip("style.display", "style.color")
-				> == $([{'display':'block','color':'black'}])
-
-				If the property value is a function,
-				a bound-method is returned in its place.
-
-				> $("pre").first(1)
-				>		.zip("getAttribute")
-				>		.toString()
-				> == "$([bound-method of HTMLPreElement.getAttribute])"
-
-				See: .call() for how to use a set of methods quickly.
-			###
-		,
 
 		zap: (p, v) ->
 			# .zap(p, v) - set /x/./p/ = /v/ for all /x/ in _this_.
 			# just like zip, zap("a.b") == zip("a").zap("b")
 			# but unlike zip, you cannot assign to many /p/ at once
 			i = p.indexOf(_dot)
-			i > -1 ?  # is /p/ a compound name like "foo.bar"?
-			@zip(p.substr(0, i)) # if so, break off the front
-				.zap(p.substr(i+1), v) # and recurse
-			# accept /v/ as an array of values
-			: Object.IsArray(v) ? @each (x) ->
-				# re-use i as an index into the v array
-				# i starts at -1 (since we didnt recurse)
-				x[p] = v[++i] # so we increment first, ++i, to start at 0
-			# accept a single value v, even if v is undefined
-			: @each () -> @[p] = v
-			### Example:
-				Set a property on all nodes at once.
-				> $("pre").zap("style.display", "none")
-				Hides all pre's.
-
-				You can pass compound properties.
-				> $("pre").zap("style.display", "block")
-
-				You can pass multiple values for one property.
-
-				> $("pre").take(3).zap("style.display",
-				>		["block", "inline", "block"])
-
-			###
-		,
+			if i > -1 # recurse compound names
+				@zip(p.substr(0, i)).zap(p.substr(i+1), v)
+			else if Object.IsArray(v) # accept /v/ as an array of values
+				@each () ->
+					@[p] = v[++i]
+			else # accept a scalar /v/, even if v is undefined
+				@each () ->
+					@[p] = v
 
 		take: (n) ->
 			# .take([/n/]) - collect the first /n/ elements of _this_.
 			# if n >= @length, returns a shallow copy of the whole bling
 			n = Math_min n|0, @len()
 			a = $()
-			a.context = @context
-			a.selector = @selector
+			a.context = @
+			a.selector = ['take',n]
 			for i in [0...n]
 				a[i] = @[i]
 			a
-			### Example:
-				> $("p").take(3).length == 3
-
-				> $([1, 2, 3, 4, 5, 6]).take(2)
-				> == $([1, 2])
-			###
-		,
 
 		skip: (n) ->
 			# .skip([/n/]) - collect all but the first /n/ elements of _this_.
@@ -661,40 +535,16 @@ $.plugin(Core() ->
 			for i in [0...nn]
 				a[i] = @[i+n]
 			a
-			### Example:
-				> $([1, 2, 3, 4, 5, 6]).skip(2)
-				> == $([3, 4, 5, 6])
-			###
-		,
 
 		first: (n = 1) ->
 			# .first([/n/]) - collect the first [/n/] element[s] from _this_.
 			# if n is not passed, returns just the item (no bling)
 			@take(n)
-			### Example:
-				> $([1, 2, 3, 4]).first()
-				> == 1
-
-				> $([1, 2, 3, 4]).first(2)
-				> == $([1, 2])
-
-				> $([1, 2, 3, 4]).first(1)
-				> == $([1])
-			###
-		,
 
 		last: (n = 1) ->
 			# .last([/n/]) - collect the last [/n/] elements from _this_.
 			# if n is not passed, returns just the last item (no bling)
 			@skip(@len() - n)
-			### Example:
-				> $([1, 2, 3, 4, 5]).last()
-				> == 5
-
-				> $([1, 2, 3, 4, 5]).last(2)
-				> == $([4, 5])
-			###
-		,
 
 		slice: (start, end) ->
 			# .slice(/i/, [/j/]) - get a subset of _this_ including [/i/../j/-1]
@@ -705,14 +555,6 @@ $.plugin(Core() ->
 			b.context = @
 			b.selector = 'slice(#{start},#{end})'
 			b
-			### Example:
-				> var a = $([1, 2, 3, 4, 5])
-				> a.slice(0,1) == $([1])
-				> a.slice(0,-1) == $([1, 2, 3, 4])
-				> a.slice(0) == $([1, 2, 3, 4, 5])
-				> a.slice(-2) == $([4, 5])
-			###
-		,
 
 		concat: (b) ->
 			# .concat(/b/) - insert all items from /b/ into _this_
@@ -720,21 +562,18 @@ $.plugin(Core() ->
 			# note: also, does not create a new array, uses _this_ in-place
 			i = @len() - 1
 			j = -1
-			n = (Object.IsFunc(b.len) ? b.len() : b.length)
+			if Object.IsFunc b.len
+				n = b.len()
+			else
+				n = b.length
 			while j < n-1
 				@[++i] = b[++j]
 			@
-			### Example:
-				> $([1, 2, 3]).concat([3, 4, 5])
-				> == $([1, 2, 3, 3, 4, 5])
-			###
-		,
 
 		push: (b) ->
 			# .push(/b/) - override Array.push to return _this_
 			Array::push.call(@, b)
 			@
-		,
 
 		filter: (f) ->
 			# .filter(/f/) - collect all /x/ from _this_ where /x/./f/(/x/) is true
@@ -745,48 +584,29 @@ $.plugin(Core() ->
 			b.context = @
 			b.selector = f
 			j = 0
+			switch Object.Type(f)
+				when "string"
+					g = (x) ->
+						it.matchesSelector?(x)
+				when "regexp"
+					g = (x) ->
+						f.test(x)
+				when "function"
+					g = f
 			for i in [0...n]
 				it = @[i]
-				if Object.IsFunc(f) and f.call( it, it )
-					or Object.IsString(f) and it.matchesSelector?(f)
-					or Object.IsType(f, "RegExp") and f.test(it)
+				if g.call it, it
 					b[j++] = it
 			b
-			### Example:
-				> $([1,2,3,4,5]).filter () ->	@ % 2 == 0
-				> == $([2,4,6])
-
-				Or, you can filter by a selector.
-
-				> $("pre").filter(".prettyprint")
-
-				Or, you can filter by a RegExp.
-
-				> $(["text", "test", "foo"].filter(/x/)
-				> == $(["text"])
-
-			###
-		,
 
 		test: (regex) ->
 			# .test(/regex/) - collects regex.test(/x/) for /x/ in _this_
-			###
-
-				> $(["text", "test", "foo"]).test(/^t/)
-				> == $([true, true, false])
-			###
 			@map () ->
 				regex.test(@)
-		,
 
 		matches: (expr) ->
 			# .matches(/css/) - collects /x/.matchesSelector(/css/)
 			@zip('matchesSelector').call(expr)
-			### Example:
-				> $("pre").matches(".prettyprint")
-				> $([true, false, false, true, etc...])
-			###
-		,
 
 		weave: (b) ->
 			# .weave(/b/) - interleave the items of _this_ and the set _b_
@@ -808,13 +628,6 @@ $.plugin(Core() ->
 			for i in [0...n]
 				c[i*2] = b[i]
 			c
-			### Example:
-				> var a = $([0, 0, 0, 0])
-				> var b = $([1, 1, 1, 1])
-				> a.weave(b)
-				> == $([1, 0, 1, 0, 1, 0, 1, 0])
-			###
-		,
 
 		fold: (f) ->
 			# .fold(/f/) - collect /c/ = /f/(a,b), complement of .weave()
@@ -834,14 +647,8 @@ $.plugin(Core() ->
 			if (n%2) is 1
 				b[j++] = f.call @, @[n-1], undefined
 			b
-			### Example:
-				> $([1,2,3,4]).fold (x,y) -> x + y
-				> == $([3, 7])
-			###
-		,
 
-		flatten: () ->
-			# .flatten() - collect the union of all sets in _this_
+		flatten: () -> # .flatten() - collect the union of all sets in _this_
 			b = $()
 			n = @len()
 			k = 0 # insert marker
@@ -849,113 +656,51 @@ $.plugin(Core() ->
 			b.selector = 'flatten'
 			for i in [0...n]
 				c = @[i]
-				d = (Object.IsFunc(c.len) ? c.len() : c.length)
+				if Object.IsFunc c.len
+					d = c.len()
+				else
+					d = c.length
 				for j in [0...d]
 					b[k++] = c[j]
 			b
-			### Example:
-				> $([[1,2], [3,4]]).flatten()
-				> == $([1,2,3,4])
-			###
-		,
 
-		call() ->
-			# .call([/args/]) - collect /f/([/args/]) for /f/ in _this_
+		call: () -> # .call([/args/]) - collect /f/([/args/]) for /f/ in _this_
 			@apply(null, arguments)
-			### Example:
-				> $("pre").zip("getAttribute").call("class")
-				> == $([... x.getAttribute("class") for each ...])
-			###
-		,
 
-		apply(context, args) ->
-			# .apply(/context/, [/args/]) - collect /f/.apply(/context/,/args/) for /f/ in _this_
+		apply: (context, args) -> # .apply(/context/, [/args/]) - collect /f/.apply(/context/,/args/) for /f/ in _this_
 			@map () ->
-				Object.IsFunc @
-					? @apply(context, args)
-					: @
-			### Example:
-				>	var a = {
-				>		x: 1,
-				>		getOne: () ->
-				>			@x
-				>		}
-				>	}
-				>	var b = {
-				>		x: 2,
-				>		getTwo: () ->
-				>			@x
-				>		}
-				>	}
-				> b.getTwo() == 2
-				> a.getOne() == 1
-				> $([a.getOne, b.getTwo]).apply(a)
-				> == $([1, 1])
+				if Object.IsFunc @
+					@apply(context, args)
+				else
+					@
 
-				This happens because both functions are called with 'a' as 'this',
-				since it is the context argument to .apply()
-
-				(In other words, it happens because b.getTwo.apply(a) == 1, because a.x == 1)
-			###
-
-		,
-
-		toString: () ->
-			# .toString() - maps toString across @
-			$.symbol
-			+"(["
-			+@map ()->
+		toString: () -> # .toString() - maps toString across @
+			$.symbol + "([" + @map () ->
 				switch @
-					when undefined:
-						_undefined
-					when null:
-						_null
-					when window:
-						"window"
+					when undefined
+						return _undefined
+					when null
+						return _null
+					when window
+						return "window"
 					else
-						@toString().replace(object_cruft,_1)
-			.join(commasep)
-			+"])"
-			### Example:
-				> $("body").toString()
-				> == "$([HTMLBodyElement])"
-			###
-		,
+						return @toString().replace(object_cruft,_1)
+			.join(commasep) + "])"
 
-		delay: (n, f) ->
-			# .delay(/n/, /f/) -  continue with /f/ on _this_ after /n/ milliseconds
+		delay: (n, f) -> # .delay(/n/, /f/) -  continue with /f/ on _this_ after /n/ milliseconds
 			if f
 				timeoutQueue.schedule Function.Bound(f, @), n
 			@
-			### Example:
-				> $("pre").delay(50, sometimeLater() ->
-				> 	console.log(@length)
-				> })
-				> console.log($("pre").length)
 
-				The same number will log twice, one 50 milliseconds or more after the other.
-
-				See the comments in the source for the full explanation as to why delay() is more powerful than setTimeout on it's own.
-			###
-		,
-
-		log: (label) ->
-			# .log([label]) - console.log([/label/] + /x/) for /x/ in _this_
-			len = @len()
-			if( label ) _log(label, @, len + " items")
-			else _log(@, len + " items")
+		log: (label) -> # .log([label]) - console.log([/label/] + /x/) for /x/ in _this_
+			n = @len()
+			if label
+				_log(label, @, n + " items")
+			else
+				_log(@, n + " items")
 			@
-			### Example:
-				$("a + pre").log("example")
-				# logs, "example: [...nodes...] (N items)"
-			###
-		,
 
-		len: () ->
-			# .len() - returns the max defined index + 1
-			# the .length of an array is more like capacity than length
-			# @ counts backward or forward from .length, looking for valid items
-			# returns the largest found index + 1
+		len: () -> # .len() - returns the max defined index + 1
 			i = @length
 			# scan forward to the end
 			while @[i] isnt undefined
@@ -964,68 +709,40 @@ $.plugin(Core() ->
 			while i > -1 and @[i] is undefined
 				i--
 			return i+1
-			### Example:
-				If you create an empty array with spare capacity
-				> var b = new Array(10)
-				> b.length is 10
-				But .length isnt where .push, .forEach, etc will operate.
-				> b[0] is undefined
-				> b.push("foo")
-				> b[0] is "foo"
-				.len() tells you where .push will insert and how many times .forEach will loop
-				> $(b).len() is 1
-				> b.length  is 10
-			###
-
 	}
-})
 
-$.plugin Html() ->
+$.plugin () -> # Html Module
+	before = (a,b) -> # insert b before a
+		a.parentNode.insertBefore b, a
 
-	# insert b before a
-	_before = (a,b) ->
-		a.parentNode.insertBefore(b, a)
-	# insert b after a
-	_after = (a,b) ->
-		a.parentNode.insertBefore(b, a.nextSibling)
-	# convert nearly anything to something node-like for use in the DOM
-	toNode = (x) ->
-		Object.IsNode(x)
-			? x
-			: Object.IsBling(x) ? x.toFragment()
-			: Object.IsString(x) ? $(x).toFragment()
-			: Object.IsFunc(x.toString) ? $(x.toString()).toFragment()
-			: undefined
+	after = (a,b) -> # insert b after a
+		a.parentNode.insertBefore b, a.nextSibling
 
-	Element::cloneNode =
-		Element::cloneNode.length > 0
-		? Element::cloneNode
-		: (deep = false) ->
-			n = @cloneNode()
-			if deep
-				for i in @childNodes
-					n.appendChild i.cloneNode(true)
-			n
-	# make a #text node, for escapeHTML
+	toNode = (x) -> # convert nearly anything to something node-like for use in the DOM
+		switch Object.Type x
+			when "node"
+				return x
+			when "bling"
+				return x.toFragment()
+			when "string"
+				return $(x).toFragment()
+			when "function"
+				return $(x.toString()).toFragment()
+
 	escaper = null
 
-	getCSSProperty(k) ->
-		# window.getComputeStyle is not a normal function
+	getCSSProperty = (k) ->
+		# window.getComputedStyle is not a normal function
 		# (it doesnt support .call() so we can't use it with .map())
 		# so define something that does work right for use in .css
 		() ->
 			window.getComputedStyle(@, null).getPropertyValue(k)
 
-	cssVendors = ['-webkit-', '-moz-', '-o-']
-
-	setCSSProperty(node, k, v) ->
-		node.style[k] = v
-
 	return {
-		$HTML:
-			# $.HTML.* - HTML methods similar to the global JSON object
-			parse: (h) ->
-				# $.HTML.parse(/h/) - parse the html in string h, a Node.
+		name: 'Html'
+
+		$HTML: # $.HTML.* - HTML methods similar to the global JSON object
+			parse: (h) -> # $.HTML.parse(/h/) - parse the html in string h, a Node.
 				node = document.createElement("div")
 				node.innerHTML = h
 				childNodes = node.childNodes
@@ -1036,45 +753,40 @@ $.plugin Html() ->
 				for i in [0...n]
 					df.appendChild(node.removeChild(childNodes[0]))
 				df
-			,
-			stringify: (n) ->
-				# $.HTML.stringify(/n/) - the _Node_ /n/ in it's html-string form
+			stringify: (n) -> # $.HTML.stringify(/n/) - the _Node_ /n/ in it's html-string form
 				n = n.cloneNode(true)
 				d = document.createElement("div")
 				d.appendChild(n)
 				ret = d.innerHTML
 				d.removeChild(n) # clean up to prevent leaks
-				try { n.parentNode = null }
-				catch( err ) { }
+				try
+					n.parentNode = null
+				catch err
 				ret
-			,
-			escape: (h) ->
-				# $.HTML.escape(/h/) - accept html string /h/, a string with html-escapes like &amp;
+			escape: (h) -> # $.HTML.escape(/h/) - accept html string /h/, a string with html-escapes like &amp;
 				escaper or= $("<div>&nbsp;</div>").child(1)
 				# insert html using the text node's .data property
-				ret = escaper.zap('data', h)
-					# then get escaped html from the parent's .innerHTML
-					.zip("parentNode.innerHTML").first()
+				# then get escaped html from the parent's .innerHTML
+				ret = escaper.zap('data', h).zip("parentNode.innerHTML").first()
 				# clean up so escaped content isn't leaked into the DOM
 				escaper.zap('data', emptyString)
 				ret
-		,
 
-		html: (h) ->
-			# .html([h]) - get [or set] /x/.innerHTML for each node
-			h is undefined ? @zip('innerHTML')
-				: Object.IsString(h) ? @zap('innerHTML', h)
-				: Object.IsBling(h) ? @html(h.toFragment())
-				: Object.IsNode(h) ? @each () ->
-					# replace all our children with the new child
-					@replaceChild(@childNodes[0], h)
-					while( @childNodes.length > 1 )
-						@removeChild(@childNodes[1])
-				: undefined
-		,
+		html: (h) -> # .html([h]) - get [or set] /x/.innerHTML for each node
+			switch Object.Type h
+				when "undefined"
+					return @zip('innerHTML')
+				when "string"
+					return @zap('innerHTML', h)
+				when "bling"
+					return @html(h.toFragment())
+				when "node"
+					return @each () -> # replace all our children with the new child
+						@replaceChild @childNodes[0], h
+						while @childNodes.length > 1
+							@removeChild @childNodes[1]
 
-		append: (x) ->
-			# .append(/n/) - insert /n/ [or a clone] as the last child of each node
+		append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
 			if x?
 				x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
 				a = @zip('appendChild')
@@ -1082,53 +794,41 @@ $.plugin Html() ->
 				a.skip(1).each (f) ->
 					f(x.cloneNode(true))
 			@
-		,
 
-		appendTo: (x) ->
-			# .appendTo(/n/) - each node [or a fragment] will become the last child of n
+		appendTo: (x) -> # .appendTo(/n/) - each node [or a fragment] will become the last child of n
 			if x?
 				$(x).append(@)
 			@
-		,
 
-		prepend: (x) ->
-			# .prepend(/n/) - insert n [or a clone] as the first child of each node
+		prepend: (x) -> # .prepend(/n/) - insert n [or a clone] as the first child of each node
 			if x?
 				x = toNode(x)
 				@take(1).each () ->
-					_before @childNodes[0], x
+					before @childNodes[0], x
 				@skip(1).each(() ->
-					_before @childNodes[0], x.cloneNode(true)
+					before @childNodes[0], x.cloneNode(true)
 			@
-		,
 
-		prependTo: (x) ->
-			# .prependTo(/n/) - each node [or a fragment] will become the first child of n
+		prependTo: (x) -> # .prependTo(/n/) - each node [or a fragment] will become the first child of n
 			if x?
 				$(x).prepend(@)
 			@
-		,
 
-		before: (x) ->
-			# .before(/n/) - insert content n before each node
+		before: (x) -> # .before(/n/) - insert content n before each node
 			if x?
 				x = toNode(x)
-				@take(1).each () -> _before @, x
-				@skip(1).each () -> _before @, x.cloneNode(true)
+				@take(1).each () -> before @, x
+				@skip(1).each () -> before @, x.cloneNode(true)
 			@
-		,
 
-		after: (x) ->
-			# .after(/n/) - insert content n after each node
+		after: (x) -> # .after(/n/) - insert content n after each node
 			if x?
 				x = toNode(x)
-				@take(1).each () -> _after @, x
-				@skip(1).each () -> _after @, x.cloneNode(true)
+				@take(1).each () -> after @, x
+				@skip(1).each () -> after @, x.cloneNode(true)
 			@
-		,
 
-		wrap: (parent) ->
-			# .wrap(/p/) - p becomes the new .parentNode of each node
+		wrap: (parent) -> # .wrap(/p/) - p becomes the new .parentNode of each node
 			# all items of @ will become children of parent
 			# parent will take each child's position in the DOM
 			parent = toNode(parent)
@@ -1149,18 +849,14 @@ $.plugin Html() ->
 						# replace marker with new parent
 						p.replaceChild(parent, marker)
 				child
-		,
 
-		unwrap: () ->
-			# .unwrap() - replace each node's parent with itself
+		unwrap: () -> # .unwrap() - replace each node's parent with itself
 			@each () ->
 				if @parentNode and @parentNode.parentNode
 					@parentNode.parentNode
 						.replaceChild(@, @parentNode)
-		,
 
-		replace: (n) ->
-			# .replace(/n/) - replace each node with n [or a clone]
+		replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
 			n = toNode(n)
 			b = $(), j = -1
 			# first node gets the real n
@@ -1176,36 +872,33 @@ $.plugin Html() ->
 					b[++j] = c
 			# the set of inserted nodes
 			b
-		,
 
-		attr: (a,v) ->
-			# .attr(a, [v]) - get [or set] an /a/ttribute [/v/alue]
-			actor = v is undefined ? "getAttribute"
-				: v is null ? "removeAttribute"
-				: "setAttribute"
-			ret = @zip(actor).call(a,v)
-			v ? @ : ret
-		,
+		attr: (a,v) -> # .attr(a, [v]) - get [or set] an /a/ttribute [/v/alue]
+			switch v
+				when undefined
+					return @zip("getAttribute").call(a, v)
+				when null
+					return @zip("removeAttribute").call(a, v)
+				else
+					@zip("setAttribute").call(a, v)
+					return @
 
-		addClass: (x) ->
-			# .addClass(/x/) - add x to each node's .className
-			# remove the node and then add it to avoid dups
+		addClass: (x) -> # .addClass(/x/) - add x to each node's .className
 			@removeClass(x).each () ->
-				c = @className.split(space).filter (y) -> y isnt emptyString
+				c = @className.split(space).filter (y) ->
+					y isnt emptyString
 				c.push(x) # since we dont know the len, its still faster to push, rather than insert at len()
 				@className = c.join space
-		,
 
-		removeClass: (x) ->
-			# .removeClass(/x/) - remove class x from each node's .className
-			notx = (y)-> y != x
+		removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
+			notx = (y)->
+				y != x
 			@each () ->
 				@className = @className.split(space).filter(notx).join(space)
-		,
 
-		toggleClass: (x) ->
-			# .toggleClass(/x/) - add, or remove if present, class x from each node
-			notx(y) -> y != x
+		toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
+			notx(y) ->
+				y != x
 			@each () ->
 				cls = @className.split(space)
 				if( cls.indexOf(x) > -1 )
@@ -1213,39 +906,25 @@ $.plugin Html() ->
 				else
 					cls.push(x)
 					@className = cls.join(space)
-		,
 
-		hasClass: (x) ->
-			# .hasClass(/x/) - true/false for each node: whether .className contains x
-			# note: different from jQuery, we always sets when possible
-			@zip('className.split').call(space)
-				.zip('indexOf').call(x)
-				.map(Function.IndexFound)
-		,
+		hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x
+			@zip('className.split').call(space).zip('indexOf').call(x).map Function.IndexFound
 
-		text: (t) ->
-			# .text([t]) - get [or set] each node's .innerText
-			t == null
-				? @zip('textContent')
-				: @zap('textContent', t)
-		,
+		text: (t) -> # .text([t]) - get [or set] each node's .innerText
+			if t == null
+				return @zip('textContent')
+			return @zap('textContent', t)
 
-		val: (v) ->
-			# .val([v]) - get [or set] each node's .value
-			v == null
-				? @zip('value')
-				: @zap('value', v)
-		,
+		val: (v) -> # .val([v]) - get [or set] each node's .value
+			if v == null
+				return @zip('value')
+			return @zap('value', v)
 
 		css: (k,v) ->
 			# .css(k, [v]) - get/set css properties for each node
 			# called with string k and undefd v -> value of k
 			# called with string k and string v -> set property k = v
 			# called with object k and undefd v -> set css(x, k[x]) for x in k
-			### Example:
-			> $("body").css("background-color", "black").css("color", "white")
-			> $("body").css({color: "white", "background-color": "black"})
-			###
 			if v? or Object.IsObject k
 				setter = @zip 'style.setProperty'
 				nn = setter.len()
@@ -1265,8 +944,8 @@ $.plugin Html() ->
 				# collect the values specified directly on the node
 				ov = @zip('style').zip k
 				# weave and fold them so that object values override computed values
-				return ov.weave(cv).fold (x,y) -> return x ? x : y
-		,
+				ov.weave(cv).fold (x,y) ->
+					x or y
 
 		defaultCss: (k, v) ->
 			# .defaultCss(k, [v]) - adds an inline style tag to the head for the current selector.
@@ -1287,68 +966,54 @@ $.plugin Html() ->
 				style += "} "
 			$.synth("style").text(style).appendTo("head")
 			@
-		,
 
-		empty: () ->
-			# .empty() - remove all children
+		empty: () -> # .empty() - remove all children
 			@html emptyString
-		,
 
-		rect: () ->
-			# .rect() - collect a ClientRect for each node in @
+		rect: () -> # .rect() - collect a ClientRect for each node in @
 			@zip('getBoundingClientRect').call()
-		,
-		width: (w) ->
-			# .width([/w/]) - get [or set] each node's width value
-			 w == null
-				? @rect().zip(_width)
-				: @css(_width, w)
-		,
-		height: (h) ->
-			# .height([/h/]) - get [or set] each node's height value
-			h == null
-				? @rect().zip(_height)
-				: @css(_height, h)
-		,
-		top: (y) ->
-			# .top([/y/]) - get [or set] each node's top value
-			y == null
-				? @rect().zip(_top)
-				: @css(_top, y)
-		,
-		left: (x) ->
-			# .left([/x/]) - get [or set] each node's left value
-			x == null
-				? @rect().zip(_left)
-				: @css(_left, x)
-		,
-		bottom: (x) ->
-			# .bottom([/x/]) - get [or set] each node's bottom value
-			x == null
-				? @rect().zip(_bottom)
-				: @css(_bottom, x)
-		,
-		right: (x) ->
-			# .right([/x/]) - get [or set] each node's right value
-			x == null
-				? @rect().zip(_right)
-				: @css(_right, x)
-		,
-		position: (x, y) ->
-			# .position([/x/, [/y/]]) - get [or set] each node's top and left values
-			# with no args, return the entire current position
-			x == null
-				? @rect()
-				# with just x, just set style.left
-				: y == null
-					? @css(_left, Number.Px(x))
-					# with x and y, set style.top and style.left
-					: @css({top: Number.Px(y), left: Number.Px(x)})
-		,
 
-		center: (mode ="viewport") ->
-			# .center([mode]) - move the elements to the center of the screen
-			# mode is "viewport" (default), "horizontal" or "vertical"
+		width: (w) -> # .width([/w/]) - get [or set] each node's width value
+			if w == null
+				return @rect().zip(_width)
+			return @css(_width, w)
+
+		height: (h) -> # .height([/h/]) - get [or set] each node's height value
+			if h == null
+				return @rect().zip(_height)
+			return @css(_height, h)
+
+		top: (y) -> # .top([/y/]) - get [or set] each node's top value
+			if y == null
+				return @rect().zip(_top)
+			return @css(_top, y)
+
+		left: (x) -> # .left([/x/]) - get [or set] each node's left value
+			if x == null
+				return @rect().zip(_left)
+			return @css(_left, x)
+
+		bottom: (x) -> # .bottom([/x/]) - get [or set] each node's bottom value
+			if x == null
+				return @rect().zip(_bottom)
+			return @css(_bottom, x)
+
+		right: (x) -> # .right([/x/]) - get [or set] each node's right value
+			if x == null
+				return @rect().zip(_right)
+			return @css(_right, x)
+
+		position: (x, y) -> # .position([/x/, [/y/]]) - get [or set] each node's top and left values
+			if x == null
+				return @rect()
+			# with just x, just set style.left
+			if y == null
+				return @css(_left, Number.Px(x))
+			# with x and y, set style.top and style.left
+			return @css({top: Number.Px(y), left: Number.Px(x)})
+
+		center: (mode ="viewport") -> # .center([mode]) - move the elements to the center of the screen
+			# mode is one of: "viewport" (default), "horizontal" or "vertical"
 			# TODO: "viewport" should probably use window.innerHeight
 			# TODO: this is all wrong...
 			body = document.body
@@ -1358,47 +1023,42 @@ $.plugin Html() ->
 				t = $(@)
 				h = t.height().floats().first()
 				w = t.width().floats().first()
-				x = mode is "viewport" or mode is "horizontal"
-					? vw - (w/2)
-					: NaN
-				y = mode is "viewport" or mode is "vertical"
-					? vh - (h/2)
-					: NaN
-				t.css { position: _absolute,
+				if mode is "viewport" or mode is "horizontal"
+					x = vw - (w/2)
+				else
+					x = NaN
+				if mode is "viewport" or mode is "vertical"
+					y = vh - (h/2)
+				else
+					y = NaN
+				t.css {
+					position: _absolute,
 					left: Number.Px(x),
 					top: Number.Px(y)
 				}
-		,
 
-		scrollToCenter: () ->
-			# .scrollToCenter() - scroll first node to center of viewport
+		scrollToCenter: () -> # .scrollToCenter() - scroll first node to center of viewport
 			document.body.scrollTop = @zip('offsetTop')[0] - (window.innerHeight / 2)
 			@
-		,
 
-		child: (n) ->
-			# .child(/n/) - returns the /n/th childNode for each in _this_
+		child: (n) -> # .child(/n/) - returns the /n/th childNode for each in _this_
 			@map () ->
 				nn = @childNodes.length
-				i = n >= 0 ? n : n + nn
+				i = n
+				if n < 0
+					i += nn
 				if i < nn
 					@childNodes[i]
 				null
-		,
 
-		children: () ->
-			# .children() - collect all children of each node
+		children: () -> # .children() - collect all children of each node
 			@map () ->
 				$(@childNodes, @)
-		,
 
-		parent: () ->
-			# .parent() - collect .parentNode from each of _this_
+		parent: () -> # .parent() - collect .parentNode from each of _this_
 			@zip('parentNode')
-		,
 
-		parents: () ->
-			# .parents() - collects the full ancestry up to the owner
+		parents: () -> # .parents() - collects the full ancestry up to the owner
 			@map () ->
 				b = $()
 				j = 0
@@ -1406,10 +1066,8 @@ $.plugin Html() ->
 				while p = p.parentNode
 					b[j++] = p
 				b
-		,
 
-		prev: () ->
-			# .prev() - collects the chain of .previousSibling nodes
+		prev: () -> # .prev() - collects the chain of .previousSibling nodes
 			@map () ->
 				b = $()
 				j = 0
@@ -1417,10 +1075,8 @@ $.plugin Html() ->
 				while p = p.previousSibling
 					b[j++] = p
 				b
-		,
 
-		next: () ->
-			# .next() - collect the chain of .nextSibling nodes
+		next: () -> # .next() - collect the chain of .nextSibling nodes
 			@map () ->
 				b = $()
 				j = 0
@@ -1428,66 +1084,36 @@ $.plugin Html() ->
 				while p = p.nextSibling
 					b[j++] = p
 				b
-		,
 
-		remove: () ->
-			# .remove() - removes each node in _this_ from the DOM
+		remove: () -> # .remove() - removes each node in _this_ from the DOM
 			@each ()->
 				if @parentNode
 					@parentNode.removeChild(@)
-		,
 
-		find: (css) ->
-			# .find(/css/) - collect nodes matching /css/
+		find: (css) -> # .find(/css/) - collect nodes matching /css/
 			@filter("*") # limit to only nodes
 				.map () -> $(css, @)
 				.flatten()
-		,
 
-		clone: (deep=true) ->
-			# .clone(deep=true) - copies a set of DOM nodes
-			# note: does not copy event handlers
+		clone: (deep=true) -> # .clone(deep=true) - copies a set of DOM nodes
 			@map () ->
 				if Object.IsNode @
 					@cloneNode deep
 				else
 					null
-		,
 
 		toFragment: () ->
-			# .toFragment() - converts a bling of convertible stuff to a Node or DocumentFragment.
-			# FOR ADVANCED USERS.
-			# (nodes, strings, fragments, blings) into a single Node if well-formed,
-			# or a DocumentFragment if not.
-			# note: DocumentFragments are a sub-class of Node.
-			#   Object.IsNode(fragment) == true
-			#   fragment.nodeType == 11
-			# This means you can node.appendChild() them directly, like DOM nodes.
-			# But, unlike regular DOM nodes, if you insert a fragment, it disappears
-			# and it's children are all inserted, and the fragment will be empty.
-			# In the other direction, if you insert nodes into a fragment,
-			# they are DETACHED from the DOM, and attached to the fragment.
-			# So be sure to re-attach them, or save a reference, or you will lose them.
-			# explanation:
-			#   $("input").length is 2
-			#   $("input").toFragment().childNodes.length is 2
-			#   $("input").length is 0 // !?
-			# Where did the inputs go?!
-			# The first search finds 2 nodes.
-			# The second search finds 2 nodes and DETACHES them.
-			# Both inputs nodes now have .parentNode == the fragment.
-			# The third search is searching the document object,
-			# to which the inputs are no longer attached, and it finds 0.
-			# They are attached to the fragment, whose reference we discarded.
-			if @len() is 1
-				toNode(@[0])
-			df = document.createDocumentFragment()
-			@map(toNode).map Function.Bound(df.appendChild, df)
-			df
+			if @len() > 1
+				df = document.createDocumentFragment()
+				@map(toNode).map Function.Bound(df.appendChild, df)
+				return df
+			return toNode(@[0])
+
 	}
 
-$.plugin Maths() ->
-	{
+$.plugin () -> # Math Module
+	return {
+		name: 'Maths'
 		floats: () ->
 			# .floats() - parseFloat(/x/) for /x/ in _this_
 			@map parseFloat
@@ -1533,9 +1159,7 @@ $.plugin Maths() ->
 			@scale(1/@magnitude())
 	}
 
-$.plugin Events() ->
-	# support these generic events
-	# (click and ready are done separately)
+$.plugin () -> # Events Module
 	events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
 		'load','unload','reset','submit','keyup','keydown','change',
 		'abort','cut','copy','paste','selection','drag','drop','orientationchange',
@@ -1545,16 +1169,9 @@ $.plugin Events() ->
 	]
 
 	binder = (e) ->
-		# carefully create a non-anonymous function
-		# using an anonymous one to avoid using eval()
-		(new Function('''
-			return function #{e}(f) {
-				// .#{e}([f]) - trigger [or bind] the '#{e}' event
-				Object.IsFunc(f)
-					? this.bind('#{e}', f)
-					: this.trigger('#{e}', f || {})
-			}''')
-		)()
+		(f = {}) ->
+			return this.bind(e, f) if Object.IsFunc f
+			return this.trigger(e, f)
 
 	register_live = (selector, context, e, f, h) ->
 		$(context)
@@ -1569,11 +1186,10 @@ $.plugin Events() ->
 	unregister_live = (selector, context, e, f) ->
 		$c = $(context)
 		$c.each () ->
-			a = (@__alive__ or= {} ),
-			b = (a[selector] or= {}),
-			c = (b[e] or= {}),
-			h = c[f]
-			$c.unbind(e, h)
+			a = (@__alive__ or= {} )
+			b = (a[selector] or= {})
+			c = (b[e] or= {})
+			$c.unbind(e, c[f])
 			delete c[f]
 
 	# detect and fire the document.ready event
@@ -1581,16 +1197,17 @@ $.plugin Events() ->
 	readyBound = 0
 	triggerReady = () ->
 		if not readyTriggered++
-			$(document).trigger('ready').unbind('ready')
+			$(document).trigger(_ready).unbind(_ready)
 			document.removeEventListener?("DOMContentLoaded", triggerReady, false)
-			window.removeEventListener?("load", triggerReady, false)
+			window.removeEventListener?(_load, triggerReady, false)
 	bindReady = () ->
 		if not readyBound++
 			document.addEventListener?("DOMContentLoaded", triggerReady, false)
-			window.addEventListener?("load", triggerReady, false)
+			window.addEventListener?(_load, triggerReady, false)
 	bindReady()
 
 	ret = {
+		name: 'Events'
 		bind: (e, f) ->
 			# .bind(e, f) - adds handler f for event type e
 			# e is a string like 'click', 'mouseover', etc.
@@ -1781,21 +1398,24 @@ $.plugin Events() ->
 				funcs[i].call @, evt
 				i = ++i % funcs.length
 
-		click: (f) ->
+		click: (f = {}) ->
 			# .click([f]) - trigger [or bind] the 'click' event
 			# if the cursor is just default then make it look clickable
 			if @css("cursor").intersect(["auto",emptyString]).len() > 0
 				@css "cursor", "pointer"
-			Object.IsFunc f
-				? @bind 'click', f
-				: @trigger 'click', f or {}
+			if Object.IsFunc f
+				@bind 'click', f
+			else
+				@trigger 'click', f
 
-		ready: (f) ->
-			Object.IsFunc(f)
-				? readyTriggered
-					? f.call(@)
-					: @bind('ready', f)
-				: @trigger('ready', f ? f : {})
+		ready: (f = {}) ->
+			if Object.IsFunc f
+				if readyTriggered
+					f.call @
+				else
+					@bind _ready, f
+			else
+				@trigger _ready, f
 	}
 
 	# add event binding/triggering shortcuts for the generic events
@@ -1803,8 +1423,7 @@ $.plugin Events() ->
 		ret[x] = binder(x)
 	ret
 
-$.plugin Transform() ->
-
+$.plugin () -> # Transform Module
 	speeds = # constant speed names
 		"slow": 700
 		"medium": 500
@@ -1836,10 +1455,12 @@ $.plugin Transform() ->
 	delete testStyle
 
 	return {
+		name: 'Transform'
 		$duration: (speed) ->
 			# $.duration(/s/) - given a speed description (string|number), a number in milliseconds
 			d = speeds[speed]
-			Object.IsDefined(d) ? d : parseFloat(speed)
+			return d if d?
+			return parseFloat speed
 
 		# like jquery's animate(), but using only webkit-transition/transform
 		transform: (end_css, speed, easing, callback) ->
@@ -1859,9 +1480,8 @@ $.plugin Transform() ->
 			else if Object.IsFunc(easing)
 				callback = easing
 				easing = null
-			speed = Object.IsDefined(speed)
-				? speed
-				: "normal"
+			if not speed?
+				speed = "normal"
 			easing or= "ease"
 			# duration is always in milliseconds
 			duration = $.duration(speed) + _ms
@@ -1913,7 +1533,9 @@ $.plugin Transform() ->
 			# .hide() - each node gets display:none
 			@each () ->
 				if @style
-					@_display = @style.display is _none ? emptyString : @style.display
+					@_display = emptyString
+					if @style.display is not _none
+						@_display = @syle.display
 					@style.display = _none
 			.trigger(_hide)
 			.delay(updateDelay, callback)
@@ -1970,11 +1592,8 @@ $.plugin Transform() ->
 			@fadeOut(speed, callback, 0.0, @height().first())
 	}
 
-# HTTP Request Module: provides wrappers for making http requests
-$.plugin Http() ->
-
-	# create &foo=bar strings from object properties
-	formencode = (obj) ->
+$.plugin () -> # HTTP Request Module: provides wrappers for making http requests
+	formencode = (obj) -> # create &foo=bar strings from object properties
 		s = []
 		j = 0 # insert marker into s
 		o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
@@ -1983,6 +1602,7 @@ $.plugin Http() ->
 		s.join("&")
 
 	return {
+		name: 'Http'
 		$http: (url, opts = {}) -> # $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
 			xhr = new XMLHttpRequest()
 			if Object.IsFunc(opts)
@@ -2035,8 +1655,7 @@ $.plugin Http() ->
 			$.http(url, opts)
 	}
 
-$.plugin Template() ->
-
+$.plugin () -> # Template Module
 	match_forward = (text, find, against, start, stop) ->
 		count = 1
 		if stop == null or stop is -1
@@ -2178,7 +1797,8 @@ $.plugin Template() ->
 		# 'c' steps across the input, one character at a time
 		while c = expr[i++]
 			if c is '+' and mode is TAGMODE
-				parent = parent ? parent.parentNode : parent
+				if parent
+					parent = parent.parentNode
 			else if c is '#' and mode in [TAGMODE, CLSMODE, ATTRMODE]
 				mode = IDMODE
 			else if c is _dot and mode in [TAGMODE, IDMODE, ATTRMODE]
@@ -2209,7 +1829,8 @@ $.plugin Template() ->
 				if c is ','
 					parent = null
 			else if mode is TAGMODE
-				tagname += c != space ? c : emptyString
+				if c isnt space
+					tagname += c
 			else if mode is IDMODE
 				id += c
 			else if mode is CLSMODE
@@ -2220,13 +1841,14 @@ $.plugin Template() ->
 				val += c
 			else if mode in [DTEXTMODE, STEXTMODE]
 				text += c
-			else throw new Error("Unknown input/state: '"+c+"'/"+mode)
+			else throw new Error "Unknown input/state: '#{c}'/#{mode}"
 
 		emitNode() if tagname.length > 0
 		emitText() if text.length > 0
 		return ret
 
 	return {
+		name: 'Template'
 		$render: render
 		$synth: synth
 

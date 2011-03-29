@@ -221,7 +221,7 @@ Object.Extend Array, {
 			Array.Coalesce a[0]...
 		else
 			for i in a
-				i if i?
+				return i if i?
 }
 
 ### Number Extensions

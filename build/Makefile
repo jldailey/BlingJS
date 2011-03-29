@@ -13,8 +13,8 @@ pack: pack.bling.js.gz
 
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
-bling.js: ../bling.coffee
-	cd .. && coffee -o build -c bling.coffee
+$(DIST)/bling.js: ../bling.coffee
+	cd .. && coffee -o dist -c bling.coffee
 
 compiler-latest.zip:
 	@wget http://closure-compiler.googlecode.com/files/compiler-latest.zip
@@ -29,10 +29,6 @@ packer/packer2.perl.zip:
 
 packer/jsPacker.pl: packer/packer2.perl.zip
 	cd packer && unzip packer2.perl.zip && touch jsPacker.pl
-
-$(DIST)/%: %
-	@mkdir -p $(DIST)
-	mv $< $(DIST)
 
 pack.%.js: %.js packer/jsPacker.pl
 	cd packer && perl jsPacker.pl -i ../$< -o ../$@

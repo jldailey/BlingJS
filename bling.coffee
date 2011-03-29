@@ -805,7 +805,7 @@ $.plugin () -> # Html Module
 				x = toNode(x)
 				@take(1).each () ->
 					before @childNodes[0], x
-				@skip(1).each(() ->
+				@skip(1).each () ->
 					before @childNodes[0], x.cloneNode(true)
 			@
 
@@ -858,14 +858,15 @@ $.plugin () -> # Html Module
 
 		replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
 			n = toNode(n)
-			b = $(), j = -1
+			b = $()
+			j = -1
 			# first node gets the real n
 			@take(1).each () ->
 				if @parentNode
 					@parentNode.replaceChild(n, @)
 					b[++j] = n
 			# the rest get clones of n
-			@skip(1).each(() ->
+			@skip(1).each () ->
 				if @parentNode
 					c = n.cloneNode(true)
 					@parentNode.replaceChild(c, @)
@@ -897,7 +898,7 @@ $.plugin () -> # Html Module
 				@className = @className.split(space).filter(notx).join(space)
 
 		toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
-			notx(y) ->
+			notx = (y) ->
 				y != x
 			@each () ->
 				cls = @className.split(space)
@@ -1148,7 +1149,7 @@ $.plugin () -> # Math Module
 
 		magnitude: () ->
 			# .magnitude() - compute the vector length of _this_
-			Math_sqrt n.floats().squares().sum()
+			Math_sqrt @floats().squares().sum()
 
 		scale: (r) ->
 			# .scale(/r/) - /x/ *= /r/ for /x/ in _this_
@@ -1701,7 +1702,8 @@ $.plugin () -> # Template Module
 
 	render = (text, values) -> # $.render(/t/, /v/) - replace markers in string /t/ with values from /v/
 		cache = compile.cache[text] # get the cached version
-			or (compile.cache[text] = compile(text)) # or compile and cache it
+		if not cache?
+			cache = compile.cache[text] = compile(text) # or compile and cache it
 		output = [cache[0]] # the first block is always just text
 		j = 1 # insert marker into output
 		n = cache.length
@@ -1766,7 +1768,7 @@ $.plugin () -> # Template Module
 		i = 0 # i is a marker to read from expr
 		ret.selector = expr
 		ret.context = document
-		emitText() -> # puts a TextNode in the results
+		emitText = () -> # puts a TextNode in the results
 			node = $.HTML.parse text
 			if parent
 				parent.appendChild node
@@ -1774,7 +1776,7 @@ $.plugin () -> # Template Module
 				ret.push node
 			text = emptyString
 			mode = TAGMODE
-		emitNode() -> # puts a Node in the results
+		emitNode = () -> # puts a Node in the results
 			node = document.createElement(tagname)
 			node.id = id or null
 			node.className = cls or null

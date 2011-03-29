@@ -5,36 +5,43 @@
   # Named after the bling symbol ($) to which it is bound by default.
   # This is a jQuery-like framework.
   # Blame: Jesse Dailey <jesse.dailey@gmail.com>
-  */  var $, Bling, Math_ceil, Math_max, Math_min, Math_sqrt, Obj_toString, commasep, commasep_re, emptyString, leftSpaces_re, object_cruft, space, _1, _absolute, _bottom, _dot, _function, _height, _hide, _left, _load, _log, _ms, _none, _null, _number, _object, _object_Array, _px, _ready, _ref, _relative, _right, _show, _string, _top, _undefined, _width;
-  var __indexOf = Array.prototype.indexOf || function(item) {
-    for (var i = 0, l = this.length; i < l; i++) {
-      if (this[i] === item) return i;
-    }
-    return -1;
-  }, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
+  */  var $, Bling, Math_ceil, Math_max, Math_min, Math_sqrt, Obj_toString, commasep, commasep_re, emptyString, leftSpaces_re, object_cruft_re, oldClone, space, _1, _absolute, _array, _bling, _bottom, _dot, _fragment, _function, _height, _hide, _left, _load, _log, _ms, _node, _nodelist, _none, _null, _number, _object, _object_Array, _px, _ready, _regexp, _relative, _right, _show, _string, _symbol, _top, _undefined, _width, _window;
+  var __slice = Array.prototype.slice, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
     ctor.prototype = parent.prototype;
     child.prototype = new ctor;
     child.__super__ = parent.prototype;
     return child;
-  }, __slice = Array.prototype.slice, __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
-  if (_ref = !"querySelectorAll", __indexOf.call(document, _ref) >= 0) {
+  }, __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+  if (!"querySelectorAll" in document) {
     alert("This browser is not supported");
   }
-  commasep = ", ";
-  commasep_re = /, */;
-  space = " ";
-  leftSpaces_re = /^\s+/;
-  emptyString = "";
-  object_cruft = /\[object (\w+)\]/;
-  _1 = "$1";
+  if (console && console.log) {
+    _log = function() {
+      var a;
+      a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+      return console.log.apply(console, a);
+    };
+  } else {
+    _log = function() {
+      var a;
+      a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+      return alert(a.join(", "));
+    };
+  }
   Math_min = Math.min;
   Math_max = Math.max;
   Math_ceil = Math.ceil;
   Math_sqrt = Math.sqrt;
   Obj_toString = Object.prototype.toString;
-  _log = console.log;
+  commasep_re = /, */;
+  leftSpaces_re = /^\s+/;
+  object_cruft_re = /\[object (\w+)\]/;
+  commasep = ", ";
+  space = " ";
+  emptyString = "";
+  _1 = "$1";
   _none = "none";
   _relative = "relative";
   _absolute = "absolute";
@@ -48,6 +55,13 @@
   _number = "number";
   _function = "function";
   _object = "object";
+  _window = "window";
+  _node = "node";
+  _array = "array";
+  _regexp = "regexp";
+  _bling = "bling";
+  _nodelist = "nodelist";
+  _fragment = "fragment";
   _object_Array = "[object Array]";
   _px = "px";
   _dot = ".";
@@ -58,72 +72,58 @@
   _show = "show";
   _ready = "ready";
   _load = "load";
-  Array.prototype.extend = function(a) {
-    var i, j, _i, _len;
-    j = this.length;
-    for (_i = 0, _len = a.length; _i < _len; _i++) {
-      i = a[_i];
-      this[j++] = i;
+  Bling = function(selector, context) {
+    var set, type;
+    if (context == null) {
+      context = document;
     }
-    return this;
+    type = Object.Type(selector);
+    if (type === _node || type === _window || type === _function) {
+      set = [selector];
+    } else if (type === _number) {
+      set = new Array(selector);
+    } else if (type === _string) {
+      selector = selector.trimLeft();
+      if (selector[0] === "<") {
+        set = [Bling.HTML.parse(selector)];
+      } else if (context.querySelectorAll) {
+        set = context.querySelectorAll(selector);
+      } else {
+        throw Error("invalid context: " + context + " (type: " + (Object.Type(context)) + ")");
+      }
+    } else if (type === _array || type === _bling || type === _nodelist) {
+      set = selector;
+    } else if (type === _undefined || type === _null) {
+      set = [];
+    } else {
+      throw Error("invalid selector: " + selector + " (type: " + (Object.Type(selector)) + ")");
+    }
+    set.constructor = Bling;
+    set.__proto__ = Bling.fn;
+    set.selector = selector;
+    set.context = context;
+    return set;
   };
-  /* Bling, the "constructor".
-  # -----------------------
-  # Bling (selector, context):
-  # @param {(string|number|Array|NodeList|Node|Window)=} selector
-  #		accepts strings, as css expression to select, ("body div + p", etc.)
-  #			or as html to create (must start with "<")
-  #		accepts existing Bling
-  #		accepts arrays of anything
-  #		accepts a single number, used as the argument in new Array(n), to pre-allocate space
-  # @param {Object=} context the item to consider the root of the search when using a css expression
-  #
-  */
-  Bling = (function() {
-    __extends(Bling, Array);
-    Bling.symbol = "$";
-    Bling.plugins = [];
-    function Bling(selector, context) {
-      if (context == null) {
-        context = document;
-      }
-      this.selector = selector;
-      this.context = context;
-      if (this === window) {
-        return new Bling(selector, context);
-      }
-      if (selector != null) {
-        if (Object.IsNode(selector || selector === window)) {
-          this[0] = selector;
-        } else if (typeof selector === _string) {
-          selector = String.TrimLeft(selector);
-          if (selector[0] === "<") {
-            this[0] = Bling.HTML.parse(selector);
-          } else if (context.querySelectorAll) {
-            this.extend(context.querySelectorAll(selector));
-          } else if (Object.IsBling(context)) {
-            this.extend(context.reduce(function(a, x) {
-              return a.extend(typeof x.querySelectorAll == "function" ? x.querySelectorAll(selector) : void 0);
-            }, []));
-          } else {
-            throw Error("invalid context: " + context + " (type: " + (typeof context) + ")");
-          }
-        } else if ("length" in selector) {
-          this.extend(selector);
-        } else {
-          throw Error("invalid selector: " + selector + " (type: " + (typeof selector) + ")");
-        }
-      }
+  _symbol = null;
+  Bling.__defineSetter__("symbol", function(v) {
+    if (_symbol in window) {
+      delete window[_symbol];
     }
-    return Bling;
-  })();
-  window["$"] = window["Bling"] = $ = Bling;
+    _symbol = v;
+    return window[v] = Bling;
+  });
+  Bling.__defineGetter__("symbol", function() {
+    return _symbol;
+  });
+  Bling.symbol = "$";
+  window["Bling"] = $ = Bling;
+  Bling.plugins = [];
+  Bling.fn = new Array;
   Object.Keys = function(o, inherited) {
-    /*
-    		Example:
-    		> Object.Keys({"a": 1, b: 2})
-    		> == ["a", "b"]
-    	*/    var i, j, keys;
+    var i, j, keys;
+    if (inherited == null) {
+      inherited = false;
+    }
     keys = [];
     j = 0;
     for (i in o) {
@@ -134,7 +134,7 @@
     return keys;
   };
   Object.Extend = function(a, b, k) {
-    var i;
+    var i, _i, _len, _ref;
     if (Obj_toString.apply(k) === _object_Array) {
       for (i in k) {
         if (b[k[i]] !== void 0) {
@@ -142,54 +142,64 @@
         }
       }
     } else {
-      for (i in (k = Object.Keys(b))) {
-        a[k[i]] = b[k[i]];
+      _ref = (k = Object.Keys(b));
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        i = _ref[_i];
+        a[i] = b[i];
       }
     }
     return a;
   };
-  /* Object Extensions
-  # ----------------- */
   Object.Extend(Object, {
+    Type: function(o) {
+      switch (true) {
+        case o === void 0:
+          return _undefined;
+        case o === null:
+          return _null;
+        case Object.IsString(o):
+          return _string;
+        case Object.IsType(o, Bling):
+          return _bling;
+        case Object.IsType(o, NodeList):
+          return _nodelist;
+        case Object.IsArray(o):
+          return _array;
+        case Object.IsNumber(o):
+          return _number;
+        case Object.IsFragment(o):
+          return _fragment;
+        case Object.IsNode(o):
+          return _node;
+        case Object.IsFunc(o):
+          return _function;
+        case Object.IsType(o, "RegExp"):
+          return _regexp;
+        case Object.IsObject(o):
+          if ("setInterval" in o) {
+            return _window;
+          } else {
+            return _object;
+          }
+      }
+    },
     IsType: function(o, T) {
       if (o === null) {
         return o === T;
-      } else if (o.__proto__ === null) {
-        return false;
-      } else if (o.__proto__.constructor === T) {
+      } else if (o.constructor === T) {
         return true;
       } else if (typeof T === _string) {
-        return o.constructor.name === T || Obj_toString.apply(o).replace(object_cruft, _1) === T;
+        return o.constructor.name === T || Obj_toString.apply(o).replace(object_cruft_re, _1) === T;
       } else {
         return Object.IsType(o.__proto__, T);
-      }
-    },
-    Type: function(o) {
-      switch (true) {
-        case Object.IsString(o):
-          return "string";
-        case Object.IsNumber(o):
-          return "number";
-        case Object.IsFragment(o):
-          return "fragment";
-        case Object.IsNode(o):
-          return "node";
-        case Object.IsFunc(o):
-          return "function";
-        case Object.IsArray(o):
-          return "array";
-        case Object.IsBling(o):
-          return "bling";
-        case Object.IsType(o, "RegExp"):
-          return "regexp";
-        case Object.IsObject(o):
-          return "object";
       }
     },
     IsString: function(o) {
       return (o != null) && (typeof o === _string || Object.IsType(o, String));
     },
-    IsNumber: isFinite,
+    IsNumber: function(o) {
+      return (o != null) && Object.IsType(o, Number);
+    },
     IsFunc: function(o) {
       return (o != null) && (typeof o === _function || Object.IsType(o, Function)) && (o.call != null);
     },
@@ -226,8 +236,6 @@
       return Obj_toString.apply(x);
     }
   });
-  /* Function Extensions
-  # ------------------- */
   Object.Extend(Function, {
     Empty: function() {},
     Bound: function(f, t, args) {
@@ -293,8 +301,6 @@
       };
     }
   });
-  /* Array Extensions
-  # ---------------- */
   Object.Extend(Array, {
     Coalesce: function() {
       var a, i, _i, _len;
@@ -309,10 +315,17 @@
           }
         }
       }
+    },
+    Extend: function(a, b) {
+      var i, j, _i, _len;
+      j = a.length;
+      for (_i = 0, _len = b.length; _i < _len; _i++) {
+        i = b[_i];
+        a[j++] = i;
+      }
+      return a;
     }
   });
-  /* Number Extensions
-  # ----------------- */
   Object.Extend(Number, {
     Px: function(x, d) {
       if (d == null) {
@@ -331,8 +344,6 @@
       };
     }
   });
-  /* String Extensions
-  # ----------------- */
   Object.Extend(String, {
     PadLeft: function(s, n, c) {
       if (c == null) {
@@ -364,10 +375,16 @@
         start += nn;
       }
       return s.substring(0, start) + n + s.substring(end);
+    },
+    Checksum: function(s) {
+      var i, sum, _ref;
+      sum = 0;
+      for (i = 0, _ref = s.length; (0 <= _ref ? i < _ref : i > _ref); (0 <= _ref ? i += 1 : i -= 1)) {
+        sum += s.charCodeAt(i);
+      }
+      return sum;
     }
   });
-  /* Event Extensions
-  # ---------------- */
   Object.Extend(Event, {
     Cancel: function(evt) {
       evt.stopPropagation();
@@ -383,8 +400,6 @@
       return evt.cancelBubble = true;
     }
   });
-  /* Compatibility
-  # ------------- */
   String.prototype.trimLeft = Array.Coalesce(String.prototype.trimLeft, function() {
     return this.replace(leftSpaces_re, emptyString);
   });
@@ -412,35 +427,29 @@
     return s;
   });
   Element.prototype.matchesSelector = Array.Coalesce(Element.prototype.webkitMatchesSelector, Element.prototype.mozMatchesSelector, Element.prototype.matchesSelector);
-  Element.prototype.toString = function(precise) {
-    var ret;
-    if (precise == null) {
-      precise = false;
+  Element.prototype.toString = function() {
+    var name;
+    name = this.nodeName.toLowerCase();
+    if (this.id != null) {
+      name += "#" + this.id;
+    } else if (this.className != null) {
+      name += "." + (this.className.split(space).join(_dot));
     }
-    if (!precise) {
-      return Element.prototype.toString.apply(this);
-    } else {
-      ret = this.nodeName.toLowerCase();
-      if (this.id != null) {
-        ret += "#" + this.id;
-      } else if (this.className != null) {
-        ret += "." + (this.className.split(space).join(_dot));
-      }
-      return ret;
-    }
+    return name;
   };
   if (Element.prototype.cloneNode.length === 0) {
+    oldClone = Element.prototype.cloneNode;
     Element.prototype.cloneNode = function(deep) {
       var i, n, _i, _len, _ref;
       if (deep == null) {
         deep = false;
       }
-      n = this.cloneNode();
+      n = oldClone.call(this);
       if (deep) {
         _ref = this.childNodes;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           i = _ref[_i];
-          n.appendChild(i.cloneNode(deep));
+          n.appendChild(i.cloneNode(true));
         }
       }
       return n;
@@ -453,7 +462,7 @@
       if (name[0] === Bling.symbol) {
         return Bling[name.substr(1)] = func;
       } else {
-        return Bling.prototype[name] = func;
+        return Bling.fn[name] = func;
       }
     };
     _ref = Object.Keys(plugin, true);
@@ -519,6 +528,11 @@
     };
     return {
       name: 'Core',
+      querySelectorAll: function(s) {
+        return this.filter("*").reduce(function(a, i) {
+          return Array.Extend(a, i.querySelectorAll(s));
+        }, []);
+      },
       eq: function(i) {
         return $([this[i]]);
       },
@@ -549,6 +563,7 @@
       reduce: function(f, init) {
         var a, t;
         a = init;
+        t = this;
         if (!(init != null)) {
           a = this[0];
           t = this.skip(1);
@@ -687,19 +702,40 @@
         if (n == null) {
           n = 1;
         }
-        return this.take(n);
+        if (n === 1) {
+          return this[0];
+        } else {
+          return this.take(n);
+        }
       },
       last: function(n) {
         if (n == null) {
           n = 1;
         }
-        return this.skip(this.len() - n);
+        if (n === 1) {
+          return this[this.len() - 1];
+        } else {
+          return this.skip(this.len() - n);
+        }
       },
       slice: function(start, end) {
-        var b;
-        b = $(this.slice(start, end));
+        var b, i, j, n;
+        b = $();
+        j = 0;
+        n = this.len();
+        end != null ? end : end = n;
+        start != null ? start : start = 0;
+        if (start < 0) {
+          start += n;
+        }
+        if (end < 0) {
+          end += n;
+        }
         b.context = this;
         b.selector = 'slice(#{start},#{end})';
+        for (i = start; (start <= end ? i < end : i > end); (start <= end ? i += 1 : i -= 1)) {
+          b[j++] = this[i];
+        }
         return b;
       },
       concat: function(b) {
@@ -721,8 +757,7 @@
         return this;
       },
       filter: function(f) {
-        var b, g, i, it, j, n;
-        n = this.len();
+        var b, g, it, j, _i, _len;
         b = $();
         b.context = this;
         b.selector = f;
@@ -730,7 +765,7 @@
         switch (Object.Type(f)) {
           case "string":
             g = function(x) {
-              return typeof it.matchesSelector == "function" ? it.matchesSelector(x) : void 0;
+              return x.matchesSelector(f);
             };
             break;
           case "regexp":
@@ -741,8 +776,8 @@
           case "function":
             g = f;
         }
-        for (i = 0; (0 <= n ? i < n : i > n); (0 <= n ? i += 1 : i -= 1)) {
-          it = this[i];
+        for (_i = 0, _len = this.length; _i < _len; _i++) {
+          it = this[_i];
           if (g.call(it, it)) {
             b[j++] = it;
           }
@@ -830,7 +865,7 @@
             case window:
               return "window";
             default:
-              return this.toString().replace(object_cruft, _1);
+              return this.toString().replace(object_cruft_re, _1);
           }
         }).join(commasep) + "])";
       },
@@ -873,6 +908,8 @@
     };
     toNode = function(x) {
       switch (Object.Type(x)) {
+        case "fragment":
+          return x;
         case "node":
           return x;
         case "bling":
@@ -881,6 +918,8 @@
           return $(x).toFragment();
         case "function":
           return $(x.toString()).toFragment();
+        default:
+          throw new Error("toNode called with invalid argument: " + x + " (type: " + (Object.Type(x)) + ")");
       }
     };
     escaper = null;
@@ -909,21 +948,22 @@
         },
         stringify: function(n) {
           var d, ret;
-          n = n.cloneNode(true);
-          d = document.createElement("div");
-          d.appendChild(n);
-          ret = d.innerHTML;
-          d.removeChild(n);
-          try {
-            n.parentNode = null;
-          } catch (err) {
-
+          switch (Object.Type(n)) {
+            case "string":
+              return n;
+            case "node":
+              n = n.cloneNode(true);
+              d = document.createElement("div");
+              d.appendChild(n);
+              ret = d.innerHTML;
+              d.removeChild(n);
+              delete n;
+              return ret;
           }
-          return ret;
         },
         escape: function(h) {
           var ret;
-          escaper || (escaper = $("<div>&nbsp;</div>").child(1));
+          escaper || (escaper = $("<div>&nbsp;</div>").child(0));
           ret = escaper.zap('data', h).zip("parentNode.innerHTML").first();
           escaper.zap('data', emptyString);
           return ret;
@@ -951,20 +991,16 @@
       },
       append: function(x) {
         var a;
-        if (x != null) {
-          x = toNode(x);
-          a = this.zip('appendChild');
-          a.take(1).call(x);
-          a.skip(1).each(function(f) {
-            return f(x.cloneNode(true));
-          });
-        }
+        x = toNode(x);
+        a = this.zip('appendChild');
+        a.take(1).call(x);
+        a.skip(1).each(function(f) {
+          return f(x.cloneNode(true));
+        });
         return this;
       },
       appendTo: function(x) {
-        if (x != null) {
-          $(x).append(this);
-        }
+        $(x).append(this);
         return this;
       },
       prepend: function(x) {
@@ -1109,16 +1145,16 @@
         return this.zip('className.split').call(space).zip('indexOf').call(x).map(Function.IndexFound);
       },
       text: function(t) {
-        if (t === null) {
-          return this.zip('textContent');
+        if (t != null) {
+          return this.zap('textContent', t);
         }
-        return this.zap('textContent', t);
+        return this.zip('textContent');
       },
       val: function(v) {
-        if (v === null) {
-          return this.zip('value');
+        if (v != null) {
+          return this.zap('value', v);
         }
-        return this.zap('value', v);
+        return this.zip('value');
       },
       css: function(k, v) {
         var cv, i, n, nn, ov, setter;
@@ -1255,17 +1291,13 @@
         return this;
       },
       child: function(n) {
-        return this.map(function() {
-          var i, nn;
-          nn = this.childNodes.length;
+        return this.zip('childNodes').map(function() {
+          var i;
           i = n;
-          if (n < 0) {
-            i += nn;
+          if (i < 0) {
+            i += this.length;
           }
-          if (i < nn) {
-            this.childNodes[i];
-          }
-          return null;
+          return this[i];
         });
       },
       children: function() {
@@ -1321,8 +1353,8 @@
       },
       find: function(css) {
         return this.filter("*").map(function() {
-          return $(css, this).flatten();
-        });
+          return $(css, this);
+        }).flatten();
       },
       clone: function(deep) {
         if (deep == null) {
@@ -1337,10 +1369,11 @@
         });
       },
       toFragment: function() {
-        var df;
+        var adder, df;
         if (this.len() > 1) {
           df = document.createDocumentFragment();
-          this.map(toNode).map(Function.Bound(df.appendChild, df));
+          adder = Function.Bound(df.appendChild, df);
+          this.map(toNode).map(adder);
           return df;
         }
         return toNode(this[0]);
@@ -1525,6 +1558,9 @@
       },
       trigger: function(evt, args) {
         var e, evt_i, evts, _i, _len;
+        if (args == null) {
+          args = {};
+        }
         evts = (evt || emptyString).split(commasep_re);
         args = Object.Extend({
           bubbles: true,
@@ -2034,7 +2070,6 @@
       ret = $([]);
       i = 0;
       ret.selector = expr;
-      ret.context = document;
       emitText = function() {
         var node;
         node = $.HTML.parse(text);

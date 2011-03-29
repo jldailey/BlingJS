@@ -6,23 +6,29 @@
 # Blame: Jesse Dailey <jesse.dailey@gmail.com>
 ###
 
-if not "querySelectorAll" in document
+if not "querySelectorAll" of document
 	alert "This browser is not supported"
 
-# constants
-commasep = ", "
-commasep_re = /, */
-space = " "
-leftSpaces_re = /^\s+/
-emptyString = ""
-object_cruft = /\[object (\w+)\]/
-_1 = "$1"
+# local shortcuts
+if console and console.log
+	_log = (a...) ->
+		console.log.apply(console, a)
+else
+	_log = (a...) ->
+		alert a.join(", ")
 Math_min = Math.min
 Math_max = Math.max
 Math_ceil = Math.ceil
 Math_sqrt = Math.sqrt
 Obj_toString = Object::toString
-_log = console.log
+# constants
+commasep_re = /, */
+leftSpaces_re = /^\s+/
+object_cruft_re = /\[object (\w+)\]/
+commasep = ", "
+space = " "
+emptyString = ""
+_1 = "$1"
 _none = "none"
 _relative = "relative"
 _absolute = "absolute"
@@ -36,6 +42,13 @@ _string = "string"
 _number = "number"
 _function = "function"
 _object = "object"
+_window = "window"
+_node = "node"
+_array = "array"
+_regexp = "regexp"
+_bling = "bling"
+_nodelist = "nodelist"
+_fragment = "fragment"
 _object_Array = "[object Array]"
 _px = "px"
 _dot = "."
@@ -48,111 +61,108 @@ _ready = "ready"
 _load = "load"
 
 
-### Bling, the "constructor".
-# -----------------------
-# Bling (selector, context):
-# @param {(string|number|Array|NodeList|Node|Window)=} selector
-#		accepts strings, as css expression to select, ("body div + p", etc.)
-#			or as html to create (must start with "<")
-#		accepts existing Bling
-#		accepts arrays of anything
-#		accepts a single number, used as the argument in new Array(n), to pre-allocate space
-# @param {Object=} context the item to consider the root of the search when using a css expression
-#
-###
-class Bling extends Array
-	@symbol = "$"
-	@plugins = []
-	constructor: (selector, context = document) ->
-		@selector = selector
-		@context = context
+Bling = (selector, context = document) ->
+	type = Object.Type selector
+	if type in [_node, _window, _function]
+		set = [selector]
+	else if type is _number
+		set = new Array selector
+	else if type is _string
+		selector = selector.trimLeft()
+		if selector[0] is "<"
+			set = [Bling.HTML.parse(selector)]
+		else if context.querySelectorAll
+			set = context.querySelectorAll(selector)
+		else
+			throw Error "invalid context: #{context} (type: #{Object.Type context})"
+	else if type in [_array, _bling, _nodelist]
+		set = selector
+	else if type in [_undefined, _null]
+		set = []
+	else
+		throw Error "invalid selector: #{selector} (type: #{Object.Type selector})"
 
-		if @ is window
-			return new Bling(selector, context)
+	set.constructor = Bling
+	set.__proto__ = Bling.fn
+	set.selector = selector
+	set.context = context
+	return set
 
-		if selector?
-			if Object.IsNode selector or selector is window
-				@[0] = selector
-			else if typeof selector is _string
-				selector = String.TrimLeft(selector)
-				if selector[0] is "<"
-					@[0] = Bling.HTML.parse(selector)
-				else if context.querySelectorAll
-					Array.Extend @, context.querySelectorAll(selector)
-				else if Object.IsBling context
-					# search every item in the context
-					Array.Extend @, context.reduce (a, x) ->
-						Array.Extend a, x.querySelectorAll?(selector)
-					, []
-				else throw Error "invalid context: #{context} (type: #{typeof context})"
-			else if "length" of selector
-				Array.Extend @, selector
-			else throw Error "invalid selector: #{selector} (type: #{typeof selector})"
-
-window["$"] = window["Bling"] = $ = Bling
+_symbol = null
+Bling.__defineSetter__ "symbol", (v) ->
+	if _symbol of window
+		delete window[_symbol]
+	_symbol = v
+	window[v] = Bling
+Bling.__defineGetter__ "symbol", () ->
+	_symbol
+Bling.symbol = "$"
+window["Bling"] = $ = Bling
+Bling.plugins = []
+Bling.fn = new Array # a copy(!) of the Array prototype
 
 Object.Keys = (o, inherited = false) ->
 	# Object.Keys(/o/, [/inherited/]) - get a list of key names
 	# by default, does not include properties inherited from a prototype
-	###
-		Example:
-		> Object.Keys({"a": 1, b: 2})
-		> == ["a", "b"]
-	###
 	keys = []; j = 0
 	for i of o
 		if inherited or o.hasOwnProperty(i)
 			keys[j++] = i
 	keys
 
-Object.Extend = (a, b, k) ->
-	# Object.Extend(a, b, [k]) - merge values from b into a
-	# if k is present, it should be a list of property names to copy
+Object.Extend = (a, b, k) -> # Object.Extend(a, b, [k]) - merge values from b into a
 	if Obj_toString.apply(k) is _object_Array # cant use Object.IsArray yet
+		# if k is present, it should be an array of property names
 		for i of k
 			a[k[i]] = b[k[i]] unless b[k[i]] is undefined
 	else
-		for i of (k = Object.Keys(b))
-			a[k[i]] = b[k[i]]
+		for i in (k = Object.Keys(b))
+			a[i] = b[i]
 	a
 
-### Object Extensions
-# ----------------- ###
 Object.Extend Object, {
+	Type: (o) ->
+		switch true
+			when o is undefined
+				_undefined
+			when o is null
+				_null
+			when Object.IsString o
+				_string
+			when Object.IsType o, Bling
+				_bling
+			when Object.IsType o, NodeList
+				_nodelist
+			when Object.IsArray o
+				_array
+			when Object.IsNumber o
+				_number
+			when Object.IsFragment o
+				_fragment
+			when Object.IsNode o
+				_node
+			when Object.IsFunc o
+				_function
+			when Object.IsType o, "RegExp"
+				_regexp
+			when Object.IsObject o
+				if "setInterval" of o # same crude method that jQuery uses
+					_window
+				else
+					_object
 	IsType: (o,T) -> # Object.IsType(o,T) - true if object o is of type T (directly or indirectly)
 		if o == null
 			o is T
-		else if o.__proto__ == null
-			false
-		else if o.__proto__.constructor is T
+		else if o.constructor is T
 			true
 		else if typeof T is _string
-			o.constructor.name is T or Obj_toString.apply(o).replace(object_cruft, _1) is T
+			o.constructor.name is T or Obj_toString.apply(o).replace(object_cruft_re, _1) is T
 		else
 			Object.IsType o.__proto__, T # recurse through sub-classes
-	Type: (o) ->
-		switch true
-			when Object.IsString o
-				"string"
-			when Object.IsNumber o
-				"number"
-			when Object.IsFragment o
-				"fragment"
-			when Object.IsNode o
-				"node"
-			when Object.IsFunc o
-				"function"
-			when Object.IsArray o
-				"array"
-			when Object.IsBling o
-				"bling"
-			when Object.IsType o, "RegExp"
-				"regexp"
-			when Object.IsObject o
-				"object"
 	IsString: (o) -> # Object.IsString(a) - true if object a is a string
 		o? and (typeof o is _string or Object.IsType(o, String))
-	IsNumber: isFinite
+	IsNumber: (o) ->
+		o? and Object.IsType o, Number
 	IsFunc: (o) -> # Object.IsFunc(a) - true if object a is a function
 		o? and (typeof o is _function or Object.IsType(o, Function)) and o.call?
 	IsNode: (o) -> # Object.IsNode(o) - true if object is a DOM node
@@ -176,8 +186,6 @@ Object.Extend Object, {
 		Obj_toString.apply(x)
 }
 
-### Function Extensions
-# ------------------- ###
 Object.Extend Function, {
 	Empty: () -> # the empty function
 	Bound: (f, t, args = []) -> # Function.Bound(/f/, /t/) - whenever /f/ is called, _this_ is /t/
@@ -207,8 +215,6 @@ Object.Extend Function, {
 	Px: (d) -> () -> Number.Px(@,d)
 }
 
-### Array Extensions
-# ---------------- ###
 Object.Extend Array, {
 	Coalesce: (a...) ->
 		# Array.Coalesce - returns the first non-null argument
@@ -224,8 +230,6 @@ Object.Extend Array, {
 		a
 }
 
-### Number Extensions
-# ----------------- ###
 Object.Extend Number, {
 	Px: (x, d=0) ->
 		# Px(/x/, /delta/=0) - convert a number-ish x to pixels
@@ -239,21 +243,16 @@ Object.Extend Number, {
 			Math_min parseFloat(y or 0), x
 }
 
-### String Extensions
-# ----------------- ###
 Object.Extend String, {
-	PadLeft: (s, n, c = space) ->
-		# String.PadLeft(string, width, fill=" ")
+	PadLeft: (s, n, c = space) -> # String.PadLeft(string, width, fill=" ")
 		while s.length < n
 			s = c + s
 		s
-	PadRight: (s, n, c = space) ->
-		# String.PadRight(string, width, fill=" ")
+	PadRight: (s, n, c = space) -> # String.PadRight(string, width, fill=" ")
 		while s.length < n
 			s = s + c
 		s
-	Splice: (s, i, j, n) ->
-		# String.Splice(string, start, end, n) - replace a substring with n
+	Splice: (s, i, j, n) -> # String.Splice(string, start, end, n) - replace a substring with n
 		nn = s.length
 		end = j
 		if end < 0
@@ -262,10 +261,13 @@ Object.Extend String, {
 		if start < 0
 			start += nn
 		s.substring(0,start) + n + s.substring(end)
+	Checksum: (s) -> # String.Checksum(string) - dumbest integer checksum of all time
+		sum = 0
+		for i in [0...s.length]
+			sum += s.charCodeAt(i)
+		sum
 }
 
-### Event Extensions
-# ---------------- ###
 Object.Extend Event, {
 	Cancel: (evt) ->
 	 evt.stopPropagation()
@@ -281,8 +283,6 @@ Object.Extend Event, {
 	 evt.cancelBubble = true
 }
 
-### Compatibility
-# ------------- ###
 String::trimLeft = Array.Coalesce(
 	String::trimLeft,
 	() -> @replace(leftSpaces_re, emptyString)
@@ -297,8 +297,7 @@ String::split = Array.Coalesce(
 		while (j = @indexOf sep,i) > -1
 			a[n++] = @substring(i+1,j+1)
 			i = j + 1
-		return a
-	,
+		a
 )
 
 Array::join = Array.Coalesce(
@@ -310,7 +309,6 @@ Array::join = Array.Coalesce(
 		while --n > 0
 			s = @[n-1] + sep + s
 		s
-	,
 )
 
 Element::matchesSelector = Array.Coalesce(
@@ -320,19 +318,20 @@ Element::matchesSelector = Array.Coalesce(
 )
 
 Element::toString = () ->
-	ret = @nodeName.toLowerCase()
+	name = @nodeName.toLowerCase()
 	if @id?
-		ret += "##{@id}"
+		name += "##{@id}"
 	else if @className?
-		ret += ".#{@className.split(space).join(_dot)}"
-	ret
+		name += ".#{@className.split(space).join(_dot)}"
+	name
 
 if Element::cloneNode.length is 0
+	oldClone = Element::cloneNode
 	Element::cloneNode = (deep = false) ->
-		n = @cloneNode()
+		n = oldClone.call(@)
 		if deep
 			for i in @childNodes
-				n.appendChild i.cloneNode deep
+				n.appendChild i.cloneNode true
 		return n
 
 $.plugin = (constructor) ->
@@ -341,7 +340,7 @@ $.plugin = (constructor) ->
 		if name[0] is Bling.symbol
 			Bling[name.substr(1)] = func
 		else
-			Bling::[name] = func
+			Bling.fn[name] = func
 	for i in Object.Keys(plugin, true)
 		if i isnt 'name'
 			load(i, plugin[i])
@@ -381,6 +380,10 @@ $.plugin () -> # Core - the functional basis for all other modules
 
 	return {
 		name: 'Core'
+		querySelectorAll: (s) ->
+			@filter("*").reduce (a, i) ->
+				Array.Extend a, i.querySelectorAll(s)
+			, []
 		eq: (i) -> # .eq(/i/) - a new set containing only the /i/th item
 			$([@[i]])
 
@@ -408,6 +411,7 @@ $.plugin () -> # Core - the functional basis for all other modules
 			# so you can use functions like Math.min directly $([1,2,3]).reduce(Math.min)
 			# @ fails with the ECMA reduce, since Math.min(a,x,i,items) is NaN
 			a = init
+			t = @
 			if not init?
 				a = @[0]
 				t = @skip(1)
@@ -539,21 +543,37 @@ $.plugin () -> # Core - the functional basis for all other modules
 		first: (n = 1) ->
 			# .first([/n/]) - collect the first [/n/] element[s] from _this_.
 			# if n is not passed, returns just the item (no bling)
-			@take(n)
+			if n is 1
+				@[0]
+			else
+				@take(n)
 
 		last: (n = 1) ->
 			# .last([/n/]) - collect the last [/n/] elements from _this_.
 			# if n is not passed, returns just the last item (no bling)
-			@skip(@len() - n)
+			if n is 1
+				@[@len() - 1]
+			else
+				@skip(@len() - n)
 
 		slice: (start, end) ->
 			# .slice(/i/, [/j/]) - get a subset of _this_ including [/i/../j/-1]
 			# the j-th item will not be included - slice(0,2) will contain items 0, and 1.
 			# negative indices work like in python: -1 is the last item, -2 is second-to-last
 			# undefined start or end become 0, or @length, respectively
-			b = $(@[start...end])
+			b = $()
+			j = 0
+			n = @len()
+			end ?= n
+			start ?= 0
+			if start < 0
+				start += n
+			if end < 0
+				end += n
 			b.context = @
 			b.selector = 'slice(#{start},#{end})'
+			for i in [start...end]
+				b[j++] = @[i]
 			b
 
 		concat: (b) ->
@@ -579,22 +599,20 @@ $.plugin () -> # Core - the functional basis for all other modules
 			# .filter(/f/) - collect all /x/ from _this_ where /x/./f/(/x/) is true
 			# or if f is a selector string, collects nodes that match the selector
 			# or if f is a RegExp, collect nodes where f.test(x) is true
-			n = @len()
 			b = $()
 			b.context = @
 			b.selector = f
 			j = 0
-			switch Object.Type(f)
+			switch Object.Type f
 				when "string"
 					g = (x) ->
-						it.matchesSelector?(x)
+						x.matchesSelector(f)
 				when "regexp"
 					g = (x) ->
 						f.test(x)
 				when "function"
 					g = f
-			for i in [0...n]
-				it = @[i]
+			for it in @
 				if g.call it, it
 					b[j++] = it
 			b
@@ -684,7 +702,7 @@ $.plugin () -> # Core - the functional basis for all other modules
 					when window
 						return "window"
 					else
-						return @toString().replace(object_cruft,_1)
+						return @toString().replace(object_cruft_re,_1)
 			.join(commasep) + "])"
 
 		delay: (n, f) -> # .delay(/n/, /f/) -  continue with /f/ on _this_ after /n/ milliseconds
@@ -720,6 +738,8 @@ $.plugin () -> # Html Module
 
 	toNode = (x) -> # convert nearly anything to something node-like for use in the DOM
 		switch Object.Type x
+			when "fragment"
+				return x
 			when "node"
 				return x
 			when "bling"
@@ -728,6 +748,8 @@ $.plugin () -> # Html Module
 				return $(x).toFragment()
 			when "function"
 				return $(x.toString()).toFragment()
+			else
+				throw new Error "toNode called with invalid argument: #{x} (type: #{Object.Type x})"
 
 	escaper = null
 
@@ -754,17 +776,19 @@ $.plugin () -> # Html Module
 					df.appendChild(node.removeChild(childNodes[0]))
 				df
 			stringify: (n) -> # $.HTML.stringify(/n/) - the _Node_ /n/ in it's html-string form
-				n = n.cloneNode(true)
-				d = document.createElement("div")
-				d.appendChild(n)
-				ret = d.innerHTML
-				d.removeChild(n) # clean up to prevent leaks
-				try
-					n.parentNode = null
-				catch err
-				ret
+				switch Object.Type n
+					when "string"
+						return n
+					when "node"
+						n = n.cloneNode(true)
+						d = document.createElement("div")
+						d.appendChild(n)
+						ret = d.innerHTML
+						d.removeChild(n) # clean up to prevent leaks
+						delete n
+						return ret
 			escape: (h) -> # $.HTML.escape(/h/) - accept html string /h/, a string with html-escapes like &amp;
-				escaper or= $("<div>&nbsp;</div>").child(1)
+				escaper or= $("<div>&nbsp;</div>").child(0)
 				# insert html using the text node's .data property
 				# then get escaped html from the parent's .innerHTML
 				ret = escaper.zap('data', h).zip("parentNode.innerHTML").first()
@@ -775,11 +799,11 @@ $.plugin () -> # Html Module
 		html: (h) -> # .html([h]) - get [or set] /x/.innerHTML for each node
 			switch Object.Type h
 				when "undefined"
-					return @zip('innerHTML')
+					return @zip 'innerHTML'
 				when "string"
-					return @zap('innerHTML', h)
+					return @zap 'innerHTML', h
 				when "bling"
-					return @html(h.toFragment())
+					return @html h.toFragment()
 				when "node"
 					return @each () -> # replace all our children with the new child
 						@replaceChild @childNodes[0], h
@@ -787,17 +811,15 @@ $.plugin () -> # Html Module
 							@removeChild @childNodes[1]
 
 		append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
-			if x?
-				x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
-				a = @zip('appendChild')
-				a.take(1).call(x)
-				a.skip(1).each (f) ->
-					f(x.cloneNode(true))
+			x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
+			a = @zip('appendChild')
+			a.take(1).call(x)
+			a.skip(1).each (f) ->
+				f(x.cloneNode(true))
 			@
 
 		appendTo: (x) -> # .appendTo(/n/) - each node [or a fragment] will become the last child of n
-			if x?
-				$(x).append(@)
+			$(x).append(@)
 			@
 
 		prepend: (x) -> # .prepend(/n/) - insert n [or a clone] as the first child of each node
@@ -912,14 +934,12 @@ $.plugin () -> # Html Module
 			@zip('className.split').call(space).zip('indexOf').call(x).map Function.IndexFound
 
 		text: (t) -> # .text([t]) - get [or set] each node's .innerText
-			if t == null
-				return @zip('textContent')
-			return @zap('textContent', t)
+			return @zap('textContent', t) if t?
+			return @zip('textContent')
 
 		val: (v) -> # .val([v]) - get [or set] each node's .value
-			if v == null
-				return @zip('value')
-			return @zap('value', v)
+			return @zap('value', v) if v?
+			return @zip('value')
 
 		css: (k,v) ->
 			# .css(k, [v]) - get/set css properties for each node
@@ -1043,14 +1063,11 @@ $.plugin () -> # Html Module
 			@
 
 		child: (n) -> # .child(/n/) - returns the /n/th childNode for each in _this_
-			@map () ->
-				nn = @childNodes.length
+			@zip('childNodes').map () ->
 				i = n
-				if n < 0
-					i += nn
-				if i < nn
-					@childNodes[i]
-				null
+				if i < 0
+					i += @length
+				@[i]
 
 		children: () -> # .children() - collect all children of each node
 			@map () ->
@@ -1093,7 +1110,7 @@ $.plugin () -> # Html Module
 
 		find: (css) -> # .find(/css/) - collect nodes matching /css/
 			@filter("*") # limit to only nodes
-				.map () -> $(css, @)
+				.map( () -> $(css, @) )
 				.flatten()
 
 		clone: (deep=true) -> # .clone(deep=true) - copies a set of DOM nodes
@@ -1106,7 +1123,8 @@ $.plugin () -> # Html Module
 		toFragment: () ->
 			if @len() > 1
 				df = document.createDocumentFragment()
-				@map(toNode).map Function.Bound(df.appendChild, df)
+				adder = Function.Bound(df.appendChild, df)
+				@map(toNode).map adder
 				return df
 			return toNode(@[0])
 	}
@@ -1677,9 +1695,9 @@ $.plugin () -> # Template Module
 			end = match_forward chunks[i], ')', '(', 0, -1
 			if end is -1
 				return "Template syntax error: unmatched '%(' starting at: #{chunks[i].substring(0,15)}"
-			key = chunks[i].substring(0, end)
-			rest = chunks[i].substring(end)
-			match = type_re.exec(rest)
+			key = chunks[i].substring 0, end
+			rest = chunks[i].substring end
+			match = type_re.exec rest
 			if match is null
 				return "Template syntax error: invalid type specifier starting at '#{rest}'"
 			rest = match[4]
@@ -1759,9 +1777,8 @@ $.plugin () -> # Template Module
 		attrs = {}
 		mode = TAGMODE
 		ret = $([])
-		i = 0 # i is a marker to read from expr
+		i = 0 # i is a read-marker within expr
 		ret.selector = expr
-		ret.context = document
 		emitText = () -> # puts a TextNode in the results
 			node = $.HTML.parse text
 			if parent

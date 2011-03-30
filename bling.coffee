@@ -1,13 +1,17 @@
 ###
- bling.js
-# --------
-# Named after the bling symbol ($) to which it is bound by default.
-# This is a jQuery-like framework.
-# Blame: Jesse Dailey <jesse.dailey@gmail.com>
+bling.js
+--------
+Named after the bling symbol ($) to which it is bound by default.
+This is a jQuery-like framework, written in CoffeeScript.
+Blame: Jesse Dailey <jesse.dailey@gmail.com>
+(Copyright) 2011
+(License) released under the MIT License
+http://creativecommons.org/licenses/MIT/
 ###
 
 if not "querySelectorAll" of document
 	alert "This browser is not supported"
+	`return`
 
 # local shortcuts
 if console and console.log

@@ -1,10 +1,13 @@
 (function() {
   /*
-   bling.js
-  # --------
-  # Named after the bling symbol ($) to which it is bound by default.
-  # This is a jQuery-like framework.
-  # Blame: Jesse Dailey <jesse.dailey@gmail.com>
+  bling.js
+  --------
+  Named after the bling symbol ($) to which it is bound by default.
+  This is a jQuery-like framework, written in CoffeeScript.
+  Blame: Jesse Dailey <jesse.dailey@gmail.com>
+  (Copyright) 2011
+  (License) released under the MIT License
+  http://creativecommons.org/licenses/MIT/
   */  var $, Bling, Math_ceil, Math_max, Math_min, Math_sqrt, Obj_toString, commasep, commasep_re, emptyString, leftSpaces_re, object_cruft_re, oldClone, space, _1, _absolute, _array, _bling, _bottom, _dot, _fragment, _function, _height, _hide, _left, _load, _log, _ms, _node, _nodelist, _none, _null, _number, _object, _object_Array, _px, _ready, _regexp, _relative, _right, _show, _string, _symbol, _top, _undefined, _width, _window;
   var __slice = Array.prototype.slice, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
@@ -16,6 +19,7 @@
   }, __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
   if (!"querySelectorAll" in document) {
     alert("This browser is not supported");
+    return;
   }
   if (console && console.log) {
     _log = function() {

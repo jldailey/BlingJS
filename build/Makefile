@@ -34,7 +34,7 @@ pack.%.js: %.js packer/jsPacker.pl
 	cd packer && perl jsPacker.pl -i ../$< -o ../$@
 
 min.%.js: %.js compiler.jar
-	$(JAVA) -jar compiler.jar --js=$< --js_output_file=$@ --warning_level=VERBOSE --compilation_level=$(LEVEL) --externs externs
+	$(JAVA) -jar compiler.jar --js=$< --js_output_file=$@ --compilation_level=$(LEVEL) --externs externs
 
 %.gz: %
 	gzip -vf9c $< > $@

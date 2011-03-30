@@ -29,6 +29,9 @@
 			color: #800;
 			font-size: 17px;
 		}
+		h1 .bln {
+			font-size: 34px;
+		}
 		code.pp, textarea {
 			font-family: courier, sans;
 			font-size:14px;
@@ -79,6 +82,10 @@
 		a[href] { color: blue; }
 		a[href]:visited { color: blue; }
 		a[href]:hover { color: red; }
+
+		a[href^=mailto] {
+			text-decoration: none;
+		}
 	</style>
 	<script>
 		try {
@@ -127,7 +134,7 @@
 	</script>
 </head>
 <body>
-	<h1><a name="top">BlingJS</a><h1>
+	<h1><a name="top"><span class='bln'>$</span>(BlingJS)</a><h1>
 	<h2>A JavaScript library</h2>
 	<div class="bold">by <a href="mailto:jesse.dailey+blingjs@gmail.com">Jesse Dailey</a></div>
 
@@ -138,11 +145,11 @@
 	<h3>Download</h3>
 	<table class='download' cellspacing="0">
 		<tr>
-			<td><a href="../bling.js">Full Source</a><td><td>[80k]
+			<td><a href="dist/bling.js">Full Source</a><td><td>[62k]
 		<tr>
-			<td><a href="min.bling.js">Minified</a><td><td>[28k]
+			<td><a href="dist/min.bling.js">Minified</a><td><td>[30k]
 		<tr>
-			<td><a href="min.bling.js.gz">Compressed</a><td><td>[<b>9k</b>]
+			<td><a href="dist/min.bling.js.gz">Compressed</a><td><td>[<b>9k</b>]
 	</table>
 	<p class='small'>About &frac13;rd the size of jQuery.<br> (compare v1.4.4: 179k, 78k, 28k)</p>
 

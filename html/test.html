@@ -2,7 +2,7 @@
 <html>
 	<head>
 		<meta name="viewport" content="initial-scale=1.0, user-scalable=yes" />
-		<script src="../bling.js" type="text/javascript"> </script>
+		<script src="../dist/min.bling.js" type="text/javascript"> </script>
 		<style type="text/css">
 			body { overflow: scroll; height: auto }
 			ul { margin:0px; padding:4px 12px; }
@@ -118,12 +118,6 @@
 						h = g(12)
 					assert(Object.IsFunc(g))
 					assert(h == 54)
-				},
-				function _ArraySlice() {
-					var a = [0, 1, 2, 3]
-					assertArrayEqual(Array.Slice(a, 0), a)
-					assertArrayEqual(Array.Slice(a, 1, -1), [1, 2])
-					assertArrayEqual(Array.Slice(a, -1), [3])
 				},
 				function _NumberPx() {
 					assertEqual(Number.Px(12, 2), "14px")
@@ -251,15 +245,6 @@
 				function _escape() {
 					assertEqual(Bling.HTML.escape("<p>Funk & Wag</p>"),
 						"&lt;p&gt;Funk &amp; Wag&lt;/p&gt;")
-				},
-				function _ColorFromCss() {
-					assertArrayEqual(Bling.Color.fromCss("#fff"), [255, 255, 255, 1])
-				},
-				function _ColorToCss() {
-					assertEqual(Bling.Color.toCss([255,255,255,1]), "rgba(255, 255, 255, 1)")
-				},
-				function _ColorInvert() {
-					assertArrayEqual(Bling.Color.invert([255, 255, 255, 1]), [0, 0, 0, 1])
 				},
 				function _html() {
 					var d = $("<div>")
@@ -477,9 +462,6 @@
 					assertEqual(d.css("position").first(), "absolute")
 					d.remove()
 				},
-				function _trueColor() {
-					assert(false, "no test")
-				},
 				function _child() {
 					var d = $("<div><p></p><span></span></div>")
 
@@ -670,7 +652,6 @@
 							duration = (end - start) + " ms"
 							$("#report").html("<span>" + complete + " iterations in " + duration +"</span>")
 						}
-					console.log(n, i, start, end)
 
 					for( ;i < n; i++ ) {
 						setTimeout(function() {

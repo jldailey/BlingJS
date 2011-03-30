@@ -1,4 +1,3 @@
-
 JAVA=/usr/lib/jvm/java-6-sun/bin/java
 LEVEL=SIMPLE_OPTIMIZATIONS
 # LEVEL=ADVANCED_OPTIMIZATIONS
@@ -30,10 +29,10 @@ packer/packer2.perl.zip:
 packer/jsPacker.pl: packer/packer2.perl.zip
 	cd packer && unzip packer2.perl.zip && touch jsPacker.pl
 
-pack.%.js: %.js packer/jsPacker.pl
+$(DIST)/pack.%.js: $(DIST)/%.js packer/jsPacker.pl
 	cd packer && perl jsPacker.pl -i ../$< -o ../$@
 
-min.%.js: %.js compiler.jar
+$(DIST)/min.%.js: $(DIST)/%.js compiler.jar
 	$(JAVA) -jar compiler.jar --js=$< --js_output_file=$@ --compilation_level=$(LEVEL) --externs externs
 
 %.gz: %

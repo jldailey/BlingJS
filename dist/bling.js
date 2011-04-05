@@ -867,7 +867,7 @@
             case null:
               return _null;
             case window:
-              return "window";
+              return _window;
             default:
               return this.toString().replace(object_cruft_re, _1);
           }

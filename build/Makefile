@@ -8,8 +8,6 @@ all: dist report
 
 minify: min.bling.js min.bling.js.gz
 
-pack: pack.bling.js.gz
-
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
 $(DIST)/bling.js: ../bling.coffee
@@ -21,16 +19,6 @@ compiler-latest.zip:
 compiler.jar: compiler-latest.zip
 	@unzip -o compiler-latest.zip compiler.jar
 	@touch compiler.jar
-
-packer/packer2.perl.zip:
-	mkdir -p packer
-	cd packer && wget http://deanedwardsoffline.appspot.com/download/packer2.perl.zip && touch packer2.perl.zip
-
-packer/jsPacker.pl: packer/packer2.perl.zip
-	cd packer && unzip packer2.perl.zip && touch jsPacker.pl
-
-$(DIST)/pack.%.js: $(DIST)/%.js packer/jsPacker.pl
-	cd packer && perl jsPacker.pl -i ../$< -o ../$@
 
 $(DIST)/min.%.js: $(DIST)/%.js compiler.jar
 	$(JAVA) -jar compiler.jar --js=$< --js_output_file=$@ --compilation_level=$(LEVEL) --externs externs

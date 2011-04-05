@@ -704,7 +704,7 @@ $.plugin () -> # Core - the functional basis for all other modules
 					when null
 						return _null
 					when window
-						return "window"
+						return _window
 					else
 						return @toString().replace(object_cruft_re,_1)
 			.join(commasep) + "])"

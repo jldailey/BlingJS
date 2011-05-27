@@ -8,7 +8,7 @@
   (Copyright) 2011
   (License) released under the MIT License
   http://creativecommons.org/licenses/MIT/
-  */  var $, Bling, Math_ceil, Math_max, Math_min, Math_sqrt, Obj_toString, commasep, commasep_re, emptyString, leftSpaces_re, object_cruft_re, oldClone, space, _1, _absolute, _array, _bling, _bottom, _dot, _fragment, _function, _height, _hide, _left, _load, _log, _ms, _node, _nodelist, _none, _null, _number, _object, _object_Array, _px, _ready, _regexp, _relative, _right, _show, _string, _symbol, _top, _undefined, _width, _window;
+  */  var $, Bling, Math_ceil, Math_max, Math_min, Math_sqrt, Obj_toString, commasep, commasep_re, emptyString, leftSpaces_re, object_cruft_re, oldClone, space, _1, _absolute, _array, _bling, _boolean, _bottom, _colon, _dot, _fragment, _function, _height, _hide, _left, _load, _log, _ms, _node, _nodelist, _none, _null, _number, _object, _object_Array, _oldToString, _px, _ready, _regexp, _relative, _right, _show, _string, _symbol, _top, _undefined, _width, _window;
   var __slice = Array.prototype.slice, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -63,12 +63,14 @@
   _node = "node";
   _array = "array";
   _regexp = "regexp";
+  _boolean = "boolean";
   _bling = "bling";
   _nodelist = "nodelist";
   _fragment = "fragment";
   _object_Array = "[object Array]";
   _px = "px";
   _dot = ".";
+  _colon = ':';
   _undefined = "undefined";
   _null = "null";
   _ms = "ms";
@@ -156,6 +158,7 @@
   };
   Object.Extend(Object, {
     Type: function(o) {
+      var _ref;
       switch (true) {
         case o === void 0:
           return _undefined;
@@ -179,6 +182,8 @@
           return _function;
         case Object.IsType(o, "RegExp"):
           return _regexp;
+        case (_ref = String(o)) === "true" || _ref === "false":
+          return _boolean;
         case Object.IsObject(o):
           if ("setInterval" in o) {
             return _window;
@@ -203,6 +208,9 @@
     },
     IsNumber: function(o) {
       return (o != null) && Object.IsType(o, Number);
+    },
+    IsBoolean: function(o) {
+      return typeof o === _boolean;
     },
     IsFunc: function(o) {
       return (o != null) && (typeof o === _function || Object.IsType(o, Function)) && (o.call != null);
@@ -240,6 +248,105 @@
       return Obj_toString.apply(x);
     }
   });
+  (function() {
+    var parseArray, parseObject, parseOne;
+    parseOne = function(data) {
+      var extra, i, item, len, type;
+      i = data.indexOf(_colon);
+      if (i > 0) {
+        len = parseInt(data.slice(0, i), 10);
+        item = data.slice(i + 1, i + 1 + len);
+        type = data[i + 1 + len];
+        extra = data.slice(i + len + 2);
+        item = (function() {
+          switch (type) {
+            case "#":
+              return Number(item);
+            case "'":
+              return String(item);
+            case "!":
+              return item === "true";
+              break;
+            case "~":
+              return null;
+            case "]":
+              return parseArray(item);
+            case "}":
+              return parseObject(item);
+          }
+        })();
+        return [item, extra];
+      }
+    };
+    parseArray = function(x) {
+      var data, one, _ref;
+      data = [];
+      while (x.length > 0) {
+        _ref = parseOne(x), one = _ref[0], x = _ref[1];
+        data.push(one);
+      }
+      return data;
+    };
+    parseObject = function(x) {
+      var data, key, value, _ref, _ref2;
+      data = {};
+      while (x.length > 0) {
+        _ref = parseOne(x), key = _ref[0], x = _ref[1];
+        _ref2 = parseOne(x), value = _ref2[0], x = _ref2[1];
+        data[key] = value;
+      }
+      return data;
+    };
+    return window.TNET = {
+      stringify: function(x) {
+        var data, type, y, _ref;
+        _ref = (function() {
+          switch (Object.Type(x)) {
+            case "number":
+              return [String(x), "#"];
+            case "string":
+              return [x, "'"];
+            case "function":
+              return [String(x), "'"];
+            case "boolean":
+              return [String(!!x), "!"];
+            case "null":
+              return ["", "~"];
+            case "undefined":
+              return ["", "~"];
+            case "array":
+              return [
+                ((function() {
+                  var _i, _len, _results;
+                  _results = [];
+                  for (_i = 0, _len = x.length; _i < _len; _i++) {
+                    y = x[_i];
+                    _results.push(TNET.stringify(y));
+                  }
+                  return _results;
+                })()).join(''), "]"
+              ];
+            case "object":
+              return [
+                ((function() {
+                  var _results;
+                  _results = [];
+                  for (y in x) {
+                    _results.push(TNET.stringify(y) + TNET.stringify(x[y]));
+                  }
+                  return _results;
+                })()).join(''), "}"
+              ];
+          }
+        })(), data = _ref[0], type = _ref[1];
+        return (data.length | 0) + ":" + data + type;
+      },
+      parse: function(x) {
+        var _ref;
+        return (_ref = parseOne(x)) != null ? _ref[0] : void 0;
+      }
+    };
+  })();
   Object.Extend(Function, {
     Empty: function() {},
     Bound: function(f, t, args) {
@@ -431,15 +538,20 @@
     return s;
   });
   Element.prototype.matchesSelector = Array.Coalesce(Element.prototype.webkitMatchesSelector, Element.prototype.mozMatchesSelector, Element.prototype.matchesSelector);
-  Element.prototype.toString = function() {
+  _oldToString = Element.prototype.toString;
+  Element.prototype.toString = function(css_mode) {
     var name;
-    name = this.nodeName.toLowerCase();
-    if (this.id != null) {
-      name += "#" + this.id;
-    } else if (this.className != null) {
-      name += "." + (this.className.split(space).join(_dot));
+    if (css_mode) {
+      name = this.nodeName.toLowerCase();
+      if (this.id != null) {
+        name += "#" + this.id;
+      } else if (this.className != null) {
+        name += "." + (this.className.split(space).join(_dot));
+      }
+      return name;
+    } else {
+      return _oldToString.apply(this);
     }
-    return name;
   };
   if (Element.prototype.cloneNode.length === 0) {
     oldClone = Element.prototype.cloneNode;

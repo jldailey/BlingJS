@@ -50,12 +50,14 @@ _window = "window"
 _node = "node"
 _array = "array"
 _regexp = "regexp"
+_boolean = "boolean"
 _bling = "bling"
 _nodelist = "nodelist"
 _fragment = "fragment"
 _object_Array = "[object Array]"
 _px = "px"
 _dot = "."
+_colon = ':'
 _undefined = "undefined"
 _null = "null"
 _ms = "ms"
@@ -149,6 +151,8 @@ Object.Extend Object, {
 				_function
 			when Object.IsType o, "RegExp"
 				_regexp
+			when String(o) in ["true", "false"]
+				_boolean
 			when Object.IsObject o
 				if "setInterval" of o # same crude method that jQuery uses
 					_window
@@ -167,6 +171,8 @@ Object.Extend Object, {
 		o? and (typeof o is _string or Object.IsType(o, String))
 	IsNumber: (o) ->
 		o? and Object.IsType o, Number
+	IsBoolean: (o) ->
+		typeof o is _boolean
 	IsFunc: (o) -> # Object.IsFunc(a) - true if object a is a function
 		o? and (typeof o is _function or Object.IsType(o, Function)) and o.call?
 	IsNode: (o) -> # Object.IsNode(o) - true if object is a DOM node
@@ -189,6 +195,52 @@ Object.Extend Object, {
 	ToString: (x) ->
 		Obj_toString.apply(x)
 }
+
+(() ->
+	parseOne = (data) ->
+		i = data.indexOf _colon
+		if i > 0
+			len = parseInt data[0...i], 10
+			item = data[i+1...i+1+len]
+			type = data[i+1+len]
+			extra = data[i+len+2...]
+			item = switch type
+				when "#" then Number(item)
+				when "'" then String(item)
+				when "!" then (item is "true")
+				when "~" then null
+				when "]" then parseArray(item)
+				when "}" then parseObject(item)
+			return [item, extra]
+		return undefined
+	parseArray = (x) ->
+		data = []
+		while x.length > 0
+			[one, x] = parseOne(x)
+			data.push(one)
+		data
+	parseObject = (x) ->
+		data = {}
+		while x.length > 0
+			[key, x] = parseOne(x)
+			[value, x] = parseOne(x)
+			data[key] = value
+		data
+	window.TNET =
+		stringify: (x) ->
+			[data, type] = switch Object.Type(x)
+				when "number" then [String(x), "#"]
+				when "string" then [x, "'"]
+				when "function" then [String(x), "'"]
+				when "boolean" then [String(not not x), "!"]
+				when "null" then ["", "~"]
+				when "undefined" then ["", "~"]
+				when "array" then [(TNET.stringify(y) for y in x).join(''), "]"]
+				when "object" then [(TNET.stringify(y)+TNET.stringify(x[y]) for y of x).join(''), "}"]
+			return (data.length|0) + ":" + data + type
+		parse: (x) ->
+			parseOne(x)?[0]
+)()
 
 Object.Extend Function, {
 	Empty: () -> # the empty function
@@ -321,13 +373,17 @@ Element::matchesSelector = Array.Coalesce(
 	Element::matchesSelector
 )
 
-Element::toString = () ->
-	name = @nodeName.toLowerCase()
-	if @id?
-		name += "##{@id}"
-	else if @className?
-		name += ".#{@className.split(space).join(_dot)}"
-	name
+_oldToString = Element::toString
+Element::toString = (css_mode) ->
+	if css_mode
+		name = @nodeName.toLowerCase()
+		if @id?
+			name += "##{@id}"
+		else if @className?
+			name += ".#{@className.split(space).join(_dot)}"
+		name
+	else
+		_oldToString.apply @
 
 if Element::cloneNode.length is 0
 	oldClone = Element::cloneNode
@@ -340,6 +396,9 @@ if Element::cloneNode.length is 0
 
 $.plugin = (constructor) ->
 	plugin = constructor.call $,$
+	name = constructor.name or plugin.name
+	if not name
+		throw Error "plugin requires a 'name'"
 	load = (name, func) ->
 		if name[0] is Bling.symbol
 			Bling[name.substr(1)] = func
@@ -348,8 +407,8 @@ $.plugin = (constructor) ->
 	for i in Object.Keys(plugin, true)
 		if i isnt 'name'
 			load(i, plugin[i])
-	$.plugins.push(plugin.name)
-	$.plugins[plugin.name] = plugin
+	$.plugins.push(name)
+	$.plugins[name] = plugin
 
 $.plugin () -> # Core - the functional basis for all other modules
 	class TimeoutQueue extends Array

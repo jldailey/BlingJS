@@ -27,6 +27,7 @@ Math_sqrt = Math.sqrt
 Obj_toString = Object::toString
 # constants
 commasep_re = /, */
+eventsep_re = /,* +/
 leftSpaces_re = /^\s+/
 object_cruft_re = /\[object (\w+)\]/
 commasep = ", "
@@ -196,52 +197,6 @@ Object.Extend Object, {
 		Obj_toString.apply(x)
 }
 
-(() ->
-	parseOne = (data) ->
-		i = data.indexOf _colon
-		if i > 0
-			len = parseInt data[0...i], 10
-			item = data[i+1...i+1+len]
-			type = data[i+1+len]
-			extra = data[i+len+2...]
-			item = switch type
-				when "#" then Number(item)
-				when "'" then String(item)
-				when "!" then (item is "true")
-				when "~" then null
-				when "]" then parseArray(item)
-				when "}" then parseObject(item)
-			return [item, extra]
-		return undefined
-	parseArray = (x) ->
-		data = []
-		while x.length > 0
-			[one, x] = parseOne(x)
-			data.push(one)
-		data
-	parseObject = (x) ->
-		data = {}
-		while x.length > 0
-			[key, x] = parseOne(x)
-			[value, x] = parseOne(x)
-			data[key] = value
-		data
-	window.TNET =
-		stringify: (x) ->
-			[data, type] = switch Object.Type(x)
-				when "number" then [String(x), "#"]
-				when "string" then [x, "'"]
-				when "function" then [String(x), "'"]
-				when "boolean" then [String(not not x), "!"]
-				when "null" then ["", "~"]
-				when "undefined" then ["", "~"]
-				when "array" then [(TNET.stringify(y) for y in x).join(''), "]"]
-				when "object" then [(TNET.stringify(y)+TNET.stringify(x[y]) for y of x).join(''), "}"]
-			return (data.length|0) + ":" + data + type
-		parse: (x) ->
-			parseOne(x)?[0]
-)()
-
 Object.Extend Function, {
 	Empty: () -> # the empty function
 	Bound: (f, t, args = []) -> # Function.Bound(/f/, /t/) - whenever /f/ is called, _this_ is /t/
@@ -385,6 +340,7 @@ Element::toString = (css_mode) ->
 	else
 		_oldToString.apply @
 
+# if cloneNode does not take a 'deep' argument, add support
 if Element::cloneNode.length is 0
 	oldClone = Element::cloneNode
 	Element::cloneNode = (deep = false) ->
@@ -591,7 +547,7 @@ $.plugin () -> # Core - the functional basis for all other modules
 				a[i] = @[i]
 			a
 
-		skip: (n) ->
+		skip: (n = 0) ->
 			# .skip([/n/]) - collect all but the first /n/ elements of _this_.
 			# if n == 0, returns a shallow copy of the whole bling
 			n = Math_min(@len(), Math_max(0, (n|0)))
@@ -619,7 +575,7 @@ $.plugin () -> # Core - the functional basis for all other modules
 			else
 				@skip(@len() - n)
 
-		slice: (start, end) ->
+		slice: (start=0, end=@len()) ->
 			# .slice(/i/, [/j/]) - get a subset of _this_ including [/i/../j/-1]
 			# the j-th item will not be included - slice(0,2) will contain items 0, and 1.
 			# negative indices work like in python: -1 is the last item, -2 is second-to-last
@@ -627,14 +583,12 @@ $.plugin () -> # Core - the functional basis for all other modules
 			b = $()
 			j = 0
 			n = @len()
-			end ?= n
-			start ?= 0
 			if start < 0
 				start += n
 			if end < 0
 				end += n
 			b.context = @
-			b.selector = 'slice(#{start},#{end})'
+			b.selector = ["slice", start, end]
 			for i in [start...end]
 				b[j++] = @[i]
 			b
@@ -1247,7 +1201,7 @@ $.plugin () -> # Events Module
 		'touchstart','touchmove','touchend','touchcancel',
 		'gesturestart','gestureend','gesturecancel',
 		'hashchange'
-	]
+	] # click is handled specially
 
 	binder = (e) ->
 		(f = {}) ->
@@ -1293,7 +1247,7 @@ $.plugin () -> # Events Module
 			# .bind(e, f) - adds handler f for event type e
 			# e is a string like 'click', 'mouseover', etc.
 			# e can be comma-separated to bind multiple events at once
-			c = (e or emptyString).split(commasep_re)
+			c = (e or emptyString).split(eventsep_re)
 			h = (evt) ->
 				ret = f.apply @, arguments
 				if ret is false
@@ -1306,14 +1260,14 @@ $.plugin () -> # Events Module
 		unbind: (e, f) ->
 			# .unbind(e, [f]) - removes handler f from event e
 			# if f is not present, removes all handlers from e
-			c = (e or emptyString).split(commasep_re)
+			c = (e or emptyString).split(eventsep_re)
 			@each () ->
 				for i in c
 					@removeEventListener(i, f, null)
 
 		once: (e, f) ->
 			# .once(e, f) - adds a handler f that will be called only once
-			c = (e or emptyString).split(commasep_re)
+			c = (e or emptyString).split(eventsep_re)
 			for i in c
 				@bind i, (evt) ->
 					f.call(@, evt)
@@ -1323,7 +1277,7 @@ $.plugin () -> # Events Module
 			# .cycle(e, ...) - bind handlers for e that trigger in a cycle
 			# one call per trigger. when the last handler is executed
 			# the next trigger will call the first handler again
-			c = (e or emptyString).split(commasep_re)
+			c = (e or emptyString).split(eventsep_re)
 			nf = funcs.length
 			cycler = () ->
 				i = 0
@@ -1340,7 +1294,7 @@ $.plugin () -> # Events Module
 			# args is an optional mapping of properties to set,
 			#		{screenX: 10, screenY: 10}
 			# note: not all browsers support manually creating all event types
-			evts = (evt or emptyString).split(commasep_re)
+			evts = (evt or emptyString).split(eventsep_re)
 			args = Object.Extend {
 				bubbles: true
 				cancelable: true
@@ -1442,17 +1396,16 @@ $.plugin () -> # Events Module
 			context = @context
 			# wrap f
 			_handler = (evt) ->
-				# when the 'live' event is fired
+				# when event 'e' is fired
 				# re-execute the selector in the original context
 				$(selector, context)
 					# then see if the event would bubble into a match
 					.intersect($(evt.target).parents().first().union($(evt.target)))
-					# then fire the real handler on the matched nodes
+					# then fire the real handler 'f' on the matched nodes
 					.each () ->
 						evt.target = @
 						f.call(@, evt)
 			# bind the handler to the context
-			$(context).bind e, _handler
 			# record f so we can 'die' it if needed
 			register_live selector, context, e, f, _handler
 			@
@@ -1466,7 +1419,7 @@ $.plugin () -> # Events Module
 			@
 
 		liveCycle: (e, funcs...) ->
-			# .liveCycle(e, ...) - bind each /f/ in /.../ to /e/
+			# .liveCycle(e, ...) - bind each /f/ in /funcs/ to handle /e/
 			# one call per trigger. when the last handler is executed
 			# the next trigger will call the first handler again
 			i = 0
@@ -1947,6 +1900,54 @@ $.plugin () -> # Template Module
 			# tag, #id, .class, [attr=val]
 			# and the additional helper "text"
 			synth(expr).appendTo @
+	}
+
+$.plugin () -> # TnetStrings plugin
+	parseOne = (data) ->
+		i = data.indexOf _colon
+		if i > 0
+			len = parseInt data[0...i], 10
+			item = data[i+1...i+1+len]
+			type = data[i+1+len]
+			extra = data[i+len+2...]
+			item = switch type
+				when "#" then Number(item)
+				when "'" then String(item)
+				when "!" then (item is "true")
+				when "~" then null
+				when "]" then parseArray(item)
+				when "}" then parseObject(item)
+			return [item, extra]
+		return undefined
+	parseArray = (x) ->
+		data = []
+		while x.length > 0
+			[one, x] = parseOne(x)
+			data.push(one)
+		data
+	parseObject = (x) ->
+		data = {}
+		while x.length > 0
+			[key, x] = parseOne(x)
+			[value, x] = parseOne(x)
+			data[key] = value
+		data
+	return {
+		name: 'TNET'
+		$TNET:
+			stringify: (x) ->
+				[data, type] = switch Object.Type(x)
+					when "number" then [String(x), "#"]
+					when "string" then [x, "'"]
+					when "function" then [String(x), "'"]
+					when "boolean" then [String(not not x), "!"]
+					when "null" then ["", "~"]
+					when "undefined" then ["", "~"]
+					when "array" then [(TNET.stringify(y) for y in x).join(''), "]"]
+					when "object" then [(TNET.stringify(y)+TNET.stringify(x[y]) for y of x).join(''), "}"]
+				return (data.length|0) + ":" + data + type
+			parse: (x) ->
+				parseOne(x)?[0]
 	}
 
 # vim: ft=coffee

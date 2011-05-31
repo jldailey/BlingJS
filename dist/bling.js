@@ -8,7 +8,7 @@
   (Copyright) 2011
   (License) released under the MIT License
   http://creativecommons.org/licenses/MIT/
-  */  var $, Bling, Math_ceil, Math_max, Math_min, Math_sqrt, Obj_toString, commasep, commasep_re, emptyString, leftSpaces_re, object_cruft_re, oldClone, space, _1, _absolute, _array, _bling, _boolean, _bottom, _colon, _dot, _fragment, _function, _height, _hide, _left, _load, _log, _ms, _node, _nodelist, _none, _null, _number, _object, _object_Array, _oldToString, _px, _ready, _regexp, _relative, _right, _show, _string, _symbol, _top, _undefined, _width, _window;
+  */  var $, Bling, Math_ceil, Math_max, Math_min, Math_sqrt, Obj_toString, commasep, commasep_re, emptyString, eventsep_re, leftSpaces_re, object_cruft_re, oldClone, space, _1, _absolute, _array, _bling, _boolean, _bottom, _colon, _dot, _fragment, _function, _height, _hide, _left, _load, _log, _ms, _node, _nodelist, _none, _null, _number, _object, _object_Array, _oldToString, _px, _ready, _regexp, _relative, _right, _show, _string, _symbol, _top, _undefined, _width, _window;
   var __slice = Array.prototype.slice, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -40,6 +40,7 @@
   Math_sqrt = Math.sqrt;
   Obj_toString = Object.prototype.toString;
   commasep_re = /, */;
+  eventsep_re = /,* +/;
   leftSpaces_re = /^\s+/;
   object_cruft_re = /\[object (\w+)\]/;
   commasep = ", ";
@@ -248,105 +249,6 @@
       return Obj_toString.apply(x);
     }
   });
-  (function() {
-    var parseArray, parseObject, parseOne;
-    parseOne = function(data) {
-      var extra, i, item, len, type;
-      i = data.indexOf(_colon);
-      if (i > 0) {
-        len = parseInt(data.slice(0, i), 10);
-        item = data.slice(i + 1, i + 1 + len);
-        type = data[i + 1 + len];
-        extra = data.slice(i + len + 2);
-        item = (function() {
-          switch (type) {
-            case "#":
-              return Number(item);
-            case "'":
-              return String(item);
-            case "!":
-              return item === "true";
-              break;
-            case "~":
-              return null;
-            case "]":
-              return parseArray(item);
-            case "}":
-              return parseObject(item);
-          }
-        })();
-        return [item, extra];
-      }
-    };
-    parseArray = function(x) {
-      var data, one, _ref;
-      data = [];
-      while (x.length > 0) {
-        _ref = parseOne(x), one = _ref[0], x = _ref[1];
-        data.push(one);
-      }
-      return data;
-    };
-    parseObject = function(x) {
-      var data, key, value, _ref, _ref2;
-      data = {};
-      while (x.length > 0) {
-        _ref = parseOne(x), key = _ref[0], x = _ref[1];
-        _ref2 = parseOne(x), value = _ref2[0], x = _ref2[1];
-        data[key] = value;
-      }
-      return data;
-    };
-    return window.TNET = {
-      stringify: function(x) {
-        var data, type, y, _ref;
-        _ref = (function() {
-          switch (Object.Type(x)) {
-            case "number":
-              return [String(x), "#"];
-            case "string":
-              return [x, "'"];
-            case "function":
-              return [String(x), "'"];
-            case "boolean":
-              return [String(!!x), "!"];
-            case "null":
-              return ["", "~"];
-            case "undefined":
-              return ["", "~"];
-            case "array":
-              return [
-                ((function() {
-                  var _i, _len, _results;
-                  _results = [];
-                  for (_i = 0, _len = x.length; _i < _len; _i++) {
-                    y = x[_i];
-                    _results.push(TNET.stringify(y));
-                  }
-                  return _results;
-                })()).join(''), "]"
-              ];
-            case "object":
-              return [
-                ((function() {
-                  var _results;
-                  _results = [];
-                  for (y in x) {
-                    _results.push(TNET.stringify(y) + TNET.stringify(x[y]));
-                  }
-                  return _results;
-                })()).join(''), "}"
-              ];
-          }
-        })(), data = _ref[0], type = _ref[1];
-        return (data.length | 0) + ":" + data + type;
-      },
-      parse: function(x) {
-        var _ref;
-        return (_ref = parseOne(x)) != null ? _ref[0] : void 0;
-      }
-    };
-  })();
   Object.Extend(Function, {
     Empty: function() {},
     Bound: function(f, t, args) {
@@ -490,7 +392,7 @@
     Checksum: function(s) {
       var i, sum, _ref;
       sum = 0;
-      for (i = 0, _ref = s.length; (0 <= _ref ? i < _ref : i > _ref); (0 <= _ref ? i += 1 : i -= 1)) {
+      for (i = 0, _ref = s.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
         sum += s.charCodeAt(i);
       }
       return sum;
@@ -572,8 +474,12 @@
     };
   }
   $.plugin = function(constructor) {
-    var i, load, plugin, _i, _len, _ref;
+    var i, load, name, plugin, _i, _len, _ref;
     plugin = constructor.call($, $);
+    name = constructor.name || plugin.name;
+    if (!name) {
+      throw Error("plugin requires a 'name'");
+    }
     load = function(name, func) {
       if (name[0] === Bling.symbol) {
         return Bling[name.substr(1)] = func;
@@ -588,8 +494,8 @@
         load(i, plugin[i]);
       }
     }
-    $.plugins.push(plugin.name);
-    return $.plugins[plugin.name] = plugin;
+    $.plugins.push(name);
+    return $.plugins[name] = plugin;
   };
   $.plugin(function() {
     var TimeoutQueue, timeoutQueue, _getter, _zipper;
@@ -611,7 +517,7 @@
           if (nn === 0 || f.order > this[nn - 1].order) {
             this[nn] = f;
           } else {
-            for (i = 0; (0 <= nn ? i < nn : i > nn); (0 <= nn ? i += 1 : i -= 1)) {
+            for (i = 0; 0 <= nn ? i < nn : i > nn; 0 <= nn ? i++ : i--) {
               if (this[i].order > f.order) {
                 this.splice(i, 0, f);
                 break;
@@ -666,7 +572,7 @@
         a.context = this;
         a.selector = ['map', f];
         nn = this.len();
-        for (i = 0; (0 <= nn ? i < nn : i > nn); (0 <= nn ? i += 1 : i -= 1)) {
+        for (i = 0; 0 <= nn ? i < nn : i > nn; 0 <= nn ? i++ : i--) {
           t = this[i];
           try {
             a[i] = f.call(t, t);
@@ -720,8 +626,8 @@
         }
         ret.context = [this, other];
         ret.selector = 'intersect';
-        for (i = 0; (0 <= n ? i < n : i > n); (0 <= n ? i += 1 : i -= 1)) {
-          for (j = 0; (0 <= nn ? j < nn : j > nn); (0 <= nn ? j += 1 : j -= 1)) {
+        for (i = 0; 0 <= n ? i < n : i > n; 0 <= n ? i++ : i--) {
+          for (j = 0; 0 <= nn ? j < nn : j > nn; 0 <= nn ? j++ : j--) {
             if (this[i] === other[j]) {
               ret[m++] = this[i];
               break;
@@ -763,10 +669,10 @@
             nn = this.len();
             b = $();
             j = 0;
-            for (i = 0; (0 <= n ? i < n : i > n); (0 <= n ? i += 1 : i -= 1)) {
+            for (i = 0; 0 <= n ? i < n : i > n; 0 <= n ? i++ : i--) {
               master[a[i]] = _zipper.call(this, a[i]);
             }
-            for (i = 0; (0 <= nn ? i < nn : i > nn); (0 <= nn ? i += 1 : i -= 1)) {
+            for (i = 0; 0 <= nn ? i < nn : i > nn; 0 <= nn ? i++ : i--) {
               o = {};
               for (k in master) {
                 o[k] = master[k].shift();
@@ -797,19 +703,22 @@
         a = $();
         a.context = this;
         a.selector = ['take', n];
-        for (i = 0; (0 <= n ? i < n : i > n); (0 <= n ? i += 1 : i -= 1)) {
+        for (i = 0; 0 <= n ? i < n : i > n; 0 <= n ? i++ : i--) {
           a[i] = this[i];
         }
         return a;
       },
       skip: function(n) {
         var a, i, nn;
+        if (n == null) {
+          n = 0;
+        }
         n = Math_min(this.len(), Math_max(0, n | 0));
         nn = this.len() - n;
         a = $();
         a.context = this.context;
         a.selector = this.selector;
-        for (i = 0; (0 <= nn ? i < nn : i > nn); (0 <= nn ? i += 1 : i -= 1)) {
+        for (i = 0; 0 <= nn ? i < nn : i > nn; 0 <= nn ? i++ : i--) {
           a[i] = this[i + n];
         }
         return a;
@@ -836,11 +745,15 @@
       },
       slice: function(start, end) {
         var b, i, j, n;
+        if (start == null) {
+          start = 0;
+        }
+        if (end == null) {
+          end = this.len();
+        }
         b = $();
         j = 0;
         n = this.len();
-        end != null ? end : end = n;
-        start != null ? start : start = 0;
         if (start < 0) {
           start += n;
         }
@@ -848,8 +761,8 @@
           end += n;
         }
         b.context = this;
-        b.selector = 'slice(#{start},#{end})';
-        for (i = start; (start <= end ? i < end : i > end); (start <= end ? i += 1 : i -= 1)) {
+        b.selector = ["slice", start, end];
+        for (i = start; start <= end ? i < end : i > end; start <= end ? i++ : i--) {
           b[j++] = this[i];
         }
         return b;
@@ -916,22 +829,22 @@
         i = nn - 1;
         c.context = [this, b];
         c.selector = 'weave';
-        for (i = _ref = nn - 1; (_ref <= 0 ? i <= 0 : i >= 0); (_ref <= 0 ? i += 1 : i -= 1)) {
+        for (i = _ref = nn - 1; _ref <= 0 ? i <= 0 : i >= 0; _ref <= 0 ? i++ : i--) {
           c[(i * 2) + 1] = this[i];
         }
-        for (i = 0; (0 <= n ? i < n : i > n); (0 <= n ? i += 1 : i -= 1)) {
+        for (i = 0; 0 <= n ? i < n : i > n; 0 <= n ? i++ : i--) {
           c[i * 2] = b[i];
         }
         return c;
       },
       fold: function(f) {
-        var b, i, j, n, _ref;
+        var b, i, j, n, _ref, _step;
         n = this.len();
         j = 0;
         b = $();
         b.context = this;
         b.selector = ['fold', f];
-        for (i = 0, _ref = n - 1; (0 <= _ref ? i < _ref : i > _ref); i += 2) {
+        for (i = 0, _ref = n - 1, _step = 2; 0 <= _ref ? i < _ref : i > _ref; i += _step) {
           b[j++] = f.call(this, this[i], this[i + 1]);
         }
         if ((n % 2) === 1) {
@@ -946,14 +859,14 @@
         k = 0;
         b.context = this;
         b.selector = 'flatten';
-        for (i = 0; (0 <= n ? i < n : i > n); (0 <= n ? i += 1 : i -= 1)) {
+        for (i = 0; 0 <= n ? i < n : i > n; 0 <= n ? i++ : i--) {
           c = this[i];
           if (Object.IsFunc(c.len)) {
             d = c.len();
           } else {
             d = c.length;
           }
-          for (j = 0; (0 <= d ? j < d : j > d); (0 <= d ? j += 1 : j -= 1)) {
+          for (j = 0; 0 <= d ? j < d : j > d; 0 <= d ? j++ : j--) {
             b[k++] = c[j];
           }
         }
@@ -1057,7 +970,7 @@
             return node.removeChild(childNodes[0]);
           }
           df = document.createDocumentFragment();
-          for (i = 0; (0 <= n ? i < n : i > n); (0 <= n ? i += 1 : i -= 1)) {
+          for (i = 0; 0 <= n ? i < n : i > n; 0 <= n ? i++ : i--) {
             df.appendChild(node.removeChild(childNodes[0]));
           }
           return df;
@@ -1285,7 +1198,7 @@
             setter.call(k, v, emptyString);
           } else if (Object.IsArray(v)) {
             n = Math_max(v.length, nn);
-            for (i = 0; (0 <= n ? i < n : i > n); (0 <= n ? i += 1 : i -= 1)) {
+            for (i = 0; 0 <= n ? i < n : i > n; 0 <= n ? i++ : i--) {
               setter[i % nn](k, v[i % n], emptyString);
             }
           }
@@ -1589,18 +1502,18 @@
     triggerReady = function() {
       if (!readyTriggered++) {
         $(document).trigger(_ready).unbind(_ready);
-        if (typeof document.removeEventListener == "function") {
+        if (typeof document.removeEventListener === "function") {
           document.removeEventListener("DOMContentLoaded", triggerReady, false);
         }
-        return typeof window.removeEventListener == "function" ? window.removeEventListener(_load, triggerReady, false) : void 0;
+        return typeof window.removeEventListener === "function" ? window.removeEventListener(_load, triggerReady, false) : void 0;
       }
     };
     bindReady = function() {
       if (!readyBound++) {
-        if (typeof document.addEventListener == "function") {
+        if (typeof document.addEventListener === "function") {
           document.addEventListener("DOMContentLoaded", triggerReady, false);
         }
-        return typeof window.addEventListener == "function" ? window.addEventListener(_load, triggerReady, false) : void 0;
+        return typeof window.addEventListener === "function" ? window.addEventListener(_load, triggerReady, false) : void 0;
       }
     };
     bindReady();
@@ -1608,9 +1521,8 @@
       name: 'Events',
       bind: function(e, f) {
         var c, h;
-        c = (e || emptyString).split(commasep_re);
+        c = (e || emptyString).split(eventsep_re);
         h = function(evt) {
-          var ret;
           ret = f.apply(this, arguments);
           if (ret === false) {
             Event.Prevent(evt);
@@ -1629,7 +1541,7 @@
       },
       unbind: function(e, f) {
         var c;
-        c = (e || emptyString).split(commasep_re);
+        c = (e || emptyString).split(eventsep_re);
         return this.each(function() {
           var i, _i, _len, _results;
           _results = [];
@@ -1642,7 +1554,7 @@
       },
       once: function(e, f) {
         var c, i, _i, _len, _results;
-        c = (e || emptyString).split(commasep_re);
+        c = (e || emptyString).split(eventsep_re);
         _results = [];
         for (_i = 0, _len = c.length; _i < _len; _i++) {
           i = c[_i];
@@ -1656,7 +1568,7 @@
       cycle: function() {
         var c, cycler, e, funcs, j, nf, _i, _len;
         e = arguments[0], funcs = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-        c = (e || emptyString).split(commasep_re);
+        c = (e || emptyString).split(eventsep_re);
         nf = funcs.length;
         cycler = function() {
           var i;
@@ -1677,7 +1589,7 @@
         if (args == null) {
           args = {};
         }
-        evts = (evt || emptyString).split(commasep_re);
+        evts = (evt || emptyString).split(eventsep_re);
         args = Object.Extend({
           bubbles: true,
           cancelable: true
@@ -1772,7 +1684,6 @@
             return f.call(this, evt);
           });
         };
-        $(context).bind(e, _handler);
         register_live(selector, context, e, f, _handler);
         return this;
       },
@@ -2085,7 +1996,7 @@
       if (stop === null || stop === -1) {
         stop = text.length;
       }
-      for (i = start; (start <= stop ? i < stop : i > stop); (start <= stop ? i += 1 : i -= 1)) {
+      for (i = start; start <= stop ? i < stop : i > stop; start <= stop ? i++ : i--) {
         if (text[i] === against) {
           count += 1;
         } else if (text[i] === find) {
@@ -2105,7 +2016,7 @@
       n = chunks.length;
       ret = [chunks[0]];
       j = 1;
-      for (i = 1; (1 <= n ? i < n : i > n); (1 <= n ? i += 1 : i -= 1)) {
+      for (i = 1; 1 <= n ? i < n : i > n; 1 <= n ? i++ : i--) {
         end = match_forward(chunks[i], ')', '(', 0, -1);
         if (end === -1) {
           return "Template syntax error: unmatched '%(' starting at: " + (chunks[i].substring(0, 15));
@@ -2127,7 +2038,7 @@
     };
     compile.cache = {};
     render = function(text, values) {
-      var cache, fixed, i, j, key, n, output, pad, rest, type, value, _ref;
+      var cache, fixed, i, j, key, n, output, pad, rest, type, value, _ref, _step;
       cache = compile.cache[text];
       if (!(cache != null)) {
         cache = compile.cache[text] = compile(text);
@@ -2135,7 +2046,7 @@
       output = [cache[0]];
       j = 1;
       n = cache.length;
-      for (i = 1, _ref = n - 4; (1 <= _ref ? i < _ref : i > _ref); i += 5) {
+      for (i = 1, _ref = n - 4, _step = 5; 1 <= _ref ? i < _ref : i > _ref; i += _step) {
         key = cache[i];
         pad = cache[i + 1];
         fixed = cache[i + 2];
@@ -2297,6 +2208,108 @@
       },
       synth: function(expr) {
         return synth(expr).appendTo(this);
+      }
+    };
+  });
+  $.plugin(function() {
+    var parseArray, parseObject, parseOne;
+    parseOne = function(data) {
+      var extra, i, item, len, type;
+      i = data.indexOf(_colon);
+      if (i > 0) {
+        len = parseInt(data.slice(0, i), 10);
+        item = data.slice(i + 1, i + 1 + len);
+        type = data[i + 1 + len];
+        extra = data.slice(i + len + 2);
+        item = (function() {
+          switch (type) {
+            case "#":
+              return Number(item);
+            case "'":
+              return String(item);
+            case "!":
+              return item === "true";
+              break;
+            case "~":
+              return null;
+            case "]":
+              return parseArray(item);
+            case "}":
+              return parseObject(item);
+          }
+        })();
+        return [item, extra];
+      }
+    };
+    parseArray = function(x) {
+      var data, one, _ref;
+      data = [];
+      while (x.length > 0) {
+        _ref = parseOne(x), one = _ref[0], x = _ref[1];
+        data.push(one);
+      }
+      return data;
+    };
+    parseObject = function(x) {
+      var data, key, value, _ref, _ref2;
+      data = {};
+      while (x.length > 0) {
+        _ref = parseOne(x), key = _ref[0], x = _ref[1];
+        _ref2 = parseOne(x), value = _ref2[0], x = _ref2[1];
+        data[key] = value;
+      }
+      return data;
+    };
+    return {
+      name: 'TNET',
+      $TNET: {
+        stringify: function(x) {
+          var data, type, y, _ref;
+          _ref = (function() {
+            switch (Object.Type(x)) {
+              case "number":
+                return [String(x), "#"];
+              case "string":
+                return [x, "'"];
+              case "function":
+                return [String(x), "'"];
+              case "boolean":
+                return [String(!!x), "!"];
+              case "null":
+                return ["", "~"];
+              case "undefined":
+                return ["", "~"];
+              case "array":
+                return [
+                  ((function() {
+                    var _i, _len, _results;
+                    _results = [];
+                    for (_i = 0, _len = x.length; _i < _len; _i++) {
+                      y = x[_i];
+                      _results.push(TNET.stringify(y));
+                    }
+                    return _results;
+                  })()).join(''), "]"
+                ];
+              case "object":
+                return [
+                  ((function() {
+                    var _results;
+                    _results = [];
+                    for (y in x) {
+                      _results.push(TNET.stringify(y) + TNET.stringify(x[y]));
+                    }
+                    return _results;
+                  })()).join(''), "}"
+                ];
+            }
+          })(), data = _ref[0], type = _ref[1];
+          return (data.length | 0) + ":" + data + type;
+        },
+        parse: function(x) {
+          var _ref;
+          return (_ref = parseOne(x)) != null ? _ref[0] : void 0;
+        }
       }
     };
   });

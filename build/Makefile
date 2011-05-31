@@ -1,4 +1,5 @@
-JAVA=/usr/lib/jvm/java-6-sun/bin/java
+# JAVA=/usr/lib/jvm/java-6-sun/bin/java
+JAVA=$(shell which java)
 LEVEL=SIMPLE_OPTIMIZATIONS
 # LEVEL=ADVANCED_OPTIMIZATIONS
 # LEVEL=WHITESPACE_ONLY

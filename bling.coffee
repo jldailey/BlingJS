@@ -93,8 +93,11 @@ Bling = (selector, context = document) ->
 	set.__proto__ = Bling.fn
 	set.selector = selector
 	set.context = context
+	# firefox doesn't set the .length properly when we hijack the prototype
+	set.length = set.len()
 	return set
 
+# Blings extend from arrays
 Bling.fn = new Array # a copy(!) of the Array prototype
 
 Object.Keys = (o, inherited = false) -> # Object.Keys(/o/, [/inherited/]) - get a list of key names
@@ -299,7 +302,7 @@ Object.Extend Event,
 		catch error
 			console.log "failed to load plugin", error
 
-	$.plugin () -> # Symbol - allow use of something other than $
+	$.plugin () -> # Symbol - allow use of something other than $ by assigning to Bling.symbol
 		_symbol = null
 		Bling.__defineSetter__ "symbol", (v) ->
 			if _symbol of window
@@ -377,7 +380,6 @@ Object.Extend Event,
 		}
 
 	$.plugin () -> # Core - the functional basis for all other modules
-		
 		class TimeoutQueue extends Array # (new TimeoutQueue).schedule(f, 10);
 			# TimeoutQueue works like setTimeout but enforces strictness on the order
 			# (still has the same basic timing inaccuracy, but will always fire
@@ -558,10 +560,16 @@ Object.Extend Event,
 					@zip(p.substr(0, i)).zap(p.substr(i+1), v)
 				else if Object.IsArray(v) # accept /v/ as an array of values
 					@each () ->
-						@[p] = v[++i]
+						@[p] = v[++i % v.length] # i starts at -1 because of the failed indexOf
 				else # accept a scalar /v/, even if v is undefined
 					@each () ->
 						@[p] = v
+
+			zipzapmap: (p, f) ->
+				# .zipzapmap(p, f) - set /x/./p/ = /f/(/x/./p/) for all /x/ in _this_.
+				v = @zip(p)
+				v = v.map(f)
+				@zap(p, v)
 
 			take: (n) ->
 				# .take([/n/]) - collect the first /n/ elements of _this_.
@@ -800,7 +808,7 @@ Object.Extend Event,
 		getCSSProperty = (k) ->
 			# window.getComputedStyle is not a normal function
 			# (it doesnt support .call() so we can't use it with .map())
-			# so define something that does work right for use in .css
+			# so define something that does work properly for use in .css
 			() ->
 				window.getComputedStyle(@, null).getPropertyValue(k)
 
@@ -919,8 +927,7 @@ Object.Extend Event,
 			unwrap: () -> # .unwrap() - replace each node's parent with itself
 				@each () ->
 					if @parentNode and @parentNode.parentNode
-						@parentNode.parentNode
-							.replaceChild(@, @parentNode)
+						@parentNode.parentNode.replaceChild(@, @parentNode)
 
 			replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
 				n = toNode(n)
@@ -1970,8 +1977,8 @@ Object.Extend Event,
 						when "boolean" then [String(not not x), "!"]
 						when "null" then ["", "~"]
 						when "undefined" then ["", "~"]
-						when "array" then [(TNET.stringify(y) for y in x).join(''), "]"]
-						when "object" then [(TNET.stringify(y)+TNET.stringify(x[y]) for y of x).join(''), "}"]
+						when "array" then [($.TNET.stringify(y) for y in x).join(''), "]"]
+						when "object" then [($.TNET.stringify(y)+$.TNET.stringify(x[y]) for y of x).join(''), "}"]
 					return (data.length|0) + ":" + data + type
 				parse: (x) ->
 					parseOne(x)?[0]

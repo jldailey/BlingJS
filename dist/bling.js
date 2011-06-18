@@ -109,6 +109,7 @@
     set.__proto__ = Bling.fn;
     set.selector = selector;
     set.context = context;
+    set.length = set.len();
     return set;
   };
   Bling.fn = new Array;
@@ -718,13 +719,19 @@
             return this.zip(p.substr(0, i)).zap(p.substr(i + 1), v);
           } else if (Object.IsArray(v)) {
             return this.each(function() {
-              return this[p] = v[++i];
+              return this[p] = v[++i % v.length];
             });
           } else {
             return this.each(function() {
               return this[p] = v;
             });
           }
+        },
+        zipzapmap: function(p, f) {
+          var v;
+          v = this.zip(p);
+          v = v.map(f);
+          return this.zap(p, v);
         },
         take: function(n) {
           var a, i;
@@ -2315,7 +2322,7 @@
                       _results = [];
                       for (_i = 0, _len = x.length; _i < _len; _i++) {
                         y = x[_i];
-                        _results.push(TNET.stringify(y));
+                        _results.push($.TNET.stringify(y));
                       }
                       return _results;
                     })()).join(''), "]"
@@ -2326,7 +2333,7 @@
                       var _results;
                       _results = [];
                       for (y in x) {
-                        _results.push(TNET.stringify(y) + TNET.stringify(x[y]));
+                        _results.push($.TNET.stringify(y) + $.TNET.stringify(x[y]));
                       }
                       return _results;
                     })()).join(''), "}"

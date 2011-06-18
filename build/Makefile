@@ -11,6 +11,9 @@ all: dist report
 
 minify: min.bling.js min.bling.js.gz
 
+clean:
+	rm -f $(DIST)/*.js
+
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
 plugins: $(subst $(PLUGINS),$(DIST_PLUGINS),$(shell ls ../plugins/*))

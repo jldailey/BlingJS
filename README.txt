@@ -1,4 +1,3 @@
-
 BlingJS is meant to be as useful as jQuery, but more consistent.
 
 In particular, it is more consistent about doing set-based operations:
@@ -15,12 +14,17 @@ There are also a couple things that are wholly new, and awesome. Like,
 the .zip() and .zap() operations.
 
 The .zip() operation will grab a single property from every item in
-a set.  So, html() is defined as zip('innerHTML').
+a set.  So, html() is defined as zip('innerHTML').  You can also extract
+nested values easily, as in zip('style.color'), arbitrary nesting depth
+is supported.
 
 The .zap() operation is a way to do assignment and stay in a loosely
 functional context.  So, html("new html") is defined as
 zap('innerHTML', "new html").  But more than just simple assignment,
 it can also 'stripe' values across a set; a common thing to want to
 accomplish across list items: $("li").zap('className', ["odd", "even"]).
+
+For a more complete listing of what's great about it [like synth()],
+please visit the website:
 
 http://blingjs.com

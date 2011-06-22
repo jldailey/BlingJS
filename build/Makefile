@@ -3,15 +3,22 @@ LEVEL=SIMPLE_OPTIMIZATIONS
 # LEVEL=ADVANCED_OPTIMIZATIONS
 # LEVEL=WHITESPACE_ONLY
 DIST=../dist
+SITE=../site
 
-all: dist report
+all: site dist report
 
 minify: min.bling.js min.bling.js.gz
 
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
+site: $(SITE)/js/bling.js
+
 $(DIST)/bling.js: ../bling.coffee
 	cd .. && coffee -o dist -c bling.coffee
+
+$(SITE)/js/bling.js: $(DIST)/min.bling.js
+	cp $< $@
+	cat ../plugins/bling.doc.js >> $@
 
 compiler-latest.zip:
 	@wget http://closure-compiler.googlecode.com/files/compiler-latest.zip

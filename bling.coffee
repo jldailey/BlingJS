@@ -274,17 +274,17 @@ Object.Extend String, {
 
 Object.Extend Event, {
 	Cancel: (evt) ->
-	 evt.stopPropagation()
-	 evt.preventDefault()
-	 evt.cancelBubble = true
-	 evt.returnValue = false
+		evt.stopPropagation()
+		evt.preventDefault()
+		evt.cancelBubble = true
+		evt.returnValue = false
 	,
 	Prevent: (evt) ->
-	 evt.preventDefault()
+		evt.preventDefault()
 	,
 	Stop: (evt) ->
-	 evt.stopPropagation()
-	 evt.cancelBubble = true
+		evt.stopPropagation()
+		evt.cancelBubble = true
 }
 
 String::trimLeft = Array.Coalesce(
@@ -295,9 +295,7 @@ String::trimLeft = Array.Coalesce(
 String::split = Array.Coalesce(
 	String::split,
 	(sep) ->
-		a = []
-		n = 0
-		i = 0
+		a = []; n = 0; i = 0
 		while (j = @indexOf sep,i) > -1
 			a[n++] = @substring(i+1,j+1)
 			i = j + 1

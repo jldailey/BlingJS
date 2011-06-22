@@ -10,7 +10,7 @@
 
 </head>
 <body>
-	<h1><a name="top"><span class='bln'>$</span>(BlingJS)</a><h1>
+	<h1><a name="top"><span class='bln'>$</span>(BlingJS)</a></h1>
 	<h2>A JavaScript library</h2>
 	<div class="bold">by <a href="mailto:jesse.dailey+blingjs@gmail.com">Jesse Dailey</a></div>
 
@@ -21,11 +21,15 @@
 	<h3>Download</h3>
 	<table class='download' cellspacing="0">
 		<tr>
-			<td><a href="dist/bling.js">Full Source</a><td><td>[62k]
+			<td><a href="bling.coffee">Coffee Script</a><td><td>[56k]
 		<tr>
-			<td><a href="dist/min.bling.js">Minified</a><td><td>[30k]
+			<td><a href="dist/bling.js">Full Source</a><td><td>[70k]
+		<tr>
+			<td><a href="dist/min.bling.js">Minified</a><td><td>[31k]
 		<tr>
 			<td><a href="dist/min.bling.js.gz">Compressed</a><td><td>[<b>9k</b>]
+		<tr>
+			<td><a href="https://github.com/jldailey/BlingJS">[GitHub]</a><td><td>[*]
 	</table>
 	<p class='small'>About &frac13;rd the size of jQuery.<br> (compare v1.4.4: 179k, 78k, 28k)</p>
 
@@ -100,6 +104,12 @@
 	<pre>
 	$("span").take(3).zap("style.color",
 		["red", "green", "blue"])</pre>
+	<p>If you assign only a few properies to lots of nodes, the values 'stripe' across the nodes.
+	A common example would be to apply odd/even classes to a list.
+	<pre>
+	$("li").zap("className",
+		["odd", "even"])</pre>
+	<p>Each <code>&lt;li&gt;</code> will alternate between having class="odd" or class="even".
 
 	<a name="html" />
 	<h4>Html Operations</h4>
@@ -154,7 +164,7 @@
 		<tr><td><i>+</i> &lt;plus&gt;<td>between nodes
 		<tr><td><i>"quote"</i><td>after a node
 	</table>
-	<p>It supports the non-standard quote operator <code>["']</code> for adding text nodes, like in this example:
+	<p>It supports the non-standard quote operators <code>["']</code> for adding text nodes, like in this example:
 	<pre>
 	$.synth('p "Hello" span "Bob"')
 	== $('<p>Hello<span>Bob</span></p>')</pre>

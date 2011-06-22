@@ -1,17 +1,34 @@
-JAVA=/usr/lib/jvm/java-6-sun/bin/java
+# JAVA=/usr/lib/jvm/java-6-sun/bin/java
+JAVA=$(shell which java)
 LEVEL=SIMPLE_OPTIMIZATIONS
 # LEVEL=ADVANCED_OPTIMIZATIONS
 # LEVEL=WHITESPACE_ONLY
 DIST=../dist
 SITE=../site
+PLUGINS=../plugins
+DIST_PLUGINS=$(DIST)/plugins
 
 all: site dist report
 
 minify: min.bling.js min.bling.js.gz
 
+clean:
+	rm -f $(DIST)/*.js
+
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
 site: $(SITE)/js/bling.js
+
+plugins: $(subst $(PLUGINS),$(DIST_PLUGINS),$(shell ls ../plugins/*))
+
+dist_plugins: plugins
+	cp $(PLUGINS)/*.js $(DIST_PLUGINS)
+
+$(DIST_PLUGINS)/%.coffee: $(PLUGINS)/%.coffee
+	cp $< $@
+
+$(DIST_PLUGINS)/%.js: $(DIST_PLUGINS)/%.coffee
+	(cd $(DIST_PLUGINS) && coffee -c $<)
 
 $(DIST)/bling.js: ../bling.coffee
 	cd .. && coffee -o dist -c bling.coffee

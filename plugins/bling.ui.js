@@ -250,7 +250,7 @@ $.plugin(function UI() {
 	}
 
 	return {
-
+		name: 'UI',
 		$UI: {
 			Draggable: Draggable,
 			ProgressBar: ProgressBar,
@@ -283,7 +283,6 @@ $.plugin(function UI() {
 			// .draggable([opts]) - make this draggable
 			return Draggable(this, opts)
 		}
-
 	}
 })
 

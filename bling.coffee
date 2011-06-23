@@ -26,55 +26,19 @@ Math_ceil = Math.ceil
 Math_sqrt = Math.sqrt
 Obj_toString = Object::toString
 # constants
-commasep_re = /, */
+commasep = ", "
 eventsep_re = /,* +/
 leftSpaces_re = /^\s+/
 object_cruft_re = /\[object (\w+)\]/
-commasep = ", "
-space = " "
-emptyString = ""
 _1 = "$1"
-_none = "none"
-_relative = "relative"
-_absolute = "absolute"
-_width = "width"
-_height = "height"
-_top = "top"
-_left = "left"
-_right = "right"
-_bottom = "bottom"
-_string = "string"
-_number = "number"
-_function = "function"
-_object = "object"
-_window = "window"
-_node = "node"
-_array = "array"
-_regexp = "regexp"
-_boolean = "boolean"
-_bling = "bling"
-_nodelist = "nodelist"
-_fragment = "fragment"
-_object_Array = "[object Array]"
-_px = "px"
-_dot = "."
-_colon = ':'
-_undefined = "undefined"
-_null = "null"
-_ms = "ms"
-_hide = "hide"
-_show = "show"
-_ready = "ready"
-_load = "load"
-
 
 Bling = (selector, context = document) ->
 	type = Object.Type selector
-	if type in [_node, _window, _function]
+	if type in ["node", "window", "function"]
 		set = [selector]
-	else if type is _number
+	else if type is "number"
 		set = new Array selector
-	else if type is _string
+	else if type is "string"
 		selector = selector.trimLeft()
 		if selector[0] is "<"
 			set = [Bling.HTML.parse(selector)]
@@ -82,9 +46,9 @@ Bling = (selector, context = document) ->
 			set = context.querySelectorAll(selector)
 		else
 			throw Error "invalid context: #{context} (type: #{Object.Type context})"
-	else if type in [_array, _bling, _nodelist]
+	else if type in ["array", "bling", "nodelist"]
 		set = selector
-	else if type in [_undefined, _null]
+	else if type in ["undefined", "null"]
 		set = []
 	else
 		throw Error "invalid selector: #{selector} (type: #{Object.Type selector})"
@@ -110,7 +74,7 @@ Object.Keys = (o, inherited = false) -> # Object.Keys(/o/, [/inherited/]) - get 
 
 Object.Extend = (a, b, k) -> # Object.Extend(a, b, [k]) - merge values from b into a
 	# if k is present, it should be an array of property names
-	if Obj_toString.apply(k) is _object_Array # cant use Object.IsArray yet
+	if Obj_toString.apply(k) is "[object Array]" # cant use Object.IsArray yet
 		for i of k
 			a[k[i]] = b[k[i]] unless b[k[i]] is undefined
 	else
@@ -122,61 +86,61 @@ Object.Extend Object,
 	Type: (o) ->
 		switch true
 			when o is undefined
-				_undefined
+				"undefined"
 			when o is null
-				_null
+				"null"
 			when Object.IsString o
-				_string
+				"string"
 			when Object.IsType o, Bling
-				_bling
+				"bling"
 			when Object.IsType o, NodeList
-				_nodelist
+				"nodelist"
 			when Object.IsArray o
-				_array
+				"array"
 			when Object.IsNumber o
-				_number
+				"number"
 			when Object.IsFragment o
-				_fragment
+				"fragment"
 			when Object.IsNode o
-				_node
+				"node"
 			when Object.IsFunc o
-				_function
+				"function"
 			when Object.IsType o, "RegExp"
-				_regexp
+				"regexp"
 			when String(o) in ["true", "false"]
-				_boolean
+				"boolean"
 			when Object.IsObject o
 				if "setInterval" of o # same crude method that jQuery uses
-					_window
+					"window"
 				else
-					_object
+					"object"
 	IsType: (o,T) -> # Object.IsType(o,T) - true if object o is of type T (directly or indirectly)
 		if o == null
 			o is T
 		else if o.constructor is T
 			true
-		else if typeof T is _string
+		else if typeof T is "string"
 			o.constructor.name is T or Obj_toString.apply(o).replace(object_cruft_re, _1) is T
 		else
 			Object.IsType o.__proto__, T # recurse through sub-classes
 	IsString: (o) -> # Object.IsString(a) - true if object a is a string
-		o? and (typeof o is _string or Object.IsType(o, String))
+		o? and (typeof o is "string" or Object.IsType(o, String))
 	IsNumber: (o) ->
 		o? and Object.IsType o, Number
 	IsBoolean: (o) ->
-		typeof o is _boolean
+		typeof o is "boolean"
 	IsFunc: (o) -> # Object.IsFunc(a) - true if object a is a function
-		o? and (typeof o is _function or Object.IsType(o, Function)) and o.call?
+		o? and (typeof o is "function" or Object.IsType(o, Function)) and o.call?
 	IsNode: (o) -> # Object.IsNode(o) - true if object is a DOM node
 		o? and o.nodeType > 0
 	IsFragment: (o) -> # Object.IsFragment(o) - true if object is a DocumentFragment node
 		o? and o.nodeType is 11
 	IsArray: (o) -> # Object.IsArray(o) - true if object is an Array (or inherits Array)
-		o? and (Object.ToString(o) is _object_Array or Object.IsType(o, Array))
+		o? and (Object.ToString(o) is "[object Array]" or Object.IsType(o, Array))
 	IsBling: (o) ->
 		o? and Object.IsType(o, Bling)
 	IsObject: (o) -> # Object.IsObject(o) - true if a is an object
-		o? and typeof o is _object
+		o? and typeof o is "object"
 	IsDefined: (o) -> # Object.IsDefined(o) - true if a is not null nor undefined
 		o?
 	Unbox: (a) -> # Object.Unbox(o) - primitive types can be 'boxed' in an object
@@ -203,7 +167,7 @@ Object.Extend Function,
 		r
 	Trace: (f, label, tracer = _log) -> # Function.Trace(/f/, /label/) - log calls to /f/
 		r = (a...) ->
-			tracer "#{label or emptyString}#{@name or @}.#{f.name}(", a, ")"
+			tracer "#{label or ""}#{@name or @}.#{f.name}(", a, ")"
 			f.apply @, a
 		tracer "Function.Trace: #{label or f.name} created."
 		r.toString = f.toString
@@ -232,7 +196,7 @@ Object.Extend Array,
 Object.Extend Number,
 	Px: (x, d=0) ->
 		# Px(/x/, /delta/=0) - convert a number-ish x to pixels
-		x? and (parseInt(x,10)+(d|0))+_px
+		x? and (parseInt(x,10)+(d|0))+"px"
 	# mappable versions of max() and min()
 	AtLeast: (x) ->
 		(y) ->
@@ -242,11 +206,11 @@ Object.Extend Number,
 			Math_min parseFloat(y or 0), x
 
 Object.Extend String,
-	PadLeft: (s, n, c = space) -> # String.PadLeft(string, width, fill=" ")
+	PadLeft: (s, n, c = " ") -> # String.PadLeft(string, width, fill=" ")
 		while s.length < n
 			s = c + s
 		s
-	PadRight: (s, n, c = space) -> # String.PadRight(string, width, fill=" ")
+	PadRight: (s, n, c = " ") -> # String.PadRight(string, width, fill=" ")
 		while s.length < n
 			s = s + c
 		s
@@ -321,7 +285,7 @@ Object.Extend Event,
 	$.plugin () -> # Compat - compatibility patches
 		String::trimLeft = Array.Coalesce(
 			String::trimLeft,
-			() -> @replace(leftSpaces_re, emptyString)
+			() -> @replace(leftSpaces_re, "")
 		)
 
 		String::split = Array.Coalesce(
@@ -340,7 +304,7 @@ Object.Extend Event,
 			Array::join,
 			(sep) ->
 				n = @length
-				return emptyString if n is 0
+				return "" if n is 0
 				s = @[n-1]
 				while --n > 0
 					s = @[n-1] + sep + s
@@ -360,7 +324,7 @@ Object.Extend Event,
 				if @id?
 					name += "##{@id}"
 				else if @className?
-					name += ".#{@className.split(space).join(_dot)}"
+					name += ".#{@className.split(" ").join(".")}"
 				name
 			else
 				_oldToString.apply @
@@ -411,7 +375,7 @@ Object.Extend Event,
 					return Function.Bound(v, @)
 				return v
 		_zipper = (prop) -> # used in .zip()
-			i = prop.indexOf(_dot)
+			i = prop.indexOf(".")
 			if i > -1
 				return @zip(prop.substr(0, i)).zip(prop.substr(i+1))
 			return @map _getter(prop)
@@ -555,7 +519,7 @@ Object.Extend Event,
 				# .zap(p, v) - set /x/./p/ = /v/ for all /x/ in _this_.
 				# just like zip, zap("a.b") == zip("a").zap("b")
 				# but unlike zip, you cannot assign to many /p/ at once
-				i = p.indexOf(_dot)
+				i = p.indexOf(".")
 				if i > -1 # recurse compound names
 					@zip(p.substr(0, i)).zap(p.substr(i+1), v)
 				else if Object.IsArray(v) # accept /v/ as an array of values
@@ -748,11 +712,11 @@ Object.Extend Event,
 				$.symbol + "([" + @map () ->
 					switch @
 						when undefined
-							return _undefined
+							return "undefined"
 						when null
-							return _null
+							return "null"
 						when window
-							return _window
+							return "window"
 						else
 							return @toString().replace(object_cruft_re,_1)
 				.join(commasep) + "])"
@@ -845,7 +809,7 @@ Object.Extend Event,
 					# then get escaped html from the parent's .innerHTML
 					ret = escaper.zap('data', h).zip("parentNode.innerHTML").first()
 					# clean up so escaped content isn't leaked into the DOM
-					escaper.zap('data', emptyString)
+					escaper.zap('data', "")
 					ret
 
 			html: (h) -> # .html([h]) - get [or set] /x/.innerHTML for each node
@@ -959,30 +923,30 @@ Object.Extend Event,
 
 			addClass: (x) -> # .addClass(/x/) - add x to each node's .className
 				@removeClass(x).each () ->
-					c = @className.split(space).filter (y) ->
-						y isnt emptyString
+					c = @className.split(" ").filter (y) ->
+						y isnt ""
 					c.push(x) # since we dont know the len, its still faster to push, rather than insert at len()
-					@className = c.join space
+					@className = c.join " "
 
 			removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
 				notx = (y)->
 					y != x
 				@each () ->
-					@className = @className.split(space).filter(notx).join(space)
+					@className = @className.split(" ").filter(notx).join(" ")
 
 			toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
 				notx = (y) ->
 					y != x
 				@each () ->
-					cls = @className.split(space)
+					cls = @className.split(" ")
 					if( cls.indexOf(x) > -1 )
-						@className = cls.filter(notx).join(space)
+						@className = cls.filter(notx).join(" ")
 					else
 						cls.push(x)
-						@className = cls.join(space)
+						@className = cls.join(" ")
 
 			hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x
-				@zip('className.split').call(space).zip('indexOf').call(x).map Function.IndexFound
+				@zip('className.split').call(" ").zip('indexOf').call(x).map Function.IndexFound
 
 			text: (t) -> # .text([t]) - get [or set] each node's .innerText
 				return @zap('textContent', t) if t?
@@ -1002,13 +966,13 @@ Object.Extend Event,
 					nn = setter.len()
 					if Object.IsObject k
 						for i of k
-							setter.call i, k[i], emptyString
+							setter.call i, k[i], ""
 					else if Object.IsString v
-						setter.call k, v, emptyString
+						setter.call k, v, ""
 					else if Object.IsArray v
 						n = Math_max v.length, nn
 						for i in [0...n]
-							setter[i%nn] k, v[i%n], emptyString
+							setter[i%nn] k, v[i%n], ""
 					return @
 				else
 					# collect the computed values
@@ -1027,7 +991,7 @@ Object.Extend Event,
 				# so it can still be over-ridden by external css files (such as themes)
 				# also, @selector need not match any nodes at the time of the call
 				sel = @selector
-				style = emptyString
+				style = ""
 				if Object.IsString(k)
 					if Object.IsString(v)
 						style += "#{sel} { #{k}: #{v} } "
@@ -1040,47 +1004,47 @@ Object.Extend Event,
 				@
 
 			empty: () -> # .empty() - remove all children
-				@html emptyString
+				@html ""
 
 			rect: () -> # .rect() - collect a ClientRect for each node in @
 				@zip('getBoundingClientRect').call()
 
 			width: (w) -> # .width([/w/]) - get [or set] each node's width value
 				if w == null
-					return @rect().zip(_width)
-				return @css(_width, w)
+					return @rect().zip("width")
+				return @css("width", w)
 
 			height: (h) -> # .height([/h/]) - get [or set] each node's height value
 				if h == null
-					return @rect().zip(_height)
-				return @css(_height, h)
+					return @rect().zip("height")
+				return @css("height", h)
 
 			top: (y) -> # .top([/y/]) - get [or set] each node's top value
 				if y == null
-					return @rect().zip(_top)
-				return @css(_top, y)
+					return @rect().zip("top")
+				return @css("top", y)
 
 			left: (x) -> # .left([/x/]) - get [or set] each node's left value
 				if x == null
-					return @rect().zip(_left)
-				return @css(_left, x)
+					return @rect().zip("left")
+				return @css("left", x)
 
 			bottom: (x) -> # .bottom([/x/]) - get [or set] each node's bottom value
 				if x == null
-					return @rect().zip(_bottom)
-				return @css(_bottom, x)
+					return @rect().zip("bottom")
+				return @css("bottom", x)
 
 			right: (x) -> # .right([/x/]) - get [or set] each node's right value
 				if x == null
-					return @rect().zip(_right)
-				return @css(_right, x)
+					return @rect().zip("right")
+				return @css("right", x)
 
 			position: (x, y) -> # .position([/x/, [/y/]]) - get [or set] each node's top and left values
 				if x == null
 					return @rect()
 				# with just x, just set style.left
 				if y == null
-					return @css(_left, Number.Px(x))
+					return @css("left", Number.Px(x))
 				# with x and y, set style.top and style.left
 				return @css({top: Number.Px(y), left: Number.Px(x)})
 
@@ -1104,7 +1068,7 @@ Object.Extend Event,
 					else
 						y = NaN
 					t.css {
-						position: _absolute,
+						position: "absolute",
 						left: Number.Px(x),
 						top: Number.Px(y)
 					}
@@ -1266,13 +1230,13 @@ Object.Extend Event,
 		readyBound = 0
 		triggerReady = () ->
 			if not readyTriggered++
-				$(document).trigger(_ready).unbind(_ready)
+				$(document).trigger("ready").unbind("ready")
 				document.removeEventListener?("DOMContentLoaded", triggerReady, false)
-				window.removeEventListener?(_load, triggerReady, false)
+				window.removeEventListener?("load", triggerReady, false)
 		bindReady = () ->
 			if not readyBound++
 				document.addEventListener?("DOMContentLoaded", triggerReady, false)
-				window.addEventListener?(_load, triggerReady, false)
+				window.addEventListener?("load", triggerReady, false)
 		bindReady()
 
 		ret = {
@@ -1281,7 +1245,7 @@ Object.Extend Event,
 				# .bind(e, f) - adds handler f for event type e
 				# e is a string like 'click', 'mouseover', etc.
 				# e can be comma-separated to bind multiple events at once
-				c = (e or emptyString).split(eventsep_re)
+				c = (e or "").split(eventsep_re)
 				h = (evt) ->
 					ret = f.apply @, arguments
 					if ret is false
@@ -1294,14 +1258,14 @@ Object.Extend Event,
 			unbind: (e, f) ->
 				# .unbind(e, [f]) - removes handler f from event e
 				# if f is not present, removes all handlers from e
-				c = (e or emptyString).split(eventsep_re)
+				c = (e or "").split(eventsep_re)
 				@each () ->
 					for i in c
 						@removeEventListener(i, f, null)
 
 			once: (e, f) ->
 				# .once(e, f) - adds a handler f that will be called only once
-				c = (e or emptyString).split(eventsep_re)
+				c = (e or "").split(eventsep_re)
 				for i in c
 					@bind i, (evt) ->
 						f.call(@, evt)
@@ -1311,7 +1275,7 @@ Object.Extend Event,
 				# .cycle(e, ...) - bind handlers for e that trigger in a cycle
 				# one call per trigger. when the last handler is executed
 				# the next trigger will call the first handler again
-				c = (e or emptyString).split(eventsep_re)
+				c = (e or "").split(eventsep_re)
 				nf = funcs.length
 				cycler = () ->
 					i = 0
@@ -1328,7 +1292,7 @@ Object.Extend Event,
 				# args is an optional mapping of properties to set,
 				#		{screenX: 10, screenY: 10}
 				# note: not all browsers support manually creating all event types
-				evts = (evt or emptyString).split(eventsep_re)
+				evts = (evt or "").split(eventsep_re)
 				args = Object.Extend {
 					bubbles: true
 					cancelable: true
@@ -1464,7 +1428,7 @@ Object.Extend Event,
 			click: (f = {}) ->
 				# .click([f]) - trigger [or bind] the 'click' event
 				# if the cursor is just default then make it look clickable
-				if @css("cursor").intersect(["auto",emptyString]).len() > 0
+				if @css("cursor").intersect(["auto",""]).len() > 0
 					@css "cursor", "pointer"
 				if Object.IsFunc f
 					@bind 'click', f
@@ -1476,9 +1440,9 @@ Object.Extend Event,
 					if readyTriggered
 						f.call @
 					else
-						@bind _ready, f
+						@bind "ready", f
 				else
-					@trigger _ready, f
+					@trigger "ready", f
 		}
 
 		# add event binding/triggering shortcuts for the generic events
@@ -1547,11 +1511,11 @@ Object.Extend Event,
 					speed = "normal"
 				easing or= "ease"
 				# duration is always in milliseconds
-				duration = $.duration(speed) + _ms
+				duration = $.duration(speed) + "ms"
 				props = []
 				p = 0 # insert marker for props
 				# what to send to the -webkit-transform
-				trans = emptyString
+				trans = ""
 				# real css values to be set (end_css without the transform values)
 				css = {}
 				for i of end_css
@@ -1562,7 +1526,7 @@ Object.Extend Event,
 							ii = $(ii).px().join(commasep)
 						else if ii.toString
 							ii = ii.toString()
-						trans += space + i + "(" + ii + ")"
+						trans += " " + i + "(" + ii + ")"
 					else # stick real css values in the css dict
 						css[i] = end_css[i]
 				# make a list of the properties to be modified
@@ -1596,11 +1560,11 @@ Object.Extend Event,
 				# .hide() - each node gets display:none
 				@each () ->
 					if @style
-						@_display = emptyString
-						if @style.display is not _none
+						@_display = ""
+						if @style.display is not "none"
 							@_display = @syle.display
-						@style.display = _none
-				.trigger(_hide)
+						@style.display = "none"
+				.trigger("hide")
 				.delay(updateDelay, callback)
 
 			show: (callback) ->
@@ -1609,21 +1573,21 @@ Object.Extend Event,
 					if @style
 						@style.display = @_display
 						delete @_display
-				.trigger(_show)
+				.trigger("show")
 				.delay(updateDelay, callback)
 
 			toggle: (callback) ->
 				# .toggle() - show each hidden node, hide each visible one
 				@weave(@css("display"))
 					.fold (display, node) ->
-						if display is _none
-							node.style.display = node._display or emptyString
+						if display is "none"
+							node.style.display = node._display or ""
 							delete node._display
-							$(node).trigger(_show)
+							$(node).trigger("show")
 						else
 							node._display = display
-							node.style.display = _none
-							$(node).trigger(_hide)
+							node.style.display = "none"
+							$(node).trigger("hide")
 						node
 					.delay(updateDelay, callback)
 
@@ -1793,19 +1757,19 @@ Object.Extend Event,
 				# currently supports 'd', 'f', and 's'
 				switch type
 					when 'd'
-						output[j++] = emptyString + parseInt(value, 10)
+						output[j++] = "" + parseInt(value, 10)
 					when 'f'
 						output[j++] = parseFloat(value).toFixed(fixed)
 					# output unsupported formats like %s strings
 					# TODO: add support for more formats
 					when 's'
-						output[j++] = emptyString + value
+						output[j++] = "" + value
 					else
-						output[j++] = emptyString + value
+						output[j++] = "" + value
 				if pad > 0
 					output[j] = String.PadLeft output[j], pad
 				output[j++] = rest
-			output.join emptyString
+			output.join ""
 
 		# modes for the synth machine
 		TAGMODE = 1
@@ -1818,12 +1782,7 @@ Object.Extend Event,
 
 		synth = (expr) -> # $.synth(/expr/) - given a CSS expression, create DOM nodes that match
 			parent = null
-			tagname = emptyString
-			id = emptyString
-			cls = emptyString
-			attr = emptyString
-			val = emptyString
-			text = emptyString
+			tagname = id = cls = attr = val = text = ""
 			attrs = {}
 			mode = TAGMODE
 			ret = $([])
@@ -1835,7 +1794,7 @@ Object.Extend Event,
 					parent.appendChild node
 				else
 					ret.push node
-				text = emptyString
+				text = ""
 				mode = TAGMODE
 			emitNode = () -> # puts a Node in the results
 				node = document.createElement(tagname)
@@ -1848,12 +1807,7 @@ Object.Extend Event,
 				else
 					ret.push node
 				parent = node
-				tagname = emptyString
-				id = emptyString
-				cls = emptyString
-				attr = emptyString
-				val = emptyString
-				text = emptyString
+				tagname = id = cls = attr = val = text = ""
 				attrs = {}
 				mode = TAGMODE
 
@@ -1864,12 +1818,12 @@ Object.Extend Event,
 						parent = parent.parentNode
 				else if c is '#' and mode in [TAGMODE, CLSMODE, ATTRMODE]
 					mode = IDMODE
-				else if c is _dot and mode in [TAGMODE, IDMODE, ATTRMODE]
+				else if c is "." and mode in [TAGMODE, IDMODE, ATTRMODE]
 					if cls.length > 0
-						cls += space
+						cls += " "
 					mode = CLSMODE
-				else if c is _dot and cls.length > 0
-					cls += space
+				else if c is "." and cls.length > 0
+					cls += " "
 				else if c is '[' and mode in [TAGMODE, IDMODE, CLSMODE, ATTRMODE]
 					mode = ATTRMODE
 				else if c is '=' and mode is ATTRMODE
@@ -1880,19 +1834,19 @@ Object.Extend Event,
 					mode = STEXTMODE
 				else if c is ']' and mode in [ATTRMODE, VALMODE]
 					attrs[attr] = val
-					attr = emptyString
-					val = emptyString
+					attr = ""
+					val = ""
 					mode = TAGMODE
 				else if c is '"' and mode is DTEXTMODE
 					emitText()
 				else if c is "'" and mode is STEXTMODE
 					emitText()
-				else if c in [space, ','] and mode not in [VALMODE, ATTRMODE] and tagname.length > 0
+				else if c in [" ", ','] and mode not in [VALMODE, ATTRMODE] and tagname.length > 0
 					emitNode()
 					if c is ','
 						parent = null
 				else if mode is TAGMODE
-					if c isnt space
+					if c isnt " "
 						tagname += c
 				else if mode is IDMODE
 					id += c
@@ -1920,13 +1874,13 @@ Object.Extend Event,
 				# if defaults is passed, these will be the default values for v in .render(v)
 				@render = (args) ->
 					# an over-ride of the basic .render() that applies these defaults
-					render(@map($.HTML.stringify).join(emptyString), Object.Extend(defaults,args))
+					render(@map($.HTML.stringify).join(""), Object.Extend(defaults,args))
 				@remove() # the template item itself should not be in the DOM
 
 			render: (args) ->
 				# .render(args) - replace %(var)s-type strings with values from args
 				# accepts nodes, returns a string
-				render(@map($.HTML.stringify).join(emptyString), args)
+				render(@map($.HTML.stringify).join(""), args)
 
 			synth: (expr) ->
 				# .synth(expr) - create DOM nodes to match a simple css expression
@@ -1938,7 +1892,7 @@ Object.Extend Event,
 
 	$.plugin () -> # TnetStrings plugin
 		parseOne = (data) ->
-			i = data.indexOf _colon
+			i = data.indexOf ":"
 			if i > 0
 				len = parseInt data[0...i], 10
 				item = data[i+1...i+1+len]

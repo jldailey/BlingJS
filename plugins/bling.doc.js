@@ -1,139 +1,5 @@
 (function($) {
 
-	Function.PrettyPrint = (function() {
-		// in the closure scope:
-		var operators = /!==|!=|!|\#|\%|\%=|\&|\&\&|\&\&=|&=|\*|\*=|\+|\+=|-|-=|->|\.{1,3}|\/|\/=|:|::|;|<<=|<<|<=|<|===|==|=|>>>=|>>=|>=|>>>|>>|>|\?|@|\[|\]|}|{|\^|\^=|\^\^|\^\^=|\|=|\|\|=|\|\||\||~/g,
-			operator_html = "<span class='opr'>$&</span>",
-			keywords = /\b[Ff]unction\b|\bvar\b|\.prototype\b|\.__proto__\b|\bString\b|\bArray\b|\bNumber\b|\bObject\b|\bbreak\b|\bcase\b|\bcontinue\b|\bdelete\b|\bdo\b|\bif\b|\belse\b|\bfinally\b|\binstanceof\b|\breturn\b|\bthrow\b|\btry\b|\btypeof\b|\btrue\b|\bfalse\b/g,
-			keyword_html = "<span class='kwd'>$&</span>",
-			all_numbers = /\d+\.*\d*/g,
-			number_html = "<span class='num'>$&</span>",
-			bling_symbol = /\$(\(|\.)/g,
-			bling_html = "<span class='bln'>$$</span>$1",
-			tabs = /\t/g,
-			tab_html = "&nbsp;&nbsp;",
-			singleline_comment = /\/\/.*?(?:\n|$)/,
-			multiline_comment = /\/\*(?:.|\n)*?\*\//
-		function find_unescaped_quote(s, i, q) {
-			var r = s.indexOf(q, i)
-			while( s.charAt(r-1) === "\\" && r < s.length && r > 0)
-				r = s.indexOf(q, r+1)
-			return r
-		}
-		function find_first_quote(s, i) {
-			var a = s.indexOf('"', i),
-				b = s.indexOf("'", i)
-			if( a === -1 ) a = s.length
-			if( b === -1 ) b = s.length
-			return a === b ? [null, -1]
-				: a < b ? ['"', a]
-				: ["'", b]
-		}
-		function extract_quoted(s) {
-			var i = 0, n = s.length, ret = [],
-				j = -1, k = -1, q = null
-			if( ! Object.IsString(s) )
-				if( ! Object.IsFunc(s.toString) )
-					throw TypeError("invalid string argument to extract_quoted")
-				else {
-					s = s.toString()
-					n = s.length
-				}
-			while( i < n ) {
-				q = find_first_quote(s, i)
-				j = q[1]
-				if( j === -1 ) {
-					ret.push(s.substring(i))
-					break
-				}
-				ret.push(s.substring(i,j))
-				k = find_unescaped_quote(s, j+1, q[0])
-				if( k === -1 )
-					throw Error("unmatched "+q[0]+" at "+j)
-				ret.push(s.substring(j, k+1))
-				i = k+1
-			}
-			return ret
-		}
-		function first_comment(s) {
-			var a = s.match(singleline_comment),
-				b = s.match(multiline_comment)
-				return a === b ? [-1, null]
-					: a == null && b != null ? [b.index, b[0]]
-					: a != null && b == null ? [a.index, a[0]]
-					: b.index < a.index ? [b.index, b[0]]
-					: [a.index, a[0]]
-		}
-		function extract_comments(s) {
-			var ret = [], i = 0, j = 0,
-				n = s.length, q = null, ss = null
-			while( i < n ) {
-				ss = s.substring(i)
-				q = first_comment(ss)
-				j = q[0]
-				if( j > -1 ) {
-					ret.push(ss.substring(0,j))
-					ret.push(q[1])
-					i += j + q[1].length
-				} else {
-					ret.push(ss)
-					break
-				}
-			}
-			return ret
-		}
-		return function prettyPrint(js, colors) {
-			if( Object.IsFunc(js) )
-				js = js.toString()
-			if( ! Object.IsString(js) )
-				throw TypeError("prettyPrint requires a function or string to format, not '"+typeof(js)+"'")
-			if( $("style#pp-injected").length === 0 ) {
-				var i, css = "code.pp .bln { font-size: 17px; } "
-				colors = Object.Extend({
-					opr: "#880",
-					str: "#008",
-					com: "#080",
-					kwd: "#088",
-					num: "#808",
-					bln: "#800"
-				}, colors)
-				for( i in colors )
-					css += "code.pp ."+i+" { color: "+colors[i]+"; }"
-				$("head").append($.synth("style#pp-injected").text(css))
-			}
-			return "<code class='pp'>"+
-				// extract comments
-				$(extract_comments(js))
-					.fold(function(text, comment) {
-						// extract quoted strings
-						return $(extract_quoted(text))
-							.fold(function(code, quoted) {
-								// label number constants
-								return (code
-									// label operator symbols
-									.replace(operators, operator_html)
-									// label numbers
-									.replace(all_numbers, number_html)
-									// label keywords
-									.replace(keywords, keyword_html)
-									// label the bling operator
-									.replace(bling_symbol, bling_html)
-									// replace tabs with spaces
-									.replace(tabs, tab_html)
-								) +
-								// label string constants
-								(quoted ? "<span class='str'>"+quoted+"</span>" : "")
-							})
-							// collapse the strings
-							.join('')
-							// append the extracted comment
-							+ (comment ? "<span class='com'>"+comment+"</span>" : "")
-					})
-					.join('')
-			+ "</code>"
-		}
-	})()
-
 	var example_re = /\s*[Ee]xample:\s*/,
 		end_line = /\n/g,
 		code_line = /(^|\n)\s*\&gt;\s/,
@@ -172,7 +38,7 @@
 		codeQueue.flush = function() {
 			if( this.length > 0 ) {
 				result.push($.synth("pre")
-					.html(Function.PrettyPrint(codeQueue.join('\n'))))
+					.html($.prettyPrint(codeQueue.join('\n'))))
 				this.length = 0
 			}
 			return this.length == 0
@@ -197,7 +63,7 @@
 			}
 		}
 		if( codeQueue.length > 0 )
-			result.push($(Function.PrettyPrint(codeQueue.join('\n'))))
+			result.push($($.prettyPrint(codeQueue.join('\n'))))
 		if( paraQueue.length > 0 )
 			result.push($("<p>").html(paraQueue.join('\n')))
 		return result.flatten()
@@ -232,7 +98,7 @@
 					if( ! func_template )
 						func_template = $.synth("li a[href=api:%(reference)s] '%(definition)s' + div '%(description)s' + div '%(examples)s'")
 					walk("Bling.prototype", $.plugin.s[name], function visit(name, f) {
-						var text = Function.PrettyPrint(f),
+						var text = $.prettyPrint(f),
 							nodes = $(text),
 							examples = getExamples(nodes),
 							description = getDescription(nodes),

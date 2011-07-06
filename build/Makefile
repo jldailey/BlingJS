@@ -36,6 +36,10 @@ $(DIST_PLUGINS)/%.js: $(DIST_PLUGINS)/%.coffee
 $(DIST)/bling.js: ../bling.coffee
 	cd .. && coffee -o dist -c bling.coffee
 
+$(SITE)/js/bling.js: $(DIST)/min.bling.js
+	cp $< $@
+	cat ../plugins/bling.doc.js >> $@
+
 compiler-latest.zip:
 	@wget http://closure-compiler.googlecode.com/files/compiler-latest.zip
 

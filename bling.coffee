@@ -15,66 +15,71 @@ if not "querySelectorAll" of document
 
 # local shortcuts
 if console and console.log
-	_log = (a...) ->
+	_log_ = (a...) ->
 		console.log.apply(console, a)
 else
-	_log = (a...) ->
+	_log_ = (a...) ->
 		alert a.join(", ")
 Math_min = Math.min
 Math_max = Math.max
 Math_ceil = Math.ceil
 Math_sqrt = Math.sqrt
 Obj_toString = Object::toString
-# constants
-commasep_re = /, */
-eventsep_re = /,* +/
-leftSpaces_re = /^\s+/
-object_cruft_re = /\[object (\w+)\]/
-commasep = ", "
-space = " "
-emptyString = ""
-_1 = "$1"
-_none = "none"
-_relative = "relative"
-_absolute = "absolute"
-_width = "width"
-_height = "height"
-_top = "top"
-_left = "left"
-_right = "right"
-_bottom = "bottom"
-_string = "string"
-_number = "number"
-_function = "function"
-_object = "object"
-_window = "window"
-_node = "node"
-_array = "array"
-_regexp = "regexp"
-_boolean = "boolean"
-_bling = "bling"
-_nodelist = "nodelist"
-_fragment = "fragment"
-_object_Array = "[object Array]"
-_px = "px"
-_dot = "."
-_colon = ':'
-_undefined = "undefined"
-_null = "null"
-_ms = "ms"
-_hide = "hide"
-_show = "show"
-_ready = "ready"
-_load = "load"
+# regexes
+_commasep_re_ = /, */
+_eventsep_re_ = /,* +/
+_object_re_ = /\[object (\w+)\]/
+_1_ = "$1"
+_commasep_ = ", "
+_space_ = " "
+_empty_ = ""
+_dot_ = "."
+_colon_ = ':'
+_squote_ = "'"
+_dquote_ = '"'
+# css words
+_none_ = "none"
+_relative_ = "relative"
+_absolute_ = "absolute"
+_width_ = "width"
+_height_ = "height"
+_top_ = "top"
+_left_ = "left"
+_right_ = "right"
+_bottom_ = "bottom"
+_px_ = "px"
+_ms_ = "ms"
+# event names
+_hide_ = "hide"
+_show_ = "show"
+_ready_ = "ready"
+_load_ = "load"
+# type names
+_string_ = "string"
+_number_ = "number"
+_function_ = "function"
+_object_ = "object"
+_window_ = "window"
+_node_ = "node"
+_array_ = "array"
+_regexp_ = "regexp"
+_boolean_ = "boolean"
+_error_ = "error"
+_bling_ = "bling"
+_nodelist_ = "nodelist"
+_fragment_ = "fragment"
+_undefined_ = "undefined"
+_null_ = "null"
+_object_Array_ = "[object Array]"
 
 
 Bling = (selector, context = document) ->
 	type = Object.Type selector
-	if type in [_node, _window, _function]
+	if type in [_node_, _window_, _function_]
 		set = [selector]
-	else if type is _number
+	else if type is _number_
 		set = new Array selector
-	else if type is _string
+	else if type is _string_
 		selector = selector.trimLeft()
 		if selector[0] is "<"
 			set = [Bling.HTML.parse(selector)]
@@ -82,14 +87,15 @@ Bling = (selector, context = document) ->
 			set = context.querySelectorAll(selector)
 		else
 			throw Error "invalid context: #{context} (type: #{Object.Type context})"
-	else if type in [_array, _bling, _nodelist]
+	else if type in [_array_, _bling_, _nodelist_]
 		set = selector
-	else if type in [_undefined, _null]
+	else if type in [_undefined_, _null_]
 		set = []
 	else
 		throw Error "invalid selector: #{selector} (type: #{Object.Type selector})"
 
 	set.constructor = Bling
+	# hijack the prototype
 	set.__proto__ = Bling.fn
 	set.selector = selector
 	set.context = context
@@ -110,7 +116,7 @@ Object.Keys = (o, inherited = false) -> # Object.Keys(/o/, [/inherited/]) - get 
 
 Object.Extend = (a, b, k) -> # Object.Extend(a, b, [k]) - merge values from b into a
 	# if k is present, it should be an array of property names
-	if Obj_toString.apply(k) is _object_Array # cant use Object.IsArray yet
+	if Obj_toString.apply(k) is _object_Array_ # cant use Object.IsArray yet
 		for i of k
 			a[k[i]] = b[k[i]] unless b[k[i]] is undefined
 	else
@@ -122,61 +128,65 @@ Object.Extend Object,
 	Type: (o) ->
 		switch true
 			when o is undefined
-				_undefined
+				_undefined_
 			when o is null
-				_null
+				_null_
 			when Object.IsString o
-				_string
+				_string_
 			when Object.IsType o, Bling
-				_bling
+				_bling_
 			when Object.IsType o, NodeList
-				_nodelist
+				_nodelist_
 			when Object.IsArray o
-				_array
+				_array_
 			when Object.IsNumber o
-				_number
+				_number_
 			when Object.IsFragment o
-				_fragment
+				_fragment_
 			when Object.IsNode o
-				_node
+				_node_
 			when Object.IsFunc o
-				_function
+				_function_
 			when Object.IsType o, "RegExp"
-				_regexp
+				_regexp_
 			when String(o) in ["true", "false"]
-				_boolean
+				_boolean_
+			when Object.IsError o
+				_error_
 			when Object.IsObject o
 				if "setInterval" of o # same crude method that jQuery uses
-					_window
+					_window_
 				else
-					_object
+					_object_
 	IsType: (o,T) -> # Object.IsType(o,T) - true if object o is of type T (directly or indirectly)
 		if o == null
 			o is T
 		else if o.constructor is T
 			true
-		else if typeof T is _string
-			o.constructor.name is T or Obj_toString.apply(o).replace(object_cruft_re, _1) is T
+		else if typeof T is _string_
+			o.constructor.name is T or Obj_toString.apply(o).replace(_object_re_, _1_) is T
 		else
 			Object.IsType o.__proto__, T # recurse through sub-classes
 	IsString: (o) -> # Object.IsString(a) - true if object a is a string
-		o? and (typeof o is _string or Object.IsType(o, String))
+		o? and (typeof o is _string_ or Object.IsType(o, String))
 	IsNumber: (o) ->
 		o? and Object.IsType o, Number
 	IsBoolean: (o) ->
-		typeof o is _boolean
+		typeof o is _boolean_
 	IsFunc: (o) -> # Object.IsFunc(a) - true if object a is a function
-		o? and (typeof o is _function or Object.IsType(o, Function)) and o.call?
+		o? and (typeof o is _function_ or Object.IsType(o, Function)) and o.call?
 	IsNode: (o) -> # Object.IsNode(o) - true if object is a DOM node
 		o? and o.nodeType > 0
 	IsFragment: (o) -> # Object.IsFragment(o) - true if object is a DocumentFragment node
 		o? and o.nodeType is 11
 	IsArray: (o) -> # Object.IsArray(o) - true if object is an Array (or inherits Array)
-		o? and (Object.ToString(o) is _object_Array or Object.IsType(o, Array))
+		o? and (Object.ToString(o) is _object_Array_ or Object.IsType(o, Array))
 	IsBling: (o) ->
 		o? and Object.IsType(o, Bling)
+	IsError: (o) ->
+		o? and o.constructor?.name is "Error"
 	IsObject: (o) -> # Object.IsObject(o) - true if a is an object
-		o? and typeof o is _object
+		o? and typeof o is _object_
 	IsDefined: (o) -> # Object.IsDefined(o) - true if a is not null nor undefined
 		o?
 	Unbox: (a) -> # Object.Unbox(o) - primitive types can be 'boxed' in an object
@@ -201,9 +211,9 @@ Object.Extend Function,
 		r.toString = () ->
 			"bound-method of #{t}.#{f.name}"
 		r
-	Trace: (f, label, tracer = _log) -> # Function.Trace(/f/, /label/) - log calls to /f/
+	Trace: (f, label, tracer = _log_) -> # Function.Trace(/f/, /label/) - log calls to /f/
 		r = (a...) ->
-			tracer "#{label or emptyString}#{@name or @}.#{f.name}(", a, ")"
+			tracer "#{label or _empty_}#{@name or @}.#{f.name}(", a, ")"
 			f.apply @, a
 		tracer "Function.Trace: #{label or f.name} created."
 		r.toString = f.toString
@@ -232,7 +242,7 @@ Object.Extend Array,
 Object.Extend Number,
 	Px: (x, d=0) ->
 		# Px(/x/, /delta/=0) - convert a number-ish x to pixels
-		x? and (parseInt(x,10)+(d|0))+_px
+		x? and (parseInt(x,10)+(d|0))+_px_
 	# mappable versions of max() and min()
 	AtLeast: (x) ->
 		(y) ->
@@ -242,11 +252,11 @@ Object.Extend Number,
 			Math_min parseFloat(y or 0), x
 
 Object.Extend String,
-	PadLeft: (s, n, c = space) -> # String.PadLeft(string, width, fill=" ")
+	PadLeft: (s, n, c = _space_) -> # String.PadLeft(string, width, fill=" ")
 		while s.length < n
 			s = c + s
 		s
-	PadRight: (s, n, c = space) -> # String.PadRight(string, width, fill=" ")
+	PadRight: (s, n, c = _space_) -> # String.PadRight(string, width, fill=" ")
 		while s.length < n
 			s = s + c
 		s
@@ -279,7 +289,7 @@ Object.Extend Event,
 	 evt.stopPropagation()
 	 evt.cancelBubble = true
 
-(($) -> # protected namespace
+(($) -> # protected name_space
 
 	$.plugins = []
 
@@ -289,28 +299,28 @@ Object.Extend Event,
 			name = constructor.name or plugin.name
 			if not name
 				throw Error "plugin requires a 'name'"
-			load = (name, func) ->
-				if name[0] is Bling.symbol
-					Bling[name.substr(1)] = func
-				else
-					Bling.fn[name] = func
-			for i in Object.Keys(plugin, true)
-				if i isnt 'name'
-					load(i, plugin[i])
 			$.plugins.push(name)
 			$.plugins[name] = plugin
+			delete plugin.name
+			# if a plugin defines globals, extend Bling
+			if plugin[Bling.symbol]
+				Object.Extend(Bling, plugin[Bling.symbol])
+				# clear off the globals
+				delete plugin[Bling.symbol]
+			# everything else about the plugin extends the prototype
+			Object.Extend(Bling.fn, plugin)
 		catch error
 			console.log "failed to load plugin", error
 
 	$.plugin () -> # Symbol - allow use of something other than $ by assigning to Bling.symbol
-		_symbol = null
+		_symbol_ = null
 		Bling.__defineSetter__ "symbol", (v) ->
-			if _symbol of window
-				delete window[_symbol]
-			_symbol = v
+			if _symbol_ of window
+				delete window[_symbol_]
+			_symbol_ = v
 			window[v] = Bling
 		Bling.__defineGetter__ "symbol", () ->
-			_symbol
+			_symbol_
 		Bling.symbol = "$"
 		window["Bling"] = $ = Bling
 
@@ -319,9 +329,10 @@ Object.Extend Event,
 		}
 
 	$.plugin () -> # Compat - compatibility patches
+		leftSpaces_re = /^\s+/
 		String::trimLeft = Array.Coalesce(
 			String::trimLeft,
-			() -> @replace(leftSpaces_re, emptyString)
+			() -> @replace(leftSpaces_re, _empty_)
 		)
 
 		String::split = Array.Coalesce(
@@ -338,9 +349,9 @@ Object.Extend Event,
 
 		Array::join = Array.Coalesce(
 			Array::join,
-			(sep) ->
+			(sep = '') ->
 				n = @length
-				return emptyString if n is 0
+				return _empty_ if n is 0
 				s = @[n-1]
 				while --n > 0
 					s = @[n-1] + sep + s
@@ -353,17 +364,17 @@ Object.Extend Event,
 			Element::matchesSelector
 		)
 
-		_oldToString = Element::toString
+		_oldToString_ = Element::toString
 		Element::toString = (css_mode) ->
 			if css_mode
 				name = @nodeName.toLowerCase()
 				if @id?
 					name += "##{@id}"
 				else if @className?
-					name += ".#{@className.split(space).join(_dot)}"
+					name += ".#{@className.split(_space_).join(_dot_)}"
 				name
 			else
-				_oldToString.apply @
+				_oldToString_.apply @
 
 		# if cloneNode does not take a 'deep' argument, add support
 		if Element::cloneNode.length is 0
@@ -402,31 +413,27 @@ Object.Extend Event,
 								break
 					setTimeout next, n
 					@
-		timeoutQueue = new TimeoutQueue()
+		timeoutQueue = new TimeoutQueue
 
-		_getter = (prop) -> # used in .zip()
+		_getter_ = (prop) -> # used in .zip()
 			() ->
 				v = @[prop]
 				if Object.IsFunc v
 					return Function.Bound(v, @)
 				return v
-		_zipper = (prop) -> # used in .zip()
-			i = prop.indexOf(_dot)
+		_zipper_ = (prop) -> # used in .zip()
+			i = prop.indexOf(_dot_)
 			if i > -1
 				return @zip(prop.substr(0, i)).zip(prop.substr(i+1))
-			return @map _getter(prop)
+			return @map _getter_(prop)
 
 		return {
 			name: 'Core'
-			querySelectorAll: (s) ->
-				@filter("*") # limit to only nodes
-				.reduce (a, i) ->
-					Array.Extend a, i.querySelectorAll(s)
-				, $()
+
 			eq: (i) -> # .eq(/i/) - a new set containing only the /i/th item
 				a = $([@[i]])
 				a.context = @
-				a.selector = ['eq', i]
+				a.selector = () -> a.context.eq(i)
 
 			each: (f) -> # .each(/f/) - apply function /f/ to every item /x/ in _this_.
 				for i in @
@@ -436,7 +443,7 @@ Object.Extend Event,
 			map: (f) -> # .map(/f/) - collect /f/.call(/x/, /x/) for every item /x/ in _this_.
 				a = $()
 				a.context = @
-				a.selector = ['map', f]
+				a.selector = () -> a.context.map(f)
 				nn = @len()
 				for i in [0...nn]
 					t = @[i]
@@ -466,8 +473,8 @@ Object.Extend Event,
 				# 'strict' forces === comparison
 				ret = $()
 				x = i = j = 0
-				ret.context = [@, other]
-				ret.selector = 'union'
+				ret.context = @
+				ret.selector = () -> ret.context.union(other, strict)
 				while x = @[j++]
 					if not ret.contains(x, strict) # TODO: could speed this up by inlining contains
 						ret[i++] = x
@@ -486,8 +493,8 @@ Object.Extend Event,
 					nn = other.len()
 				else
 					nn = other.length
-				ret.context = [@, other]
-				ret.selector = 'intersect'
+				ret.context = @
+				ret.selector = () -> ret.context.intersect(other)
 				for i in [0...n]
 					for j in [0...nn]
 						if @[i] is other[j]
@@ -532,7 +539,7 @@ Object.Extend Event,
 					when 0
 						return $()
 					when 1
-						return _zipper.call(@, a[0])
+						return _zipper_.call(@, a[0])
 					else # > 1
 						# if more than one argument is passed, new objects
 						# with only those properties, will be returned
@@ -542,7 +549,7 @@ Object.Extend Event,
 						j = 0 # insert marker into list
 						# first collect a set of lists
 						for i in [0...n]
-							set[a[i]] = _zipper.call(@, a[i])
+							set[a[i]] = _zipper_.call(@, a[i])
 						# then convert to a list of sets
 						for i in [0...nn]
 							o = {}
@@ -555,7 +562,7 @@ Object.Extend Event,
 				# .zap(p, v) - set /x/./p/ = /v/ for all /x/ in _this_.
 				# just like zip, zap("a.b") == zip("a").zap("b")
 				# but unlike zip, you cannot assign to many /p/ at once
-				i = p.indexOf(_dot)
+				i = p.indexOf(_dot_)
 				if i > -1 # recurse compound names
 					@zip(p.substr(0, i)).zap(p.substr(i+1), v)
 				else if Object.IsArray(v) # accept /v/ as an array of values
@@ -565,7 +572,7 @@ Object.Extend Event,
 					@each () ->
 						@[p] = v
 
-			zipzapmap: (p, f) ->
+			zipzapmap: (p, f) -> # TODO: need a better name for this
 				# .zipzapmap(p, f) - set /x/./p/ = /f/(/x/./p/) for all /x/ in _this_.
 				v = @zip(p)
 				v = v.map(f)
@@ -577,7 +584,7 @@ Object.Extend Event,
 				n = Math_min n|0, @len()
 				a = $()
 				a.context = @
-				a.selector = ['take',n]
+				a.selector = () -> a.context.take(n)
 				for i in [0...n]
 					a[i] = @[i]
 				a
@@ -588,8 +595,8 @@ Object.Extend Event,
 				n = Math_min(@len(), Math_max(0, (n|0)))
 				nn = @len() - n
 				a = $()
-				a.context = @context
-				a.selector = @selector
+				a.context = @
+				a.selector = () -> a.context.skip(n)
 				for i in [0...nn]
 					a[i] = @[i+n]
 				a
@@ -615,15 +622,13 @@ Object.Extend Event,
 				# the j-th item will not be included - slice(0,2) will contain items 0, and 1.
 				# negative indices work like in python: -1 is the last item, -2 is second-to-last
 				# undefined start or end become 0, or @length, respectively
-				b = $()
 				j = 0
 				n = @len()
-				if start < 0
-					start += n
-				if end < 0
-					end += n
+				start += n if start < 0
+				end += n if end < 0
+				b = $()
 				b.context = @
-				b.selector = ["slice", start, end]
+				b.selector = () -> b.context.slice(start, end)
 				for i in [start...end]
 					b[j++] = @[i]
 				b
@@ -653,8 +658,7 @@ Object.Extend Event,
 				# or if f is a RegExp, collect nodes where f.test(x) is true
 				b = $()
 				b.context = @
-				b.selector = f
-				j = 0
+				b.selector = () -> b.context.filter(f)
 				switch Object.Type f
 					when "string"
 						g = (x) ->
@@ -664,6 +668,9 @@ Object.Extend Event,
 							f.test(x)
 					when "function"
 						g = f
+					else
+						throw new Error("unsupported type passed to filter: #{Object.Type(f)}")
+				j = 0
 				for it in @
 					if g.call it, it
 						b[j++] = it
@@ -678,19 +685,25 @@ Object.Extend Event,
 				# .matches(/css/) - collects /x/.matchesSelector(/css/)
 				@zip('matchesSelector').call(expr)
 
+			querySelectorAll: (s) ->
+				@filter("*") # limit to only nodes
+				.reduce (a, i) ->
+					Array.Extend a, i.querySelectorAll(s)
+				, $()
+
 			weave: (b) ->
 				# .weave(/b/) - interleave the items of _this_ and the set _b_
-				# to produce: $([ ..., b[i], this[i], ... ])
+				# to produce: $([ b[i], this[i], ... ])
 				# note: the items of b come first
 				# note: if b and this are different lengths, the shorter
 				# will yield undefineds into the result
 				# the result always has 2 * max(length) items
-				n = b.len()
 				nn = @len()
-				c = $()
+				n = b.len()
 				i = nn - 1
-				c.context = [@,b]
-				c.selector = 'weave'
+				c = $()
+				c.context = @
+				c.selector = () -> c.context.weave(b)
 				# first spread out this, from back to front
 				for i in [nn-1..0]
 					c[(i*2)+1] = @[i]
@@ -710,7 +723,7 @@ Object.Extend Event,
 				# at least 2 items are required in the set
 				b = $()
 				b.context = @
-				b.selector = ['fold', f]
+				b.selector = () -> b.context.fold(f)
 				for i in [0...n-1] by 2
 					b[j++] = f.call @, @[i], @[i+1]
 				# if there is an odd man out, make one last call
@@ -723,7 +736,7 @@ Object.Extend Event,
 				n = @len()
 				k = 0 # insert marker
 				b.context = @
-				b.selector = 'flatten'
+				b.selector = () -> b.context.flatten()
 				for i in [0...n]
 					c = @[i]
 					if Object.IsFunc c.len
@@ -748,14 +761,14 @@ Object.Extend Event,
 				$.symbol + "([" + @map () ->
 					switch @
 						when undefined
-							return _undefined
+							return _undefined_
 						when null
-							return _null
+							return _null_
 						when window
-							return _window
+							return _window_
 						else
-							return @toString().replace(object_cruft_re,_1)
-				.join(commasep) + "])"
+							return @toString().replace(_object_re_,_1_)
+				.join(_commasep_) + "])"
 
 			delay: (n, f) -> # .delay(/n/, /f/) -  continue with /f/ on _this_ after /n/ milliseconds
 				if f
@@ -765,9 +778,9 @@ Object.Extend Event,
 			log: (label) -> # .log([label]) - console.log([/label/] + /x/) for /x/ in _this_
 				n = @len()
 				if label
-					_log(label, @, n + " items")
+					_log_(label, @, n + " items")
 				else
-					_log(@, n + " items")
+					_log_(@, n + " items")
 				@
 
 			len: () -> # .len() - returns the max defined index + 1
@@ -781,7 +794,7 @@ Object.Extend Event,
 				return i+1
 		}
 
-	$.plugin () -> # Html Module
+	$.plugin () -> # Html plugin
 		before = (a,b) -> # insert b before a
 			a.parentNode.insertBefore b, a
 
@@ -815,38 +828,41 @@ Object.Extend Event,
 		return {
 			name: 'Html'
 
-			$HTML: # $.HTML.* - HTML methods similar to the global JSON object
-				parse: (h) -> # $.HTML.parse(/h/) - parse the html in string h, a Node.
-					node = document.createElement("div")
-					node.innerHTML = h
-					childNodes = node.childNodes
-					n = childNodes.length
-					if n is 1
-						return node.removeChild(childNodes[0])
-					df = document.createDocumentFragment()
-					for i in [0...n]
-						df.appendChild(node.removeChild(childNodes[0]))
-					df
-				stringify: (n) -> # $.HTML.stringify(/n/) - the _Node_ /n/ in it's html-string form
-					switch Object.Type n
-						when "string"
-							return n
-						when "node"
-							n = n.cloneNode(true)
-							d = document.createElement("div")
-							d.appendChild(n)
-							ret = d.innerHTML
-							d.removeChild(n) # clean up to prevent leaks
-							delete n
-							return ret
-				escape: (h) -> # $.HTML.escape(/h/) - accept html string /h/, a string with html-escapes like &amp;
-					escaper or= $("<div>&nbsp;</div>").child(0)
-					# insert html using the text node's .data property
-					# then get escaped html from the parent's .innerHTML
-					ret = escaper.zap('data', h).zip("parentNode.innerHTML").first()
-					# clean up so escaped content isn't leaked into the DOM
-					escaper.zap('data', emptyString)
-					ret
+			$: {
+				HTML: { # $.HTML.* - HTML methods similar to the global JSON object
+					parse: (h) -> # $.HTML.parse(/h/) - parse the html in string h, a Node.
+						node = document.createElement("div")
+						node.innerHTML = h
+						childNodes = node.childNodes
+						n = childNodes.length
+						if n is 1
+							return node.removeChild(childNodes[0])
+						df = document.createDocumentFragment()
+						for i in [0...n]
+							df.appendChild(node.removeChild(childNodes[0]))
+						df
+					stringify: (n) -> # $.HTML.stringify(/n/) - the _Node_ /n/ in it's html-string form
+						switch Object.Type n
+							when "string"
+								return n
+							when "node"
+								n = n.cloneNode(true)
+								d = document.createElement("div")
+								d.appendChild(n)
+								ret = d.innerHTML
+								d.removeChild(n) # clean up to prevent leaks
+								delete n
+								return ret
+					escape: (h) -> # $.HTML.escape(/h/) - accept html string /h/, a string with html-escapes like &amp;
+						escaper or= $("<div>&nbsp;</div>").child(0)
+						# insert html using the text node's .data property
+						# then get escaped html from the parent's .innerHTML
+						ret = escaper.zap('data', h).zip("parentNode.innerHTML").first()
+						# clean up so escaped content isn't leaked into the DOM
+						escaper.zap('data', _empty_)
+						ret
+				}
+			}
 
 			html: (h) -> # .html([h]) - get [or set] /x/.innerHTML for each node
 				switch Object.Type h
@@ -959,30 +975,30 @@ Object.Extend Event,
 
 			addClass: (x) -> # .addClass(/x/) - add x to each node's .className
 				@removeClass(x).each () ->
-					c = @className.split(space).filter (y) ->
-						y isnt emptyString
+					c = @className.split(_space_).filter (y) ->
+						y isnt _empty_
 					c.push(x) # since we dont know the len, its still faster to push, rather than insert at len()
-					@className = c.join space
+					@className = c.join _space_
 
 			removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
 				notx = (y)->
 					y != x
 				@each () ->
-					@className = @className.split(space).filter(notx).join(space)
+					@className = @className.split(_space_).filter(notx).join(_space_)
 
 			toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
 				notx = (y) ->
 					y != x
 				@each () ->
-					cls = @className.split(space)
+					cls = @className.split(_space_)
 					if( cls.indexOf(x) > -1 )
-						@className = cls.filter(notx).join(space)
+						@className = cls.filter(notx).join(_space_)
 					else
 						cls.push(x)
-						@className = cls.join(space)
+						@className = cls.join(_space_)
 
 			hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x
-				@zip('className.split').call(space).zip('indexOf').call(x).map Function.IndexFound
+				@zip('className.split').call(_space_).zip('indexOf').call(x).map Function.IndexFound
 
 			text: (t) -> # .text([t]) - get [or set] each node's .innerText
 				return @zap('textContent', t) if t?
@@ -1002,13 +1018,13 @@ Object.Extend Event,
 					nn = setter.len()
 					if Object.IsObject k
 						for i of k
-							setter.call i, k[i], emptyString
+							setter.call i, k[i], _empty_
 					else if Object.IsString v
-						setter.call k, v, emptyString
+						setter.call k, v, _empty_
 					else if Object.IsArray v
 						n = Math_max v.length, nn
 						for i in [0...n]
-							setter[i%nn] k, v[i%n], emptyString
+							setter[i%nn] k, v[i%n], _empty_
 					return @
 				else
 					# collect the computed values
@@ -1027,7 +1043,7 @@ Object.Extend Event,
 				# so it can still be over-ridden by external css files (such as themes)
 				# also, @selector need not match any nodes at the time of the call
 				sel = @selector
-				style = emptyString
+				style = _empty_
 				if Object.IsString(k)
 					if Object.IsString(v)
 						style += "#{sel} { #{k}: #{v} } "
@@ -1040,47 +1056,47 @@ Object.Extend Event,
 				@
 
 			empty: () -> # .empty() - remove all children
-				@html emptyString
+				@html _empty_
 
 			rect: () -> # .rect() - collect a ClientRect for each node in @
 				@zip('getBoundingClientRect').call()
 
 			width: (w) -> # .width([/w/]) - get [or set] each node's width value
 				if w == null
-					return @rect().zip(_width)
-				return @css(_width, w)
+					return @rect().zip(_width_)
+				return @css(_width_, w)
 
 			height: (h) -> # .height([/h/]) - get [or set] each node's height value
 				if h == null
-					return @rect().zip(_height)
-				return @css(_height, h)
+					return @rect().zip(_height_)
+				return @css(_height_, h)
 
 			top: (y) -> # .top([/y/]) - get [or set] each node's top value
 				if y == null
-					return @rect().zip(_top)
-				return @css(_top, y)
+					return @rect().zip(_top_)
+				return @css(_top_, y)
 
 			left: (x) -> # .left([/x/]) - get [or set] each node's left value
 				if x == null
-					return @rect().zip(_left)
-				return @css(_left, x)
+					return @rect().zip(_left_)
+				return @css(_left_, x)
 
 			bottom: (x) -> # .bottom([/x/]) - get [or set] each node's bottom value
 				if x == null
-					return @rect().zip(_bottom)
-				return @css(_bottom, x)
+					return @rect().zip(_bottom_)
+				return @css(_bottom_, x)
 
 			right: (x) -> # .right([/x/]) - get [or set] each node's right value
 				if x == null
-					return @rect().zip(_right)
-				return @css(_right, x)
+					return @rect().zip(_right_)
+				return @css(_right_, x)
 
 			position: (x, y) -> # .position([/x/, [/y/]]) - get [or set] each node's top and left values
 				if x == null
 					return @rect()
 				# with just x, just set style.left
 				if y == null
-					return @css(_left, Number.Px(x))
+					return @css(_left_, Number.Px(x))
 				# with x and y, set style.top and style.left
 				return @css({top: Number.Px(y), left: Number.Px(x)})
 
@@ -1104,7 +1120,7 @@ Object.Extend Event,
 					else
 						y = NaN
 					t.css {
-						position: _absolute,
+						position: _absolute_,
 						left: Number.Px(x),
 						top: Number.Px(y)
 					}
@@ -1180,7 +1196,7 @@ Object.Extend Event,
 				return toNode(@[0])
 		}
 
-	$.plugin () -> # Math Module
+	$.plugin () -> # Math plugin
 		return {
 			name: 'Maths'
 			floats: () ->
@@ -1228,7 +1244,7 @@ Object.Extend Event,
 				@scale(1/@magnitude())
 		}
 
-	$.plugin () -> # Events Module
+	$.plugin () -> # Events plugin
 		events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
 			'load','unload','reset','submit','keyup','keydown','change',
 			'abort','cut','copy','paste','selection','drag','drop','orientationchange',
@@ -1239,23 +1255,23 @@ Object.Extend Event,
 
 		binder = (e) ->
 			(f = {}) ->
-				return this.bind(e, f) if Object.IsFunc f
-				return this.trigger(e, f)
+				return @bind(e, f) if Object.IsFunc f
+				return @trigger(e, f)
 
 		register_live = (selector, context, e, f, h) ->
 			$(context)
-				.bind(e, h) # bind the real handler
+				.bind(e, h) # bind the proxy handler
 				.each () ->
 					a = (@__alive__ or= {})
 					b = (a[selector] or= {})
 					c = (b[e] or= {})
-					# make a record using the fake handler
+					# make a record using the fake handler as key
 					c[f] = h
 
 		unregister_live = (selector, context, e, f) ->
 			$c = $(context)
 			$c.each () ->
-				a = (@__alive__ or= {} )
+				a = (@__alive__ or= {})
 				b = (a[selector] or= {})
 				c = (b[e] or= {})
 				$c.unbind(e, c[f])
@@ -1266,13 +1282,13 @@ Object.Extend Event,
 		readyBound = 0
 		triggerReady = () ->
 			if not readyTriggered++
-				$(document).trigger(_ready).unbind(_ready)
+				$(document).trigger(_ready_).unbind(_ready_)
 				document.removeEventListener?("DOMContentLoaded", triggerReady, false)
-				window.removeEventListener?(_load, triggerReady, false)
+				window.removeEventListener?(_load_, triggerReady, false)
 		bindReady = () ->
 			if not readyBound++
 				document.addEventListener?("DOMContentLoaded", triggerReady, false)
-				window.addEventListener?(_load, triggerReady, false)
+				window.addEventListener?(_load_, triggerReady, false)
 		bindReady()
 
 		ret = {
@@ -1281,7 +1297,7 @@ Object.Extend Event,
 				# .bind(e, f) - adds handler f for event type e
 				# e is a string like 'click', 'mouseover', etc.
 				# e can be comma-separated to bind multiple events at once
-				c = (e or emptyString).split(eventsep_re)
+				c = (e or _empty_).split(_eventsep_re_)
 				h = (evt) ->
 					ret = f.apply @, arguments
 					if ret is false
@@ -1294,14 +1310,14 @@ Object.Extend Event,
 			unbind: (e, f) ->
 				# .unbind(e, [f]) - removes handler f from event e
 				# if f is not present, removes all handlers from e
-				c = (e or emptyString).split(eventsep_re)
+				c = (e or _empty_).split(_eventsep_re_)
 				@each () ->
 					for i in c
 						@removeEventListener(i, f, null)
 
 			once: (e, f) ->
 				# .once(e, f) - adds a handler f that will be called only once
-				c = (e or emptyString).split(eventsep_re)
+				c = (e or _empty_).split(_eventsep_re_)
 				for i in c
 					@bind i, (evt) ->
 						f.call(@, evt)
@@ -1311,7 +1327,7 @@ Object.Extend Event,
 				# .cycle(e, ...) - bind handlers for e that trigger in a cycle
 				# one call per trigger. when the last handler is executed
 				# the next trigger will call the first handler again
-				c = (e or emptyString).split(eventsep_re)
+				c = (e or _empty_).split(_eventsep_re_)
 				nf = funcs.length
 				cycler = () ->
 					i = 0
@@ -1328,7 +1344,7 @@ Object.Extend Event,
 				# args is an optional mapping of properties to set,
 				#		{screenX: 10, screenY: 10}
 				# note: not all browsers support manually creating all event types
-				evts = (evt or emptyString).split(eventsep_re)
+				evts = (evt or _empty_).split(_eventsep_re_)
 				args = Object.Extend {
 					bubbles: true
 					cancelable: true
@@ -1421,7 +1437,7 @@ Object.Extend Event,
 							@each () ->
 								@dispatchEvent e
 						catch err
-							_log("dispatchEvent error:",err)
+							_log_("dispatchEvent error:",err)
 				@
 
 			live: (e, f) ->
@@ -1429,7 +1445,7 @@ Object.Extend Event,
 				selector = @selector
 				context = @context
 				# wrap f
-				_handler = (evt) ->
+				_handler_ = (evt) ->
 					# when event 'e' is fired
 					# re-execute the selector in the original context
 					$(selector, context)
@@ -1441,7 +1457,7 @@ Object.Extend Event,
 							f.call(@, evt)
 				# bind the handler to the context
 				# record f so we can 'die' it if needed
-				register_live selector, context, e, f, _handler
+				register_live selector, context, e, f, _handler_
 				@
 
 			die: (e, f) ->
@@ -1464,7 +1480,7 @@ Object.Extend Event,
 			click: (f = {}) ->
 				# .click([f]) - trigger [or bind] the 'click' event
 				# if the cursor is just default then make it look clickable
-				if @css("cursor").intersect(["auto",emptyString]).len() > 0
+				if @css("cursor").intersect(["auto",_empty_]).len() > 0
 					@css "cursor", "pointer"
 				if Object.IsFunc f
 					@bind 'click', f
@@ -1476,17 +1492,17 @@ Object.Extend Event,
 					if readyTriggered
 						f.call @
 					else
-						@bind _ready, f
+						@bind _ready_, f
 				else
-					@trigger _ready, f
+					@trigger _ready_, f
 		}
 
 		# add event binding/triggering shortcuts for the generic events
 		events.forEach (x) ->
 			ret[x] = binder(x)
-		ret
+		return ret
 
-	$.plugin () -> # Transform Module
+	$.plugin () -> # Transform plugin
 		speeds = # constant speed names
 			"slow": 700
 			"medium": 500
@@ -1499,6 +1515,7 @@ Object.Extend Event,
 		updateDelay = 50 # ms to wait for DOM changes to apply
 		testStyle = document.createElement("div").style
 
+		# detect which browser's transform properties to use
 		if "WebkitTransform" of testStyle
 			transformProperty = "-webkit-transform"
 			transitionProperty = "-webkit-transition-property"
@@ -1519,11 +1536,13 @@ Object.Extend Event,
 
 		return {
 			name: 'Transform'
-			$duration: (speed) ->
-				# $.duration(/s/) - given a speed description (string|number), a number in milliseconds
-				d = speeds[speed]
-				return d if d?
-				return parseFloat speed
+			$: {
+				duration: (speed) ->
+					# $.duration(/s/) - given a speed description (string|number), a number in milliseconds
+					d = speeds[speed]
+					return d if d?
+					return parseFloat speed
+			}
 
 			# like jquery's animate(), but using only webkit-transition/transform
 			transform: (end_css, speed, easing, callback) ->
@@ -1547,11 +1566,11 @@ Object.Extend Event,
 					speed = "normal"
 				easing or= "ease"
 				# duration is always in milliseconds
-				duration = $.duration(speed) + _ms
+				duration = $.duration(speed) + _ms_
 				props = []
 				p = 0 # insert marker for props
 				# what to send to the -webkit-transform
-				trans = emptyString
+				trans = _empty_
 				# real css values to be set (end_css without the transform values)
 				css = {}
 				for i of end_css
@@ -1559,10 +1578,10 @@ Object.Extend Event,
 					if accel_props_re.test(i)
 						ii = end_css[i]
 						if ii.join
-							ii = $(ii).px().join(commasep)
+							ii = $(ii).px().join(_commasep_)
 						else if ii.toString
 							ii = ii.toString()
-						trans += space + i + "(" + ii + ")"
+						trans += _space_ + i + "(" + ii + ")"
 					else # stick real css values in the css dict
 						css[i] = end_css[i]
 				# make a list of the properties to be modified
@@ -1573,15 +1592,15 @@ Object.Extend Event,
 					props[p++] = transformProperty
 
 				# sets a list of properties to apply a duration to
-				css[transitionProperty] = props.join(commasep)
+				css[transitionProperty] = props.join(_commasep_)
 				# apply the same duration to each property
 				css[transitionDuration] =
 					props.map(() -> duration)
-						.join(commasep)
+						.join(_commasep_)
 				# apply an easing function to each property
 				css[transitionTiming] =
 					props.map(() -> easing)
-						.join(commasep)
+						.join(_commasep_)
 
 				# apply the transformation
 				if( trans )
@@ -1596,34 +1615,34 @@ Object.Extend Event,
 				# .hide() - each node gets display:none
 				@each () ->
 					if @style
-						@_display = emptyString
-						if @style.display is not _none
-							@_display = @syle.display
-						@style.display = _none
-				.trigger(_hide)
+						@_display_ = _empty_
+						if @style.display is not _none_
+							@_display_ = @syle.display
+						@style.display = _none_
+				.trigger(_hide_)
 				.delay(updateDelay, callback)
 
 			show: (callback) ->
 				# .show() - show each node
 				@each () ->
 					if @style
-						@style.display = @_display
-						delete @_display
-				.trigger(_show)
+						@style.display = @_display_
+						delete @_display_
+				.trigger(_show_)
 				.delay(updateDelay, callback)
 
 			toggle: (callback) ->
 				# .toggle() - show each hidden node, hide each visible one
 				@weave(@css("display"))
 					.fold (display, node) ->
-						if display is _none
-							node.style.display = node._display or emptyString
-							delete node._display
-							$(node).trigger(_show)
+						if display is _none_
+							node.style.display = node._display_ or _empty_
+							delete node._display_
+							$(node).trigger(_show_)
 						else
-							node._display = display
-							node.style.display = _none
-							$(node).trigger(_hide)
+							node._display_ = display
+							node.style.display = _none_
+							$(node).trigger(_hide_)
 						node
 					.delay(updateDelay, callback)
 
@@ -1635,11 +1654,11 @@ Object.Extend Event,
 							opacity:"1.0",
 							translate3d: [0,0,0]
 						}, speed, callback
-			fadeOut: (speed, callback, _x = 0.0, _y = 0.0) ->
+			fadeOut: (speed, callback, _x_ = 0.0, _y_ = 0.0) ->
 				# .fadeOut() - fade each node to opacity:0.0
 				@transform {
 					opacity:"0.0",
-					translate3d:[_x,_y,0.0]
+					translate3d:[_x_,_y_,0.0]
 				}, speed, () -> @hide(callback)
 			fadeLeft: (speed, callback) ->
 				# .fadeLeft() - fadeOut and move offscreen to the left
@@ -1655,7 +1674,7 @@ Object.Extend Event,
 				@fadeOut(speed, callback, 0.0, @height().first())
 		}
 
-	$.plugin () -> # HTTP Request Module: provides wrappers for making http requests
+	$.plugin () -> # HTTP Request plugin: provides wrappers for making http requests
 		formencode = (obj) -> # create &foo=bar strings from object properties
 			s = []
 			j = 0 # insert marker into s
@@ -1666,59 +1685,61 @@ Object.Extend Event,
 
 		return {
 			name: 'Http'
-			$http: (url, opts = {}) -> # $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
-				xhr = new XMLHttpRequest()
-				if Object.IsFunc(opts)
-					opts = {success: Function.Bound(opts, xhr)}
-				opts = Object.Extend {
-					method: "GET"
-					data: null
-					state: Function.Empty # onreadystatechange
-					success: Function.Empty # onload
-					error: Function.Empty # onerror
-					async: true
-					timeout: 0 # milliseconds, 0 is forever
-					withCredentials: false
-					followRedirects: false
-					asBlob: false
-				}, opts
-				opts.state = Function.Bound(opts.state, xhr)
-				opts.success = Function.Bound(opts.success, xhr)
-				opts.error = Function.Bound(opts.error, xhr)
-				if opts.data and opts.method is "GET"
-					url += "?" + formencode(opts.data)
-				else if opts.data and opts.method is "POST"
-					opts.data = formencode(opts.data)
-				xhr.open(opts.method, url, opts.async)
-				xhr.withCredentials = opts.withCredentials
-				xhr.asBlob = opts.asBlob
-				xhr.timeout = opts.timeout
-				xhr.followRedirects = opts.followRedirects
-				xhr.onreadystatechange = () ->
-					if opts.state
-						opts.state()
-					if xhr.readyState is 4
-						if xhr.status is 200
-							opts.success xhr.responseText
-						else
-							opts.error xhr.status, xhr.statusText
-				xhr.send opts.data
-				return $([xhr])
+			$: {
+				http: (url, opts = {}) -> # $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
+					xhr = new XMLHttpRequest()
+					if Object.IsFunc(opts)
+						opts = {success: Function.Bound(opts, xhr)}
+					opts = Object.Extend {
+						method: "GET"
+						data: null
+						state: Function.Empty # onreadystatechange
+						success: Function.Empty # onload
+						error: Function.Empty # onerror
+						async: true
+						timeout: 0 # milliseconds, 0 is forever
+						withCredentials: false
+						followRedirects: false
+						asBlob: false
+					}, opts
+					opts.state = Function.Bound(opts.state, xhr)
+					opts.success = Function.Bound(opts.success, xhr)
+					opts.error = Function.Bound(opts.error, xhr)
+					if opts.data and opts.method is "GET"
+						url += "?" + formencode(opts.data)
+					else if opts.data and opts.method is "POST"
+						opts.data = formencode(opts.data)
+					xhr.open(opts.method, url, opts.async)
+					xhr.withCredentials = opts.withCredentials
+					xhr.asBlob = opts.asBlob
+					xhr.timeout = opts.timeout
+					xhr.followRedirects = opts.followRedirects
+					xhr.onreadystatechange = () ->
+						if opts.state
+							opts.state()
+						if xhr.readyState is 4
+							if xhr.status is 200
+								opts.success xhr.responseText
+							else
+								opts.error xhr.status, xhr.statusText
+					xhr.send opts.data
+					return $([xhr])
 
-			$post: (url, opts = {}) -> # $.post(/url/, [/opts/]) - fetch /url/ with a POST request
-				if Object.IsFunc(opts)
-					opts = {success: opts}
-				opts.method = "POST"
-				$.http(url, opts)
+				post: (url, opts = {}) -> # $.post(/url/, [/opts/]) - fetch /url/ with a POST request
+					if Object.IsFunc(opts)
+						opts = {success: opts}
+					opts.method = "POST"
+					$.http(url, opts)
 
-			$get: (url, opts = {}) -> # $.get(/url/, [/opts/]) - fetch /url/ with a GET request
-				if( Object.IsFunc(opts) )
-					opts = {success: opts}
-				opts.method = "GET"
-				$.http(url, opts)
+				get: (url, opts = {}) -> # $.get(/url/, [/opts/]) - fetch /url/ with a GET request
+					if( Object.IsFunc(opts) )
+						opts = {success: opts}
+					opts.method = "GET"
+					$.http(url, opts)
+			}
 		}
 
-	$.plugin () -> # Template Module
+	$.plugin () -> # Template plugin
 		match_forward = (text, find, against, start, stop) ->
 			count = 1
 			if stop == null or stop is -1
@@ -1793,19 +1814,19 @@ Object.Extend Event,
 				# currently supports 'd', 'f', and 's'
 				switch type
 					when 'd'
-						output[j++] = emptyString + parseInt(value, 10)
+						output[j++] = _empty_ + parseInt(value, 10)
 					when 'f'
 						output[j++] = parseFloat(value).toFixed(fixed)
 					# output unsupported formats like %s strings
 					# TODO: add support for more formats
 					when 's'
-						output[j++] = emptyString + value
+						output[j++] = _empty_ + value
 					else
-						output[j++] = emptyString + value
+						output[j++] = _empty_ + value
 				if pad > 0
 					output[j] = String.PadLeft output[j], pad
 				output[j++] = rest
-			output.join emptyString
+			output.join _empty_
 
 		# modes for the synth machine
 		TAGMODE = 1
@@ -1818,12 +1839,12 @@ Object.Extend Event,
 
 		synth = (expr) -> # $.synth(/expr/) - given a CSS expression, create DOM nodes that match
 			parent = null
-			tagname = emptyString
-			id = emptyString
-			cls = emptyString
-			attr = emptyString
-			val = emptyString
-			text = emptyString
+			tagname = _empty_
+			id = _empty_
+			cls = _empty_
+			attr = _empty_
+			val = _empty_
+			text = _empty_
 			attrs = {}
 			mode = TAGMODE
 			ret = $([])
@@ -1835,7 +1856,7 @@ Object.Extend Event,
 					parent.appendChild node
 				else
 					ret.push node
-				text = emptyString
+				text = _empty_
 				mode = TAGMODE
 			emitNode = () -> # puts a Node in the results
 				node = document.createElement(tagname)
@@ -1848,12 +1869,12 @@ Object.Extend Event,
 				else
 					ret.push node
 				parent = node
-				tagname = emptyString
-				id = emptyString
-				cls = emptyString
-				attr = emptyString
-				val = emptyString
-				text = emptyString
+				tagname = _empty_
+				id = _empty_
+				cls = _empty_
+				attr = _empty_
+				val = _empty_
+				text = _empty_
 				attrs = {}
 				mode = TAGMODE
 
@@ -1864,12 +1885,12 @@ Object.Extend Event,
 						parent = parent.parentNode
 				else if c is '#' and mode in [TAGMODE, CLSMODE, ATTRMODE]
 					mode = IDMODE
-				else if c is _dot and mode in [TAGMODE, IDMODE, ATTRMODE]
+				else if c is _dot_ and mode in [TAGMODE, IDMODE, ATTRMODE]
 					if cls.length > 0
-						cls += space
+						cls += _space_
 					mode = CLSMODE
-				else if c is _dot and cls.length > 0
-					cls += space
+				else if c is _dot_ and cls.length > 0
+					cls += _space_
 				else if c is '[' and mode in [TAGMODE, IDMODE, CLSMODE, ATTRMODE]
 					mode = ATTRMODE
 				else if c is '=' and mode is ATTRMODE
@@ -1880,19 +1901,19 @@ Object.Extend Event,
 					mode = STEXTMODE
 				else if c is ']' and mode in [ATTRMODE, VALMODE]
 					attrs[attr] = val
-					attr = emptyString
-					val = emptyString
+					attr = _empty_
+					val = _empty_
 					mode = TAGMODE
 				else if c is '"' and mode is DTEXTMODE
 					emitText()
 				else if c is "'" and mode is STEXTMODE
 					emitText()
-				else if c in [space, ','] and mode not in [VALMODE, ATTRMODE] and tagname.length > 0
+				else if c in [_space_, ','] and mode not in [VALMODE, ATTRMODE] and tagname.length > 0
 					emitNode()
 					if c is ','
 						parent = null
 				else if mode is TAGMODE
-					if c isnt space
+					if c isnt _space_
 						tagname += c
 				else if mode is IDMODE
 					id += c
@@ -1912,21 +1933,23 @@ Object.Extend Event,
 
 		return {
 			name: 'Template'
-			$render: render
-			$synth: synth
+			$: {
+				render: render
+				synth: synth
+			}
 
 			template: (defaults) ->
 				# .template([defaults]) - mark nodes as templates, add optional defaults to .render()
 				# if defaults is passed, these will be the default values for v in .render(v)
 				@render = (args) ->
 					# an over-ride of the basic .render() that applies these defaults
-					render(@map($.HTML.stringify).join(emptyString), Object.Extend(defaults,args))
+					render(@map($.HTML.stringify).join(_empty_), Object.Extend(defaults,args))
 				@remove() # the template item itself should not be in the DOM
 
 			render: (args) ->
 				# .render(args) - replace %(var)s-type strings with values from args
 				# accepts nodes, returns a string
-				render(@map($.HTML.stringify).join(emptyString), args)
+				render(@map($.HTML.stringify).join(_empty_), args)
 
 			synth: (expr) ->
 				# .synth(expr) - create DOM nodes to match a simple css expression
@@ -1935,10 +1958,140 @@ Object.Extend Event,
 				# and the additional helper "text"
 				synth(expr).appendTo @
 		}
+	
+	$.plugin () -> # Pretty Print plugin
+		operators = /!==|!=|!|\#|\%|\%=|\&|\&\&|\&\&=|&=|\*|\*=|\+|\+=|-|-=|->|\.{1,3}|\/|\/=|:|::|;|<<=|<<|<=|<|===|==|=|>>>=|>>=|>=|>>>|>>|>|\?|@|\[|\]|}|{|\^|\^=|\^\^|\^\^=|\|=|\|\|=|\|\||\||~/g
+		operator_html = "<span class='opr'>$&</span>"
+		keywords = /\b[Ff]unction\b|\bvar\b|\.prototype\b|\.__proto__\b|\bString\b|\bArray\b|\bNumber\b|\bObject\b|\bbreak\b|\bcase\b|\bcontinue\b|\bdelete\b|\bdo\b|\bif\b|\belse\b|\bfinally\b|\binstanceof\b|\breturn\b|\bthrow\b|\btry\b|\btypeof\b|\btrue\b|\bfalse\b/g
+		keyword_html = "<span class='kwd'>$&</span>"
+		all_numbers = /\d+\.*\d*/g
+		number_html = "<span class='num'>$&</span>"
+		bling_symbol = /\$(\(|\.)/g
+		bling_html = "<span class='bln'>$$</span>$1"
+		tabs = /\t/g
+		tab_html = "&nbsp;&nbsp;"
+		singleline_comment = /\/\/.*?(?:\n|$)/
+		multiline_comment = /\/\*(?:.|\n)*?\*\//
+		comment_html = (comment) ->
+			if comment then "<span class='com'>#{comment}</span>" else ""
+		quoted_html = (quoted) ->
+			if quoted then "<span class='str'>#{quoted}</span>" else ""
+
+		first_quote = (s, i) -> # return the type of quote and its first index (after i)
+			a = s.indexOf('"', i)
+			b = s.indexOf("'", i)
+			a = s.length if a is -1
+			b = s.length if b is -1
+			return [null, -1] if a is b
+			return ['"', a] if a < b
+			return ["'", b]
+		closing_quote = (s, i, q) -> # find the closing quote
+			r = s.indexOf(q, i)
+			while( s.charAt(r-1) is "\\" and 0 < r < s.length)
+				r = s.indexOf(q, r+1)
+			r
+		split_quoted = (s) -> # splits a string into a list where even items were inside quoted strings, odd items were unquoted
+			i = 0
+			n = s.length
+			ret = []
+			if not Object.IsString(s)
+				if not Object.IsFunc(s.toString)
+					throw TypeError("invalid string argument to split_quoted")
+				else
+					s = s.toString()
+					n = s.length
+			while( i < n )
+				q = first_quote(s, i)
+				j = q[1]
+				if( j is -1 )
+					ret.push(s.substring(i))
+					break
+				ret.push(s.substring(i,j))
+				k = closing_quote(s, j+1, q[0])
+				if( k is -1 )
+					throw Error("unclosed quote: "+q[0]+" starting at "+j)
+				ret.push(s.substring(j, k+1))
+				i = k+1
+			ret
+
+		first_comment = (s) ->
+			a = s.match(singleline_comment)
+			b = s.match(multiline_comment)
+			return [-1, null] if a is b
+			return [b.index, b[0]] if a == null and b != null
+			return [a.index, a[0]] if a != null && b == null
+			return [b.index, b[0]] if b.index < a.index
+			return [a.index, a[0]]
+
+		split_comments = (s) ->
+			ret = []
+			i = 0
+			n = s.length
+			while( i < n )
+				ss = s.substring(i)
+				q = first_comment(ss)
+				j = q[0]
+				if( j > -1 )
+					ret.push(ss.substring(0,j))
+					ret.push(q[1])
+					i += j + q[1].length
+				else
+					ret.push(ss)
+					break
+			ret
+
+		return {
+			name: "PrettyPrint",
+			$: {
+				prettyPrint: (js, colors) ->
+					js = js.toString() if Object.IsFunc(js)
+					if not Object.IsString(js)
+						throw TypeError("prettyPrint requires a function or string to format, not '"+Object.Type(js)+"'")
+					if $("style#prettyPrint").length is 0
+						css = "code.pp .bln { font-size: 17px; } "
+						colors = Object.Extend(
+							opr: "#880"
+							str: "#008"
+							com: "#080"
+							kwd: "#088"
+							num: "#808"
+							bln: "#800"
+						, colors)
+						for cls of colors
+							css += "code.pp .#{cls} { color: #{colors[cls]}; } "
+						$.synth("style#prettyPrint")
+							.text(css)
+							.appendTo("head")
+					"<code class='pp'>" +
+						$ split_comments(js)
+							.fold (text, comment) ->
+								$ split_quoted(text)
+									.fold (code, quoted) ->
+										code
+										# label operator symbols
+										.replace(operators, operator_html)
+										# label numbers
+										.replace(all_numbers, number_html)
+										# label keywords
+										.replace(keywords, keyword_html)
+										# label the bling operator
+										.replace(bling_symbol, bling_html)
+										# replace tabs with spaces
+										.replace(tabs, tab_html) +
+										# label string constants
+										quoted_html(quoted)
+									# collapse the quoted strings
+									.join('') +
+									# append the extracted comment
+									comment_html(comment)
+							.join('') +
+					"</code>"
+			}
+		}
 
 	$.plugin () -> # TnetStrings plugin
 		parseOne = (data) ->
-			i = data.indexOf _colon
+			i = data.indexOf _colon_
 			if i > 0
 				len = parseInt data[0...i], 10
 				item = data[i+1...i+1+len]
@@ -1968,21 +2121,69 @@ Object.Extend Event,
 			data
 		return {
 			name: 'TNET'
-			$TNET:
-				stringify: (x) ->
-					[data, type] = switch Object.Type(x)
-						when "number" then [String(x), "#"]
-						when "string" then [x, "'"]
-						when "function" then [String(x), "'"]
-						when "boolean" then [String(not not x), "!"]
-						when "null" then ["", "~"]
-						when "undefined" then ["", "~"]
-						when "array" then [($.TNET.stringify(y) for y in x).join(''), "]"]
-						when "object" then [($.TNET.stringify(y)+$.TNET.stringify(x[y]) for y of x).join(''), "}"]
-					return (data.length|0) + ":" + data + type
-				parse: (x) ->
-					parseOne(x)?[0]
+			$: {
+				TNET: {
+					stringify: (x) ->
+						[data, type] = switch Object.Type(x)
+							when "number" then [String(x), "#"]
+							when "string" then [x, "'"]
+							when "function" then [String(x), "'"]
+							when "boolean" then [String(not not x), "!"]
+							when "null" then ["", "~"]
+							when "undefined" then ["", "~"]
+							when "array" then [($.TNET.stringify(y) for y in x).join(''), "]"]
+							when "object" then [($.TNET.stringify(y)+$.TNET.stringify(x[y]) for y of x).join(''), "}"]
+						return (data.length|0) + ":" + data + type
+					parse: (x) ->
+						parseOne(x)?[0]
+				}
+			}
 		}
+	
+	$.plugin () -> # Promises plugin
+		Promise = (steps = 1) ->
+			@steps = steps
+			@state = 0 # 0 is unfulfilled, > 0 is in progress, eq to steps is done, -1 is cancelled, -2 is error 
+			@value = null
+			fs = []
+			es = []
+			ps = []
+			@then = (f, e, p) =>
+				if @state is @steps
+					return f(@value)
+				else
+					fs.push f
+				if @state is -2
+					return e(@value)
+				else
+					es.push e
+				ps.push p if Object.IsFunc p
+
+			@cancel = () =>
+				fs = []
+				es = []
+				ps = []
+				@state = -1
+
+			@fulfill = (v) =>
+				@state += 1
+				@value = v
+				if Object.Type(v) is "error"
+					@state = -2
+					while f = es.pop()
+						f(v)
+				else
+					if @state is steps
+						while f = fs.pop()
+							f(v)
+					else
+						for p in ps
+							p(@state, ste
+
+		return {
+			name: "Promises"
+		}
+	
 
 )(Bling)
 

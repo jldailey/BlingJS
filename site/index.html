@@ -3,136 +3,10 @@
 	<title>BlingJS Framework.</title>
 	<meta name="viewport" content="initial-scale=1.0, user-scalable=yes, width=device-width" />
 	<link rel="icon" href="html/bling.png" type="image/png" />
-	<script src="dist/bling.js" type="text/javascript"></script>
+	<link rel="stylesheet" href="index.css" />
+	<script src="bling.js" type="text/javascript"></script>
 	<script src="plugins/bling.doc.js" type="text/javascript"></script>
-	<style type="text/css">
-		body {
-			font-family: fixed;
-			font-size: 16px;
-			width:640px;
-			padding:10px;
-			margin-left:auto;
-			margin-right:auto;
-			border-right:1px dashed #cbcbcb;
-			border-left:1px dashed #cbcbcb;
-			background-color:white;
-		}
-		b { color:#800; }
-		i { color:#822; }
-		p {
-			width:600px;
-			text-align: left;
-			margin-left:auto;
-			margin-right:auto;
-		}
-		.bln {
-			color: #800;
-			font-size: 17px;
-		}
-		h1 .bln {
-			font-size: 34px;
-		}
-		h1 a[name=top], h2 {
-			font-family: monospace;
-		}
-		code.pp, textarea {
-			font-family: courier, monospace;
-			font-size:14px;
-			line-height:1.1em;
-			padding:6px 0px 6px 4px;
-			display: inline-block;
-			border:1px dashed gray;
-			background-color:#ffc;
-			width:600px;
-			margin:0px 0px 0px 10px;
-		}
-		code {
-			font-family: courier, sans;
-			font-size: 16px;
-		}
-		.bold { font-weight: bold; }
-		.right { text-align: right; }
-		.center { text-align: center; }
-
-		h3, h4, h5 {
-			border-bottom: 1px solid black;
-		}
-
-		table.small {
-			font-size: 14px;
-			width: 100%;
-		}
-		table.small td:first-child {
-			font-family: 'Inconsolata', courier, fixed, sans;
-			font-size: 16px;
-			width: 45%;
-		}
-		table.synthops {
-			margin-top: 1em;
-		}
-		table.download {
-			margin: 0 2em 0 1em;
-		}
-		table.download a {
-			text-decoration: none;
-		}
-		table.download td:first-child {
-			white-space: nowrap;
-			text-align: right;
-			vertical-align: baseline;
-		}
-		table.download td:first-child + td {
-			width: 100%;
-			border-bottom: 1px dotted blue;
-		}
-		table.download td:first-child + td + td {
-			text-align: right;
-		}
-		a[href] { color: blue; }
-		a[href]:visited { color: blue; }
-		a[href]:hover { color: red; }
-
-		a[href^=mailto] {
-			text-decoration: none;
-		}
-	</style>
-	<script>
-		try {
-			$(document)
-			.ready(function () {
-				// find unsupported fraction markup
-				// and insert fall-back text
-				var num_re = /&frac(\d)(\d);/
-				$("p").each(function() {
-					var p = $(this),
-						text = p.text()[0]
-					if( num_re.test(text) )
-						p.text(text.replace(num_re, "$1/$2"))
-				})
-			})
-			.ready(function (){
-				var initial_tab = /(^|\n)\t/g,
-					all_tabs = /\t/g
-
-				// replace tabs with spaces in <pre>'s
-				// make all <pre>'s pretty-printable
-				$("pre").zipzapmap('innerHTML', function(html) {
-					return Function.PrettyPrint($.HTML.escape(html)
-						.replace(all_tabs, "  "));
-				})
-				// clean up textarea's also
-				$("textarea").zipzapmap('value', function (value) {
-					return value.replace(initial_tab,'$1').replace(all_tabs, "  ")
-				})
-				// all documentation links are made active
-				var a = $("a[href^='#doc:']").zipzap('href', function(href) {
-					return 'html/doc.html#' + href.split(/#doc:/)[1]
-				})
-			})
-		} catch ( err ) {
-			alert("JavaScript error:" + err)
-		}
-	</script>
+	<script type="text/javascript" src="index.js"></script>
 </head>
 <body>
 	<h1><a name="top"><span class='bln'>$</span>(BlingJS)</a></h1>
@@ -146,15 +20,15 @@
 	<h3>Download</h3>
 	<table class='download' cellspacing="0">
 		<tr>
-			<td><a href="bling.coffee">Coffee Script</a><td><td>[56k]
+			<td><a href="bling.coffee">Coffee Script</a><td>&nbsp;<td>[56k]
 		<tr>
-			<td><a href="dist/bling.js">Full Source</a><td><td>[70k]
+			<td><a href="dist/bling.js">Full Source</a><td>&nbsp;<td>[70k]
 		<tr>
-			<td><a href="dist/min.bling.js">Minified</a><td><td>[31k]
+			<td><a href="dist/min.bling.js">Minified</a><td>&nbsp;<td>[31k]
 		<tr>
-			<td><a href="dist/min.bling.js.gz">Compressed</a><td><td>[<b>9k</b>]
+			<td><a href="dist/min.bling.js.gz">Compressed</a><td>&nbsp;<td>[<b>9k</b>]
 		<tr>
-			<td><a href="https://github.com/jldailey/BlingJS">[GitHub]</a><td><td>[*]
+			<td><a href="https://github.com/jldailey/BlingJS">[GitHub]</a><td>&nbsp;<td>[*]
 	</table>
 	<p class='small'>About &frac13;rd the size of jQuery.<br> (compare v1.4.4: 179k, 78k, 28k)</p>
 

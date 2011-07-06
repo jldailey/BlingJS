@@ -30,7 +30,6 @@ commasep = ", "
 eventsep_re = /,* +/
 leftSpaces_re = /^\s+/
 object_cruft_re = /\[object (\w+)\]/
-_1 = "$1"
 
 Bling = (selector, context = document) ->
 	type = Object.Type selector
@@ -123,7 +122,7 @@ Object.Extend Object,
 		else if o.constructor is T
 			true
 		else if typeof T is "string"
-			o.constructor.name is T or Obj_toString.apply(o).replace(object_cruft_re, _1) is T
+			o.constructor.name is T or Obj_toString.apply(o).replace(object_cruft_re, "$1") is T
 		else
 			Object.IsType o.__proto__, T # recurse through sub-classes
 	IsString: (o) -> # Object.IsString(a) - true if object a is a string
@@ -727,7 +726,7 @@ Object.Extend Event,
 							return "window"
 						else
 							return @toString().replace(_object_re_,_1_)
-				.join(_commasep_) + "])"
+				.join(commasep) + "])"
 
 			delay: (n, f) -> # .delay(/n/, /f/) -  continue with /f/ on _this_ after /n/ milliseconds
 				if f
@@ -1537,7 +1536,7 @@ Object.Extend Event,
 					if accel_props_re.test(i)
 						ii = end_css[i]
 						if ii.join
-							ii = $(ii).px().join(_commasep_)
+							ii = $(ii).px().join(commasep)
 						else if ii.toString
 							ii = ii.toString()
 						trans += " " + i + "(" + ii + ")"
@@ -1551,15 +1550,15 @@ Object.Extend Event,
 					props[p++] = transformProperty
 
 				# sets a list of properties to apply a duration to
-				css[transitionProperty] = props.join(_commasep_)
+				css[transitionProperty] = props.join(commasep)
 				# apply the same duration to each property
 				css[transitionDuration] =
 					props.map(() -> duration)
-						.join(_commasep_)
+						.join(commasep)
 				# apply an easing function to each property
 				css[transitionTiming] =
 					props.map(() -> easing)
-						.join(_commasep_)
+						.join(commasep)
 
 				# apply the transformation
 				if( trans )

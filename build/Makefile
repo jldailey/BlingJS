@@ -4,10 +4,11 @@ LEVEL=SIMPLE_OPTIMIZATIONS
 # LEVEL=ADVANCED_OPTIMIZATIONS
 # LEVEL=WHITESPACE_ONLY
 DIST=../dist
+SITE=../site
 PLUGINS=../plugins
 DIST_PLUGINS=$(DIST)/plugins
 
-all: dist report
+all: dist site report
 
 minify: min.bling.js min.bling.js.gz
 
@@ -15,6 +16,11 @@ clean:
 	rm -f $(DIST)/*.js
 
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
+
+site: $(SITE)/bling.js
+
+$(SITE)/bling.js: $(DIST)/bling.js
+	cp $(DIST)/bling.js $(SITE)
 
 plugins: $(subst $(PLUGINS),$(DIST_PLUGINS),$(shell ls ../plugins/*))
 

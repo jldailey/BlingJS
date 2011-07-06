@@ -403,29 +403,21 @@
   (function($) {
     $.plugins = [];
     $.plugin = function(constructor) {
-      var i, load, name, plugin, _i, _len, _ref;
+      var name, plugin;
       try {
         plugin = constructor.call($, $);
         name = constructor.name || plugin.name;
         if (!name) {
           throw Error("plugin requires a 'name'");
         }
-        load = function(name, func) {
-          if (name[0] === Bling.symbol) {
-            return Bling[name.substr(1)] = func;
-          } else {
-            return Bling.fn[name] = func;
-          }
-        };
-        _ref = Object.Keys(plugin, true);
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          i = _ref[_i];
-          if (i !== 'name') {
-            load(i, plugin[i]);
-          }
-        }
         $.plugins.push(name);
-        return $.plugins[name] = plugin;
+        $.plugins[name] = plugin;
+        delete plugin.name;
+        if (plugin[Bling.symbol]) {
+          Object.Extend(Bling, plugin[Bling.symbol]);
+          delete plugin[Bling.symbol];
+        }
+        return Object.Extend(Bling.fn, plugin);
       } catch (error) {
         return console.log("failed to load plugin", error);
       }
@@ -549,7 +541,7 @@
         }
         return TimeoutQueue;
       })();
-      timeoutQueue = new TimeoutQueue();
+      timeoutQueue = new TimeoutQueue;
       _getter = function(prop) {
         return function() {
           var v;
@@ -570,11 +562,6 @@
       };
       return {
         name: 'Core',
-        querySelectorAll: function(s) {
-          return this.filter("*").reduce(function(a, i) {
-            return Array.Extend(a, i.querySelectorAll(s));
-          }, $());
-        },
         eq: function(i) {
           var a;
           a = $([this[i]]);
@@ -857,14 +844,19 @@
         matches: function(expr) {
           return this.zip('matchesSelector').call(expr);
         },
+        querySelectorAll: function(s) {
+          return this.filter("*").reduce(function(a, i) {
+            return Array.Extend(a, i.querySelectorAll(s));
+          }, $());
+        },
         weave: function(b) {
           var c, i, n, nn, _ref;
           n = b.len();
           nn = this.len();
           c = $();
           i = nn - 1;
-          c.context = [this, b];
-          c.selector = 'weave';
+          c.context = this;
+          c.selector = ['weave', b];
           for (i = _ref = nn - 1; _ref <= 0 ? i <= 0 : i >= 0; _ref <= 0 ? i++ : i--) {
             c[(i * 2) + 1] = this[i];
           }
@@ -995,43 +987,45 @@
       };
       return {
         name: 'Html',
-        $HTML: {
-          parse: function(h) {
-            var childNodes, df, i, n, node;
-            node = document.createElement("div");
-            node.innerHTML = h;
-            childNodes = node.childNodes;
-            n = childNodes.length;
-            if (n === 1) {
-              return node.removeChild(childNodes[0]);
+        $: {
+          HTML: {
+            parse: function(h) {
+              var childNodes, df, i, n, node;
+              node = document.createElement("div");
+              node.innerHTML = h;
+              childNodes = node.childNodes;
+              n = childNodes.length;
+              if (n === 1) {
+                return node.removeChild(childNodes[0]);
+              }
+              df = document.createDocumentFragment();
+              for (i = 0; 0 <= n ? i < n : i > n; 0 <= n ? i++ : i--) {
+                df.appendChild(node.removeChild(childNodes[0]));
+              }
+              return df;
+            },
+            stringify: function(n) {
+              var d, ret;
+              switch (Object.Type(n)) {
+                case "string":
+                  return n;
+                case "node":
+                  n = n.cloneNode(true);
+                  d = document.createElement("div");
+                  d.appendChild(n);
+                  ret = d.innerHTML;
+                  d.removeChild(n);
+                  delete n;
+                  return ret;
+              }
+            },
+            escape: function(h) {
+              var ret;
+              escaper || (escaper = $("<div>&nbsp;</div>").child(0));
+              ret = escaper.zap('data', h).zip("parentNode.innerHTML").first();
+              escaper.zap('data', emptyString);
+              return ret;
             }
-            df = document.createDocumentFragment();
-            for (i = 0; 0 <= n ? i < n : i > n; 0 <= n ? i++ : i--) {
-              df.appendChild(node.removeChild(childNodes[0]));
-            }
-            return df;
-          },
-          stringify: function(n) {
-            var d, ret;
-            switch (Object.Type(n)) {
-              case "string":
-                return n;
-              case "node":
-                n = n.cloneNode(true);
-                d = document.createElement("div");
-                d.appendChild(n);
-                ret = d.innerHTML;
-                d.removeChild(n);
-                delete n;
-                return ret;
-            }
-          },
-          escape: function(h) {
-            var ret;
-            escaper || (escaper = $("<div>&nbsp;</div>").child(0));
-            ret = escaper.zap('data', h).zip("parentNode.innerHTML").first();
-            escaper.zap('data', emptyString);
-            return ret;
           }
         },
         html: function(h) {
@@ -1805,13 +1799,15 @@
       delete testStyle;
       return {
         name: 'Transform',
-        $duration: function(speed) {
-          var d;
-          d = speeds[speed];
-          if (d != null) {
-            return d;
+        $: {
+          duration: function(speed) {
+            var d;
+            d = speeds[speed];
+            if (d != null) {
+              return d;
+            }
+            return parseFloat(speed);
           }
-          return parseFloat(speed);
         },
         transform: function(end_css, speed, easing, callback) {
           var css, duration, i, ii, p, props, trans;
@@ -1947,80 +1943,82 @@
       };
       return {
         name: 'Http',
-        $http: function(url, opts) {
-          var xhr;
-          if (opts == null) {
-            opts = {};
-          }
-          xhr = new XMLHttpRequest();
-          if (Object.IsFunc(opts)) {
-            opts = {
-              success: Function.Bound(opts, xhr)
-            };
-          }
-          opts = Object.Extend({
-            method: "GET",
-            data: null,
-            state: Function.Empty,
-            success: Function.Empty,
-            error: Function.Empty,
-            async: true,
-            timeout: 0,
-            withCredentials: false,
-            followRedirects: false,
-            asBlob: false
-          }, opts);
-          opts.state = Function.Bound(opts.state, xhr);
-          opts.success = Function.Bound(opts.success, xhr);
-          opts.error = Function.Bound(opts.error, xhr);
-          if (opts.data && opts.method === "GET") {
-            url += "?" + formencode(opts.data);
-          } else if (opts.data && opts.method === "POST") {
-            opts.data = formencode(opts.data);
-          }
-          xhr.open(opts.method, url, opts.async);
-          xhr.withCredentials = opts.withCredentials;
-          xhr.asBlob = opts.asBlob;
-          xhr.timeout = opts.timeout;
-          xhr.followRedirects = opts.followRedirects;
-          xhr.onreadystatechange = function() {
-            if (opts.state) {
-              opts.state();
+        $: {
+          http: function(url, opts) {
+            var xhr;
+            if (opts == null) {
+              opts = {};
             }
-            if (xhr.readyState === 4) {
-              if (xhr.status === 200) {
-                return opts.success(xhr.responseText);
-              } else {
-                return opts.error(xhr.status, xhr.statusText);
+            xhr = new XMLHttpRequest();
+            if (Object.IsFunc(opts)) {
+              opts = {
+                success: Function.Bound(opts, xhr)
+              };
+            }
+            opts = Object.Extend({
+              method: "GET",
+              data: null,
+              state: Function.Empty,
+              success: Function.Empty,
+              error: Function.Empty,
+              async: true,
+              timeout: 0,
+              withCredentials: false,
+              followRedirects: false,
+              asBlob: false
+            }, opts);
+            opts.state = Function.Bound(opts.state, xhr);
+            opts.success = Function.Bound(opts.success, xhr);
+            opts.error = Function.Bound(opts.error, xhr);
+            if (opts.data && opts.method === "GET") {
+              url += "?" + formencode(opts.data);
+            } else if (opts.data && opts.method === "POST") {
+              opts.data = formencode(opts.data);
+            }
+            xhr.open(opts.method, url, opts.async);
+            xhr.withCredentials = opts.withCredentials;
+            xhr.asBlob = opts.asBlob;
+            xhr.timeout = opts.timeout;
+            xhr.followRedirects = opts.followRedirects;
+            xhr.onreadystatechange = function() {
+              if (opts.state) {
+                opts.state();
               }
+              if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                  return opts.success(xhr.responseText);
+                } else {
+                  return opts.error(xhr.status, xhr.statusText);
+                }
+              }
+            };
+            xhr.send(opts.data);
+            return $([xhr]);
+          },
+          post: function(url, opts) {
+            if (opts == null) {
+              opts = {};
             }
-          };
-          xhr.send(opts.data);
-          return $([xhr]);
-        },
-        $post: function(url, opts) {
-          if (opts == null) {
-            opts = {};
+            if (Object.IsFunc(opts)) {
+              opts = {
+                success: opts
+              };
+            }
+            opts.method = "POST";
+            return $.http(url, opts);
+          },
+          get: function(url, opts) {
+            if (opts == null) {
+              opts = {};
+            }
+            if (Object.IsFunc(opts)) {
+              opts = {
+                success: opts
+              };
+            }
+            opts.method = "GET";
+            return $.http(url, opts);
           }
-          if (Object.IsFunc(opts)) {
-            opts = {
-              success: opts
-            };
-          }
-          opts.method = "POST";
-          return $.http(url, opts);
-        },
-        $get: function(url, opts) {
-          if (opts == null) {
-            opts = {};
-          }
-          if (Object.IsFunc(opts)) {
-            opts = {
-              success: opts
-            };
-          }
-          opts.method = "GET";
-          return $.http(url, opts);
         }
       };
     });
@@ -2231,8 +2229,10 @@
       };
       return {
         name: 'Template',
-        $render: render,
-        $synth: synth,
+        $: {
+          render: render,
+          synth: synth
+        },
         template: function(defaults) {
           this.render = function(args) {
             return render(this.map($.HTML.stringify).join(emptyString), Object.Extend(defaults, args));
@@ -2247,7 +2247,7 @@
         }
       };
     });
-    return $.plugin(function() {
+    $.plugin(function() {
       var parseArray, parseObject, parseOne;
       parseOne = function(data) {
         var extra, i, item, len, type;
@@ -2298,55 +2298,66 @@
       };
       return {
         name: 'TNET',
-        $TNET: {
-          stringify: function(x) {
-            var data, type, y, _ref;
-            _ref = (function() {
-              switch (Object.Type(x)) {
-                case "number":
-                  return [String(x), "#"];
-                case "string":
-                  return [x, "'"];
-                case "function":
-                  return [String(x), "'"];
-                case "boolean":
-                  return [String(!!x), "!"];
-                case "null":
-                  return ["", "~"];
-                case "undefined":
-                  return ["", "~"];
-                case "array":
-                  return [
-                    ((function() {
-                      var _i, _len, _results;
-                      _results = [];
-                      for (_i = 0, _len = x.length; _i < _len; _i++) {
-                        y = x[_i];
-                        _results.push($.TNET.stringify(y));
-                      }
-                      return _results;
-                    })()).join(''), "]"
-                  ];
-                case "object":
-                  return [
-                    ((function() {
-                      var _results;
-                      _results = [];
-                      for (y in x) {
-                        _results.push($.TNET.stringify(y) + $.TNET.stringify(x[y]));
-                      }
-                      return _results;
-                    })()).join(''), "}"
-                  ];
-              }
-            })(), data = _ref[0], type = _ref[1];
-            return (data.length | 0) + ":" + data + type;
-          },
-          parse: function(x) {
-            var _ref;
-            return (_ref = parseOne(x)) != null ? _ref[0] : void 0;
+        $: {
+          TNET: {
+            stringify: function(x) {
+              var data, type, y, _ref;
+              _ref = (function() {
+                switch (Object.Type(x)) {
+                  case "number":
+                    return [String(x), "#"];
+                  case "string":
+                    return [x, "'"];
+                  case "function":
+                    return [String(x), "'"];
+                  case "boolean":
+                    return [String(!!x), "!"];
+                  case "null":
+                    return ["", "~"];
+                  case "undefined":
+                    return ["", "~"];
+                  case "array":
+                    return [
+                      ((function() {
+                        var _i, _len, _results;
+                        _results = [];
+                        for (_i = 0, _len = x.length; _i < _len; _i++) {
+                          y = x[_i];
+                          _results.push($.TNET.stringify(y));
+                        }
+                        return _results;
+                      })()).join(''), "]"
+                    ];
+                  case "object":
+                    return [
+                      ((function() {
+                        var _results;
+                        _results = [];
+                        for (y in x) {
+                          _results.push($.TNET.stringify(y) + $.TNET.stringify(x[y]));
+                        }
+                        return _results;
+                      })()).join(''), "}"
+                    ];
+                }
+              })(), data = _ref[0], type = _ref[1];
+              return (data.length | 0) + ":" + data + type;
+            },
+            parse: function(x) {
+              var _ref;
+              return (_ref = parseOne(x)) != null ? _ref[0] : void 0;
+            }
           }
         }
+      };
+    });
+    return $.plugin(function() {
+      var Promise;
+      Promise = function() {
+        return this.state = 0;
+      };
+      return {
+        name: "Promises"
       };
     });
   })(Bling);

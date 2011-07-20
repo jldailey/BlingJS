@@ -377,7 +377,7 @@ Object.Extend Event,
 				if Object.IsFunc v
 					return Function.Bound(v, @)
 				return v
-		_zipper = (prop) -> # used in .zip()
+		_zipper_ = (prop) -> # used in .zip()
 			i = prop.indexOf(".")
 			if i > -1
 				return @zip(prop.substr(0, i)).zip(prop.substr(i+1))

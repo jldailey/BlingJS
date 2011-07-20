@@ -296,9 +296,7 @@ Object.Extend Event,
 		String::split = Array.Coalesce(
 			String::split,
 			(sep) ->
-				a = []
-				n = 0
-				i = 0
+				a = []; n = 0; i = 0
 				while (j = @indexOf sep,i) > -1
 					a[n++] = @substring(i+1,j+1)
 					i = j + 1
@@ -322,7 +320,7 @@ Object.Extend Event,
 			Element::matchesSelector
 		)
 
-		_oldToString_ = Element::toString
+		oldToString = Element::toString
 		Element::toString = (css_mode) ->
 			if css_mode
 				name = @nodeName.toLowerCase()
@@ -332,7 +330,7 @@ Object.Extend Event,
 					name += ".#{@className.split(" ").join(".")}"
 				name
 			else
-				_oldToString_.apply @
+				oldToString.apply @
 
 		# if cloneNode does not take a 'deep' argument, add support
 		if Element::cloneNode.length is 0
@@ -343,7 +341,7 @@ Object.Extend Event,
 					for i in @childNodes
 						n.appendChild i.cloneNode true
 				return n
-		
+
 		return {
 			name: "Compat"
 		}
@@ -1573,7 +1571,7 @@ Object.Extend Event,
 				# .hide() - each node gets display:none
 				@each () ->
 					if @style
-						@_display = ""
+						@_display = "" # stash the old display
 						if @style.display is not "none"
 							@_display = @syle.display
 						@style.display = "none"
@@ -1612,11 +1610,11 @@ Object.Extend Event,
 							opacity:"1.0",
 							translate3d: [0,0,0]
 						}, speed, callback
-			fadeOut: (speed, callback, _x_ = 0.0, _y_ = 0.0) ->
+			fadeOut: (speed, callback, x = 0.0, y = 0.0) ->
 				# .fadeOut() - fade each node to opacity:0.0
 				@transform {
 					opacity:"0.0",
-					translate3d:[_x_,_y_,0.0]
+					translate3d:[x,y,0.0]
 				}, speed, () -> @hide(callback)
 			fadeLeft: (speed, callback) ->
 				# .fadeLeft() - fadeOut and move offscreen to the left
@@ -1643,7 +1641,7 @@ Object.Extend Event,
 
 		return {
 			name: 'Http'
-			$: {
+			$: { # globals
 				http: (url, opts = {}) -> # $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
 					xhr = new XMLHttpRequest()
 					if Object.IsFunc(opts)
@@ -1743,31 +1741,20 @@ Object.Extend Event,
 
 		render = (text, values) -> # $.render(/t/, /v/) - replace markers in string /t/ with values from /v/
 			cache = compile.cache[text] # get the cached version
-			if not cache?
+			if cache == null
 				cache = compile.cache[text] = compile(text) # or compile and cache it
 			output = [cache[0]] # the first block is always just text
 			j = 1 # insert marker into output
 			n = cache.length
 
 			# then the rest of the cache items are: [key, pad, fixed, type, text remainder] 5-lets
-			for i in [1...n-4] by 5
-				key = cache[i]
-				# the format in three pieces
-				# (\d).\d\w
-				pad = cache[i+1]
-				# \d.(\d)\w
-				fixed = cache[i+2]
-				# \d.\d(\w)
-				type = cache[i+3]
-				# the text remaining after the end of the format
-				rest = cache[i+4]
+			for i in [1..n-5] by 5
+				[key, pad, fixed, type, rest] = cache[i..i+4]
 				# the value to render for @ key
 				value = values[key]
-
 				# require the value
 				if not value?
 					value = "missing value: #{key}"
-
 				# format the value according to the format options
 				# currently supports 'd', 'f', and 's'
 				switch type
@@ -1797,11 +1784,10 @@ Object.Extend Event,
 
 		synth = (expr) -> # $.synth(/expr/) - given a CSS expression, create DOM nodes that match
 			parent = null
-			tagname = id = cls = attr = val = text = ""
+			tag = id = cls = attr = val = text = ""
 			attrs = {}
 			mode = TAGMODE
 			ret = $([])
-			i = 0 # i is a read-marker within expr
 			ret.selector = expr
 			emitText = () -> # puts a TextNode in the results
 				node = $.HTML.parse text
@@ -1810,9 +1796,9 @@ Object.Extend Event,
 				else
 					ret.push node
 				text = ""
-				mode = TAGMODE
+				TAGMODE
 			emitNode = () -> # puts a Node in the results
-				node = document.createElement(tagname)
+				node = document.createElement(tag)
 				node.id = id or null
 				node.className = cls or null
 				for k of attrs
@@ -1822,58 +1808,82 @@ Object.Extend Event,
 				else
 					ret.push node
 				parent = node
-				tagname = id = cls = attr = val = text = ""
+				tag = id = cls = attr = val = text = ""
 				attrs = {}
-				mode = TAGMODE
+				TAGMODE
+			emitNodeAndReset = () ->
+				emitNode()
+				parent = null
+				TAGMODE
+			emitNodeAndSkip = () ->
+				emitNode()
+				if parent
+					parent = parent.parentNode
+				TAGMODE
 
+			beginClass = () -> cls += " " if cls.length > 0; CLSMODE
+			addToClass = (c) -> cls += c; TAGMODE
+			beginAttr = () -> ATTRMODE
+			addToAttr = (c) -> attr += c; TAGMODE
+			beginVal = () -> VALMODE
+			addToVal = (c) -> val += c; TAGMODE
+			endAttr = () -> attrs[attr] = val; attr = val = ""; TAGMODE
+			beginId = () -> IDMODE
+			addToId = (c) -> id += c; TAGMODE
+			beginDText = () -> DTEXTMODE
+			beginSText = () -> STEXTMODE
+			addToText = (c) -> text += c; TAGMODE
+			addToTag = (c) -> tag += c; TAGMODE
+
+			parse_table =
+				TAGMODE:
+					'"': beginDText
+					"'": beginSText
+					"#": beginId
+					".": beginClass
+					"[": beginAttr
+					"+": emitNodeAndSkip
+					" ": emitNode
+					",": emitNodeAndReset
+					def: addToTag
+				IDMODE:
+					".": beginClass
+					"[": beginAttr
+					"+": emitNodeAndSkip
+					" ": emitNode
+					",": emitNodeAndReset
+					def: addToId
+				CLSMODE:
+					"#": beginId
+					".": beginClass
+					"[": beginAttr
+					"+": emitNodeAndSkip
+					" ": emitNode
+					",": emitNodeAndReset
+					def: addToClass
+				ATTRMODE:
+					"=": beginVal
+					"]": endAttr
+					def: addToAttr
+				VALMODE:
+					"]": endAttr
+					def: addToVal
+				DTEXTMODE:
+					'"': emitText
+					def: addToText
+				STEXTMODE:
+					"'": emitText
+					def: addToText
+
+
+			i = 0 # i is a read-marker within expr
 			# 'c' steps across the input, one character at a time
 			while c = expr[i++]
-				if c is '+' and mode is TAGMODE
-					if parent
-						parent = parent.parentNode
-				else if c is '#' and mode in [TAGMODE, CLSMODE, ATTRMODE]
-					mode = IDMODE
-				else if c is "." and mode in [TAGMODE, IDMODE, ATTRMODE]
-					if cls.length > 0
-						cls += " "
-					mode = CLSMODE
-				else if c is "." and cls.length > 0
-					cls += " "
-				else if c is '[' and mode in [TAGMODE, IDMODE, CLSMODE, ATTRMODE]
-					mode = ATTRMODE
-				else if c is '=' and mode is ATTRMODE
-					mode = VALMODE
-				else if c is '"' and mode is TAGMODE
-					mode = DTEXTMODE
-				else if c is "'" and mode is TAGMODE
-					mode = STEXTMODE
-				else if c is ']' and mode in [ATTRMODE, VALMODE]
-					attrs[attr] = val
-					attr = ""
-					val = ""
-					mode = TAGMODE
-				else if c is '"' and mode is DTEXTMODE
-					emitText()
-				else if c is "'" and mode is STEXTMODE
-					emitText()
-				else if c in [" ", ','] and mode not in [VALMODE, ATTRMODE] and tagname.length > 0
-					emitNode()
-					if c is ','
-						parent = null
-				else if mode is TAGMODE
-					if c isnt " "
-						tagname += c
-				else if mode is IDMODE
-					id += c
-				else if mode is CLSMODE
-					cls += c
-				else if mode is ATTRMODE
-					attr += c
-				else if mode is VALMODE
-					val += c
-				else if mode in [DTEXTMODE, STEXTMODE]
-					text += c
-				else throw new Error "Unknown input/state: '#{c}'/#{mode}"
+				modeline = parse_table[mode]
+				if c of modeline
+					mode = modeline[c](c)
+				else
+					mode = modeline['def'](c)
 
 			emitNode() if tagname.length > 0
 			emitText() if text.length > 0
@@ -1907,231 +1917,7 @@ Object.Extend Event,
 				synth(expr).appendTo @
 		}
 	
-	$.plugin () -> # Pretty Print plugin
-		operators = /!==|!=|!|\#|\%|\%=|\&|\&\&|\&\&=|&=|\*|\*=|\+|\+=|-|-=|->|\.{1,3}|\/|\/=|:|::|;|<<=|<<|<=|<|===|==|=|>>>=|>>=|>=|>>>|>>|>|\?|@|\[|\]|}|{|\^|\^=|\^\^|\^\^=|\|=|\|\|=|\|\||\||~/g
-		operator_html = "<span class='opr'>$&</span>"
-		keywords = /\b[Ff]unction\b|\bvar\b|\.prototype\b|\.__proto__\b|\bString\b|\bArray\b|\bNumber\b|\bObject\b|\bbreak\b|\bcase\b|\bcontinue\b|\bdelete\b|\bdo\b|\bif\b|\belse\b|\bfinally\b|\binstanceof\b|\breturn\b|\bthrow\b|\btry\b|\btypeof\b|\btrue\b|\bfalse\b/g
-		keyword_html = "<span class='kwd'>$&</span>"
-		all_numbers = /\d+\.*\d*/g
-		number_html = "<span class='num'>$&</span>"
-		bling_symbol = /\$(\(|\.)/g
-		bling_html = "<span class='bln'>$$</span>$1"
-		tabs = /\t/g
-		tab_html = "&nbsp;&nbsp;"
-		singleline_comment = /\/\/.*?(?:\n|$)/
-		multiline_comment = /\/\*(?:.|\n)*?\*\//
-		comment_html = (comment) ->
-			if comment then "<span class='com'>#{comment}</span>" else ""
-		quoted_html = (quoted) ->
-			if quoted then "<span class='str'>#{quoted}</span>" else ""
-
-		first_quote = (s, i) -> # return the type of quote and its first index (after i)
-			a = s.indexOf('"', i)
-			b = s.indexOf("'", i)
-			a = s.length if a is -1
-			b = s.length if b is -1
-			return [null, -1] if a is b
-			return ['"', a] if a < b
-			return ["'", b]
-		closing_quote = (s, i, q) -> # find the closing quote
-			r = s.indexOf(q, i)
-			while( s.charAt(r-1) is "\\" and 0 < r < s.length)
-				r = s.indexOf(q, r+1)
-			r
-		split_quoted = (s) -> # splits a string into a list where even items were inside quoted strings, odd items were unquoted
-			i = 0
-			n = s.length
-			ret = []
-			if not Object.IsString(s)
-				if not Object.IsFunc(s.toString)
-					throw TypeError("invalid string argument to split_quoted")
-				else
-					s = s.toString()
-					n = s.length
-			while( i < n )
-				q = first_quote(s, i)
-				j = q[1]
-				if( j is -1 )
-					ret.push(s.substring(i))
-					break
-				ret.push(s.substring(i,j))
-				k = closing_quote(s, j+1, q[0])
-				if( k is -1 )
-					throw Error("unclosed quote: "+q[0]+" starting at "+j)
-				ret.push(s.substring(j, k+1))
-				i = k+1
-			ret
-
-		first_comment = (s) ->
-			a = s.match(singleline_comment)
-			b = s.match(multiline_comment)
-			return [-1, null] if a is b
-			return [b.index, b[0]] if a == null and b != null
-			return [a.index, a[0]] if a != null && b == null
-			return [b.index, b[0]] if b.index < a.index
-			return [a.index, a[0]]
-
-		split_comments = (s) ->
-			ret = []
-			i = 0
-			n = s.length
-			while( i < n )
-				ss = s.substring(i)
-				q = first_comment(ss)
-				j = q[0]
-				if( j > -1 )
-					ret.push(ss.substring(0,j))
-					ret.push(q[1])
-					i += j + q[1].length
-				else
-					ret.push(ss)
-					break
-			ret
-
-		return {
-			name: "PrettyPrint",
-			$: {
-				prettyPrint: (js, colors) ->
-					js = js.toString() if Object.IsFunc(js)
-					if not Object.IsString(js)
-						throw TypeError("prettyPrint requires a function or string to format, not '"+Object.Type(js)+"'")
-					if $("style#prettyPrint").length is 0
-						css = "code.pp .bln { font-size: 17px; } "
-						colors = Object.Extend(
-							opr: "#880"
-							str: "#008"
-							com: "#080"
-							kwd: "#088"
-							num: "#808"
-							bln: "#800"
-						, colors)
-						for cls of colors
-							css += "code.pp .#{cls} { color: #{colors[cls]}; } "
-						$.synth("style#prettyPrint")
-							.text(css)
-							.appendTo("head")
-					"<code class='pp'>" +
-						$ split_comments(js)
-							.fold (text, comment) ->
-								$ split_quoted(text)
-									.fold (code, quoted) ->
-										code
-										# label operator symbols
-										.replace(operators, operator_html)
-										# label numbers
-										.replace(all_numbers, number_html)
-										# label keywords
-										.replace(keywords, keyword_html)
-										# label the bling operator
-										.replace(bling_symbol, bling_html)
-										# replace tabs with spaces
-										.replace(tabs, tab_html) +
-										# label string constants
-										quoted_html(quoted)
-									# collapse the quoted strings
-									.join('') +
-									# append the extracted comment
-									comment_html(comment)
-							.join('') +
-					"</code>"
-			}
-		}
-
-	$.plugin () -> # TnetStrings plugin
-		parseOne = (data) ->
-			i = data.indexOf ":"
-			if i > 0
-				len = parseInt data[0...i], 10
-				item = data[i+1...i+1+len]
-				type = data[i+1+len]
-				extra = data[i+len+2...]
-				item = switch type
-					when "#" then Number(item)
-					when "'" then String(item)
-					when "!" then (item is "true")
-					when "~" then null
-					when "]" then parseArray(item)
-					when "}" then parseObject(item)
-				return [item, extra]
-			return undefined
-		parseArray = (x) ->
-			data = []
-			while x.length > 0
-				[one, x] = parseOne(x)
-				data.push(one)
-			data
-		parseObject = (x) ->
-			data = {}
-			while x.length > 0
-				[key, x] = parseOne(x)
-				[value, x] = parseOne(x)
-				data[key] = value
-			data
-		return {
-			name: 'TNET'
-			$: {
-				TNET: {
-					stringify: (x) ->
-						[data, type] = switch Object.Type(x)
-							when "number" then [String(x), "#"]
-							when "string" then [x, "'"]
-							when "function" then [String(x), "'"]
-							when "boolean" then [String(not not x), "!"]
-							when "null" then ["", "~"]
-							when "undefined" then ["", "~"]
-							when "array" then [($.TNET.stringify(y) for y in x).join(''), "]"]
-							when "object" then [($.TNET.stringify(y)+$.TNET.stringify(x[y]) for y of x).join(''), "}"]
-						return (data.length|0) + ":" + data + type
-					parse: (x) ->
-						parseOne(x)?[0]
-				}
-			}
-		}
-	
-	$.plugin () -> # Promises plugin
-		Promise = (steps = 1) ->
-			@steps = steps
-			@state = 0 # 0 is unfulfilled, > 0 is in progress, eq to steps is done, -1 is cancelled, -2 is error 
-			@value = null
-			fs = []
-			es = []
-			ps = []
-			@then = (f, e, p) =>
-				if @state is @steps
-					return f(@value)
-				else
-					fs.push f
-				if @state is -2
-					return e(@value)
-				else
-					es.push e
-				ps.push p if Object.IsFunc p
-
-			@cancel = () =>
-				fs = []
-				es = []
-				ps = []
-				@state = -1
-
-			@fulfill = (v) =>
-				@state += 1
-				@value = v
-				if Object.Type(v) is "error"
-					@state = -2
-					while f = es.pop()
-						f(v)
-				else
-					if @state is steps
-						while f = fs.pop()
-							f(v)
-					else
-						for p in ps
-							p(@state, ste
-
-		return {
-			name: "Promises"
-		}
-	
+	return $
 
 )(Bling)
 

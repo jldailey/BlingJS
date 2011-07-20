@@ -10,13 +10,18 @@ For instance, the .html() operation in jQuery just returns the
 innerHTML of the first item in the set, in Bling, you get a set of
 html, one for each DOM node in the input set.
 
+This means that basic set primitives like .intersect() and .union()
+become more powerful.  For instance, .parents() returns the chain of all
+parents up to the document node; intersecting this with some other set of nodes
+(say, a set of <li> elements, will find the exact list-item(s) you are within)
+
 There are also a couple things that are wholly new, and awesome. Like,
 the .zip() and .zap() operations.
 
 The .zip() operation will grab a single property from every item in
 a set.  So, html() is defined as zip('innerHTML').  You can also extract
 nested values easily, as in zip('style.color'), arbitrary nesting depth
-is supported.
+is supported [e.g. zip('foo.bar.baz.bok')].
 
 The .zap() operation is a way to do assignment and stay in a loosely
 functional context.  So, html("new html") is defined as

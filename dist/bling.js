@@ -8,7 +8,7 @@
   (Copyright) 2011
   (License) released under the MIT License
   http://creativecommons.org/licenses/MIT/
-  */  var Bling, Math_ceil, Math_max, Math_min, Math_sqrt, Obj_toString, commasep, commasep_re, emptyString, eventsep_re, leftSpaces_re, object_cruft_re, space, _1, _absolute, _array, _bling, _boolean, _bottom, _colon, _dot, _fragment, _function, _height, _hide, _left, _load, _log, _ms, _node, _nodelist, _none, _null, _number, _object, _object_Array, _px, _ready, _regexp, _relative, _right, _show, _string, _top, _undefined, _width, _window;
+  */  var Bling, Math_ceil, Math_max, Math_min, Math_sqrt, Obj_toString, commasep, eventsep_re, leftSpaces_re, object_cruft_re, _1, _log;
   var __slice = Array.prototype.slice, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -39,57 +39,22 @@
   Math_ceil = Math.ceil;
   Math_sqrt = Math.sqrt;
   Obj_toString = Object.prototype.toString;
-  commasep_re = /, */;
+  commasep = ", ";
   eventsep_re = /,* +/;
   leftSpaces_re = /^\s+/;
   object_cruft_re = /\[object (\w+)\]/;
-  commasep = ", ";
-  space = " ";
-  emptyString = "";
   _1 = "$1";
-  _none = "none";
-  _relative = "relative";
-  _absolute = "absolute";
-  _width = "width";
-  _height = "height";
-  _top = "top";
-  _left = "left";
-  _right = "right";
-  _bottom = "bottom";
-  _string = "string";
-  _number = "number";
-  _function = "function";
-  _object = "object";
-  _window = "window";
-  _node = "node";
-  _array = "array";
-  _regexp = "regexp";
-  _boolean = "boolean";
-  _bling = "bling";
-  _nodelist = "nodelist";
-  _fragment = "fragment";
-  _object_Array = "[object Array]";
-  _px = "px";
-  _dot = ".";
-  _colon = ':';
-  _undefined = "undefined";
-  _null = "null";
-  _ms = "ms";
-  _hide = "hide";
-  _show = "show";
-  _ready = "ready";
-  _load = "load";
   Bling = function(selector, context) {
     var set, type;
     if (context == null) {
       context = document;
     }
     type = Object.Type(selector);
-    if (type === _node || type === _window || type === _function) {
+    if (type === "node" || type === "window" || type === "function") {
       set = [selector];
-    } else if (type === _number) {
+    } else if (type === "number") {
       set = new Array(selector);
-    } else if (type === _string) {
+    } else if (type === "string") {
       selector = selector.trimLeft();
       if (selector[0] === "<") {
         set = [Bling.HTML.parse(selector)];
@@ -98,9 +63,9 @@
       } else {
         throw Error("invalid context: " + context + " (type: " + (Object.Type(context)) + ")");
       }
-    } else if (type === _array || type === _bling || type === _nodelist) {
+    } else if (type === "array" || type === "bling" || type === "nodelist") {
       set = selector;
-    } else if (type === _undefined || type === _null) {
+    } else if (type === "undefined" || type === "null") {
       set = [];
     } else {
       throw Error("invalid selector: " + selector + " (type: " + (Object.Type(selector)) + ")");
@@ -129,7 +94,7 @@
   };
   Object.Extend = function(a, b, k) {
     var i, _i, _len, _ref;
-    if (Obj_toString.apply(k) === _object_Array) {
+    if (Obj_toString.apply(k) === "[object Array]") {
       for (i in k) {
         if (b[k[i]] !== void 0) {
           a[k[i]] = b[k[i]];
@@ -149,34 +114,34 @@
       var _ref;
       switch (true) {
         case o === void 0:
-          return _undefined;
+          return "undefined";
         case o === null:
-          return _null;
+          return "null";
         case Object.IsString(o):
-          return _string;
+          return "string";
         case Object.IsType(o, Bling):
-          return _bling;
+          return "bling";
         case Object.IsType(o, NodeList):
-          return _nodelist;
+          return "nodelist";
         case Object.IsArray(o):
-          return _array;
+          return "array";
         case Object.IsNumber(o):
-          return _number;
+          return "number";
         case Object.IsFragment(o):
-          return _fragment;
+          return "fragment";
         case Object.IsNode(o):
-          return _node;
+          return "node";
         case Object.IsFunc(o):
-          return _function;
+          return "function";
         case Object.IsType(o, "RegExp"):
-          return _regexp;
+          return "regexp";
         case (_ref = String(o)) === "true" || _ref === "false":
-          return _boolean;
+          return "boolean";
         case Object.IsObject(o):
           if ("setInterval" in o) {
-            return _window;
+            return "window";
           } else {
-            return _object;
+            return "object";
           }
       }
     },
@@ -185,23 +150,23 @@
         return o === T;
       } else if (o.constructor === T) {
         return true;
-      } else if (typeof T === _string) {
+      } else if (typeof T === "string") {
         return o.constructor.name === T || Obj_toString.apply(o).replace(object_cruft_re, _1) === T;
       } else {
         return Object.IsType(o.__proto__, T);
       }
     },
     IsString: function(o) {
-      return (o != null) && (typeof o === _string || Object.IsType(o, String));
+      return (o != null) && (typeof o === "string" || Object.IsType(o, String));
     },
     IsNumber: function(o) {
       return (o != null) && Object.IsType(o, Number);
     },
     IsBoolean: function(o) {
-      return typeof o === _boolean;
+      return typeof o === "boolean";
     },
     IsFunc: function(o) {
-      return (o != null) && (typeof o === _function || Object.IsType(o, Function)) && (o.call != null);
+      return (o != null) && (typeof o === "function" || Object.IsType(o, Function)) && (o.call != null);
     },
     IsNode: function(o) {
       return (o != null) && o.nodeType > 0;
@@ -210,13 +175,13 @@
       return (o != null) && o.nodeType === 11;
     },
     IsArray: function(o) {
-      return (o != null) && (Object.ToString(o) === _object_Array || Object.IsType(o, Array));
+      return (o != null) && (Object.ToString(o) === "[object Array]" || Object.IsType(o, Array));
     },
     IsBling: function(o) {
       return (o != null) && Object.IsType(o, Bling);
     },
     IsObject: function(o) {
-      return (o != null) && typeof o === _object;
+      return (o != null) && typeof o === "object";
     },
     IsDefined: function(o) {
       return o != null;
@@ -269,7 +234,7 @@
       r = function() {
         var a;
         a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-        tracer("" + (label || emptyString) + (this.name || this) + "." + f.name + "(", a, ")");
+        tracer("" + (label || "") + (this.name || this) + "." + f.name + "(", a, ")");
         return f.apply(this, a);
       };
       tracer("Function.Trace: " + (label || f.name) + " created.");
@@ -331,7 +296,7 @@
       if (d == null) {
         d = 0;
       }
-      return (x != null) && (parseInt(x, 10) + (d | 0)) + _px;
+      return (x != null) && (parseInt(x, 10) + (d | 0)) + "px";
     },
     AtLeast: function(x) {
       return function(y) {
@@ -347,7 +312,7 @@
   Object.Extend(String, {
     PadLeft: function(s, n, c) {
       if (c == null) {
-        c = space;
+        c = " ";
       }
       while (s.length < n) {
         s = c + s;
@@ -356,7 +321,7 @@
     },
     PadRight: function(s, n, c) {
       if (c == null) {
-        c = space;
+        c = " ";
       }
       while (s.length < n) {
         s = s + c;
@@ -452,7 +417,7 @@
     $.plugin(function() {
       var oldClone, _oldToString;
       String.prototype.trimLeft = Array.Coalesce(String.prototype.trimLeft, function() {
-        return this.replace(leftSpaces_re, emptyString);
+        return this.replace(leftSpaces_re, "");
       });
       String.prototype.split = Array.Coalesce(String.prototype.split, function(sep) {
         var a, i, j, n;
@@ -469,7 +434,7 @@
         var n, s;
         n = this.length;
         if (n === 0) {
-          return emptyString;
+          return "";
         }
         s = this[n - 1];
         while (--n > 0) {
@@ -486,7 +451,7 @@
           if (this.id != null) {
             name += "#" + this.id;
           } else if (this.className != null) {
-            name += "." + (this.className.split(space).join(_dot));
+            name += "." + (this.className.split(" ").join("."));
           }
           return name;
         } else {
@@ -562,7 +527,7 @@
       };
       _zipper = function(prop) {
         var i;
-        i = prop.indexOf(_dot);
+        i = prop.indexOf(".");
         if (i > -1) {
           return this.zip(prop.substr(0, i)).zip(prop.substr(i + 1));
         }
@@ -714,7 +679,7 @@
         },
         zap: function(p, v) {
           var i;
-          i = p.indexOf(_dot);
+          i = p.indexOf(".");
           if (i > -1) {
             return this.zip(p.substr(0, i)).zap(p.substr(i + 1), v);
           } else if (Object.IsArray(v)) {
@@ -924,11 +889,11 @@
           return $.symbol + "([" + this.map(function() {
             switch (this) {
               case void 0:
-                return _undefined;
+                return "undefined";
               case null:
-                return _null;
+                return "null";
               case window:
-                return _window;
+                return "window";
               default:
                 return this.toString().replace(object_cruft_re, _1);
             }
@@ -1030,7 +995,7 @@
             var ret;
             escaper || (escaper = $("<div>&nbsp;</div>").child(0));
             ret = escaper.zap('data', h).zip("parentNode.innerHTML").first();
-            escaper.zap('data', emptyString);
+            escaper.zap('data', "");
             return ret;
           }
         },
@@ -1174,11 +1139,11 @@
         addClass: function(x) {
           return this.removeClass(x).each(function() {
             var c;
-            c = this.className.split(space).filter(function(y) {
-              return y !== emptyString;
+            c = this.className.split(" ").filter(function(y) {
+              return y !== "";
             });
             c.push(x);
-            return this.className = c.join(space);
+            return this.className = c.join(" ");
           });
         },
         removeClass: function(x) {
@@ -1187,7 +1152,7 @@
             return y !== x;
           };
           return this.each(function() {
-            return this.className = this.className.split(space).filter(notx).join(space);
+            return this.className = this.className.split(" ").filter(notx).join(" ");
           });
         },
         toggleClass: function(x) {
@@ -1197,17 +1162,17 @@
           };
           return this.each(function() {
             var cls;
-            cls = this.className.split(space);
+            cls = this.className.split(" ");
             if (cls.indexOf(x) > -1) {
-              return this.className = cls.filter(notx).join(space);
+              return this.className = cls.filter(notx).join(" ");
             } else {
               cls.push(x);
-              return this.className = cls.join(space);
+              return this.className = cls.join(" ");
             }
           });
         },
         hasClass: function(x) {
-          return this.zip('className.split').call(space).zip('indexOf').call(x).map(Function.IndexFound);
+          return this.zip('className.split').call(" ").zip('indexOf').call(x).map(Function.IndexFound);
         },
         text: function(t) {
           if (t != null) {
@@ -1228,14 +1193,14 @@
             nn = setter.len();
             if (Object.IsObject(k)) {
               for (i in k) {
-                setter.call(i, k[i], emptyString);
+                setter.call(i, k[i], "");
               }
             } else if (Object.IsString(v)) {
-              setter.call(k, v, emptyString);
+              setter.call(k, v, "");
             } else if (Object.IsArray(v)) {
               n = Math_max(v.length, nn);
               for (i = 0; 0 <= n ? i < n : i > n; 0 <= n ? i++ : i--) {
-                setter[i % nn](k, v[i % n], emptyString);
+                setter[i % nn](k, v[i % n], "");
               }
             }
             return this;
@@ -1250,7 +1215,7 @@
         defaultCss: function(k, v) {
           var i, sel, style;
           sel = this.selector;
-          style = emptyString;
+          style = "";
           if (Object.IsString(k)) {
             if (Object.IsString(v)) {
               style += "" + sel + " { " + k + ": " + v + " } ";
@@ -1268,53 +1233,53 @@
           return this;
         },
         empty: function() {
-          return this.html(emptyString);
+          return this.html("");
         },
         rect: function() {
           return this.zip('getBoundingClientRect').call();
         },
         width: function(w) {
           if (w === null) {
-            return this.rect().zip(_width);
+            return this.rect().zip("width");
           }
-          return this.css(_width, w);
+          return this.css("width", w);
         },
         height: function(h) {
           if (h === null) {
-            return this.rect().zip(_height);
+            return this.rect().zip("height");
           }
-          return this.css(_height, h);
+          return this.css("height", h);
         },
         top: function(y) {
           if (y === null) {
-            return this.rect().zip(_top);
+            return this.rect().zip("top");
           }
-          return this.css(_top, y);
+          return this.css("top", y);
         },
         left: function(x) {
           if (x === null) {
-            return this.rect().zip(_left);
+            return this.rect().zip("left");
           }
-          return this.css(_left, x);
+          return this.css("left", x);
         },
         bottom: function(x) {
           if (x === null) {
-            return this.rect().zip(_bottom);
+            return this.rect().zip("bottom");
           }
-          return this.css(_bottom, x);
+          return this.css("bottom", x);
         },
         right: function(x) {
           if (x === null) {
-            return this.rect().zip(_right);
+            return this.rect().zip("right");
           }
-          return this.css(_right, x);
+          return this.css("right", x);
         },
         position: function(x, y) {
           if (x === null) {
             return this.rect();
           }
           if (y === null) {
-            return this.css(_left, Number.Px(x));
+            return this.css("left", Number.Px(x));
           }
           return this.css({
             top: Number.Px(y),
@@ -1345,7 +1310,7 @@
               y = NaN;
             }
             return t.css({
-              position: _absolute,
+              position: "absolute",
               left: Number.Px(x),
               top: Number.Px(y)
             });
@@ -1537,11 +1502,11 @@
       readyBound = 0;
       triggerReady = function() {
         if (!readyTriggered++) {
-          $(document).trigger(_ready).unbind(_ready);
+          $(document).trigger("ready").unbind("ready");
           if (typeof document.removeEventListener === "function") {
             document.removeEventListener("DOMContentLoaded", triggerReady, false);
           }
-          return typeof window.removeEventListener === "function" ? window.removeEventListener(_load, triggerReady, false) : void 0;
+          return typeof window.removeEventListener === "function" ? window.removeEventListener("load", triggerReady, false) : void 0;
         }
       };
       bindReady = function() {
@@ -1549,7 +1514,7 @@
           if (typeof document.addEventListener === "function") {
             document.addEventListener("DOMContentLoaded", triggerReady, false);
           }
-          return typeof window.addEventListener === "function" ? window.addEventListener(_load, triggerReady, false) : void 0;
+          return typeof window.addEventListener === "function" ? window.addEventListener("load", triggerReady, false) : void 0;
         }
       };
       bindReady();
@@ -1557,7 +1522,7 @@
         name: 'Events',
         bind: function(e, f) {
           var c, h;
-          c = (e || emptyString).split(eventsep_re);
+          c = (e || "").split(eventsep_re);
           h = function(evt) {
             ret = f.apply(this, arguments);
             if (ret === false) {
@@ -1577,7 +1542,7 @@
         },
         unbind: function(e, f) {
           var c;
-          c = (e || emptyString).split(eventsep_re);
+          c = (e || "").split(eventsep_re);
           return this.each(function() {
             var i, _i, _len, _results;
             _results = [];
@@ -1590,7 +1555,7 @@
         },
         once: function(e, f) {
           var c, i, _i, _len, _results;
-          c = (e || emptyString).split(eventsep_re);
+          c = (e || "").split(eventsep_re);
           _results = [];
           for (_i = 0, _len = c.length; _i < _len; _i++) {
             i = c[_i];
@@ -1604,7 +1569,7 @@
         cycle: function() {
           var c, cycler, e, funcs, j, nf, _i, _len;
           e = arguments[0], funcs = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-          c = (e || emptyString).split(eventsep_re);
+          c = (e || "").split(eventsep_re);
           nf = funcs.length;
           cycler = function() {
             var i;
@@ -1625,7 +1590,7 @@
           if (args == null) {
             args = {};
           }
-          evts = (evt || emptyString).split(eventsep_re);
+          evts = (evt || "").split(eventsep_re);
           args = Object.Extend({
             bubbles: true,
             cancelable: true
@@ -1744,7 +1709,7 @@
           if (f == null) {
             f = {};
           }
-          if (this.css("cursor").intersect(["auto", emptyString]).len() > 0) {
+          if (this.css("cursor").intersect(["auto", ""]).len() > 0) {
             this.css("cursor", "pointer");
           }
           if (Object.IsFunc(f)) {
@@ -1761,10 +1726,10 @@
             if (readyTriggered) {
               return f.call(this);
             } else {
-              return this.bind(_ready, f);
+              return this.bind("ready", f);
             }
           } else {
-            return this.trigger(_ready, f);
+            return this.trigger("ready", f);
           }
         }
       };
@@ -1827,10 +1792,10 @@
             speed = "normal";
           }
           easing || (easing = "ease");
-          duration = $.duration(speed) + _ms;
+          duration = $.duration(speed) + "ms";
           props = [];
           p = 0;
-          trans = emptyString;
+          trans = "";
           css = {};
           for (i in end_css) {
             if (accel_props_re.test(i)) {
@@ -1840,7 +1805,7 @@
               } else if (ii.toString) {
                 ii = ii.toString();
               }
-              trans += space + i + "(" + ii + ")";
+              trans += " " + i + "(" + ii + ")";
             } else {
               css[i] = end_css[i];
             }
@@ -1867,13 +1832,13 @@
         hide: function(callback) {
           return this.each(function() {
             if (this.style) {
-              this._display = emptyString;
-              if (this.style.display === !_none) {
+              this._display = "";
+              if (this.style.display === !"none") {
                 this._display = this.syle.display;
               }
-              return this.style.display = _none;
+              return this.style.display = "none";
             }
-          }).trigger(_hide).delay(updateDelay, callback);
+          }).trigger("hide").delay(updateDelay, callback);
         },
         show: function(callback) {
           return this.each(function() {
@@ -1881,18 +1846,18 @@
               this.style.display = this._display;
               return delete this._display;
             }
-          }).trigger(_show).delay(updateDelay, callback);
+          }).trigger("show").delay(updateDelay, callback);
         },
         toggle: function(callback) {
           return this.weave(this.css("display")).fold(function(display, node) {
-            if (display === _none) {
-              node.style.display = node._display || emptyString;
+            if (display === "none") {
+              node.style.display = node._display || "";
               delete node._display;
-              $(node).trigger(_show);
+              $(node).trigger("show");
             } else {
               node._display = display;
-              node.style.display = _none;
-              $(node).trigger(_hide);
+              node.style.display = "none";
+              $(node).trigger("hide");
             }
             return node;
           }).delay(updateDelay, callback);
@@ -2094,23 +2059,23 @@
           }
           switch (type) {
             case 'd':
-              output[j++] = emptyString + parseInt(value, 10);
+              output[j++] = "" + parseInt(value, 10);
               break;
             case 'f':
               output[j++] = parseFloat(value).toFixed(fixed);
               break;
             case 's':
-              output[j++] = emptyString + value;
+              output[j++] = "" + value;
               break;
             default:
-              output[j++] = emptyString + value;
+              output[j++] = "" + value;
           }
           if (pad > 0) {
             output[j] = String.PadLeft(output[j], pad);
           }
           output[j++] = rest;
         }
-        return output.join(emptyString);
+        return output.join("");
       };
       TAGMODE = 1;
       IDMODE = 2;
@@ -2122,12 +2087,7 @@
       synth = function(expr) {
         var attr, attrs, c, cls, emitNode, emitText, i, id, mode, parent, ret, tagname, text, val;
         parent = null;
-        tagname = emptyString;
-        id = emptyString;
-        cls = emptyString;
-        attr = emptyString;
-        val = emptyString;
-        text = emptyString;
+        tagname = id = cls = attr = val = text = "";
         attrs = {};
         mode = TAGMODE;
         ret = $([]);
@@ -2141,7 +2101,7 @@
           } else {
             ret.push(node);
           }
-          text = emptyString;
+          text = "";
           return mode = TAGMODE;
         };
         emitNode = function() {
@@ -2158,12 +2118,7 @@
             ret.push(node);
           }
           parent = node;
-          tagname = emptyString;
-          id = emptyString;
-          cls = emptyString;
-          attr = emptyString;
-          val = emptyString;
-          text = emptyString;
+          tagname = id = cls = attr = val = text = "";
           attrs = {};
           return mode = TAGMODE;
         };
@@ -2174,13 +2129,13 @@
             }
           } else if (c === '#' && (mode === TAGMODE || mode === CLSMODE || mode === ATTRMODE)) {
             mode = IDMODE;
-          } else if (c === _dot && (mode === TAGMODE || mode === IDMODE || mode === ATTRMODE)) {
+          } else if (c === "." && (mode === TAGMODE || mode === IDMODE || mode === ATTRMODE)) {
             if (cls.length > 0) {
-              cls += space;
+              cls += " ";
             }
             mode = CLSMODE;
-          } else if (c === _dot && cls.length > 0) {
-            cls += space;
+          } else if (c === "." && cls.length > 0) {
+            cls += " ";
           } else if (c === '[' && (mode === TAGMODE || mode === IDMODE || mode === CLSMODE || mode === ATTRMODE)) {
             mode = ATTRMODE;
           } else if (c === '=' && mode === ATTRMODE) {
@@ -2191,20 +2146,20 @@
             mode = STEXTMODE;
           } else if (c === ']' && (mode === ATTRMODE || mode === VALMODE)) {
             attrs[attr] = val;
-            attr = emptyString;
-            val = emptyString;
+            attr = "";
+            val = "";
             mode = TAGMODE;
           } else if (c === '"' && mode === DTEXTMODE) {
             emitText();
           } else if (c === "'" && mode === STEXTMODE) {
             emitText();
-          } else if ((c === space || c === ',') && (mode !== VALMODE && mode !== ATTRMODE) && tagname.length > 0) {
+          } else if ((c === " " || c === ',') && (mode !== VALMODE && mode !== ATTRMODE) && tagname.length > 0) {
             emitNode();
             if (c === ',') {
               parent = null;
             }
           } else if (mode === TAGMODE) {
-            if (c !== space) {
+            if (c !== " ") {
               tagname += c;
             }
           } else if (mode === IDMODE) {
@@ -2235,12 +2190,12 @@
         $synth: synth,
         template: function(defaults) {
           this.render = function(args) {
-            return render(this.map($.HTML.stringify).join(emptyString), Object.Extend(defaults, args));
+            return render(this.map($.HTML.stringify).join(""), Object.Extend(defaults, args));
           };
           return this.remove();
         },
         render: function(args) {
-          return render(this.map($.HTML.stringify).join(emptyString), args);
+          return render(this.map($.HTML.stringify).join(""), args);
         },
         synth: function(expr) {
           return synth(expr).appendTo(this);
@@ -2251,7 +2206,7 @@
       var parseArray, parseObject, parseOne;
       parseOne = function(data) {
         var extra, i, item, len, type;
-        i = data.indexOf(_colon);
+        i = data.indexOf(":");
         if (i > 0) {
           len = parseInt(data.slice(0, i), 10);
           item = data.slice(i + 1, i + 1 + len);

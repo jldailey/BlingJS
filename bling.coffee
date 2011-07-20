@@ -253,8 +253,8 @@ Object.Extend Event,
 
 	$.plugin = (constructor) ->
 		try
-			plugin = constructor.call $,$
 			name = constructor.name or plugin.name
+			plugin = constructor.call $,$
 			if not name
 				throw Error "plugin requires a 'name'"
 			$.plugins.push(name)
@@ -268,7 +268,7 @@ Object.Extend Event,
 			# everything else about the plugin extends the prototype
 			Object.Extend(Bling.fn, plugin)
 		catch error
-			console.log "failed to load plugin", error
+			console.log "failed to load plugin #{name}"
 
 	$.plugin () -> # Symbol - allow use of something other than $ by assigning to Bling.symbol
 		_symbol_ = null

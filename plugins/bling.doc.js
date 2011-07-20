@@ -1,3 +1,4 @@
+// extracts documentation and examples from source comments
 (function($) {
 
 	var example_re = /\s*[Ee]xample:\s*/,
@@ -56,7 +57,7 @@
 					else if ( ! blank_line.test(line) ) {
 						paraQueue.push(line.replace(/\/\*/g,"").replace(/\*\//g,""))
 						codeQueue.flush()
-					} 
+					}
 					else if( codeQueue.flush() ) { }
 					else { paraQueue.flush() }
 				}
@@ -79,8 +80,8 @@
 			val = x[key]
 			key = Object.IsNumber(key)
 				? x[key].name
-				: key[0] === '$' 
-				? '$.' + key.substr(1) 
+				: key[0] === '$'
+				? '$.' + key.substr(1)
 				: "" + name + "." + key
 			if( Object.IsObject(val) ) // recurse
 				arguments.callee(key, val, visit)

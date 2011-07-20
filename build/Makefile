@@ -4,7 +4,7 @@ LEVEL=SIMPLE_OPTIMIZATIONS
 # LEVEL=ADVANCED_OPTIMIZATIONS
 # LEVEL=WHITESPACE_ONLY
 DIST=../dist
-SITE=../site
+SITE=../
 PLUGINS=../plugins
 DIST_PLUGINS=$(DIST)/plugins
 
@@ -19,11 +19,12 @@ dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
 site:
 	git stash save \
-		&& git checkout site \
-		&& cp $(DIST)/*.js $(SITE) \
-		&& git add js && git commit -m "build" \
-		&& git checkout master \
-		&& git stash pop
+	&& git checkout site \
+	&& cp $(DIST)/*.js $(SITE)/js \
+	&& git add $(SITE)/js \
+	&& git commit -m "build" \
+	&& git checkout master \
+	&& git stash pop
 
 plugins: $(subst $(PLUGINS),$(DIST_PLUGINS),$(shell ls ../plugins/*))
 

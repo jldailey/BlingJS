@@ -21,8 +21,15 @@ site:
 	git stash save \
 	&& git checkout site \
 	&& cp $(DIST)/*.js $(SITE)/js \
-	&& git add $(SITE)/js \
+	&& git add js \
 	&& git commit -m "build" \
+	&& git checkout master \
+	&& git stash pop
+
+publish:
+	git stash save \
+	&& git checkout site \
+	&& git push origin site \
 	&& git checkout master \
 	&& git stash pop
 

@@ -17,10 +17,13 @@ clean:
 
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
-site: $(SITE)/bling.js
-
-$(SITE)/bling.js: $(DIST)/bling.js
-	cp $(DIST)/bling.js $(SITE)
+site:
+	git stash save \
+		&& git checkout site \
+		&& cp $(DIST)/*.js $(SITE) \
+		&& git add js && git commit -m "build" \
+		&& git checkout master \
+		&& git stash pop
 
 plugins: $(subst $(PLUGINS),$(DIST_PLUGINS),$(shell ls ../plugins/*))
 

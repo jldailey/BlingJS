@@ -482,7 +482,7 @@
       };
     });
     $.plugin(function() {
-      var TimeoutQueue, timeoutQueue, _getter_, _zipper;
+      var TimeoutQueue, timeoutQueue, _getter_, _zipper_;
       TimeoutQueue = (function() {
         __extends(TimeoutQueue, Array);
         function TimeoutQueue() {
@@ -526,7 +526,7 @@
           return v;
         };
       };
-      _zipper = function(prop) {
+      _zipper_ = function(prop) {
         var i;
         i = prop.indexOf(".");
         if (i > -1) {

@@ -18,6 +18,9 @@ p {
 	margin-left:auto;
 	margin-right:auto;
 }
+.bold { font-weight: bold; }
+.right { text-align: right; }
+.center { text-align: center; }
 .bln {
 	color: #800;
 	font-size: 17px;
@@ -40,9 +43,6 @@ code {
 	font-family: courier, sans;
 	font-size: 16px;
 }
-.bold { font-weight: bold; }
-.right { text-align: right; }
-.center { text-align: center; }
 
 h3, h4, h5 {
 	border-bottom: 1px solid black;
@@ -51,27 +51,28 @@ h3, h4, h5 {
 table.small {
 	font-size: 14px;
 	width: 100%;
-}
-table.small td:first-child {
-	font-family: 'Inconsolata', courier, fixed, sans;
-	font-size: 16px;
-	width: 45%;
+	td:first-child {
+		font-family: 'Inconsolata', courier, fixed, sans;
+		font-size: 16px;
+		width: 45%;
+	}
 }
 table.synthops {
 	margin-top: 1em;
 }
 table.download {
 	margin: 0 2em 0 1em;
+	a {
+		text-decoration: none;
+	}
+	td:first-child + td {
+		width: 100%;
+	}
+	td:first-child + td + td {
+		text-align: right;
+	}
 }
-table.download a {
-	text-decoration: none;
-}
-table.download td:first-child + td {
-	width: 100%;
-}
-table.download td:first-child + td + td {
-	text-align: right;
-}
+
 a[href] { color: blue; }
 a[href]:visited { color: blue; }
 a[href]:hover { color: red; }

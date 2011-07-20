@@ -815,7 +815,7 @@ Object.Extend Event,
 						# then get escaped html from the parent's .innerHTML
 						ret = escaper.zap('data', h).zip("parentNode.innerHTML").first()
 						# clean up so escaped content isn't leaked into the DOM
-						escaper.zap('data', _empty_)
+						escaper.zap('data', '')
 						ret
 				}
 			}

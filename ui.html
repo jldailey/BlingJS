@@ -1,0 +1,296 @@
+<html>
+	<head>
+		<script src="../bling.js"></script>
+		<script src="../plugins/bling.ui.js"></script>
+	</head>
+	<body>
+		<h1>UI Demos</h1>
+
+		<h2>Progress Bar</h2>
+		<p>Show the progress of long-running tasks.
+		<div id="bar-demo">
+			<div class="progressbar">Any content can be</div>
+			<input class="progressbar" type="text" value="a progressbar.">
+			<script>
+				$(document).ready(function() {
+					var bars = $("#bar-demo .progressbar")
+							.progressBar(),
+						interval = 30, // ms
+						steps = 15,
+						i = 0,
+						loop = function() {
+							// update the progress bar
+							bars.zip("update").call(i / steps)
+							if( i++ < steps)
+								setTimeout(arguments.callee, interval)
+						}
+					// begin the update loop
+					loop()
+				})
+			</script>
+		</div>
+
+		<h2>View Stack</h2>
+		<p>Multiple objects that are visually exclusive.
+		<div id="view-demo">
+			<div class="views">
+				<div id="view1">View #1</div>
+				<div id="view2">View #2</div>
+				<div id="view3">View #3</div>
+			</div>
+			<style>
+				#view-demo .views > * {
+					border:1px dashed black;
+					width: 200px;
+					text-align: center;
+				}
+			</style>
+			<script>
+				// make a viewStack, and button to rotate the stack
+				$(document).ready(function() {
+					var views = $("#view-demo .views > *")
+						.viewStack()
+					$.synth("button")
+						.text("Next View")
+						.click(function() {
+							views.next()
+						})
+						.appendTo("#view-demo")
+					$.synth("button")
+						.text("Select View 3")
+						.click(function() {
+							views.activate(2)
+						})
+						.appendTo("#view-demo")
+					$.synth("button")
+						.text("Select View 2")
+						.click(function() {
+							$("#view2").zip("activate").call()
+						})
+						.appendTo("#view-demo")
+					$.synth("button")
+						.text("Select View 1")
+						.click(function() {
+							$("#view1")[0].activate()
+						})
+						.appendTo("#view-demo")
+				})
+			</script>
+		</div>
+
+		<h2>Tabs</h2>
+		<p>Tabs are clickable items that control a ViewStack.
+		<div id="tab-demo">
+			<ul class="tabs">
+				<li>Tab One</li>
+				<li>Tab Two</li>
+				<li>Tab Three</li>
+			</ul>
+			<div class="views">
+				<div>View 1</div>
+				<div>View 2</div>
+				<div>View 3</div>
+			</div>
+			<style>
+				#tab-demo .views {
+					width: 240px;
+				}
+				#tab-demo .tabs {
+					clear: both;
+					list-style: none;
+					margin: 0;
+					padding: 0;
+					height: 22px;
+				}
+				#tab-demo .tabs > * {
+					float: left;
+					height: 16px;
+					line-height: 16px;
+					padding: 2px 4px;
+					margin: 2px;
+					border-left: 1px solid #999;
+					border-top: 1px solid #999;
+					border-right: 1px solid #ccc;
+					border-radius: 3px;
+					background-color: #ffc;
+				}
+				#tab-demo .tabs > li:hover {
+					background-color: #feb;
+				}
+				#tab-demo .tabs > .active {
+					background-color: #fda;
+				}
+				#tab-demo .tabs > .active:hover {
+					background-color: #dc9;
+				}
+
+				#tab-demo .views > * {
+					border:1px dashed black;
+					width: 245px;
+					text-align: center;
+					height: 50px;
+					line-height: 50px;
+				}
+			</style>
+			<script>
+				// make a set of tabs to control a viewStack
+				$(document).ready(function() {
+					$("#tab-demo .tabs > *").tabs("#tab-demo .views > *")
+				})
+			</script>
+		</div>
+
+		<h2>Accordion</h2>
+		<p>An Accordion is a set of views with title/control rows.
+		<div id="accord-demo">
+			<ul class="accordion">
+				<li>
+					<div>Title One</div>
+					<div>Body One</div>
+				</li>
+				<li>
+					<div>Title Two</div>
+					<div>Body Two</div>
+				</li>
+				<li>
+					<div>Title Three</div>
+					<div>Body Three</div>
+				</li>
+			</ul>
+			<style>
+				.accordion {
+					list-style: none;
+					margin: 0;
+					padding: 0;
+				}
+				.accordion .title {
+					width: 120px;
+					background: #ffc;
+					border-radius: 3px;
+					border-bottom: 1px solid #999;
+					border-right: 1px solid #ccc;
+					border-left: 1px solid #ccc;
+					margin-bottom: 2px;
+					padding-left: 4px;
+				}
+				.accordion .title:hover {
+					background: #feb;
+				}
+				.accordion .title.selected {
+					background: #fda;
+				}
+				.accordion .title.selected:hover {
+					background: #ec9;
+				}
+				.accordion .body {
+					width: 120px;
+					text-align: center;
+				}
+			</style>
+			<script>
+				$(document).ready(function() {
+					$("#accord-demo .accordion").accordion()
+				})
+			</script>
+		</div>
+
+		<h2>Drag / Drop</h2>
+		<div id="drag-demo">
+			<div class="droppable">Drop stuff here and it will stick.</div>
+			<span class="draggable">Drag me around by the handle.</span>
+			<style>
+				div.droppable {
+					width: 120px;
+					height: 80px;
+					text-align: center;
+					padding: 50px 6px 0px;
+					border: 1px dashed black;
+				}
+			</style>
+			<script>
+				$(document).ready(function() {
+					$.UI.Draggable("#drag-demo .draggable").bind("drag", function() {
+						// during the drag, reset the 'snapped' position
+						$(this).css({top: "", left: ""})
+					})
+
+					$.fn.snapTo = function(to, fromside, toside) {
+						var $to = $(to),
+							fpos = this.position()[0],
+							tpos = $to.position()[0],
+							top = fpos.top + document.body.scrollTop,
+							// this might should be - scrollLeft instead of +, need to test
+							left = fpos.left + document.body.scrollLeft
+						switch (toside) {
+							case "left":
+								left = tpos.left
+								break
+							case "right":
+								left = tpos.width + tpos.left
+								break
+							case "top":
+								top = tpos.top
+								break
+							case "bottom":
+								top = tpos.top + tpos.height
+								break
+						}
+						switch (fromside) {
+							case "top": /*fall-through*/
+							case "left":
+							break
+							case "right":
+								left -= fpos.width
+								break
+							case "bottom":
+								top -= fpos.height
+								break
+						}
+						return this.transform({
+							top: top + "px",
+							left: left + "px",
+							translate: [ 0, 0 ]
+						}, "instant")
+					}
+
+					$("#drag-demo .droppable").bind('drop', function(evt) {
+						$(evt.dropObject).snapTo(this, "left", "left")
+					})
+				})
+			</script>
+		</div>
+
+		<h2>Dialog</h2>
+		<div id="dialog-demo">
+			<div class="dialog">
+				<title>A Dialog Title</title>
+				<p>This is a dialog.</p>
+				<button class="close">OK</button>
+			</div>
+			<style type="text/css">
+				.dialog {
+					background: white;
+					border: 2px solid #bbb;
+					border-radius: 7px;
+				}
+
+				.dialog > title {
+					text-align: center;
+					display: block;
+					background: -webkit-gradient(linear, 0 0, 0 100%, from(#aaa), color-stop(.5, #ccc), to(#aaa));
+				}
+
+				.dialog > p {
+					margin: 2px 8px;
+				}
+			</style>
+			<script type="text/javascript">
+				$(document).ready(function() {
+					$("#dialog-demo div.dialog").dialog()
+				})
+			</script>
+		</div>
+
+	</body>
+</html>
+

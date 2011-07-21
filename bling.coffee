@@ -110,7 +110,7 @@ Object.Extend Object,
 			when String(o) in ["true", "false"]
 				"boolean"
 			when Object.IsError o
-				_error_
+				"error"
 			when Object.IsObject o
 				if "setInterval" of o # same crude method that jQuery uses
 					"window"
@@ -271,16 +271,15 @@ Object.Extend Event,
 			console.log "failed to load plugin #{name}"
 
 	$.plugin () -> # Symbol - allow use of something other than $ by assigning to Bling.symbol
-		_symbol_ = null
-		Bling.__defineSetter__ "symbol", (v) ->
-			if _symbol_ of window
-				delete window[_symbol_]
-			_symbol_ = v
-			window[v] = Bling
-		Bling.__defineGetter__ "symbol", () ->
-			_symbol_
-		Bling.symbol = "$"
-		window["Bling"] = $ = Bling
+		symbol = null
+		$.__defineSetter__ "symbol", (v) ->
+			if symbol of window
+				delete window[symbol]
+			symbol = v
+			window[v] = $
+		$.__defineGetter__ "symbol", () -> symbol
+		$.symbol = "$"
+		window["Bling"] = $
 
 		return {
 			name: "Symbol"
@@ -371,17 +370,17 @@ Object.Extend Event,
 					@
 		timeoutQueue = new TimeoutQueue
 
-		_getter_ = (prop) -> # used in .zip()
+		getter = (prop) -> # used in .zip()
 			() ->
 				v = @[prop]
 				if Object.IsFunc v
 					return Function.Bound(v, @)
 				return v
-		_zipper_ = (prop) -> # used in .zip()
+		zipper = (prop) -> # used in .zip()
 			i = prop.indexOf(".")
 			if i > -1
 				return @zip(prop.substr(0, i)).zip(prop.substr(i+1))
-			return @map _getter_(prop)
+			return @map getter(prop)
 
 		return {
 			name: 'Core'
@@ -495,7 +494,7 @@ Object.Extend Event,
 					when 0
 						return $()
 					when 1
-						return _zipper_.call(@, a[0])
+						return zipper.call(@, a[0])
 					else # > 1
 						# if more than one argument is passed, new objects
 						# with only those properties, will be returned
@@ -505,7 +504,7 @@ Object.Extend Event,
 						j = 0 # insert marker into list
 						# first collect a set of lists
 						for i in [0...n]
-							set[a[i]] = _zipper_.call(@, a[i])
+							set[a[i]] = zipper.call(@, a[i])
 						# then convert to a list of sets
 						for i in [0...nn]
 							o = {}
@@ -723,7 +722,7 @@ Object.Extend Event,
 						when window
 							return "window"
 						else
-							return @toString().replace(_object_re_,_1_)
+							return @toString().replace(_object_re_,"$1")
 				.join(commasep) + "])"
 
 			delay: (n, f) -> # .delay(/n/, /f/) -  continue with /f/ on _this_ after /n/ milliseconds
@@ -1401,7 +1400,7 @@ Object.Extend Event,
 				selector = @selector
 				context = @context
 				# wrap f
-				_handler_ = (evt) ->
+				handler = (evt) ->
 					# when event 'e' is fired
 					# re-execute the selector in the original context
 					$(selector, context)
@@ -1413,7 +1412,7 @@ Object.Extend Event,
 							f.call(@, evt)
 				# bind the handler to the context
 				# record f so we can 'die' it if needed
-				register_live selector, context, e, f, _handler_
+				register_live selector, context, e, f, handler
 				@
 
 			die: (e, f) ->

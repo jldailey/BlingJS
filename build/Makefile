@@ -4,11 +4,11 @@ LEVEL=SIMPLE_OPTIMIZATIONS
 # LEVEL=ADVANCED_OPTIMIZATIONS
 # LEVEL=WHITESPACE_ONLY
 DIST=../dist
-SITE=../
 PLUGINS=../plugins
 DIST_PLUGINS=$(DIST)/plugins
+TEMP:=$(shell mktemp)
 
-all: dist site report
+all: dist report
 
 minify: min.bling.js min.bling.js.gz
 
@@ -18,13 +18,17 @@ clean:
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
 site:
-	git stash save \
+	cd .. \
+	&& git stash save &> /dev/null \
 	&& git checkout site \
-	&& cp $(DIST)/*.js $(SITE)/js \
-	&& git add js \
-	&& git commit -m "build" \
-	&& git checkout master \
-	&& git stash pop
+	&& cp dist/*.js js \
+	&& git show master:bling.coffee > $(TEMP) \
+	&& cp $(TEMP) js/bling.coffee \
+	&& rm $(TEMP) \
+	&& git commit js -m "build" &> /dev/null || echo -n ""
+	git checkout master \
+	&& git stash pop &> /dev/null
+	git status
 
 publish:
 	git stash save \
@@ -46,10 +50,6 @@ $(DIST_PLUGINS)/%.js: $(DIST_PLUGINS)/%.coffee
 
 $(DIST)/bling.js: ../bling.coffee
 	cd .. && coffee -o dist -c bling.coffee
-
-$(SITE)/js/bling.js: $(DIST)/min.bling.js
-	cp $< $@
-	cat ../plugins/bling.doc.js >> $@
 
 compiler-latest.zip:
 	@wget http://closure-compiler.googlecode.com/files/compiler-latest.zip

@@ -137,7 +137,7 @@
         case (_ref = String(o)) === "true" || _ref === "false":
           return "boolean";
         case Object.IsError(o):
-          return _error_;
+          return "error";
         case Object.IsObject(o):
           if ("setInterval" in o) {
             return "window";
@@ -375,8 +375,8 @@
     $.plugin = function(constructor) {
       var name, plugin;
       try {
-        plugin = constructor.call($, $);
         name = constructor.name || plugin.name;
+        plugin = constructor.call($, $);
         if (!name) {
           throw Error("plugin requires a 'name'");
         }
@@ -389,24 +389,24 @@
         }
         return Object.Extend(Bling.fn, plugin);
       } catch (error) {
-        return console.log("failed to load plugin", error);
+        return console.log("failed to load plugin " + name);
       }
     };
     $.plugin(function() {
-      var _symbol_;
-      _symbol_ = null;
-      Bling.__defineSetter__("symbol", function(v) {
-        if (_symbol_ in window) {
-          delete window[_symbol_];
+      var symbol;
+      symbol = null;
+      $.__defineSetter__("symbol", function(v) {
+        if (symbol in window) {
+          delete window[symbol];
         }
-        _symbol_ = v;
-        return window[v] = Bling;
+        symbol = v;
+        return window[v] = $;
       });
-      Bling.__defineGetter__("symbol", function() {
-        return _symbol_;
+      $.__defineGetter__("symbol", function() {
+        return symbol;
       });
-      Bling.symbol = "$";
-      window["Bling"] = $ = Bling;
+      $.symbol = "$";
+      window["Bling"] = $;
       return {
         name: "Symbol"
       };
@@ -482,7 +482,7 @@
       };
     });
     $.plugin(function() {
-      var TimeoutQueue, timeoutQueue, _getter_, _zipper_;
+      var TimeoutQueue, getter, timeoutQueue, zipper;
       TimeoutQueue = (function() {
         __extends(TimeoutQueue, Array);
         function TimeoutQueue() {
@@ -516,7 +516,7 @@
         return TimeoutQueue;
       })();
       timeoutQueue = new TimeoutQueue;
-      _getter_ = function(prop) {
+      getter = function(prop) {
         return function() {
           var v;
           v = this[prop];
@@ -526,13 +526,13 @@
           return v;
         };
       };
-      _zipper_ = function(prop) {
+      zipper = function(prop) {
         var i;
         i = prop.indexOf(".");
         if (i > -1) {
           return this.zip(prop.substr(0, i)).zip(prop.substr(i + 1));
         }
-        return this.map(_getter_(prop));
+        return this.map(getter(prop));
       };
       return {
         name: 'Core',
@@ -662,14 +662,14 @@
             case 0:
               return $();
             case 1:
-              return _zipper_.call(this, a[0]);
+              return zipper.call(this, a[0]);
             default:
               set = {};
               nn = this.len();
               list = $();
               j = 0;
               for (i = 0; 0 <= n ? i < n : i > n; 0 <= n ? i++ : i--) {
-                set[a[i]] = _zipper_.call(this, a[i]);
+                set[a[i]] = zipper.call(this, a[i]);
               }
               for (i = 0; 0 <= nn ? i < nn : i > nn; 0 <= nn ? i++ : i--) {
                 o = {};
@@ -921,7 +921,7 @@
               case window:
                 return "window";
               default:
-                return this.toString().replace(_object_re_, _1_);
+                return this.toString().replace(_object_re_, "$1");
             }
           }).join(commasep) + "])";
         },
@@ -1022,7 +1022,7 @@
               var ret;
               escaper || (escaper = $("<div>&nbsp;</div>").child(0));
               ret = escaper.zap('data', h).zip("parentNode.innerHTML").first();
-              escaper.zap('data', _empty_);
+              escaper.zap('data', '');
               return ret;
             }
           }
@@ -1704,16 +1704,16 @@
           return this;
         },
         live: function(e, f) {
-          var context, selector, _handler_;
+          var context, handler, selector;
           selector = this.selector;
           context = this.context;
-          _handler_ = function(evt) {
+          handler = function(evt) {
             return $(selector, context).intersect($(evt.target).parents().first().union($(evt.target))).each(function() {
               evt.target = this;
               return f.call(this, evt);
             });
           };
-          register_live(selector, context, e, f, _handler_);
+          register_live(selector, context, e, f, handler);
           return this;
         },
         die: function(e, f) {

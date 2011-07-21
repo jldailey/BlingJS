@@ -25,7 +25,7 @@ site:
 	&& git show master:bling.coffee > $(TEMP) \
 	&& cp $(TEMP) js/bling.coffee \
 	&& rm $(TEMP) \
-	&& git commit js -m "build" &> /dev/null || echo -n ""
+	&& git commit js -m "build" &> /dev/null || true
 	git checkout master \
 	&& git stash pop &> /dev/null
 	git status
@@ -35,7 +35,7 @@ publish:
 	&& git checkout site \
 	&& git push origin site \
 	&& git checkout master \
-	&& git stash pop
+	&& git stash pop || true
 
 plugins: $(subst $(PLUGINS),$(DIST_PLUGINS),$(shell ls ../plugins/*))
 

@@ -8,7 +8,7 @@
   (Copyright) 2011
   (License) released under the MIT License
   http://creativecommons.org/licenses/MIT/
-  */  var Bling, commasep, eventsep_re, leftSpaces_re, object_cruft_re, _log_;
+  */  var Bling, commasep, eventsep_re, object_cruft_re, _log_;
   var __slice = Array.prototype.slice, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -36,7 +36,6 @@
   }
   commasep = ", ";
   eventsep_re = /,* +/;
-  leftSpaces_re = /^\s+/;
   object_cruft_re = /\[object (\w+)\]/;
   Bling = function(selector, context) {
     var set, type;
@@ -407,7 +406,7 @@
       };
     });
     $.plugin(function() {
-      var oldClone, oldToString;
+      var leftSpaces_re, oldClone, oldToString;
       leftSpaces_re = /^\s+/;
       String.prototype.trimLeft = Array.Coalesce(String.prototype.trimLeft, function() {
         return this.replace(leftSpaces_re, "");

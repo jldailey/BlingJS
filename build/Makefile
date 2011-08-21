@@ -27,7 +27,7 @@ site:
 	&& rm $(TEMP) \
 	&& git commit js -m "build" &> /dev/null || true \
 	&& git checkout master \
-	&& git stash pop &> /dev/null
+	&& git stash pop || true \
 	git status
 
 publish:

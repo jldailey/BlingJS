@@ -20,15 +20,9 @@ if console and console.log
 else
 	_log_ = (a...) ->
 		alert a.join(", ")
-Math_min = Math.min
-Math_max = Math.max
-Math_ceil = Math.ceil
-Math_sqrt = Math.sqrt
-Obj_toString = Object::toString
 # constants
 commasep = ", "
 eventsep_re = /,* +/
-leftSpaces_re = /^\s+/
 object_cruft_re = /\[object (\w+)\]/
 
 Bling = (selector, context = document) ->
@@ -74,7 +68,7 @@ Object.Keys = (o, inherited = false) -> # Object.Keys(/o/, [/inherited/]) - get 
 
 Object.Extend = (a, b, k) -> # Object.Extend(a, b, [k]) - merge values from b into a
 	# if k is present, it should be an array of property names
-	if Obj_toString.apply(k) is "[object Array]" # cant use Object.IsArray yet
+	if Object::toString.apply(k) is "[object Array]" # cant use Object.IsArray yet
 		for i of k
 			a[k[i]] = b[k[i]] unless b[k[i]] is undefined
 	else
@@ -122,7 +116,7 @@ Object.Extend Object,
 		else if o.constructor is T
 			true
 		else if typeof T is "string"
-			o.constructor.name is T or Obj_toString.apply(o).replace(object_cruft_re, "$1") is T
+			o.constructor.name is T or Object::toString.apply(o).replace(object_cruft_re, "$1") is T
 		else
 			Object.IsType o.__proto__, T # recurse through sub-classes
 	IsString: (o) -> # Object.IsString(a) - true if object a is a string
@@ -153,7 +147,7 @@ Object.Extend Object,
 			return Number(a) if Object.IsNumber a
 		a
 	ToString: (x) ->
-		Obj_toString.apply(x)
+		Object::toString.apply(x)
 
 Object.Extend Function,
 	Empty: () -> # the empty function
@@ -179,8 +173,8 @@ Object.Extend Function,
 	NotNull: (x) -> x != null
 	IndexFound: (x) -> x > -1
 	ReduceAnd: (x) -> x and @
-	UpperLimit: (x) -> (y) -> Math_min(x, y)
-	LowerLimit: (x) -> (y) -> Math_max(x, y)
+	UpperLimit: (x) -> (y) -> Math.min(x, y)
+	LowerLimit: (x) -> (y) -> Math.max(x, y)
 	Px: (d) -> () -> Number.Px(@,d)
 
 Object.Extend Array,
@@ -204,10 +198,10 @@ Object.Extend Number,
 	# mappable versions of max() and min()
 	AtLeast: (x) ->
 		(y) ->
-			Math_max parseFloat(y or 0), x
+			Math.max parseFloat(y or 0), x
 	AtMost: (x) ->
 		(y) ->
-			Math_min parseFloat(y or 0), x
+			Math.min parseFloat(y or 0), x
 
 Object.Extend String,
 	PadLeft: (s, n, c = " ") -> # String.PadLeft(string, width, fill=" ")
@@ -536,7 +530,7 @@ Object.Extend Event,
 			take: (n) ->
 				# .take([/n/]) - collect the first /n/ elements of _this_.
 				# if n >= @length, returns a shallow copy of the whole bling
-				n = Math_min n|0, @len()
+				n = Math.min n|0, @len()
 				a = $()
 				a.context = @
 				a.selector = () -> a.context.take(n)
@@ -547,7 +541,7 @@ Object.Extend Event,
 			skip: (n = 0) ->
 				# .skip([/n/]) - collect all but the first /n/ elements of _this_.
 				# if n == 0, returns a shallow copy of the whole bling
-				n = Math_min(@len(), Math_max(0, (n|0)))
+				n = Math.min(@len(), Math.max(0, (n|0)))
 				nn = @len() - n
 				a = $()
 				a.context = @
@@ -977,7 +971,7 @@ Object.Extend Event,
 					else if Object.IsString v
 						setter.call k, v, ""
 					else if Object.IsArray v
-						n = Math_max v.length, nn
+						n = Math.max v.length, nn
 						for i in [0...n]
 							setter[i%nn] k, v[i%n], ""
 					return @
@@ -1168,11 +1162,11 @@ Object.Extend Event,
 
 			min: () ->
 				# .min() - select the smallest /x/ in _this_
-				@reduce (a) -> Math_min @, a
+				@reduce (a) -> Math.min @, a
 
 			max: () ->
 				# .max() - select the largest /x/ in _this_
-				@reduce (a) -> Math_max @, a
+				@reduce (a) -> Math.max @, a
 
 			average: () ->
 				# .average() - compute the average of all /x/ in _this_
@@ -1188,7 +1182,7 @@ Object.Extend Event,
 
 			magnitude: () ->
 				# .magnitude() - compute the vector length of _this_
-				Math_sqrt @floats().squares().sum()
+				Math.sqrt @floats().squares().sum()
 
 			scale: (r) ->
 				# .scale(/r/) - /x/ *= /r/ for /x/ in _this_

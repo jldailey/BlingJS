@@ -8,7 +8,8 @@
   (Copyright) 2011
   (License) released under the MIT License
   http://creativecommons.org/licenses/MIT/
-  */  var Bling, commasep, eventsep_re, object_cruft_re, _log_;
+  */
+  var Bling, COMMASEP, EVENTSEP_RE, OBJECT_RE, log;
   var __slice = Array.prototype.slice, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -22,21 +23,21 @@
     return;
   }
   if (console && console.log) {
-    _log_ = function() {
+    log = function() {
       var a;
       a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
       return console.log.apply(console, a);
     };
   } else {
-    _log_ = function() {
+    log = function() {
       var a;
       a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
       return alert(a.join(", "));
     };
   }
-  commasep = ", ";
-  eventsep_re = /,* +/;
-  object_cruft_re = /\[object (\w+)\]/;
+  COMMASEP = ", ";
+  EVENTSEP_RE = /,* +/;
+  OBJECT_RE = /\[object (\w+)\]/;
   Bling = function(selector, context) {
     var set, type;
     if (context == null) {
@@ -146,7 +147,7 @@
       } else if (o.constructor === T) {
         return true;
       } else if (typeof T === "string") {
-        return o.constructor.name === T || Object.prototype.toString.apply(o).replace(object_cruft_re, "$1") === T;
+        return o.constructor.name === T || Object.prototype.toString.apply(o).replace(OBJECT_RE, "$1") === T;
       } else {
         return Object.IsType(o.__proto__, T);
       }
@@ -228,7 +229,7 @@
     Trace: function(f, label, tracer) {
       var r;
       if (tracer == null) {
-        tracer = _log_;
+        tracer = log;
       }
       r = function() {
         var a;
@@ -369,8 +370,8 @@
     $.plugin = function(constructor) {
       var name, plugin;
       try {
-        name = constructor.name || plugin.name;
         plugin = constructor.call($, $);
+        name = constructor.name || plugin.name;
         if (!name) {
           throw Error("plugin requires a 'name'");
         }
@@ -855,7 +856,7 @@
           return c;
         },
         fold: function(f) {
-          var b, i, j, n, _ref, _step;
+          var b, i, j, n, _ref;
           n = this.len();
           j = 0;
           b = $();
@@ -863,7 +864,7 @@
           b.selector = function() {
             return b.context.fold(f);
           };
-          for (i = 0, _ref = n - 1, _step = 2; 0 <= _ref ? i < _ref : i > _ref; i += _step) {
+          for (i = 0, _ref = n - 1; i < _ref; i += 2) {
             b[j++] = f.call(this, this[i], this[i + 1]);
           }
           if ((n % 2) === 1) {
@@ -917,7 +918,7 @@
               default:
                 return this.toString().replace(_object_re_, "$1");
             }
-          }).join(commasep) + "])";
+          }).join(COMMASEP) + "])";
         },
         delay: function(n, f) {
           if (f) {
@@ -929,9 +930,9 @@
           var n;
           n = this.len();
           if (label) {
-            _log_(label, this, n + " items");
+            log(label, this, n + " items");
           } else {
-            _log_(this, n + " items");
+            log(this, n + " items");
           }
           return this;
         },
@@ -1008,7 +1009,6 @@
                   d.appendChild(n);
                   ret = d.innerHTML;
                   d.removeChild(n);
-                  delete n;
                   return ret;
               }
             },
@@ -1544,7 +1544,7 @@
         name: 'Events',
         bind: function(e, f) {
           var c, h;
-          c = (e || "").split(eventsep_re);
+          c = (e || "").split(EVENTSEP_RE);
           h = function(evt) {
             ret = f.apply(this, arguments);
             if (ret === false) {
@@ -1564,7 +1564,7 @@
         },
         unbind: function(e, f) {
           var c;
-          c = (e || "").split(eventsep_re);
+          c = (e || "").split(EVENTSEP_RE);
           return this.each(function() {
             var i, _i, _len, _results;
             _results = [];
@@ -1577,7 +1577,7 @@
         },
         once: function(e, f) {
           var c, i, _i, _len, _results;
-          c = (e || "").split(eventsep_re);
+          c = (e || "").split(EVENTSEP_RE);
           _results = [];
           for (_i = 0, _len = c.length; _i < _len; _i++) {
             i = c[_i];
@@ -1591,7 +1591,7 @@
         cycle: function() {
           var c, cycler, e, funcs, j, nf, _i, _len;
           e = arguments[0], funcs = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-          c = (e || "").split(eventsep_re);
+          c = (e || "").split(EVENTSEP_RE);
           nf = funcs.length;
           cycler = function() {
             var i;
@@ -1612,7 +1612,7 @@
           if (args == null) {
             args = {};
           }
-          evts = (evt || "").split(eventsep_re);
+          evts = (evt || "").split(EVENTSEP_RE);
           args = Object.Extend({
             bubbles: true,
             cancelable: true
@@ -1691,7 +1691,7 @@
                   return this.dispatchEvent(e);
                 });
               } catch (err) {
-                _log_("dispatchEvent error:", err);
+                log("dispatchEvent error:", err);
               }
             }
           }
@@ -1789,7 +1789,6 @@
         transitionDuration = "-o-transition-duration";
         transitionTiming = "-o-transition-timing-function";
       }
-      delete testStyle;
       return {
         name: 'Transform',
         $: {
@@ -1825,7 +1824,7 @@
             if (accel_props_re.test(i)) {
               ii = end_css[i];
               if (ii.join) {
-                ii = $(ii).px().join(commasep);
+                ii = $(ii).px().join(COMMASEP);
               } else if (ii.toString) {
                 ii = ii.toString();
               }
@@ -1840,13 +1839,13 @@
           if (trans) {
             props[p++] = transformProperty;
           }
-          css[transitionProperty] = props.join(commasep);
+          css[transitionProperty] = props.join(COMMASEP);
           css[transitionDuration] = props.map(function() {
             return duration;
-          }).join(commasep);
+          }).join(COMMASEP);
           css[transitionTiming] = props.map(function() {
             return easing;
-          }).join(commasep);
+          }).join(COMMASEP);
           if (trans) {
             css[transformProperty] = trans;
           }
@@ -2065,7 +2064,7 @@
       };
       compile.cache = {};
       render = function(text, values) {
-        var cache, fixed, i, j, key, n, output, pad, rest, type, value, _ref, _ref2, _step;
+        var cache, fixed, i, j, key, n, output, pad, rest, type, value, _ref, _ref2;
         cache = compile.cache[text];
         if (cache === null) {
           cache = compile.cache[text] = compile(text);
@@ -2073,7 +2072,7 @@
         output = [cache[0]];
         j = 1;
         n = cache.length;
-        for (i = 1, _ref = n - 5, _step = 5; 1 <= _ref ? i <= _ref : i >= _ref; i += _step) {
+        for (i = 1, _ref = n - 5; i <= _ref; i += 5) {
           _ref2 = cache.slice(i, (i + 4 + 1) || 9e9), key = _ref2[0], pad = _ref2[1], fixed = _ref2[2], type = _ref2[3], rest = _ref2[4];
           value = values[key];
           if (!(value != null)) {

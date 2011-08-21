@@ -394,13 +394,13 @@
           delete window[symbol];
         }
         symbol = v;
-        return window[v] = $;
+        return window[v] = Bling;
       });
       $.__defineGetter__("symbol", function() {
         return symbol;
       });
       $.symbol = "$";
-      window["Bling"] = $;
+      window["Bling"] = Bling;
       return {
         name: "Symbol"
       };

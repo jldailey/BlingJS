@@ -6,7 +6,7 @@ LEVEL=SIMPLE_OPTIMIZATIONS
 DIST=../dist
 PLUGINS=../plugins
 DIST_PLUGINS=$(DIST)/plugins
-TEMP:=$(shell mktemp)
+TEMP:=$(shell mktemp /tmp/blingjs.XXXXXX)
 
 all: dist report
 
@@ -25,8 +25,8 @@ site:
 	&& git show master:bling.coffee > $(TEMP) \
 	&& cp $(TEMP) js/bling.coffee \
 	&& rm $(TEMP) \
-	&& git commit js -m "build" &> /dev/null || true
-	git checkout master \
+	&& git commit js -m "build" &> /dev/null || true \
+	&& git checkout master \
 	&& git stash pop &> /dev/null
 	git status
 

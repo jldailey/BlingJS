@@ -25,7 +25,9 @@ site:
 	&& git show master:bling.coffee > $(TEMP) \
 	&& cp $(TEMP) js/bling.coffee \
 	&& rm $(TEMP) \
-	&& git commit js -m "build" &> /dev/null || true \
+	&& git commit js -m "build files" &> /dev/null || true \
+	&& echo '$.log("' `git log -1 --format="commit:%h @ %ci"` '")' > js/log-build.js \
+	&& git commit js/log-build.js --amend -m "build annotation" \
 	&& git checkout master \
 	&& git stash pop || true \
 	git status

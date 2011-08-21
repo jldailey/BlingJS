@@ -15,15 +15,15 @@ if not "querySelectorAll" of document
 
 # local shortcuts
 if console and console.log
-	_log_ = (a...) ->
+	log = (a...) ->
 		console.log.apply(console, a)
 else
-	_log_ = (a...) ->
+	log = (a...) ->
 		alert a.join(", ")
 # constants
-commasep = ", "
-eventsep_re = /,* +/
-object_cruft_re = /\[object (\w+)\]/
+COMMASEP = ", "
+EVENTSEP_RE = /,* +/
+OBJECT_RE = /\[object (\w+)\]/
 
 Bling = (selector, context = document) ->
 	type = Object.Type selector
@@ -46,8 +46,8 @@ Bling = (selector, context = document) ->
 	else
 		throw Error "invalid selector: #{selector} (type: #{Object.Type selector})"
 
+	# hijack the type of the input object
 	set.constructor = Bling
-	# hijack the prototype
 	set.__proto__ = Bling.fn
 	set.selector = selector
 	set.context = context
@@ -116,7 +116,7 @@ Object.Extend Object,
 		else if o.constructor is T
 			true
 		else if typeof T is "string"
-			o.constructor.name is T or Object::toString.apply(o).replace(object_cruft_re, "$1") is T
+			o.constructor.name is T or Object::toString.apply(o).replace(OBJECT_RE, "$1") is T
 		else
 			Object.IsType o.__proto__, T # recurse through sub-classes
 	IsString: (o) -> # Object.IsString(a) - true if object a is a string
@@ -163,7 +163,7 @@ Object.Extend Function,
 		r.toString = () ->
 			"bound-method of #{t}.#{f.name}"
 		r
-	Trace: (f, label, tracer = _log_) -> # Function.Trace(/f/, /label/) - log calls to /f/
+	Trace: (f, label, tracer = log) -> # Function.Trace(/f/, /label/) - log calls to /f/
 		r = (a...) ->
 			tracer "#{label or ""}#{@name or @}.#{f.name}(", a, ")"
 			f.apply @, a
@@ -247,8 +247,8 @@ Object.Extend Event,
 
 	$.plugin = (constructor) ->
 		try
-			name = constructor.name or plugin.name
 			plugin = constructor.call $,$
+			name = constructor.name or plugin.name
 			if not name
 				throw Error "plugin requires a 'name'"
 			$.plugins.push(name)
@@ -270,10 +270,10 @@ Object.Extend Event,
 			if symbol of window
 				delete window[symbol]
 			symbol = v
-			window[v] = $
+			window[v] = Bling
 		$.__defineGetter__ "symbol", () -> symbol
 		$.symbol = "$"
-		window["Bling"] = $
+		window["Bling"] = Bling
 
 		return {
 			name: "Symbol"
@@ -717,7 +717,7 @@ Object.Extend Event,
 							return "window"
 						else
 							return @toString().replace(_object_re_,"$1")
-				.join(commasep) + "])"
+				.join(COMMASEP) + "])"
 
 			delay: (n, f) -> # .delay(/n/, /f/) -  continue with /f/ on _this_ after /n/ milliseconds
 				if f
@@ -727,9 +727,9 @@ Object.Extend Event,
 			log: (label) -> # .log([label]) - console.log([/label/] + /x/) for /x/ in _this_
 				n = @len()
 				if label
-					_log_(label, @, n + " items")
+					log(label, @, n + " items")
 				else
-					_log_(@, n + " items")
+					log(@, n + " items")
 				@
 
 			len: () -> # .len() - returns the max defined index + 1
@@ -800,7 +800,7 @@ Object.Extend Event,
 								d.appendChild(n)
 								ret = d.innerHTML
 								d.removeChild(n) # clean up to prevent leaks
-								delete n
+								# delete n
 								return ret
 					escape: (h) -> # $.HTML.escape(/h/) - accept html string /h/, a string with html-escapes like &amp;
 						escaper or= $("<div>&nbsp;</div>").child(0)
@@ -1200,7 +1200,7 @@ Object.Extend Event,
 			'touchstart','touchmove','touchend','touchcancel',
 			'gesturestart','gestureend','gesturecancel',
 			'hashchange'
-		] # click is handled specially
+		] # 'click' is handled specially
 
 		binder = (e) ->
 			(f = {}) ->
@@ -1246,7 +1246,7 @@ Object.Extend Event,
 				# .bind(e, f) - adds handler f for event type e
 				# e is a string like 'click', 'mouseover', etc.
 				# e can be comma-separated to bind multiple events at once
-				c = (e or "").split(eventsep_re)
+				c = (e or "").split(EVENTSEP_RE)
 				h = (evt) ->
 					ret = f.apply @, arguments
 					if ret is false
@@ -1259,14 +1259,14 @@ Object.Extend Event,
 			unbind: (e, f) ->
 				# .unbind(e, [f]) - removes handler f from event e
 				# if f is not present, removes all handlers from e
-				c = (e or "").split(eventsep_re)
+				c = (e or "").split(EVENTSEP_RE)
 				@each () ->
 					for i in c
 						@removeEventListener(i, f, null)
 
 			once: (e, f) ->
 				# .once(e, f) - adds a handler f that will be called only once
-				c = (e or "").split(eventsep_re)
+				c = (e or "").split(EVENTSEP_RE)
 				for i in c
 					@bind i, (evt) ->
 						f.call(@, evt)
@@ -1276,7 +1276,7 @@ Object.Extend Event,
 				# .cycle(e, ...) - bind handlers for e that trigger in a cycle
 				# one call per trigger. when the last handler is executed
 				# the next trigger will call the first handler again
-				c = (e or "").split(eventsep_re)
+				c = (e or "").split(EVENTSEP_RE)
 				nf = funcs.length
 				cycler = () ->
 					i = 0
@@ -1293,7 +1293,7 @@ Object.Extend Event,
 				# args is an optional mapping of properties to set,
 				#		{screenX: 10, screenY: 10}
 				# note: not all browsers support manually creating all event types
-				evts = (evt or "").split(eventsep_re)
+				evts = (evt or "").split(EVENTSEP_RE)
 				args = Object.Extend {
 					bubbles: true
 					cancelable: true
@@ -1386,7 +1386,7 @@ Object.Extend Event,
 							@each () ->
 								@dispatchEvent e
 						catch err
-							_log_("dispatchEvent error:",err)
+							log("dispatchEvent error:",err)
 				@
 
 			live: (e, f) ->
@@ -1481,7 +1481,7 @@ Object.Extend Event,
 			transitionDuration = "-o-transition-duration"
 			transitionTiming = "-o-transition-timing-function"
 
-		delete testStyle
+		# delete testStyle
 
 		return {
 			name: 'Transform'
@@ -1527,7 +1527,7 @@ Object.Extend Event,
 					if accel_props_re.test(i)
 						ii = end_css[i]
 						if ii.join
-							ii = $(ii).px().join(commasep)
+							ii = $(ii).px().join(COMMASEP)
 						else if ii.toString
 							ii = ii.toString()
 						trans += " " + i + "(" + ii + ")"
@@ -1541,15 +1541,15 @@ Object.Extend Event,
 					props[p++] = transformProperty
 
 				# sets a list of properties to apply a duration to
-				css[transitionProperty] = props.join(commasep)
+				css[transitionProperty] = props.join(COMMASEP)
 				# apply the same duration to each property
 				css[transitionDuration] =
 					props.map(() -> duration)
-						.join(commasep)
+						.join(COMMASEP)
 				# apply an easing function to each property
 				css[transitionTiming] =
 					props.map(() -> easing)
-						.join(commasep)
+						.join(COMMASEP)
 
 				# apply the transformation
 				if( trans )

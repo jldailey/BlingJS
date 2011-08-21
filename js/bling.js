@@ -8,7 +8,7 @@
   (Copyright) 2011
   (License) released under the MIT License
   http://creativecommons.org/licenses/MIT/
-  */  var Bling, Math_ceil, Math_max, Math_min, Math_sqrt, Obj_toString, commasep, eventsep_re, leftSpaces_re, object_cruft_re, _log_;
+  */  var Bling, commasep, eventsep_re, leftSpaces_re, object_cruft_re, _log_;
   var __slice = Array.prototype.slice, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -34,11 +34,6 @@
       return alert(a.join(", "));
     };
   }
-  Math_min = Math.min;
-  Math_max = Math.max;
-  Math_ceil = Math.ceil;
-  Math_sqrt = Math.sqrt;
-  Obj_toString = Object.prototype.toString;
   commasep = ", ";
   eventsep_re = /,* +/;
   leftSpaces_re = /^\s+/;
@@ -93,7 +88,7 @@
   };
   Object.Extend = function(a, b, k) {
     var i, _i, _len, _ref;
-    if (Obj_toString.apply(k) === "[object Array]") {
+    if (Object.prototype.toString.apply(k) === "[object Array]") {
       for (i in k) {
         if (b[k[i]] !== void 0) {
           a[k[i]] = b[k[i]];
@@ -152,7 +147,7 @@
       } else if (o.constructor === T) {
         return true;
       } else if (typeof T === "string") {
-        return o.constructor.name === T || Obj_toString.apply(o).replace(object_cruft_re, "$1") === T;
+        return o.constructor.name === T || Object.prototype.toString.apply(o).replace(object_cruft_re, "$1") === T;
       } else {
         return Object.IsType(o.__proto__, T);
       }
@@ -203,7 +198,7 @@
       return a;
     },
     ToString: function(x) {
-      return Obj_toString.apply(x);
+      return Object.prototype.toString.apply(x);
     }
   });
   Object.Extend(Function, {
@@ -257,12 +252,12 @@
     },
     UpperLimit: function(x) {
       return function(y) {
-        return Math_min(x, y);
+        return Math.min(x, y);
       };
     },
     LowerLimit: function(x) {
       return function(y) {
-        return Math_max(x, y);
+        return Math.max(x, y);
       };
     },
     Px: function(d) {
@@ -305,12 +300,12 @@
     },
     AtLeast: function(x) {
       return function(y) {
-        return Math_max(parseFloat(y || 0), x);
+        return Math.max(parseFloat(y || 0), x);
       };
     },
     AtMost: function(x) {
       return function(y) {
-        return Math_min(parseFloat(y || 0), x);
+        return Math.min(parseFloat(y || 0), x);
       };
     }
   });
@@ -704,7 +699,7 @@
         },
         take: function(n) {
           var a, i;
-          n = Math_min(n | 0, this.len());
+          n = Math.min(n | 0, this.len());
           a = $();
           a.context = this;
           a.selector = function() {
@@ -720,7 +715,7 @@
           if (n == null) {
             n = 0;
           }
-          n = Math_min(this.len(), Math_max(0, n | 0));
+          n = Math.min(this.len(), Math.max(0, n | 0));
           nn = this.len() - n;
           a = $();
           a.context = this;
@@ -1226,7 +1221,7 @@
             } else if (Object.IsString(v)) {
               setter.call(k, v, "");
             } else if (Object.IsArray(v)) {
-              n = Math_max(v.length, nn);
+              n = Math.max(v.length, nn);
               for (i = 0; 0 <= n ? i < n : i > n; 0 <= n ? i++ : i--) {
                 setter[i % nn](k, v[i % n], "");
               }
@@ -1457,12 +1452,12 @@
         },
         min: function() {
           return this.reduce(function(a) {
-            return Math_min(this, a);
+            return Math.min(this, a);
           });
         },
         max: function() {
           return this.reduce(function(a) {
-            return Math_max(this, a);
+            return Math.max(this, a);
           });
         },
         average: function() {
@@ -1479,7 +1474,7 @@
           });
         },
         magnitude: function() {
-          return Math_sqrt(this.floats().squares().sum());
+          return Math.sqrt(this.floats().squares().sum());
         },
         scale: function(r) {
           return this.map(function() {

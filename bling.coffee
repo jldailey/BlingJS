@@ -774,6 +774,19 @@ Object.Extend Event,
 			() ->
 				window.getComputedStyle(@, null).getPropertyValue(k)
 
+		dataNameToAttr(k) ->
+			ret = []
+			A = "A".charCodeAt(0)
+			Z = "Z".chatCodeAt(0)
+			for i in [0..k.length]
+				c = k.charCodeAt i
+				if Z >= c >= A
+					c -= A
+					ret.push "-"
+				ret.push String.fromCharCode(c)
+			return ret.join("")
+
+
 		return {
 			name: 'Html'
 
@@ -812,6 +825,9 @@ Object.Extend Event,
 						ret
 				}
 			}
+
+			dataName: (k) ->
+				return dataNameToAttr(k)
 
 			html: (h) -> # .html([h]) - get [or set] /x/.innerHTML for each node
 				switch Object.Type h
@@ -1135,6 +1151,9 @@ Object.Extend Event,
 						@cloneNode deep
 					else
 						null
+
+			data: (k, v) ->
+				v
 
 			toFragment: () ->
 				if @len() > 1

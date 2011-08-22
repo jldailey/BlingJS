@@ -1153,7 +1153,8 @@ Object.Extend Event,
 						null
 
 			data: (k, v) ->
-				v
+				k = "data-#{dataNameToAttr(k)}"
+				$(this).attr(k, v)
 
 			toFragment: () ->
 				if @len() > 1

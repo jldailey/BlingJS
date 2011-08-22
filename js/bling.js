@@ -979,6 +979,21 @@
           return window.getComputedStyle(this, null).getPropertyValue(k);
         };
       };
+      dataNameToAttr(k)(function() {
+        var A, Z, c, i, ret, _ref;
+        ret = [];
+        A = "A".charCodeAt(0);
+        Z = "Z".chatCodeAt(0);
+        for (i = 0, _ref = k.length; 0 <= _ref ? i <= _ref : i >= _ref; 0 <= _ref ? i++ : i--) {
+          c = k.charCodeAt(i);
+          if ((Z >= c && c >= A)) {
+            c -= A;
+            ret.push("-");
+          }
+          ret.push(String.fromCharCode(c));
+        }
+        return ret.join("");
+      });
       return {
         name: 'Html',
         $: {
@@ -1020,6 +1035,9 @@
               return ret;
             }
           }
+        },
+        dataName: function(k) {
+          return dataNameToAttr(k);
         },
         html: function(h) {
           switch (Object.Type(h)) {
@@ -1419,6 +1437,9 @@
               return null;
             }
           });
+        },
+        data: function(k, v) {
+          return v;
         },
         toFragment: function() {
           var adder, df;

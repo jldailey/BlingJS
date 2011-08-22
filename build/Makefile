@@ -39,16 +39,8 @@ publish:
 	&& git checkout master \
 	&& git stash pop || true
 
-plugins: $(subst $(PLUGINS),$(DIST_PLUGINS),$(shell ls ../plugins/*))
-
-dist_plugins: plugins
-	cp $(PLUGINS)/*.js $(DIST_PLUGINS)
-
-$(DIST_PLUGINS)/%.coffee: $(PLUGINS)/%.coffee
-	cp $< $@
-
-$(DIST_PLUGINS)/%.js: $(DIST_PLUGINS)/%.coffee
-	(cd $(DIST_PLUGINS) && coffee -c $<)
+plugins:
+	coffee -o $(DIST_PLUGINS) -c $(PLUGINS)/*.coffee
 
 $(DIST)/bling.js: ../bling.coffee
 	cd .. && coffee -o dist -c bling.coffee

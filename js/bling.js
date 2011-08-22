@@ -1439,7 +1439,8 @@
           });
         },
         data: function(k, v) {
-          return v;
+          k = "data-" + (dataNameToAttr(k));
+          return $(this).attr(k, v);
         },
         toFragment: function() {
           var adder, df;

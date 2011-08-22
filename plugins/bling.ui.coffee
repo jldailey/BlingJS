@@ -121,10 +121,10 @@
 				else
 					node.css {
 						background:
-							"-webkit-gradient(linear, 0 0, "+parseInt(pct * 100)+"% 0, "
-							+ "color-stop(0, "+opts.barColor+"), "
-							+ "color-stop(0.98, "+opts.barColor+"), "
-							+ "color-stop(1.0, "+opts.backgroundColor+"))"
+							"-webkit-gradient(linear, 0 0, "+parseInt(pct * 100)+"% 0, " +
+							"color-stop(0, "+opts.barColor+"), " +
+							"color-stop(0.98, "+opts.barColor+"), " +
+							"color-stop(1.0, "+opts.backgroundColor+"))"
 						color: opts.textColor
 					}
 				if Object.IsFunc(opts.change)
@@ -209,8 +209,7 @@
 			tabs = $(selector)
 			views = $(views).viewStack()
 			nn = tabs.len()
-			for( i = 0; i < nn; i++)
-				tabs[i]._tabIndex = i
+			tabs._tabIndex = i for i in [0..nn]
 			$(tabs[0]).addClass("active")
 			tabs.click () ->
 				tabs.removeClass("active")

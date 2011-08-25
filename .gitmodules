@@ -1,0 +1,3 @@
+[submodule "tests/domjs"]
+	path = tests/domjs
+	url = git@github.com:jldailey/domjs.git

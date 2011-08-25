@@ -6,25 +6,24 @@ LEVEL=SIMPLE_OPTIMIZATIONS
 DIST=../dist
 PLUGINS=../plugins
 DIST_PLUGINS=$(DIST)/plugins
-TEMP:=$(shell mktemp /tmp/blingjs.XXXXXX)
+# TEMP:=$(shell mktemp /tmp/blingjs.XXXXXX)
 
 all: dist report
 
-minify: min.bling.js min.bling.js.gz
+minify: $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
 clean:
 	rm -f $(DIST)/*.js
 
-dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
+dist: $(DIST)/bling.js minify
 
-site:
+site: dist
 	cd .. \
 	&& git stash save &> /dev/null \
 	&& git checkout site \
 	&& cp dist/*.js js \
-	&& git show master:bling.coffee > $(TEMP) \
-	&& cp $(TEMP) js/bling.coffee \
-	&& rm $(TEMP) \
+	&& cp -r dist/plugins js \
+	&& git show master:bling.coffee > js/bling.coffee \
 	&& git commit js -m "build files" &> /dev/null || true \
 	&& echo '$.log("' `git log -1 --format="commit:%h @ %ci"` '")' > js/log-build.js \
 	&& git commit js/log-build.js --amend -m "build annotation" \

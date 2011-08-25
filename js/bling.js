@@ -2134,13 +2134,13 @@
         }
         return output.join("");
       };
-      TAGMODE = 1;
-      IDMODE = 2;
-      CLSMODE = 3;
-      ATTRMODE = 4;
-      VALMODE = 5;
-      DTEXTMODE = 6;
-      STEXTMODE = 7;
+      TAGMODE = 0;
+      IDMODE = 1;
+      CLSMODE = 2;
+      ATTRMODE = 3;
+      VALMODE = 4;
+      DTEXTMODE = 5;
+      STEXTMODE = 6;
       synth = function(expr) {
         var addToAttr, addToClass, addToId, addToTag, addToText, addToVal, attr, attrs, beginAttr, beginClass, beginDText, beginId, beginSText, beginVal, c, cls, emitNode, emitNodeAndReset, emitNodeAndSkip, emitText, endAttr, i, id, mode, modeline, parent, parse_table, ret, tag, text, val;
         parent = null;
@@ -2240,8 +2240,8 @@
           tag += c;
           return TAGMODE;
         };
-        parse_table = {
-          TAGMODE: {
+        parse_table = [
+          {
             '"': beginDText,
             "'": beginSText,
             "#": beginId,
@@ -2251,16 +2251,14 @@
             " ": emitNode,
             ",": emitNodeAndReset,
             def: addToTag
-          },
-          IDMODE: {
+          }, {
             ".": beginClass,
             "[": beginAttr,
             "+": emitNodeAndSkip,
             " ": emitNode,
             ",": emitNodeAndReset,
             def: addToId
-          },
-          CLSMODE: {
+          }, {
             "#": beginId,
             ".": beginClass,
             "[": beginAttr,
@@ -2268,25 +2266,21 @@
             " ": emitNode,
             ",": emitNodeAndReset,
             def: addToClass
-          },
-          ATTRMODE: {
+          }, {
             "=": beginVal,
             "]": endAttr,
             def: addToAttr
-          },
-          VALMODE: {
+          }, {
             "]": endAttr,
             def: addToVal
-          },
-          DTEXTMODE: {
+          }, {
             '"': emitText,
             def: addToText
-          },
-          STEXTMODE: {
+          }, {
             "'": emitText,
             def: addToText
           }
-        };
+        ];
         i = 0;
         while (c = expr[i++]) {
           modeline = parse_table[mode];
@@ -2296,7 +2290,7 @@
             mode = modeline['def'](c);
           }
         }
-        if (tagname.length > 0) {
+        if (tag.length > 0) {
           emitNode();
         }
         if (text.length > 0) {

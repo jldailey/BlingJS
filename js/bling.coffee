@@ -87,10 +87,10 @@ Object.Extend Object,
 				"string"
 			when Object.IsType o, Bling
 				"bling"
-			when Object.IsType o, NodeList
-				"nodelist"
 			when Object.IsArray o
 				"array"
+			when Object.IsType o, NodeList
+				"nodelist"
 			when Object.IsNumber o
 				"number"
 			when Object.IsFragment o
@@ -221,12 +221,14 @@ Object.Extend String,
 		if start < 0
 			start += nn
 		s.substring(0,start) + n + s.substring(end)
-	Checksum: (s) -> # String.Checksum(string) - dumbest integer checksum of all time
-		sum = 0
+	Checksum: (s) -> # String.Checksum(string) - Adler32 checksum of a string
+		a = 1; b = 0
 		for i in [0...s.length]
-			sum += s.charCodeAt(i)
-		sum
+			a = (a + s.charCodeAt(i)) % 65521
+			b = (b + a) % 65521
+		return (b << 16) | a
 
+Event = Event or {}
 Object.Extend Event,
 	Cancel: (evt) ->
 		evt.stopPropagation()
@@ -247,8 +249,9 @@ Object.Extend Event,
 
 	$.plugin = (constructor) ->
 		try
+			name = constructor.name
 			plugin = constructor.call $,$
-			name = constructor.name or plugin.name
+			name = name or plugin.name
 			if not name
 				throw Error "plugin requires a 'name'"
 			$.plugins.push(name)
@@ -262,7 +265,9 @@ Object.Extend Event,
 			# everything else about the plugin extends the prototype
 			Object.Extend(Bling.fn, plugin)
 		catch error
-			console.log "failed to load plugin #{name}"
+			log "failed to load plugin #{name}"
+			log error.message
+			throw error
 
 	$.plugin () -> # Symbol - allow use of something other than $ by assigning to Bling.symbol
 		symbol = null
@@ -307,33 +312,34 @@ Object.Extend Event,
 				s
 		)
 
-		Element::matchesSelector = Array.Coalesce(
-			Element::webkitMatchesSelector,
-			Element::mozMatchesSelector,
-			Element::matchesSelector
-		)
+		if Element?
+			Element::matchesSelector = Array.Coalesce(
+				Element::webkitMatchesSelector,
+				Element::mozMatchesSelector,
+				Element::matchesSelector
+			)
 
-		oldToString = Element::toString
-		Element::toString = (css_mode) ->
-			if css_mode
-				name = @nodeName.toLowerCase()
-				if @id?
-					name += "##{@id}"
-				else if @className?
-					name += ".#{@className.split(" ").join(".")}"
-				name
-			else
-				oldToString.apply @
+			oldToString = Element::toString
+			Element::toString = (css_mode) ->
+				if css_mode
+					name = @nodeName.toLowerCase()
+					if @id?
+						name += "##{@id}"
+					else if @className?
+						name += ".#{@className.split(" ").join(".")}"
+					name
+				else
+					oldToString.apply @
 
-		# if cloneNode does not take a 'deep' argument, add support
-		if Element::cloneNode.length is 0
-			oldClone = Element::cloneNode
-			Element::cloneNode = (deep = false) ->
-				n = oldClone.call(@)
-				if deep
-					for i in @childNodes
-						n.appendChild i.cloneNode true
-				return n
+			# if cloneNode does not take a 'deep' argument, add support
+			if Element::cloneNode.length is 0
+				oldClone = Element::cloneNode
+				Element::cloneNode = (deep = false) ->
+					n = oldClone.call(@)
+					if deep
+						for i in @childNodes
+							n.appendChild i.cloneNode true
+					return n
 
 		return {
 			name: "Compat"
@@ -383,6 +389,7 @@ Object.Extend Event,
 				a = $([@[i]])
 				a.context = @
 				a.selector = () -> a.context.eq(i)
+				a
 
 			each: (f) -> # .each(/f/) - apply function /f/ to every item /x/ in _this_.
 				for i in @
@@ -530,24 +537,31 @@ Object.Extend Event,
 			take: (n) ->
 				# .take([/n/]) - collect the first /n/ elements of _this_.
 				# if n >= @length, returns a shallow copy of the whole bling
-				n = Math.min n|0, @len()
+				nn = @len()
+				start = 0
+				end = Math.min n|0, nn
+				if n < 0
+					start = Math.max 0, nn+n
+					end = nn
 				a = $()
 				a.context = @
 				a.selector = () -> a.context.take(n)
-				for i in [0...n]
-					a[i] = @[i]
+				j = 0
+				for i in [start...end]
+					a[j++] = @[i]
 				a
 
 			skip: (n = 0) ->
 				# .skip([/n/]) - collect all but the first /n/ elements of _this_.
 				# if n == 0, returns a shallow copy of the whole bling
-				n = Math.min(@len(), Math.max(0, (n|0)))
-				nn = @len() - n
+				start = Math.max 0, n|0
+				end = @len()
 				a = $()
 				a.context = @
 				a.selector = () -> a.context.skip(n)
-				for i in [0...nn]
-					a[i] = @[i+n]
+				j = 0
+				for i in [start...end]
+					a[j++] = @[i]
 				a
 
 			first: (n = 1) ->
@@ -610,11 +624,9 @@ Object.Extend Event,
 				b.selector = () -> b.context.filter(f)
 				switch Object.Type f
 					when "string"
-						g = (x) ->
-							x.matchesSelector(f)
+						g = (x) -> x.matchesSelector(f)
 					when "regexp"
-						g = (x) ->
-							f.test(x)
+						g = (x) -> f.test(x)
 					when "function"
 						g = f
 					else
@@ -648,7 +660,7 @@ Object.Extend Event,
 				# will yield undefineds into the result
 				# the result always has 2 * max(length) items
 				nn = @len()
-				n = b.len()
+				n = b.length
 				i = nn - 1
 				c = $()
 				c.context = @
@@ -682,10 +694,10 @@ Object.Extend Event,
 
 			flatten: () -> # .flatten() - collect the union of all sets in _this_
 				b = $()
-				n = @len()
-				k = 0 # insert marker
 				b.context = @
 				b.selector = () -> b.context.flatten()
+				n = @len()
+				k = 0 # insert marker
 				for i in [0...n]
 					c = @[i]
 					if Object.IsFunc c.len
@@ -708,15 +720,11 @@ Object.Extend Event,
 
 			toString: () -> # .toString() - maps toString across @
 				$.symbol + "([" + @map () ->
-					switch @
-						when undefined
-							return "undefined"
-						when null
-							return "null"
-						when window
-							return "window"
-						else
-							return @toString().replace(_object_re_,"$1")
+					t = Object.Type(@)
+					if t in ["undefined","null","window"]
+						t
+					else
+						@toString().replace(OBJECT_RE,"$1")
 				.join(COMMASEP) + "])"
 
 			delay: (n, f) -> # .delay(/n/, /f/) -  continue with /f/ on _this_ after /n/ milliseconds
@@ -774,7 +782,7 @@ Object.Extend Event,
 			() ->
 				window.getComputedStyle(@, null).getPropertyValue(k)
 
-		dataNameToAttr(k) ->
+		dataNameToAttr = (k) ->
 			ret = []
 			A = "A".charCodeAt(0)
 			Z = "Z".chatCodeAt(0)
@@ -1887,7 +1895,6 @@ Object.Extend Event,
 				STEXTMODE:
 					"'": emitText
 					def: addToText
-
 
 			i = 0 # i is a read-marker within expr
 			# 'c' steps across the input, one character at a time

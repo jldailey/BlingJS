@@ -9,7 +9,7 @@
   (License) released under the MIT License
   http://creativecommons.org/licenses/MIT/
   */
-  var Bling, COMMASEP, EVENTSEP_RE, OBJECT_RE, log;
+  var Bling, COMMASEP, EVENTSEP_RE, Event, OBJECT_RE, log;
   var __slice = Array.prototype.slice, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -115,10 +115,10 @@
           return "string";
         case Object.IsType(o, Bling):
           return "bling";
-        case Object.IsType(o, NodeList):
-          return "nodelist";
         case Object.IsArray(o):
           return "array";
+        case Object.IsType(o, NodeList):
+          return "nodelist";
         case Object.IsNumber(o):
           return "number";
         case Object.IsFragment(o):
@@ -342,14 +342,17 @@
       return s.substring(0, start) + n + s.substring(end);
     },
     Checksum: function(s) {
-      var i, sum, _ref;
-      sum = 0;
+      var a, b, i, _ref;
+      a = 1;
+      b = 0;
       for (i = 0, _ref = s.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
-        sum += s.charCodeAt(i);
+        a = (a + s.charCodeAt(i)) % 65521;
+        b = (b + a) % 65521;
       }
-      return sum;
+      return (b << 16) | a;
     }
   });
+  Event = Event || {};
   Object.Extend(Event, {
     Cancel: function(evt) {
       evt.stopPropagation();
@@ -370,8 +373,9 @@
     $.plugin = function(constructor) {
       var name, plugin;
       try {
+        name = constructor.name;
         plugin = constructor.call($, $);
-        name = constructor.name || plugin.name;
+        name = name || plugin.name;
         if (!name) {
           throw Error("plugin requires a 'name'");
         }
@@ -384,7 +388,9 @@
         }
         return Object.Extend(Bling.fn, plugin);
       } catch (error) {
-        return console.log("failed to load plugin " + name);
+        log("failed to load plugin " + name);
+        log(error.message);
+        throw error;
       }
     };
     $.plugin(function() {
@@ -438,39 +444,41 @@
         }
         return s;
       });
-      Element.prototype.matchesSelector = Array.Coalesce(Element.prototype.webkitMatchesSelector, Element.prototype.mozMatchesSelector, Element.prototype.matchesSelector);
-      oldToString = Element.prototype.toString;
-      Element.prototype.toString = function(css_mode) {
-        var name;
-        if (css_mode) {
-          name = this.nodeName.toLowerCase();
-          if (this.id != null) {
-            name += "#" + this.id;
-          } else if (this.className != null) {
-            name += "." + (this.className.split(" ").join("."));
-          }
-          return name;
-        } else {
-          return oldToString.apply(this);
-        }
-      };
-      if (Element.prototype.cloneNode.length === 0) {
-        oldClone = Element.prototype.cloneNode;
-        Element.prototype.cloneNode = function(deep) {
-          var i, n, _i, _len, _ref;
-          if (deep == null) {
-            deep = false;
-          }
-          n = oldClone.call(this);
-          if (deep) {
-            _ref = this.childNodes;
-            for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-              i = _ref[_i];
-              n.appendChild(i.cloneNode(true));
+      if (typeof Element !== "undefined" && Element !== null) {
+        Element.prototype.matchesSelector = Array.Coalesce(Element.prototype.webkitMatchesSelector, Element.prototype.mozMatchesSelector, Element.prototype.matchesSelector);
+        oldToString = Element.prototype.toString;
+        Element.prototype.toString = function(css_mode) {
+          var name;
+          if (css_mode) {
+            name = this.nodeName.toLowerCase();
+            if (this.id != null) {
+              name += "#" + this.id;
+            } else if (this.className != null) {
+              name += "." + (this.className.split(" ").join("."));
             }
+            return name;
+          } else {
+            return oldToString.apply(this);
           }
-          return n;
         };
+        if (Element.prototype.cloneNode.length === 0) {
+          oldClone = Element.prototype.cloneNode;
+          Element.prototype.cloneNode = function(deep) {
+            var i, n, _i, _len, _ref;
+            if (deep == null) {
+              deep = false;
+            }
+            n = oldClone.call(this);
+            if (deep) {
+              _ref = this.childNodes;
+              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                i = _ref[_i];
+                n.appendChild(i.cloneNode(true));
+              }
+            }
+            return n;
+          };
+        }
       }
       return {
         name: "Compat"
@@ -535,9 +543,10 @@
           var a;
           a = $([this[i]]);
           a.context = this;
-          return a.selector = function() {
+          a.selector = function() {
             return a.context.eq(i);
           };
+          return a;
         },
         each: function(f) {
           var i, _i, _len;
@@ -698,32 +707,40 @@
           return this.zap(p, v);
         },
         take: function(n) {
-          var a, i;
-          n = Math.min(n | 0, this.len());
+          var a, end, i, j, nn, start;
+          nn = this.len();
+          start = 0;
+          end = Math.min(n | 0, nn);
+          if (n < 0) {
+            start = Math.max(0, nn + n);
+            end = nn;
+          }
           a = $();
           a.context = this;
           a.selector = function() {
             return a.context.take(n);
           };
-          for (i = 0; 0 <= n ? i < n : i > n; 0 <= n ? i++ : i--) {
-            a[i] = this[i];
+          j = 0;
+          for (i = start; start <= end ? i < end : i > end; start <= end ? i++ : i--) {
+            a[j++] = this[i];
           }
           return a;
         },
         skip: function(n) {
-          var a, i, nn;
+          var a, end, i, j, start;
           if (n == null) {
             n = 0;
           }
-          n = Math.min(this.len(), Math.max(0, n | 0));
-          nn = this.len() - n;
+          start = Math.max(0, n | 0);
+          end = this.len();
           a = $();
           a.context = this;
           a.selector = function() {
             return a.context.skip(n);
           };
-          for (i = 0; 0 <= nn ? i < nn : i > nn; 0 <= nn ? i++ : i--) {
-            a[i] = this[i + n];
+          j = 0;
+          for (i = start; start <= end ? i < end : i > end; start <= end ? i++ : i--) {
+            a[j++] = this[i];
           }
           return a;
         },
@@ -840,7 +857,7 @@
         weave: function(b) {
           var c, i, n, nn, _ref;
           nn = this.len();
-          n = b.len();
+          n = b.length;
           i = nn - 1;
           c = $();
           c.context = this;
@@ -875,12 +892,12 @@
         flatten: function() {
           var b, c, d, i, j, k, n;
           b = $();
-          n = this.len();
-          k = 0;
           b.context = this;
           b.selector = function() {
             return b.context.flatten();
           };
+          n = this.len();
+          k = 0;
           for (i = 0; 0 <= n ? i < n : i > n; 0 <= n ? i++ : i--) {
             c = this[i];
             if (Object.IsFunc(c.len)) {
@@ -908,15 +925,12 @@
         },
         toString: function() {
           return $.symbol + "([" + this.map(function() {
-            switch (this) {
-              case void 0:
-                return "undefined";
-              case null:
-                return "null";
-              case window:
-                return "window";
-              default:
-                return this.toString().replace(_object_re_, "$1");
+            var t;
+            t = Object.Type(this);
+            if (t === "undefined" || t === "null" || t === "window") {
+              return t;
+            } else {
+              return this.toString().replace(OBJECT_RE, "$1");
             }
           }).join(COMMASEP) + "])";
         },
@@ -950,7 +964,7 @@
       };
     });
     $.plugin(function() {
-      var after, before, escaper, getCSSProperty, toNode;
+      var after, before, dataNameToAttr, escaper, getCSSProperty, toNode;
       before = function(a, b) {
         return a.parentNode.insertBefore(b, a);
       };
@@ -979,7 +993,7 @@
           return window.getComputedStyle(this, null).getPropertyValue(k);
         };
       };
-      dataNameToAttr(k)(function() {
+      dataNameToAttr = function(k) {
         var A, Z, c, i, ret, _ref;
         ret = [];
         A = "A".charCodeAt(0);
@@ -993,7 +1007,7 @@
           ret.push(String.fromCharCode(c));
         }
         return ret.join("");
-      });
+      };
       return {
         name: 'Html',
         $: {

@@ -30,8 +30,12 @@ OBJECT_RE = /\[object (\w+)\]/
 
 Bling = (selector, context = document) ->
 	type = Object.Type selector
-	if type in ["node", "window", "function"]
-		set = [selector]
+	if type in ["undefined", "null"]
+		set = []
+	else if type in ["array", "bling", "nodelist"]
+		set = selector
+	else if type in ["node", "window", "function"]
+		set = [ selector ]
 	else if type is "number"
 		set = new Array selector
 	else if type is "string"
@@ -42,10 +46,6 @@ Bling = (selector, context = document) ->
 			set = context.querySelectorAll(selector)
 		else
 			throw Error "invalid context: #{context} (type: #{Object.Type context})"
-	else if type in ["array", "bling", "nodelist"]
-		set = selector
-	else if type in ["undefined", "null"]
-		set = []
 	else
 		throw Error "invalid selector: #{selector} (type: #{Object.Type selector})"
 
@@ -268,7 +268,7 @@ Object.Extend Event,
 			Object.Extend(Bling.fn, plugin)
 		catch error
 			log "failed to load plugin #{name}"
-			log error.message
+			# log error.message
 			throw error
 
 	$.plugin () -> # Symbol - allow use of something other than $ by assigning to Bling.symbol
@@ -1845,18 +1845,18 @@ Object.Extend Event,
 				TAGMODE
 
 			beginClass = () -> cls += " " if cls.length > 0; CLSMODE
-			addToClass = (c) -> cls += c; TAGMODE
+			addToClass = (c) -> cls += c; null
 			beginAttr = () -> ATTRMODE
-			addToAttr = (c) -> attr += c; TAGMODE
+			addToAttr = (c) -> attr += c; null
 			beginVal = () -> VALMODE
-			addToVal = (c) -> val += c; TAGMODE
+			addToVal = (c) -> val += c; null
 			endAttr = () -> attrs[attr] = val; attr = val = ""; TAGMODE
 			beginId = () -> IDMODE
-			addToId = (c) -> id += c; TAGMODE
+			addToId = (c) -> id += c; null
 			beginDText = () -> DTEXTMODE
 			beginSText = () -> STEXTMODE
 			addToText = (c) -> text += c; null
-			addToTag = (c) -> tag += c; TAGMODE
+			addToTag = (c) -> tag += c; null
 
 			parse_table = [
 				{ # TAGMODE

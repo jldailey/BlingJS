@@ -20,9 +20,12 @@
 		first_quote = (s, i) -> # return the type of quote and its first index (after i)
 			a = s.indexOf('"', i)
 			b = s.indexOf("'", i)
+			# move pointers to the end if no quotes were found
 			a = s.length if a is -1
 			b = s.length if b is -1
+			# a is b only when they both missed (o.w. how could we find two diff. chars at the same index?)
 			return [null, -1] if a is b
+			# 
 			return ['"', a] if a < b
 			return ["'", b]
 		closing_quote = (s, i, q) -> # find the closing quote
@@ -80,8 +83,8 @@
 					break
 			ret
 
-		ret =
-			name: "PrettyPrint",
+		return {
+			name: "PrettyPrint"
 			$:
 				prettyPrint: (js, colors) ->
 					js = js.toString() if Object.IsFunc(js)
@@ -102,10 +105,11 @@
 						$.synth("style#prettyPrint")
 							.text(css)
 							.appendTo("head")
+					return ""
 					return "<code class='pp'>" +
-						($ split_comments(js)
+						($(split_comments(js))
 							.fold (text, comment) ->
-								$ split_quoted(text)
+								$(split_quoted(text))
 									.fold (code, quoted) ->
 										code.replace(operators, operator_html)
 										.replace(all_numbers, number_html)
@@ -116,6 +120,7 @@
 									comment_html(comment)
 							.join('')) +
 							"</code>"
+		}
 
 )(Bling)
 # vim: ft=coffee

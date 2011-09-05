@@ -1,69 +1,4 @@
-assert = (c, msg) ->
-	if not c
-		throw Error msg
-assertEqual = (a, b, label) ->
-	if a isnt b
-		throw Error "#{label or ''} (#{a?.toString()}) should equal (#{b?.toString()})"
-assertArrayEqual = (a, b, label) ->
-	for i in [0...a.length]
-		try
-			assertEqual(a[i], b[i], label)
-		catch err
-			throw Error "#{label or ''} #{a?.toString()} should equal #{b?.toString()}"
-
-dom = require("./domjs/dom")
-dom.registerGlobals(global)
-global.document = dom.createDocument()
-global.window = global
-require("../bling.coffee")
-
-UI =
-	dumb: # a dumb terminal
-		output: (a...) -> console.log.apply console, a
-		red: ""
-		green: ""
-		yellow: ""
-		normal: ""
-	cterm: # a color terminal
-		output: (a...) -> console.log.apply console, a
-		red: "[0;31;40m"
-		green: "[0;32;40m"
-		yellow: "[0;33;40m"
-		normal: "[0;37;40m"
-	html: # an html document
-		output: (a...) -> document.write a.join(' ')+"<br>"
-		red: "<font color='red'>"
-		green: "<font color='green'>"
-		yellow: "<font color='yellow'>"
-		normal: "</font>"
-
-# pick an output UI
-ui = switch process?.env.TERM
-	when "dumb" then UI.dumb
-	when undefined then UI.html
-	else UI.cterm
-
-# counters for test total/pass/fail
-total = [0,0,0]
-failures = []
-testGroup = (name, tests) ->
-	ui.output "Test: #{name}"
-	failed = passed = 0
-	for test_name of tests
-		test = tests[test_name]
-		total[0] += 1
-		try
-			test()
-			passed += 1
-			total[1] += 1
-			ui.output "#{test_name}...ok"
-		catch err
-			ui.output "#{test_name}...fail: '#{err.toString()}'"
-			failed += 1
-			total[2] += 1
-			failures.push(test_name)
-	# ui.output "#{ui.green}Pass: #{passed}#{ui.normal}" +
-		# ( if failed > 0 then "#{ui.yellow}/#{passed+failed}#{ui.normal}#{ui.red} Fail: #{failed}#{ui.normal} [ #{failures.join(', ')} ]" else "" )
+common = require('./common')
 
 testGroup("Object",
 	Keys: () ->
@@ -323,11 +258,16 @@ testGroup("HTML",
 
 testGroup("Synth",
 	basic_node: () -> assertEqual($.synth("style").toString(), "$([<style/>])")
+	id_node: () -> assertEqual($.synth('style#specialId').toString(), '$([<style id="specialId"/>])')
+	class_node: () -> assertEqual($.synth('style.specClass').toString(), '$([<style class="specClass"/>])')
+	attr_node: () -> assertEqual($.synth('style[foo=bar]').toString(), '$([<style foo="bar"/>])')
+	combo_node: () -> assertEqual($.synth("style[a=b].c#d").toString(), '$([<style id="d" class="c" a="b"/>])')
 	text: () -> assertEqual($.synth("style 'text'").toString(), "$([<style>text</style>])")
-	entity: () -> assertEqual($.synth("style 'text&amp;stuff'").toString(), "$([<style>text&amp;stuff</style>])")
+	entity1: () -> assertEqual($.synth("style 'text&amp;stuff'").toString(), "$([<style>text&amp;stuff</style>])")
+	entity2: () -> assertEqual($.synth("style 'text&stuff'").toString(), "$([<style>text&stuff</style>])")
 )
 
-ui.output "Total: #{total[0]} Passed: #{total[1]} Failed: #{total[2]} [ #{failures.join(', ')} ]"
+testReport()
 
 ### still need tests for all of these:
   'HTML',

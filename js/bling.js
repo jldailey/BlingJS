@@ -46,7 +46,11 @@
       context = document;
     }
     type = Object.Type(selector);
-    if (type === "node" || type === "window" || type === "function") {
+    if (type === "undefined" || type === "null") {
+      set = [];
+    } else if (type === "array" || type === "bling" || type === "nodelist") {
+      set = selector;
+    } else if (type === "node" || type === "window" || type === "function") {
       set = [selector];
     } else if (type === "number") {
       set = new Array(selector);
@@ -59,10 +63,6 @@
       } else {
         throw Error("invalid context: " + context + " (type: " + (Object.Type(context)) + ")");
       }
-    } else if (type === "array" || type === "bling" || type === "nodelist") {
-      set = selector;
-    } else if (type === "undefined" || type === "null") {
-      set = [];
     } else {
       throw Error("invalid selector: " + selector + " (type: " + (Object.Type(selector)) + ")");
     }
@@ -390,7 +390,6 @@
         return Object.Extend(Bling.fn, plugin);
       } catch (error) {
         log("failed to load plugin " + name);
-        log(error.message);
         throw error;
       }
     };
@@ -2215,21 +2214,21 @@
         };
         addToClass = function(c) {
           cls += c;
-          return TAGMODE;
+          return null;
         };
         beginAttr = function() {
           return ATTRMODE;
         };
         addToAttr = function(c) {
           attr += c;
-          return TAGMODE;
+          return null;
         };
         beginVal = function() {
           return VALMODE;
         };
         addToVal = function(c) {
           val += c;
-          return TAGMODE;
+          return null;
         };
         endAttr = function() {
           attrs[attr] = val;
@@ -2241,7 +2240,7 @@
         };
         addToId = function(c) {
           id += c;
-          return TAGMODE;
+          return null;
         };
         beginDText = function() {
           return DTEXTMODE;
@@ -2255,7 +2254,7 @@
         };
         addToTag = function(c) {
           tag += c;
-          return TAGMODE;
+          return null;
         };
         parse_table = [
           {

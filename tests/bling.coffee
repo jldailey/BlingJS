@@ -17,53 +17,77 @@ global.document = dom.createDocument()
 global.window = global
 require("../bling.coffee")
 
-output = (a...) -> console.log.apply console, a
+UI =
+	dumb: # a dumb terminal
+		output: (a...) -> console.log.apply console, a
+		red: ""
+		green: ""
+		yellow: ""
+		normal: ""
+	cterm: # a color terminal
+		output: (a...) -> console.log.apply console, a
+		red: "[0;31;40m"
+		green: "[0;32;40m"
+		yellow: "[0;33;40m"
+		normal: "[0;37;40m"
+	html: # an html document
+		output: (a...) -> document.write a.join(' ')+"<br>"
+		red: "<font color='red'>"
+		green: "<font color='green'>"
+		yellow: "<font color='yellow'>"
+		normal: "</font>"
 
+# pick an output UI
+ui = switch process?.env.TERM
+	when "dumb" then UI.dumb
+	when undefined then UI.html
+	else UI.cterm
+
+# counters for test total/pass/fail
 total = [0,0,0]
-red = "[0;31;40m"
-green = "[0;32;40m"
-yellow = "[0;33;40m"
-normal = "[0;37;40m"
-testGroup = (name, tests...) ->
-	output "Test: #{name}"
+failures = []
+testGroup = (name, tests) ->
+	ui.output "Test: #{name}"
 	failed = passed = 0
-	for test in tests
+	for test_name of tests
+		test = tests[test_name]
 		total[0] += 1
 		try
 			test()
 			passed += 1
 			total[1] += 1
+			ui.output "#{test_name}...ok"
 		catch err
-			output "Failed: #{test.toString()}"
-			output "Error String: '#{err.toString()}'"
+			ui.output "#{test_name}...fail: '#{err.toString()}'"
 			failed += 1
 			total[2] += 1
-	output "#{green}Pass: #{passed}#{normal}" +
-		( if failed > 0 then "#{yellow}/#{passed+failed}#{red} Fail: #{failed}#{normal}" else "" )
+			failures.push(test_name)
+	# ui.output "#{ui.green}Pass: #{passed}#{ui.normal}" +
+		# ( if failed > 0 then "#{ui.yellow}/#{passed+failed}#{ui.normal}#{ui.red} Fail: #{failed}#{ui.normal} [ #{failures.join(', ')} ]" else "" )
 
 testGroup("Object",
-	() ->
+	Keys: () ->
 		assertArrayEqual(Object.Keys({a: 1, b: 2}), ['a','b'])
-	() ->
+	Extend: () ->
 		a = {A:1}
 		assertArrayEqual(Object.Keys(Object.Extend({A:1},{B:2})), ['A','B'])
-	() -> assertEqual(Object.Type(""), "string")
-	() -> assertEqual(Object.Type(42), "number")
-	() -> assertEqual(Object.Type(), "undefined")
-	() -> assertEqual(Object.Type(null), "null")
-	() -> assertEqual(Object.Type([]), "array")
-	() -> assertEqual(Object.Type(() -> null), "function")
-	() -> assertEqual(Object.Type(true), "boolean")
-	() -> assertEqual(Object.Type(//), "regexp")
-	() -> assertEqual(Object.Type(window), "window")
-	() ->
+	Type_string: () -> assertEqual(Object.Type(""), "string")
+	Type_number:() -> assertEqual(Object.Type(42), "number")
+	Type_undef: () -> assertEqual(Object.Type(), "undefined")
+	Type_null: () -> assertEqual(Object.Type(null), "null")
+	Type_array: () -> assertEqual(Object.Type([]), "array")
+	Type_function: () -> assertEqual(Object.Type(() -> null), "function")
+	Type_boolean: () -> assertEqual(Object.Type(true), "boolean")
+	Type_regexp: () -> assertEqual(Object.Type(//), "regexp")
+	Type_window: () -> assertEqual(Object.Type(window), "window")
+	Unbox: () ->
 		assertEqual(typeof new Number(9), "object")
 		assertEqual(typeof Object.Unbox(new Number(42)), "number")
 )
 
 testGroup("Function",
-	() -> assertEqual(Object.Type(Function.Empty), "function")
-	() ->
+	Empty: () -> assertEqual(Object.Type(Function.Empty), "function")
+	Bound: () ->
 		f = () -> @value
 		a = { value: 'a' }
 		b = { value: 'b' }
@@ -71,7 +95,7 @@ testGroup("Function",
 		h = Function.Bound(f, b)
 		assertEqual(g(), 'a')
 		assertEqual(h(), 'b')
-	() ->
+	Trace: () ->
 		f = () -> 42
 		g = []
 		h = Function.Trace(f, "label", (a...) ->
@@ -79,43 +103,43 @@ testGroup("Function",
 		)
 		f()
 		h()
-		assertArrayEqual(g, [ 'Function.Trace: label created.', 'label[object global].()' ])
+		assertArrayEqual(g, [ 'Function.Trace: label created.', 'window.label()' ])
 )
 
 testGroup("Array",
-	() -> assertEqual(Array.Coalesce(null, 42, 22), 42)
-	() -> assertEqual(Array.Coalesce([null, 14, 42]), 14)
-	() -> assertArrayEqual(Array.Extend([1,2,3],[3,4,5]), [1,2,3,3,4,5])
+	Coalesce1: () -> assertEqual(Array.Coalesce(null, 42, 22), 42)
+	Coalesce2: () -> assertEqual(Array.Coalesce([null, 14, 42]), 14)
+	Extend: () -> assertArrayEqual(Array.Extend([1,2,3],[3,4,5]), [1,2,3,3,4,5])
 )
 
 testGroup("Number",
-	() -> assertEqual(Number.Px(100), "100px")
-	() -> assertEqual(Number.Px(-100.0), "-100px")
-	() -> assertEqual(Number.AtLeast(5)(-2), 5)
-	() -> assertEqual(Number.AtLeast(5)(12), 12)
-	() -> assertEqual(Number.AtMost(5)(12), 5)
-	() -> assertEqual(Number.AtMost(5)(2), 2)
+	Px1: () -> assertEqual(Number.Px(100), "100px")
+	Px2: () -> assertEqual(Number.Px(-100.0), "-100px")
+	AtLeast1: () -> assertEqual(Number.AtLeast(5)(-2), 5)
+	AtLeast2: () -> assertEqual(Number.AtLeast(5)(12), 12)
+	AtMost1: () -> assertEqual(Number.AtMost(5)(12), 5)
+	AtMost2: () -> assertEqual(Number.AtMost(5)(2), 2)
 )
 
 testGroup("String",
-	() -> assertEqual(String.PadLeft("foo", 5), "  foo")
-	() -> assertEqual(String.PadLeft("foo", 3), "foo")
-	() -> assertEqual(String.PadLeft("foo", 2), "foo")
-	() -> assertEqual(String.PadRight("foo", 5), "foo  ")
-	() -> assertEqual(String.PadRight("foo", 3), "foo")
-	() -> assertEqual(String.PadRight("foo", 2), "foo")
-	() -> assertEqual(String.PadLeft("foo", 5, "X"), "XXfoo")
-	() -> assertEqual(String.PadRight("foo", 5, "X"), "fooXX")
-	() -> assertEqual(String.Splice("foobar",3,3,"baz"), "foobazbar")
-	() -> assertEqual(String.Splice("foobar",1,5,"baz"), "fbazr")
-	() -> assertEqual(String.Splice("foobar",0,6,"baz"), "baz")
-	() -> assertEqual(String.Splice("foobar",0,0,"baz"), "bazfoobar")
-	() -> assertEqual(String.Checksum("foobar"), 145425018) # test values are from python's adler32 in zlib
-	() -> assertEqual(String.Checksum("foobarbaz"), 310051767)
+	PadLeft1: () -> assertEqual(String.PadLeft("foo", 5), "  foo")
+	PadLeft2: () -> assertEqual(String.PadLeft("foo", 3), "foo")
+	PadLeft3: () -> assertEqual(String.PadLeft("foo", 2), "foo")
+	PadLeft4: () -> assertEqual(String.PadLeft("foo", 5, "X"), "XXfoo")
+	PadRight1: () -> assertEqual(String.PadRight("foo", 5), "foo  ")
+	PadRight2: () -> assertEqual(String.PadRight("foo", 3), "foo")
+	PadRight3: () -> assertEqual(String.PadRight("foo", 2), "foo")
+	PadRight4: () -> assertEqual(String.PadRight("foo", 5, "X"), "fooXX")
+	Splice1: () -> assertEqual(String.Splice("foobar",3,3,"baz"), "foobazbar")
+	Splice2: () -> assertEqual(String.Splice("foobar",1,5,"baz"), "fbazr")
+	Splice3: () -> assertEqual(String.Splice("foobar",0,6,"baz"), "baz")
+	Splice4: () -> assertEqual(String.Splice("foobar",0,0,"baz"), "bazfoobar")
+	Checksum1: () -> assertEqual(String.Checksum("foobar"), 145425018) # test values are from python's adler32 in zlib
+	Checksum2: () -> assertEqual(String.Checksum("foobarbaz"), 310051767)
 )
 
 testGroup("Plugins",
-	() ->
+	new_plugin: () ->
 		$.plugin () ->
 			name: "Test Plugin"
 			$:
@@ -126,21 +150,21 @@ testGroup("Plugins",
 		assertEqual $()?.testOp(), 42
 )
 
-
 testGroup("Symbol",
-	() -> assert( Bling?, "bling should exist")
-	() ->
+	exists: () -> assert( Bling?, "bling should exist")
+	current: () ->
 		assertEqual( Bling.symbol, "$" )
 		assertEqual( $, Bling )
-	() ->
+	set: () ->
 		Bling.symbol = "_"
 		assertEqual( _, Bling )
 		assert( not $? )
-	() ->
+	reset: () ->
 		Bling.symbol = "$"
 		assertEqual($, Bling)
 )
 
+# set up a test document, to run DOM tests agains
 document.body.innerHTML = "
 	<table>
 	<tr><td>1,1</td><td>1,2</td></tr>
@@ -152,97 +176,160 @@ document.body.innerHTML = "
 	<p><span>foobar</span></p>
 "
 testGroup("Core",
-	() ->
+	eq: () ->
 		tds = $("td")
 		assertEqual(tds.length, 8)
 		assertEqual($("td").eq(0).text()[0], "1,1")
-	() ->
+	each: () ->
 		sum = 0
 		$([1,2,3,4]).each () ->
 			sum += @
 		assertEqual(sum, 10)
-	() -> assertArrayEqual( $([1,2,3,4]).map( (x) -> x * x ), [1,4,9,16] )
-	() -> assertEqual( $([1,2,3,4]).reduce( (a,x) -> a + x ), 10)
-	() -> assertArrayEqual($([1,2,3,4]).union([2,3,4,5]), [1,2,3,4,5])
-	() -> assertArrayEqual($([1,2,3,4]).intersect([2,3,4,5]), [2,3,4])
-	() -> assertArrayEqual($([1,2,2,3,4,3]).distinct(), [1,2,3,4])
-	() ->
+	map: () -> assertArrayEqual( $([1,2,3,4]).map( (x) -> x * x ), [1,4,9,16] )
+	reduce: () -> assertEqual( $([1,2,3,4]).reduce( (a,x) -> a + x ), 10)
+	union: () -> assertArrayEqual($([1,2,3,4]).union([2,3,4,5]), [1,2,3,4,5])
+	intersect: () -> assertArrayEqual($([1,2,3,4]).intersect([2,3,4,5]), [2,3,4])
+	distinct: () -> assertArrayEqual($([1,2,2,3,4,3]).distinct(), [1,2,3,4])
+	contains: () ->
 		assert $([1,2,3,4]).contains(3)
 		assert $(["foo","bar","baz"]).contains("bar")
-	() -> assert $([1,2,2,3,4,3]).count(3) is 2
-	() ->
-		objs = [ {id:1}, {id:2}, {id:3} ]
-		assertArrayEqual($(objs).zip('id'), [1,2,3])
-	() ->
-		objs = [ {id:1}, {id:2}, {id:3} ]
-		assertArrayEqual($(objs).zap('id', 13).zip('id'), [13,13,13])
-	() ->
-		objs = [ {id:1}, {id:2}, {id:3} ]
-		assertArrayEqual($(objs).zipzapmap('id', () -> @ * 2).zip('id'), [2,4,6])
-	() -> assertArrayEqual($([1,2,3,4]).take(-2), [3,4])
-	() -> assertArrayEqual($([1,2,3,4]).take(-1), [4])
-	() -> assertArrayEqual($([1,2,3,4]).take(0), [])
-	() -> assertArrayEqual($([1,2,3,4]).take(1), [1])
-	() -> assertArrayEqual($([1,2,3,4]).take(2), [1,2])
-	() -> assertArrayEqual($([1,2,3,4]).take(3), [1,2,3])
-	() -> assertArrayEqual($([1,2,3,4]).take(4), [1,2,3,4])
-	() -> assertArrayEqual($([1,2,3,4]).take(5), [1,2,3,4])
-	() -> assertArrayEqual($([1,2,3,4]).skip(-1), [1,2,3,4])
-	() -> assertArrayEqual($([1,2,3,4]).skip(0), [1,2,3,4])
-	() -> assertArrayEqual($([1,2,3,4]).skip(1), [2,3,4])
-	() -> assertArrayEqual($([1,2,3,4]).skip(2), [3,4])
-	() -> assertArrayEqual($([1,2,3,4]).skip(3), [4])
-	() -> assertArrayEqual($([1,2,3,4]).skip(4), [])
-	() -> assertArrayEqual($([1,2,3,4]).skip(5), [])
-	() -> assertEqual($([1,2,3,4]).first(), 1)
-	() -> assertEqual($([1,2,3,4]).last(), 4)
-	() -> assertArrayEqual($([1,2,3,4]).first(5), [1,2,3,4])
-	() -> assertArrayEqual($([1,2,3,4]).first(2), [1,2])
-	() -> assertArrayEqual($([1,2,3,4]).first(0), [])
-	() -> assertArrayEqual($([1,2,3,4]).last(5), [1,2,3,4])
-	() -> assertArrayEqual($([1,2,3,4]).last(2), [3,4])
-	() -> assertArrayEqual($([1,2,3,4]).last(0), [])
-	() -> assertArrayEqual($([1,2,3,4,5]).slice(0,5), [1,2,3,4,5])
-	() -> assertArrayEqual($([1,2,3,4,5]).slice(1,5), [2,3,4,5])
-	() -> assertArrayEqual($([1,2,3,4,5]).slice(2,5), [3,4,5])
-	() -> assertArrayEqual($([1,2,3,4,5]).slice(3,5), [4,5])
-	() -> assertArrayEqual($([1,2,3,4,5]).slice(4,5), [5])
-	() -> assertArrayEqual($([1,2,3,4,5]).slice(1,-2), [2,3])
-	() -> assertArrayEqual($([1,2,3,4,5]).slice(-1,-3), [5,4])
-	() -> assertArrayEqual($([1,2,3,4,5]).slice(-1,-4), [5,4,3])
-	() -> assertArrayEqual($([1,2,3]).concat([3,4,4]), [1,2,3,3,4,4])
-	() -> assertArrayEqual($([1,2,3]).push(4), [1,2,3,4])
-	() -> assertArrayEqual($([1,2,3,4,5]).filter((x) -> x % 2), [1,3,5])
-	() -> assertArrayEqual($(["foo","bar","baz"]).filter(/^ba/), ["bar","baz"])
-	() -> assertArrayEqual($("*").filter("td").length, 8)
-	() -> assertEqual($("*").filter("td").filter(".d").length, 1)
-	() -> assertEqual($("*").filter("td").filter(".none").length, 0)
-	() -> assertArrayEqual($(["foo","bar","baz"]).test(/^ba/), [false, true, true])
-	() -> assertArrayEqual($("td").matches(".d"), [false,false,false,false,false,true,false,false])
-	() -> assertArrayEqual($("tr").querySelectorAll("td.d")[0].className, "d")
-	() -> assertArrayEqual($([1,1,1]).weave([2,2,2]), [2,1,2,1,2,1])
-	() -> assertArrayEqual($([1,1,1]).weave($([2,2,2])), [2,1,2,1,2,1])
-	() -> assertArrayEqual($([1,1,1]).weave([2,2,2]).fold( (a,b) -> a+b ), [3,3,3])
-	() -> assertArrayEqual($([[1,2],[3,4]]).flatten(), [1,2,3,4])
-	() -> assertArrayEqual($([((x) -> x*2), ((x) -> x*x)]).call(4), [8, 16])
-	() -> assertArrayEqual($([((x) -> @+x), ((x) -> @*x)]).apply(4,[2]), [6, 8])
-	() ->
+	count: () -> assert $([1,2,2,3,4,3]).count(3) is 2
+	zip: () -> assertArrayEqual($([ {id:1}, {id:2}, {id:3} ]).zip('id'), [1,2,3])
+	zap: () -> assertArrayEqual($([ {id:1}, {id:2}, {id:3} ]).zap('id', 13).zip('id'), [13,13,13])
+	zipzapmap: () -> assertArrayEqual($([ {id:1}, {id:2}, {id:3} ]).zipzapmap('id', () -> @ * 2).zip('id'), [2,4,6])
+	take1: () -> assertArrayEqual($([1,2,3,4]).take(-2), [3,4])
+	take2: () -> assertArrayEqual($([1,2,3,4]).take(-1), [4])
+	take3: () -> assertArrayEqual($([1,2,3,4]).take(0), [])
+	take4: () -> assertArrayEqual($([1,2,3,4]).take(1), [1])
+	take5: () -> assertArrayEqual($([1,2,3,4]).take(2), [1,2])
+	take6: () -> assertArrayEqual($([1,2,3,4]).take(3), [1,2,3])
+	take7: () -> assertArrayEqual($([1,2,3,4]).take(4), [1,2,3,4])
+	take8: () -> assertArrayEqual($([1,2,3,4]).take(5), [1,2,3,4])
+	skip1: () -> assertArrayEqual($([1,2,3,4]).skip(-1), [1,2,3,4])
+	skip2: () -> assertArrayEqual($([1,2,3,4]).skip(0), [1,2,3,4])
+	skip3: () -> assertArrayEqual($([1,2,3,4]).skip(1), [2,3,4])
+	skip4: () -> assertArrayEqual($([1,2,3,4]).skip(2), [3,4])
+	skip5: () -> assertArrayEqual($([1,2,3,4]).skip(3), [4])
+	skip6: () -> assertArrayEqual($([1,2,3,4]).skip(4), [])
+	skip7: () -> assertArrayEqual($([1,2,3,4]).skip(5), [])
+	first1: () -> assertEqual($([1,2,3,4]).first(), 1)
+	first2: () -> assertArrayEqual($([1,2,3,4]).first(5), [1,2,3,4])
+	first3: () -> assertArrayEqual($([1,2,3,4]).first(2), [1,2])
+	first4: () -> assertArrayEqual($([1,2,3,4]).first(0), [])
+	last1: () -> assertEqual($([1,2,3,4]).last(), 4)
+	last2: () -> assertArrayEqual($([1,2,3,4]).last(5), [1,2,3,4])
+	last3: () -> assertArrayEqual($([1,2,3,4]).last(2), [3,4])
+	last4: () -> assertArrayEqual($([1,2,3,4]).last(0), [])
+	slice1: () -> assertArrayEqual($([1,2,3,4,5]).slice(0,5), [1,2,3,4,5])
+	slice2: () -> assertArrayEqual($([1,2,3,4,5]).slice(1,5), [2,3,4,5])
+	slice3: () -> assertArrayEqual($([1,2,3,4,5]).slice(2,5), [3,4,5])
+	slice4: () -> assertArrayEqual($([1,2,3,4,5]).slice(3,5), [4,5])
+	slice5: () -> assertArrayEqual($([1,2,3,4,5]).slice(4,5), [5])
+	slice6: () -> assertArrayEqual($([1,2,3,4,5]).slice(1,-2), [2,3])
+	slice7: () -> assertArrayEqual($([1,2,3,4,5]).slice(-1,-3), [5,4])
+	slice8: () -> assertArrayEqual($([1,2,3,4,5]).slice(-1,-4), [5,4,3])
+	concat: () -> assertArrayEqual($([1,2,3]).concat([3,4,4]), [1,2,3,3,4,4])
+	push: () -> assertArrayEqual($([1,2,3]).push(4), [1,2,3,4])
+	filter1: () -> assertArrayEqual($([1,2,3,4,5]).filter((x) -> x % 2), [1,3,5])
+	filter2: () -> assertArrayEqual($(["foo","bar","baz"]).filter(/^ba/), ["bar","baz"])
+	filter3: () -> assertArrayEqual($("*").filter("td").length, 8)
+	filter4: () -> assertEqual($("*").filter("td").filter(".d").length, 1)
+	filter5: () -> assertEqual($("*").filter("td").filter(".none").length, 0)
+	test: () -> assertArrayEqual($(["foo","bar","baz"]).test(/^ba/), [false, true, true])
+	matches: () -> assertArrayEqual($("td").matches(".d"), [false,false,false,false,false,true,false,false])
+	querySelectorAll: () -> assertArrayEqual($("tr").querySelectorAll("td.d")[0].className, "d")
+	weave1: () -> assertArrayEqual($([1,1,1]).weave([2,2,2]), [2,1,2,1,2,1])
+	weave2: () -> assertArrayEqual($([1,1,1]).weave($([2,2,2])), [2,1,2,1,2,1])
+	fold: () -> assertArrayEqual($([1,1,1]).weave([2,2,2]).fold( (a,b) -> a+b ), [3,3,3])
+	flatten: () -> assertArrayEqual($([[1,2],[3,4]]).flatten(), [1,2,3,4])
+	call: () -> assertArrayEqual($([((x) -> x*2), ((x) -> x*x)]).call(4), [8, 16])
+	apply: () -> assertArrayEqual($([((x) -> @+x), ((x) -> @*x)]).apply(4,[2]), [6, 8])
+	corrected_length: () ->
 		assertEqual(Array(10).length,10)
 		assertEqual($(Array(10)).length, 0)
 )
 
 testGroup("HTML",
-	() -> assertEqual($.HTML.escape("<p>"), "&lt;p&gt;")
+	HTMLparse: () ->
+		d = $.HTML.parse("<div><a></a><b></b><c></c></div>")
+		assertEqual( Object.Type(d), "node")
+		assertEqual( d.nodeName, "DIV")
+	zip_childNodes: () ->
+		d = $("<div><a></a><b></b><c></c></div>")
+		assertEqual( Object.Type(d), "bling")
+		assertEqual( d.length, 1)
+		assertEqual( Object.Type(d[0]), "node")
+		d = d.zip("childNodes")
+		assertEqual( Object.Type(d), "bling")
+		assertEqual( Object.Type(d[0]), "array" )
+		assertEqual( d[0].length, 3)
+	childN: () ->
+		d = $("<div><a></a><b></b><c></c></div>")
+		a = d.child(0)
+		assertEqual( Object.Type(a), "bling")
+		assertEqual( a.length, 1)
+		assertEqual( a[0].nodeName, "A")
+		b = d.child(1)
+		assertEqual( Object.Type(b), "bling")
+		assertEqual( b.length, 1)
+		assertEqual( b[0].nodeName, "B")
+		c = d.child(2)
+		assertEqual( Object.Type(c), "bling")
+		assertEqual( c.length, 1)
+		assertEqual( c[0].nodeName, "C")
+	textData: () ->
+		d = $("<div>&nbsp;</div>")
+		assertEqual( Object.Type(d), "bling")
+		assertEqual( d.length, 1 )
+		d = d.child(0)
+		assertEqual( Object.Type(d), "bling")
+		assertEqual( d.length, 1 )
+		assertEqual( Object.Type(d[0]), "node")
+		d.zap('data', '<p>')
+		# console.log("innerHTML: " + d[0].innerHTML)
+		# console.log("toString: " + d[0].toString())
+		assertEqual( d.zip('innerHTML').toString(), '&lt;p&gt;' )
+	HTMLescape: () -> assertEqual($.HTML.escape("<p>"), "&lt;p&gt;")
+	dataName1: () -> assertEqual($.dataName("fooBar"), "foo-bar")
+	dataName2: () -> assertEqual($.dataName("FooBar"), "-foo-bar")
+	html: () -> assertEqual($("tr").html().first(), "<td>1,1</td><td>1,2</td>")
+	append: () ->
+		try
+			assertEqual($("tr td.d").append("<span>Hi</span>").html().first(), "3,2<span>Hi</span>")
+		finally
+			$("tr td.d span").remove()
+	appendTo:() ->
+		try
+			assertEqual($("<span>Hi</span>").appendTo("tr td.d").parent().html().first(), "3,2<span>Hi</span>")
+		finally
+			$("tr td.d span").remove()
+	prepend: () ->
+		try
+			assertEqual($("tr td.d").prepend("<span>Hi</span>").html().first(), "<span>Hi</span>3,2")
+		finally
+			$("tr td.d span").remove()
+	prependTo: () ->
+		try
+			assertEqual($("<span>Hi</span>").prependTo("tr td.d").parent().html().first(), "<span>Hi</span>3,2")
+		finally
+			$("tr td.d span").remove()
+	before: () -> assertEqual($("<a><b></b></a>").find("b").before("<c></c>").parent().toString(), "$([<a><c/><b/></a>])")
+	after1: () -> assertEqual($("<a><b></b></a>").find("b").after("<c></c>").parent().toString(), "$([<a><b/><c/></a>])")
+	after2: () -> assertEqual($("<b></b>").after("<c></c>").parent().toString(), "$([<b/><c/>])")
+	wrap: () -> assertEqual($("<b></b>").wrap("<a></a>").parent().toString(), "$([<a><b/></a>])")
+	unwrap: () -> assertEqual($("<a><b/></a>").find("b").unwrap().first().parentNode, null)
+	replace: () -> assertEqual($("<a><b/><c/><b/></a>").find("b").replace("<d/>").toString(), "$([<a><d/><c/><d/></a>])")
 )
 
-output "Total: #{total[0]} Passed: #{total[1]} Failed: #{total[2]}"
+testGroup("Synth",
+	basic_node: () -> assertEqual($.synth("style").toString(), "$([<style/>])")
+	text: () -> assertEqual($.synth("style 'text'").toString(), "$([<style>text</style>])")
+	entity: () -> assertEqual($.synth("style 'text&amp;stuff'").toString(), "$([<style>text&amp;stuff</style>])")
+)
 
-### write tests for all of these:
-Object.Keys
-Object.Extend
-Object.Type
-  'plugin',
-  'symbol',
+ui.output "Total: #{total[0]} Passed: #{total[1]} Failed: #{total[2]} [ #{failures.join(', ')} ]"
+
+### still need tests for all of these:
   'HTML',
   'duration',
   'http',
@@ -251,47 +338,11 @@ Object.Type
   'render',
   'synth'
 ]
-[ 'eq',
-  'each',
-  'map',
-  'reduce',
-  'union',
-  'intersect',
-  'distinct',
-  'contains',
-  'count',
-  'zip',
-  'zap',
-  'zipzapmap',
-  'take',
-  'skip',
-  'first',
-  'last',
-  'slice',
-  'concat',
-  'push',
-  'filter',
-  'test',
-  'matches',
-  'querySelectorAll',
-  'weave',
-  'fold',
-  'flatten',
-  'call',
-  'apply',
+[ 
   'toString',
   'delay',
   'log',
   'len',
-  'dataName',
-  'html',
-  'append',
-  'appendTo',
-  'prepend',
-  'prependTo',
-  'before',
-  'after',
-  'wrap',
   'unwrap',
   'replace',
   'attr',

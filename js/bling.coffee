@@ -1,4 +1,5 @@
 ###
+
 bling.js
 --------
 Named after the bling symbol ($) to which it is bound by default.
@@ -7,6 +8,7 @@ Blame: Jesse Dailey <jesse.dailey@gmail.com>
 (Copyright) 2011
 (License) released under the MIT License
 http://creativecommons.org/licenses/MIT/
+
 ###
 
 if not "querySelectorAll" of document
@@ -20,6 +22,7 @@ if console and console.log
 else
 	log = (a...) ->
 		alert a.join(", ")
+
 # constants
 COMMASEP = ", "
 EVENTSEP_RE = /,* +/
@@ -46,7 +49,7 @@ Bling = (selector, context = document) ->
 	else
 		throw Error "invalid selector: #{selector} (type: #{Object.Type selector})"
 
-	# hijack the type of the input object
+	# hijack the prototype of the input object
 	set.constructor = Bling
 	set.__proto__ = Bling.fn
 	set.selector = selector
@@ -165,7 +168,7 @@ Object.Extend Function,
 		r
 	Trace: (f, label, tracer = log) -> # Function.Trace(/f/, /label/) - log calls to /f/
 		r = (a...) ->
-			tracer "#{label or ""}#{@name or @}.#{f.name}(", a, ")"
+			tracer "#{@name or Object.Type(@)}.#{label or f.name}(", a, ")"
 			f.apply @, a
 		tracer "Function.Trace: #{label or f.name} created."
 		r.toString = f.toString
@@ -228,7 +231,6 @@ Object.Extend String,
 			b = (b + a) % 65521
 		return (b << 16) | a
 
-Event = Event or {}
 Object.Extend Event,
 	Cancel: (evt) ->
 		evt.stopPropagation()
@@ -753,23 +755,25 @@ Object.Extend Event,
 
 	$.plugin () -> # Html plugin
 		before = (a,b) -> # insert b before a
+			# create a fragment is parent node is null
+			if not a.parentNode?
+				df = document.createDocumentFragment()
+				df.appendChild(a)
 			a.parentNode.insertBefore b, a
 
 		after = (a,b) -> # insert b after a
+			if not a.parentNode?
+				df = document.createDocumentFragment()
+				df.appendChild(a)
 			a.parentNode.insertBefore b, a.nextSibling
 
 		toNode = (x) -> # convert nearly anything to something node-like for use in the DOM
 			switch Object.Type x
-				when "fragment"
-					return x
-				when "node"
-					return x
-				when "bling"
-					return x.toFragment()
-				when "string"
-					return $(x).toFragment()
-				when "function"
-					return $(x.toString()).toFragment()
+				when "fragment" then x
+				when "node" then x
+				when "bling" then x.toFragment()
+				when "string" then $(x).toFragment()
+				when "function" then $(x.toString()).toFragment()
 				else
 					throw new Error "toNode called with invalid argument: #{x} (type: #{Object.Type x})"
 
@@ -785,11 +789,12 @@ Object.Extend Event,
 		dataNameToAttr = (k) ->
 			ret = []
 			A = "A".charCodeAt(0)
-			Z = "Z".chatCodeAt(0)
-			for i in [0..k.length]
+			Z = "Z".charCodeAt(0)
+			a = "a".charCodeAt(0)
+			for i in [0...k.length]
 				c = k.charCodeAt i
 				if Z >= c >= A
-					c -= A
+					c = (c - A) + a
 					ret.push "-"
 				ret.push String.fromCharCode(c)
 			return ret.join("")
@@ -798,8 +803,8 @@ Object.Extend Event,
 		return {
 			name: 'Html'
 
-			$: {
-				HTML: { # $.HTML.* - HTML methods similar to the global JSON object
+			$:
+				HTML: # $.HTML.* - HTML methods similar to the global JSON object
 					parse: (h) -> # $.HTML.parse(/h/) - parse the html in string h, a Node.
 						node = document.createElement("div")
 						node.innerHTML = h
@@ -810,19 +815,19 @@ Object.Extend Event,
 						df = document.createDocumentFragment()
 						for i in [0...n]
 							df.appendChild(node.removeChild(childNodes[0]))
-						df
+						return df
 					stringify: (n) -> # $.HTML.stringify(/n/) - the _Node_ /n/ in it's html-string form
 						switch Object.Type n
-							when "string"
-								return n
+							when "string" then n
 							when "node"
 								n = n.cloneNode(true)
 								d = document.createElement("div")
 								d.appendChild(n)
-								ret = d.innerHTML
+								ret = d.innerHTML # serialize to a string
 								d.removeChild(n) # clean up to prevent leaks
 								# delete n
-								return ret
+								ret
+							else "unknown type: " + Object.Type(n)
 					escape: (h) -> # $.HTML.escape(/h/) - accept html string /h/, a string with html-escapes like &amp;
 						escaper or= $("<div>&nbsp;</div>").child(0)
 						# insert html using the text node's .data property
@@ -831,11 +836,8 @@ Object.Extend Event,
 						# clean up so escaped content isn't leaked into the DOM
 						escaper.zap('data', '')
 						ret
-				}
-			}
-
-			dataName: (k) ->
-				return dataNameToAttr(k)
+				dataName: (k) ->
+					return dataNameToAttr(k)
 
 			html: (h) -> # .html([h]) - get [or set] /x/.innerHTML for each node
 				switch Object.Type h
@@ -856,7 +858,7 @@ Object.Extend Event,
 				a = @zip('appendChild')
 				a.take(1).call(x)
 				a.skip(1).each (f) ->
-					f(x.cloneNode(true))
+					f(x.cloneNode(true)) # f is already bound to @
 				@
 
 			appendTo: (x) -> # .appendTo(/n/) - each node [or a fragment] will become the last child of n
@@ -877,7 +879,7 @@ Object.Extend Event,
 					$(x).prepend(@)
 				@
 
-			before: (x) -> # .before(/n/) - insert content n before each node
+			before: (x) -> # .before(/x/) - insert content x before each node
 				if x?
 					x = toNode(x)
 					@take(1).each () -> before @, x
@@ -917,6 +919,8 @@ Object.Extend Event,
 				@each () ->
 					if @parentNode and @parentNode.parentNode
 						@parentNode.parentNode.replaceChild(@, @parentNode)
+					else if @parentNode
+						@parentNode.removeChild(@)
 
 			replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
 				n = toNode(n)
@@ -924,15 +928,13 @@ Object.Extend Event,
 				j = 0
 				# first node gets the real n
 				@take(1).each () ->
-					if @parentNode
-						@parentNode.replaceChild(n, @)
-						b[j++] = n
+					@parentNode?.replaceChild(n, @)
+					b[j++] = n
 				# the rest get clones of n
 				@skip(1).each () ->
-					if @parentNode
-						c = n.cloneNode(true)
-						@parentNode.replaceChild(c, @)
-						b[j++] = c
+					c = n.cloneNode(true)
+					@parentNode?.replaceChild(c, @)
+					b[j++] = c
 				# the set of inserted nodes
 				b
 
@@ -1794,14 +1796,14 @@ Object.Extend Event,
 				output[j++] = rest
 			output.join ""
 
-		# modes for the synth machine
-		TAGMODE = 1
-		IDMODE = 2
-		CLSMODE = 3
-		ATTRMODE = 4
-		VALMODE = 5
-		DTEXTMODE = 6
-		STEXTMODE = 7
+		# mode names for the synth machine
+		TAGMODE = 0
+		IDMODE = 1
+		CLSMODE = 2
+		ATTRMODE = 3
+		VALMODE = 4
+		DTEXTMODE = 5
+		STEXTMODE = 6
 
 		synth = (expr) -> # $.synth(/expr/) - given a CSS expression, create DOM nodes that match
 			parent = null
@@ -1853,11 +1855,11 @@ Object.Extend Event,
 			addToId = (c) -> id += c; TAGMODE
 			beginDText = () -> DTEXTMODE
 			beginSText = () -> STEXTMODE
-			addToText = (c) -> text += c; TAGMODE
+			addToText = (c) -> text += c; null
 			addToTag = (c) -> tag += c; TAGMODE
 
-			parse_table =
-				TAGMODE:
+			parse_table = [
+				{ # TAGMODE
 					'"': beginDText
 					"'": beginSText
 					"#": beginId
@@ -1867,14 +1869,16 @@ Object.Extend Event,
 					" ": emitNode
 					",": emitNodeAndReset
 					def: addToTag
-				IDMODE:
+				},
+				{ # IDMODE
 					".": beginClass
 					"[": beginAttr
 					"+": emitNodeAndSkip
 					" ": emitNode
 					",": emitNodeAndReset
 					def: addToId
-				CLSMODE:
+				},
+				{ # CLSMODE
 					"#": beginId
 					".": beginClass
 					"[": beginAttr
@@ -1882,30 +1886,40 @@ Object.Extend Event,
 					" ": emitNode
 					",": emitNodeAndReset
 					def: addToClass
-				ATTRMODE:
+				},
+				{ # ATTRMODE
 					"=": beginVal
 					"]": endAttr
 					def: addToAttr
-				VALMODE:
+				},
+				{ # VALMODE
 					"]": endAttr
 					def: addToVal
-				DTEXTMODE:
+				},
+				{ # DTEXTMODE
 					'"': emitText
 					def: addToText
-				STEXTMODE:
+				},
+				{ # STEXTMODE
 					"'": emitText
 					def: addToText
+				}
+			]
 
 			i = 0 # i is a read-marker within expr
 			# 'c' steps across the input, one character at a time
 			while c = expr[i++]
+				starting_mode = mode
 				modeline = parse_table[mode]
 				if c of modeline
 					mode = modeline[c](c)
 				else
 					mode = modeline['def'](c)
+				if mode is null
+					mode = starting_mode
+				# console.log "#{starting_mode} -> '#{c}' -> #{mode}" 
 
-			emitNode() if tagname.length > 0
+			emitNode() if tag.length > 0
 			emitText() if text.length > 0
 			return ret
 

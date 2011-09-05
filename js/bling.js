@@ -1,5 +1,6 @@
 (function() {
   /*
+  
   bling.js
   --------
   Named after the bling symbol ($) to which it is bound by default.
@@ -8,8 +9,9 @@
   (Copyright) 2011
   (License) released under the MIT License
   http://creativecommons.org/licenses/MIT/
+  
   */
-  var Bling, COMMASEP, EVENTSEP_RE, Event, OBJECT_RE, log;
+  var Bling, COMMASEP, EVENTSEP_RE, OBJECT_RE, log;
   var __slice = Array.prototype.slice, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -234,7 +236,7 @@
       r = function() {
         var a;
         a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-        tracer("" + (label || "") + (this.name || this) + "." + f.name + "(", a, ")");
+        tracer("" + (this.name || Object.Type(this)) + "." + (label || f.name) + "(", a, ")");
         return f.apply(this, a);
       };
       tracer("Function.Trace: " + (label || f.name) + " created.");
@@ -352,7 +354,6 @@
       return (b << 16) | a;
     }
   });
-  Event = Event || {};
   Object.Extend(Event, {
     Cancel: function(evt) {
       evt.stopPropagation();
@@ -966,9 +967,19 @@
     $.plugin(function() {
       var after, before, dataNameToAttr, escaper, getCSSProperty, toNode;
       before = function(a, b) {
+        var df;
+        if (!(a.parentNode != null)) {
+          df = document.createDocumentFragment();
+          df.appendChild(a);
+        }
         return a.parentNode.insertBefore(b, a);
       };
       after = function(a, b) {
+        var df;
+        if (!(a.parentNode != null)) {
+          df = document.createDocumentFragment();
+          df.appendChild(a);
+        }
         return a.parentNode.insertBefore(b, a.nextSibling);
       };
       toNode = function(x) {
@@ -994,14 +1005,15 @@
         };
       };
       dataNameToAttr = function(k) {
-        var A, Z, c, i, ret, _ref;
+        var A, Z, a, c, i, ret, _ref;
         ret = [];
         A = "A".charCodeAt(0);
-        Z = "Z".chatCodeAt(0);
-        for (i = 0, _ref = k.length; 0 <= _ref ? i <= _ref : i >= _ref; 0 <= _ref ? i++ : i--) {
+        Z = "Z".charCodeAt(0);
+        a = "a".charCodeAt(0);
+        for (i = 0, _ref = k.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
           c = k.charCodeAt(i);
           if ((Z >= c && c >= A)) {
-            c -= A;
+            c = (c - A) + a;
             ret.push("-");
           }
           ret.push(String.fromCharCode(c));
@@ -1039,6 +1051,8 @@
                   ret = d.innerHTML;
                   d.removeChild(n);
                   return ret;
+                default:
+                  return "unknown type: " + Object.Type(n);
               }
             },
             escape: function(h) {
@@ -1048,10 +1062,10 @@
               escaper.zap('data', '');
               return ret;
             }
+          },
+          dataName: function(k) {
+            return dataNameToAttr(k);
           }
-        },
-        dataName: function(k) {
-          return dataNameToAttr(k);
         },
         html: function(h) {
           switch (Object.Type(h)) {
@@ -1155,6 +1169,8 @@
           return this.each(function() {
             if (this.parentNode && this.parentNode.parentNode) {
               return this.parentNode.parentNode.replaceChild(this, this.parentNode);
+            } else if (this.parentNode) {
+              return this.parentNode.removeChild(this);
             }
           });
         },
@@ -1164,18 +1180,19 @@
           b = $();
           j = 0;
           this.take(1).each(function() {
-            if (this.parentNode) {
-              this.parentNode.replaceChild(n, this);
-              return b[j++] = n;
+            var _ref;
+            if ((_ref = this.parentNode) != null) {
+              _ref.replaceChild(n, this);
             }
+            return b[j++] = n;
           });
           this.skip(1).each(function() {
-            var c;
-            if (this.parentNode) {
-              c = n.cloneNode(true);
-              this.parentNode.replaceChild(c, this);
-              return b[j++] = c;
+            var c, _ref;
+            c = n.cloneNode(true);
+            if ((_ref = this.parentNode) != null) {
+              _ref.replaceChild(c, this);
             }
+            return b[j++] = c;
           });
           return b;
         },
@@ -2142,7 +2159,7 @@
       DTEXTMODE = 5;
       STEXTMODE = 6;
       synth = function(expr) {
-        var addToAttr, addToClass, addToId, addToTag, addToText, addToVal, attr, attrs, beginAttr, beginClass, beginDText, beginId, beginSText, beginVal, c, cls, emitNode, emitNodeAndReset, emitNodeAndSkip, emitText, endAttr, i, id, mode, modeline, parent, parse_table, ret, tag, text, val;
+        var addToAttr, addToClass, addToId, addToTag, addToText, addToVal, attr, attrs, beginAttr, beginClass, beginDText, beginId, beginSText, beginVal, c, cls, emitNode, emitNodeAndReset, emitNodeAndSkip, emitText, endAttr, i, id, mode, modeline, parent, parse_table, ret, starting_mode, tag, text, val;
         parent = null;
         tag = id = cls = attr = val = text = "";
         attrs = {};
@@ -2234,7 +2251,7 @@
         };
         addToText = function(c) {
           text += c;
-          return TAGMODE;
+          return null;
         };
         addToTag = function(c) {
           tag += c;
@@ -2283,11 +2300,15 @@
         ];
         i = 0;
         while (c = expr[i++]) {
+          starting_mode = mode;
           modeline = parse_table[mode];
           if (c in modeline) {
             mode = modeline[c](c);
           } else {
             mode = modeline['def'](c);
+          }
+          if (mode === null) {
+            mode = starting_mode;
           }
         }
         if (tag.length > 0) {

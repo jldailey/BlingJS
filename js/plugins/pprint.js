@@ -1,7 +1,7 @@
 (function() {
   (function($) {
     return $.plugin(function() {
-      var all_numbers, bling_html, bling_symbol, closing_quote, comment_html, first_comment, first_quote, keyword_html, keywords, multiline_comment, number_html, operator_html, operators, quoted_html, ret, singleline_comment, split_comments, split_quoted, tab_html, tabs;
+      var all_numbers, bling_html, bling_symbol, closing_quote, comment_html, first_comment, first_quote, keyword_html, keywords, multiline_comment, number_html, operator_html, operators, quoted_html, singleline_comment, split_comments, split_quoted, tab_html, tabs;
       operators = /!==|!=|!|\#|\%|\%=|\&|\&\&|\&\&=|&=|\*|\*=|\+|\+=|-|-=|->|\.{1,3}|\/|\/=|:|::|;|<<=|<<|<=|<|===|==|=|>>>=|>>=|>=|>>>|>>|>|\?|@|\[|\]|}|{|\^|\^=|\^\^|\^\^=|\|=|\|\|=|\|\||\||~/g;
       operator_html = "<span class='opr'>$&</span>";
       keywords = /\b[Ff]unction\b|\bvar\b|\.prototype\b|\.__proto__\b|\bString\b|\bArray\b|\bNumber\b|\bObject\b|\bbreak\b|\bcase\b|\bcontinue\b|\bdelete\b|\bdo\b|\bif\b|\belse\b|\bfinally\b|\binstanceof\b|\breturn\b|\bthrow\b|\btry\b|\btypeof\b|\btrue\b|\bfalse\b/g;
@@ -122,7 +122,7 @@
         }
         return ret;
       };
-      return ret = {
+      return {
         name: "PrettyPrint",
         $: {
           prettyPrint: function(js, colors) {
@@ -148,11 +148,12 @@
               }
               $.synth("style#prettyPrint").text(css).appendTo("head");
             }
-            return "<code class='pp'>" + ($(split_comments(js).fold(function(text, comment) {
-              return $(split_quoted(text).fold(function(code, quoted) {
+            return "";
+            return "<code class='pp'>" + ($(split_comments(js)).fold(function(text, comment) {
+              return $(split_quoted(text)).fold(function(code, quoted) {
                 return code.replace(operators, operator_html).replace(all_numbers, number_html).replace(keywords, keyword_html).replace(bling_symbol, bling_html).replace(tabs, tab_html) + quoted_html(quoted);
-              })).join('') + comment_html(comment);
-            })).join('')) + "</code>";
+              }).join('') + comment_html(comment);
+            }).join('')) + "</code>";
           }
         }
       };

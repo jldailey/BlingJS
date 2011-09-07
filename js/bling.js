@@ -444,41 +444,39 @@
         }
         return s;
       });
-      if (typeof Element !== "undefined" && Element !== null) {
-        Element.prototype.matchesSelector = Array.Coalesce(Element.prototype.webkitMatchesSelector, Element.prototype.mozMatchesSelector, Element.prototype.matchesSelector);
-        oldToString = Element.prototype.toString;
-        Element.prototype.toString = function(css_mode) {
-          var name;
-          if (css_mode) {
-            name = this.nodeName.toLowerCase();
-            if (this.id != null) {
-              name += "#" + this.id;
-            } else if (this.className != null) {
-              name += "." + (this.className.split(" ").join("."));
-            }
-            return name;
-          } else {
-            return oldToString.apply(this);
+      Element.prototype.matchesSelector = Array.Coalesce(Element.prototype.webkitMatchesSelector, Element.prototype.mozMatchesSelector, Element.prototype.matchesSelector);
+      oldToString = Element.prototype.toString;
+      Element.prototype.toString = function(css_mode) {
+        var name;
+        if (css_mode) {
+          name = this.nodeName.toLowerCase();
+          if (this.id != null) {
+            name += "#" + this.id;
+          } else if (this.className != null) {
+            name += "." + (this.className.split(" ").join("."));
           }
-        };
-        if (Element.prototype.cloneNode.length === 0) {
-          oldClone = Element.prototype.cloneNode;
-          Element.prototype.cloneNode = function(deep) {
-            var i, n, _i, _len, _ref;
-            if (deep == null) {
-              deep = false;
-            }
-            n = oldClone.call(this);
-            if (deep) {
-              _ref = this.childNodes;
-              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                i = _ref[_i];
-                n.appendChild(i.cloneNode(true));
-              }
-            }
-            return n;
-          };
+          return name;
+        } else {
+          return oldToString.apply(this);
         }
+      };
+      if (Element.prototype.cloneNode.length === 0) {
+        oldClone = Element.prototype.cloneNode;
+        Element.prototype.cloneNode = function(deep) {
+          var i, n, _i, _len, _ref;
+          if (deep == null) {
+            deep = false;
+          }
+          n = oldClone.call(this);
+          if (deep) {
+            _ref = this.childNodes;
+            for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+              i = _ref[_i];
+              n.appendChild(i.cloneNode(true));
+            }
+          }
+          return n;
+        };
       }
       return {
         name: "Compat"
@@ -539,6 +537,9 @@
       };
       return {
         name: 'Core',
+        $: {
+          log: log
+        },
         eq: function(i) {
           var a;
           a = $([this[i]]);
@@ -2335,6 +2336,86 @@
         },
         synth: function(expr) {
           return synth(expr).appendTo(this);
+        }
+      };
+    });
+    $.plugin(function() {
+      var event_log, handlers;
+      handlers = {};
+      event_log = {};
+      return {
+        name: "Pub/Sub",
+        $: {
+          publish: function(e, args) {
+            var func, _i, _len, _ref, _results;
+            if (args == null) {
+              args = [];
+            }
+            $.log("published: " + e, args);
+            if (!e in event_log) {
+              event_log[e] = [];
+            }
+            event_log[e].push(args);
+            if (e in handlers) {
+              _ref = handlers[e];
+              _results = [];
+              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                func = _ref[_i];
+                _results.push(func.apply(window, args));
+              }
+              return _results;
+            }
+          },
+          subscribe: function(e, func) {
+            var args, _i, _len, _ref;
+            if (!e in handlers) {
+              handlers[e] = [];
+            }
+            if (e in event_log) {
+              _ref = event_log[e];
+              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                args = _ref[_i];
+                $.log("replayed: " + e, args);
+                func.apply(window, args);
+              }
+            }
+            return handlers[e].push(func);
+          }
+        }
+      };
+    });
+    $.plugin(function() {
+      return {
+        name: "LazyLoader",
+        $: {
+          script: function(src) {
+            var depends, provides, s;
+            provides = depends = null;
+            s = document.createElement("script");
+            s.src = src;
+            s.onload = function() {
+              if (provides !== null) {
+                return $.publish(provides);
+              }
+            };
+            $("head").delay(10, function() {
+              if (depends !== null) {
+                return $.subscribe(depends, __bind(function() {
+                  return this.append(s);
+                }, this));
+              } else {
+                return this.append(s);
+              }
+            });
+            return Object.Extend($(s), {
+              depends: function(tag) {
+                return depends = "onload-" + tag;
+              },
+              provides: function(tag) {
+                return provides = "onload-" + tag;
+              }
+            });
+          }
         }
       };
     });

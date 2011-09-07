@@ -314,34 +314,33 @@ Object.Extend Event,
 				s
 		)
 
-		if Element?
-			Element::matchesSelector = Array.Coalesce(
-				Element::webkitMatchesSelector,
-				Element::mozMatchesSelector,
-				Element::matchesSelector
-			)
+		Element::matchesSelector = Array.Coalesce(
+			Element::webkitMatchesSelector,
+			Element::mozMatchesSelector,
+			Element::matchesSelector
+		)
 
-			oldToString = Element::toString
-			Element::toString = (css_mode) ->
-				if css_mode
-					name = @nodeName.toLowerCase()
-					if @id?
-						name += "##{@id}"
-					else if @className?
-						name += ".#{@className.split(" ").join(".")}"
-					name
-				else
-					oldToString.apply @
+		oldToString = Element::toString
+		Element::toString = (css_mode) ->
+			if css_mode
+				name = @nodeName.toLowerCase()
+				if @id?
+					name += "##{@id}"
+				else if @className?
+					name += ".#{@className.split(" ").join(".")}"
+				name
+			else
+				oldToString.apply @
 
-			# if cloneNode does not take a 'deep' argument, add support
-			if Element::cloneNode.length is 0
-				oldClone = Element::cloneNode
-				Element::cloneNode = (deep = false) ->
-					n = oldClone.call(@)
-					if deep
-						for i in @childNodes
-							n.appendChild i.cloneNode true
-					return n
+		# if cloneNode does not take a 'deep' argument, add support
+		if Element::cloneNode.length is 0
+			oldClone = Element::cloneNode
+			Element::cloneNode = (deep = false) ->
+				n = oldClone.call(@)
+				if deep
+					for i in @childNodes
+						n.appendChild i.cloneNode true
+				return n
 
 		return {
 			name: "Compat"
@@ -386,6 +385,10 @@ Object.Extend Event,
 
 		return {
 			name: 'Core'
+
+			$: {
+				log: log
+			}
 
 			eq: (i) -> # .eq(/i/) - a new set containing only the /i/th item
 				a = $([@[i]])
@@ -1176,52 +1179,50 @@ Object.Extend Event,
 		}
 
 	$.plugin () -> # Math plugin
-		return {
-			name: 'Maths'
-			floats: () ->
-				# .floats() - parseFloat(/x/) for /x/ in _this_
-				@map parseFloat
+		name: 'Maths'
+		floats: () ->
+			# .floats() - parseFloat(/x/) for /x/ in _this_
+			@map parseFloat
 
-			ints: () ->
-				# .ints() - parseInt(/x/) for /x/ in _this_
-				@map () -> parseInt @, 10
+		ints: () ->
+			# .ints() - parseInt(/x/) for /x/ in _this_
+			@map () -> parseInt @, 10
 
-			px: (delta=0) ->
-				# .px([delta]) - collect "NNpx" strings
-				@ints().map Function.Px(delta)
+		px: (delta=0) ->
+			# .px([delta]) - collect "NNpx" strings
+			@ints().map Function.Px(delta)
 
-			min: () ->
-				# .min() - select the smallest /x/ in _this_
-				@reduce (a) -> Math.min @, a
+		min: () ->
+			# .min() - select the smallest /x/ in _this_
+			@reduce (a) -> Math.min @, a
 
-			max: () ->
-				# .max() - select the largest /x/ in _this_
-				@reduce (a) -> Math.max @, a
+		max: () ->
+			# .max() - select the largest /x/ in _this_
+			@reduce (a) -> Math.max @, a
 
-			average: () ->
-				# .average() - compute the average of all /x/ in _this_
-				@sum() / @len()
+		average: () ->
+			# .average() - compute the average of all /x/ in _this_
+			@sum() / @len()
 
-			sum: () ->
-				# .sum() - add all /x/ in _this_
-				@reduce (a) -> a + @
+		sum: () ->
+			# .sum() - add all /x/ in _this_
+			@reduce (a) -> a + @
 
-			squares: ()  ->
-				# .squares() - collect /x*x/ for each /x/ in _this_
-				@map () -> @ * @
+		squares: ()  ->
+			# .squares() - collect /x*x/ for each /x/ in _this_
+			@map () -> @ * @
 
-			magnitude: () ->
-				# .magnitude() - compute the vector length of _this_
-				Math.sqrt @floats().squares().sum()
+		magnitude: () ->
+			# .magnitude() - compute the vector length of _this_
+			Math.sqrt @floats().squares().sum()
 
-			scale: (r) ->
-				# .scale(/r/) - /x/ *= /r/ for /x/ in _this_
-				@map () -> r * @
+		scale: (r) ->
+			# .scale(/r/) - /x/ *= /r/ for /x/ in _this_
+			@map () -> r * @
 
-			normalize: () ->
-				# .normalize() - scale _this_ so that .magnitude() == 1
-				@scale(1/@magnitude())
-		}
+		normalize: () ->
+			# .normalize() - scale _this_ so that .magnitude() == 1
+			@scale(1/@magnitude())
 
 	$.plugin () -> # Events plugin
 		events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
@@ -1662,7 +1663,7 @@ Object.Extend Event,
 				s[j++] = "#{i}=#{escape o[i]}"
 			s.join("&")
 
-		return {
+		{
 			name: 'Http'
 			$: { # globals
 				http: (url, opts = {}) -> # $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
@@ -1917,18 +1918,17 @@ Object.Extend Event,
 					mode = modeline['def'](c)
 				if mode is null
 					mode = starting_mode
-				# console.log "#{starting_mode} -> '#{c}' -> #{mode}" 
+				# console.log "#{starting_mode} -> '#{c}' -> #{mode}"
 
 			emitNode() if tag.length > 0
 			emitText() if text.length > 0
 			return ret
 
-		return {
+		{
 			name: 'Template'
-			$: {
+			$:
 				render: render
 				synth: synth
-			}
 
 			template: (defaults) ->
 				# .template([defaults]) - mark nodes as templates, add optional defaults to .render()
@@ -1950,9 +1950,54 @@ Object.Extend Event,
 				# and the additional helper "text"
 				synth(expr).appendTo @
 		}
-	
-	return $
 
+	$.plugin () -> # Pub/Sub plugin
+		handlers = {}
+		event_log = {}
+		{
+			name: "Pub/Sub"
+			$:
+				publish: (e, args = []) ->
+					$.log "published: #{e}", args
+					if not e of event_log
+						event_log[e] = []
+					event_log[e].push(args)
+					if e of handlers
+						for func in handlers[e]
+							func.apply window, args
+				subscribe: (e, func) ->
+					if not e of handlers
+						handlers[e] = []
+					# replay the event log
+					if e of event_log
+						for args in event_log[e]
+							$.log "replayed: #{e}", args
+							func.apply window, args
+					# save func for future events
+					handlers[e].push(func)
+		}
+
+	$.plugin () ->
+		name: "LazyLoader"
+		$:
+			script: (src) ->
+				provides = depends = null
+				s = document.createElement("script")
+				s.src = src
+				s.onload = () ->
+					$.publish(provides) if provides != null
+				$("head").delay 10, () ->
+					if depends != null
+						$.subscribe depends, () => @append(s)
+					else
+						@append(s)
+				Object.Extend $(s), {
+					depends: (tag) -> depends = "onload-"+tag
+					provides: (tag) -> provides = "onload-"+tag
+				}
+
+	$
 )(Bling)
 
 # vim: ft=coffee
+

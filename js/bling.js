@@ -444,41 +444,39 @@
         }
         return s;
       });
-      if (typeof Element !== "undefined" && Element !== null) {
-        Element.prototype.matchesSelector = Array.Coalesce(Element.prototype.webkitMatchesSelector, Element.prototype.mozMatchesSelector, Element.prototype.matchesSelector);
-        oldToString = Element.prototype.toString;
-        Element.prototype.toString = function(css_mode) {
-          var name;
-          if (css_mode) {
-            name = this.nodeName.toLowerCase();
-            if (this.id != null) {
-              name += "#" + this.id;
-            } else if (this.className != null) {
-              name += "." + (this.className.split(" ").join("."));
-            }
-            return name;
-          } else {
-            return oldToString.apply(this);
+      Element.prototype.matchesSelector = Array.Coalesce(Element.prototype.webkitMatchesSelector, Element.prototype.mozMatchesSelector, Element.prototype.matchesSelector);
+      oldToString = Element.prototype.toString;
+      Element.prototype.toString = function(css_mode) {
+        var name;
+        if (css_mode) {
+          name = this.nodeName.toLowerCase();
+          if (this.id != null) {
+            name += "#" + this.id;
+          } else if (this.className != null) {
+            name += "." + (this.className.split(" ").join("."));
           }
-        };
-        if (Element.prototype.cloneNode.length === 0) {
-          oldClone = Element.prototype.cloneNode;
-          Element.prototype.cloneNode = function(deep) {
-            var i, n, _i, _len, _ref;
-            if (deep == null) {
-              deep = false;
-            }
-            n = oldClone.call(this);
-            if (deep) {
-              _ref = this.childNodes;
-              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                i = _ref[_i];
-                n.appendChild(i.cloneNode(true));
-              }
-            }
-            return n;
-          };
+          return name;
+        } else {
+          return oldToString.apply(this);
         }
+      };
+      if (Element.prototype.cloneNode.length === 0) {
+        oldClone = Element.prototype.cloneNode;
+        Element.prototype.cloneNode = function(deep) {
+          var i, n, _i, _len, _ref;
+          if (deep == null) {
+            deep = false;
+          }
+          n = oldClone.call(this);
+          if (deep) {
+            _ref = this.childNodes;
+            for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+              i = _ref[_i];
+              n.appendChild(i.cloneNode(true));
+            }
+          }
+          return n;
+        };
       }
       return {
         name: "Compat"
@@ -2396,12 +2394,12 @@
             s = document.createElement("script");
             s.src = src;
             s.onload = function() {
-              if (provides != null) {
+              if (provides !== null) {
                 return $.publish(provides);
               }
             };
             $("head").delay(10, function() {
-              if (depends != null) {
+              if (depends !== null) {
                 return $.subscribe(depends, __bind(function() {
                   return this.append(s);
                 }, this));

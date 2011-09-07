@@ -1917,7 +1917,7 @@ Object.Extend Event,
 					mode = modeline['def'](c)
 				if mode is null
 					mode = starting_mode
-				# console.log "#{starting_mode} -> '#{c}' -> #{mode}" 
+				# console.log "#{starting_mode} -> '#{c}' -> #{mode}"
 
 			emitNode() if tag.length > 0
 			emitText() if text.length > 0
@@ -1950,7 +1950,41 @@ Object.Extend Event,
 				# and the additional helper "text"
 				synth(expr).appendTo @
 		}
-	
+
+	$.plugin () -> # Pub/Sub plugin
+		handlers = {}
+		event_log = {}
+		return {
+			name: "Pub/Sub"
+			$:
+				publish: (e, args) ->
+					if not e of event_log
+						event_log[e] = []
+					event_log[e].push(args)
+					if e of handlers
+						for func in handlers[e]
+							func.apply window, args
+				subscribe: (e, func) ->
+					if not e of handlers
+						handlers[e] = []
+					# replay the event log
+					if e of event_log
+						for args in event_log[e]
+							func.apply window, args
+					# save func for future events
+					handlers[e].push(func)
+		}
+
+	$.plugin () ->
+		depends = (f, tag) ->
+		provides = (f, tag) ->
+		return {
+			name: "LazyLoader"
+			$: {
+				script: (tag, f) ->
+			}
+		}
+
 	return $
 
 )(Bling)

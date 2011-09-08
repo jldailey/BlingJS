@@ -488,12 +488,12 @@
         __extends(TimeoutQueue, Array);
         function TimeoutQueue() {
           var next;
-          next = __bind(function() {
+          next = Function.Trace(__bind(function() {
             if (this.length > 0) {
               return this.shift()();
             }
-          }, this);
-          this.schedule = __bind(function(f, n) {
+          }, this), "next");
+          this.schedule = Function.Trace(__bind(function(f, n) {
             var i, nn;
             if (!Object.IsFunc(f)) {
               throw Error("function expected, got: " + (typeof f));
@@ -512,7 +512,7 @@
             }
             setTimeout(next, n);
             return this;
-          }, this);
+          }, this), "schedule:");
         }
         return TimeoutQueue;
       })();

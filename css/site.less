@@ -1,20 +1,19 @@
 
 body {
-	font-family: Verdana, sans;
-	font-size: 16px;
+	font: 16px "Inconsolata", Arial, sans;
 	padding:10px;
 	margin-left:auto;
 	margin-right:auto;
-	border-right:1px dashed #cbcbcb;
-	border-left:1px dashed #cbcbcb;
+	border-right:1px dashed #ccc;
+	border-left:1px dashed #ccc;
 	background-color:white;
-	width: 80%;
+	width: 300px;
 }
 b { color:#800; }
 i { color:#822; }
 p {
-	width:80%;
-	text-align: left;
+	width:90%;
+	text-align: justify;
 	margin-left:auto;
 	margin-right:auto;
 }
@@ -29,15 +28,21 @@ h1 .bln {
 	font-size: 34px;
 }
 code.pp, textarea {
-	font-family: courier, sans;
-	font-size:14px;
-	line-height:1.1em;
-	padding:6px 0px 6px 4px;
+	font: 14px/15px "Inconsolata", courier, sans;
+	padding:6px 0px;
 	display: inline-block;
-	border:1px dashed gray;
+	border:1px dashed #ccc;
 	background-color:#ffc;
-	width: 80%;
-	margin:0px 0px 0px 10px;
+	margin:0px 0px 0px -11px;
+	width: 320px;
+	overflow: scroll;
+}
+textarea {
+	margin-left: -26px;
+	margin-top: 1em;
+	padding: 14px 20px;
+	width: 322px;
+	resize: none;
 }
 code {
 	font-family: courier, sans;

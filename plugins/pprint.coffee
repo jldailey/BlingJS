@@ -105,21 +105,14 @@
 						$.synth("style#prettyPrint")
 							.text(css)
 							.appendTo("head")
-					return ""
-					return "<code class='pp'>" +
+					ret = "<code class='pp'>" +
 						($(split_comments(js))
 							.fold (text, comment) ->
 								$(split_quoted(text))
 									.fold (code, quoted) ->
-										code.replace(operators, operator_html)
-										.replace(all_numbers, number_html)
-										.replace(keywords, keyword_html)
-										.replace(bling_symbol, bling_html)
-										.replace(tabs, tab_html) + quoted_html(quoted)
-									.join('') +
-									comment_html(comment)
-							.join('')) +
-							"</code>"
+										code.replace(operators, operator_html).replace(all_numbers, number_html).replace(keywords, keyword_html).replace(bling_symbol, bling_html).replace(tabs, tab_html) + quoted_html(quoted)
+									.join('') + comment_html(comment)
+							.join('')) + "</code>"
 		}
 
 )(Bling)

@@ -488,12 +488,12 @@
         __extends(TimeoutQueue, Array);
         function TimeoutQueue() {
           var next;
-          next = Function.Trace(__bind(function() {
+          next = __bind(function() {
             if (this.length > 0) {
               return this.shift()();
             }
-          }, this), "next");
-          this.schedule = Function.Trace(__bind(function(f, n) {
+          }, this);
+          this.schedule = __bind(function(f, n) {
             var i, nn;
             if (!Object.IsFunc(f)) {
               throw Error("function expected, got: " + (typeof f));
@@ -501,7 +501,7 @@
             nn = this.length;
             f.order = n + new Date().getTime();
             if (nn === 0 || f.order > this[nn - 1].order) {
-              this[nn] = f;
+              this.push(f);
             } else {
               for (i = 0; 0 <= nn ? i < nn : i > nn; 0 <= nn ? i++ : i--) {
                 if (this[i].order > f.order) {
@@ -512,7 +512,7 @@
             }
             setTimeout(next, n);
             return this;
-          }, this), "schedule:");
+          }, this);
         }
         return TimeoutQueue;
       })();
@@ -538,7 +538,13 @@
       return {
         name: 'Core',
         $: {
-          log: log
+          log: log,
+          delay: function(n, f) {
+            if (f) {
+              timeoutQueue.schedule(f, n);
+            }
+            return null;
+          }
         },
         eq: function(i) {
           var a;

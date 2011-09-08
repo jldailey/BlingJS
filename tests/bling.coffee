@@ -1,20 +1,17 @@
 common = require('./common')
 
 testGroup("Object",
-	Keys: () ->
-		assertArrayEqual(Object.Keys({a: 1, b: 2}), ['a','b'])
-	Extend: () ->
-		a = {A:1}
-		assertArrayEqual(Object.Keys(Object.Extend({A:1},{B:2})), ['A','B'])
-	Type_string: () -> assertEqual(Object.Type(""), "string")
-	Type_number:() -> assertEqual(Object.Type(42), "number")
-	Type_undef: () -> assertEqual(Object.Type(), "undefined")
-	Type_null: () -> assertEqual(Object.Type(null), "null")
-	Type_array: () -> assertEqual(Object.Type([]), "array")
-	Type_function: () -> assertEqual(Object.Type(() -> null), "function")
-	Type_boolean: () -> assertEqual(Object.Type(true), "boolean")
-	Type_regexp: () -> assertEqual(Object.Type(//), "regexp")
-	Type_window: () -> assertEqual(Object.Type(window), "window")
+	Keys: () -> assertArrayEqual Object.Keys({a: 1, b: 2}), ['a','b']
+	Extend: () -> assertArrayEqual Object.Keys(Object.Extend({A:1},{B:2})), ['A','B']
+	Type_string: () -> assertEqual Object.Type(""), "string"
+	Type_number:() -> assertEqual Object.Type(42), "number"
+	Type_undef: () -> assertEqual Object.Type(), "undefined"
+	Type_null: () -> assertEqual Object.Type(null), "null"
+	Type_array: () -> assertEqual Object.Type([]), "array"
+	Type_function: () -> assertEqual Object.Type(() -> null), "function"
+	Type_boolean: () -> assertEqual Object.Type(true), "boolean"
+	Type_regexp: () -> assertEqual Object.Type(//), "regexp"
+	Type_window: () -> assertEqual Object.Type(window), "window"
 	Unbox: () ->
 		assertEqual(typeof new Number(9), "object")
 		assertEqual(typeof Object.Unbox(new Number(42)), "number")
@@ -36,8 +33,8 @@ testGroup("Function",
 		h = Function.Trace(f, "label", (a...) ->
 			g.push(a.join(''))
 		)
-		f()
-		h()
+		f() # this will not be traced
+		h() # but this will, putting one "window.lable()" in the output
 		assertArrayEqual(g, [ 'Function.Trace: label created.', 'window.label()' ])
 )
 

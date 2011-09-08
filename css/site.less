@@ -2,18 +2,18 @@
 body {
 	font-family: Verdana, sans;
 	font-size: 16px;
-	width:320px;
 	padding:10px;
 	margin-left:auto;
 	margin-right:auto;
 	border-right:1px dashed #cbcbcb;
 	border-left:1px dashed #cbcbcb;
 	background-color:white;
+	width: 80%;
 }
 b { color:#800; }
 i { color:#822; }
 p {
-	width:300px;
+	width:80%;
 	text-align: left;
 	margin-left:auto;
 	margin-right:auto;
@@ -36,7 +36,7 @@ code.pp, textarea {
 	display: inline-block;
 	border:1px dashed gray;
 	background-color:#ffc;
-	width:300px;
+	width: 80%;
 	margin:0px 0px 0px 10px;
 }
 code {
@@ -73,9 +73,11 @@ table.download {
 	}
 }
 
-a[href] { color: blue; }
-a[href]:visited { color: blue; }
-a[href]:hover { color: red; }
+a[href] {
+	color: blue;
+	&:visited { color: blue; }
+	&:hover { color: red; }
+}
 
 a[href^=mailto] {
 	text-decoration: none;

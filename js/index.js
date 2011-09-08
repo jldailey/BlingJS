@@ -1,5 +1,6 @@
 
-try {
+// try {
+(function indexJS($) {
 	$(document)
 	.ready(function () {
 		// find unsupported fraction markup
@@ -18,7 +19,7 @@ try {
 		var initial_tab = /(^|\n)\t/g,
 			all_tabs = /\t/g
 		$("pre").zipzapmap('innerHTML', function(html) {
-			return Function.PrettyPrint($.HTML.escape(html)
+			return $.prettyPrint($.HTML.escape(html)
 				.replace(all_tabs, "  "));
 		})
 		// clean up textarea's also
@@ -26,6 +27,8 @@ try {
 			return value.replace(initial_tab,'$1').replace(all_tabs, "  ")
 		})
 	})
-} catch ( err ) {
-	alert("JavaScript error:" + err)
-}
+})(Bling)
+// } catch ( err ) {
+	// throw err;
+	// alert("JavaScript error:" + err);
+// }

@@ -501,7 +501,7 @@
             nn = this.length;
             f.order = n + new Date().getTime();
             if (nn === 0 || f.order > this[nn - 1].order) {
-              this[nn] = f;
+              this.push(f);
             } else {
               for (i = 0; 0 <= nn ? i < nn : i > nn; 0 <= nn ? i++ : i--) {
                 if (this[i].order > f.order) {
@@ -538,7 +538,8 @@
       return {
         name: 'Core',
         $: {
-          log: log
+          log: log,
+          TimeoutQueue: TimeoutQueue
         },
         eq: function(i) {
           var a;

@@ -539,7 +539,12 @@
         name: 'Core',
         $: {
           log: log,
-          TimeoutQueue: TimeoutQueue
+          delay: function(n, f) {
+            if (f) {
+              timeoutQueue.schedule(f, n);
+            }
+            return null;
+          }
         },
         eq: function(i) {
           var a;
@@ -2367,34 +2372,34 @@
         name: "Pub/Sub",
         $: {
           publish: function(e, args) {
-            var func, _i, _len, _ref, _results;
+            var func, _i, _len, _ref, _ref2, _results;
             if (args == null) {
               args = [];
             }
             $.log("published: " + e, args);
-            if (!e in event_log) {
+            if ((_ref = event_log[e]) == null) {
               event_log[e] = [];
             }
             event_log[e].push(args);
             if (e in handlers) {
-              _ref = handlers[e];
+              _ref2 = handlers[e];
               _results = [];
-              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                func = _ref[_i];
+              for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
+                func = _ref2[_i];
                 _results.push(func.apply(window, args));
               }
               return _results;
             }
           },
           subscribe: function(e, func) {
-            var args, _i, _len, _ref;
-            if (!e in handlers) {
+            var args, _i, _len, _ref, _ref2;
+            if ((_ref = handlers[e]) == null) {
               handlers[e] = [];
             }
             if (e in event_log) {
-              _ref = event_log[e];
-              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                args = _ref[_i];
+              _ref2 = event_log[e];
+              for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
+                args = _ref2[_i];
                 $.log("replayed: " + e, args);
                 func.apply(window, args);
               }
@@ -2410,7 +2415,8 @@
         return Object.Extend(document.createElement(elementName), props);
       };
       lazy_load = function(elementName, props) {
-        var n;
+        var depends, n, provides;
+        depends = provides = null;
         n = create(elementName, Object.Extend(props, {
           onload: function() {
             if (provides !== null) {
@@ -2430,12 +2436,10 @@
         n = $(n);
         return Object.Extend(n, {
           depends: function(tag) {
-            var depends;
             depends = elementName + "-" + tag;
             return n;
           },
           provides: function(tag) {
-            var provides;
             provides = elementName + "-" + tag;
             return n;
           }
@@ -2450,8 +2454,9 @@
             });
           },
           style: function(src) {
-            return lazy_load("style", {
-              href: src
+            return lazy_load("link", {
+              href: src,
+              rel: "stylesheet"
             });
           }
         }

@@ -126,7 +126,7 @@
         name: "PrettyPrint",
         $: {
           prettyPrint: function(js, colors) {
-            var cls, css;
+            var cls, css, ret;
             if (Object.IsFunc(js)) {
               js = js.toString();
             }
@@ -148,8 +148,7 @@
               }
               $.synth("style#prettyPrint").text(css).appendTo("head");
             }
-            return "";
-            return "<code class='pp'>" + ($(split_comments(js)).fold(function(text, comment) {
+            return ret = "<code class='pp'>" + ($(split_comments(js)).fold(function(text, comment) {
               return $(split_quoted(text)).fold(function(code, quoted) {
                 return code.replace(operators, operator_html).replace(all_numbers, number_html).replace(keywords, keyword_html).replace(bling_symbol, bling_html).replace(tabs, tab_html) + quoted_html(quoted);
               }).join('') + comment_html(comment);

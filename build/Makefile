@@ -15,17 +15,18 @@ minify: $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 clean:
 	rm -f $(DIST)/*.js
 
-dist: $(DIST)/bling.js minify
+dist: $(DIST)/bling.js minify plugin
 
 site: dist
 	cd .. \
 	&& git stash save &> /dev/null \
 	&& git checkout site \
 	&& cp dist/*.js js \
+	&& cp dist/*.js.gz js \
 	&& cp -r dist/plugins js \
 	&& git show master:bling.coffee > js/bling.coffee \
 	&& git commit js -m "build files" &> /dev/null || true \
-	&& echo '$.log("' `git log -1 --format="commit:%h @ %ci"` '")' > js/log-build.js \
+	&& echo '$$.log("' `git log -1 --format="commit:%h @ %ci"` '")' > js/log-build.js \
 	&& git commit js/log-build.js --amend -m "build annotation" \
 	&& git checkout master \
 	&& git stash pop || true \
@@ -38,7 +39,7 @@ publish:
 	&& git checkout master \
 	&& git stash pop || true
 
-plugins:
+plugin:
 	coffee -o $(DIST_PLUGINS) -c $(PLUGINS)/*.coffee
 
 $(DIST)/bling.js: ../bling.coffee

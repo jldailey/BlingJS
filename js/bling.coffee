@@ -1977,7 +1977,7 @@ Object.Extend Event,
 					handlers[e].push(func)
 		}
 
-	$.plugin () ->
+	$.plugin () -> # LazyLoader plugin
 		name: "LazyLoader"
 		$:
 			script: (src) ->
@@ -1997,6 +1997,7 @@ Object.Extend Event,
 				}
 
 	$
+
 )(Bling)
 
 # vim: ft=coffee

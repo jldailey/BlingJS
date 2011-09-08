@@ -1971,15 +1971,13 @@ Object.Extend Event,
 			$:
 				publish: (e, args = []) ->
 					$.log "published: #{e}", args
-					if not e of event_log
-						event_log[e] = []
+					event_log[e] ?= []
 					event_log[e].push(args)
 					if e of handlers
 						for func in handlers[e]
 							func.apply window, args
 				subscribe: (e, func) ->
-					if not e of handlers
-						handlers[e] = []
+					handlers[e] ?= []
 					# replay the event log
 					if e of event_log
 						for args in event_log[e]
@@ -1994,6 +1992,7 @@ Object.Extend Event,
 			Object.Extend document.createElement(elementName), props
 
 		lazy_load = (elementName, props) ->
+			depends = provides = null
 			n = create elementName, Object.Extend(props, {
 				onload: () ->
 					$.publish(provides) if provides != null
@@ -2015,12 +2014,10 @@ Object.Extend Event,
 				script: (src) ->
 					lazy_load "script", { src: src }
 				style: (src) ->
-					lazy_load "style", { href: src }
+					lazy_load "link", { href: src, rel: "stylesheet" }
 		}
 
 	$
 
 )(Bling)
-
 # vim: ft=coffee
-

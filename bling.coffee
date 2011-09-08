@@ -361,14 +361,14 @@ Object.Extend Event,
 					nn = @length
 					f.order = n + new Date().getTime()
 					if nn is 0 or f.order > @[nn-1].order # short-cut the common-case: f belongs after the end
-						@[nn] = f
+						@push(f)
 					else
 						for i in [0...nn]
 							if @[i].order > f.order
 								@splice(i, 0, f)
 								break
 					setTimeout next, n
-					@
+					return @
 		timeoutQueue = new TimeoutQueue
 
 		getter = (prop) -> # used in .zip()
@@ -386,9 +386,12 @@ Object.Extend Event,
 		return {
 			name: 'Core'
 
-			$: {
+			$:
 				log: log
-			}
+				delay: (n, f) ->
+					if f
+						timeoutQueue.schedule(f, n)
+					null # TODO: return an actor that can cancel
 
 			eq: (i) -> # .eq(/i/) - a new set containing only the /i/th item
 				a = $([@[i]])
@@ -1180,6 +1183,15 @@ Object.Extend Event,
 
 	$.plugin () -> # Math plugin
 		name: 'Maths'
+		$:
+			range: (start, end, step = 1) ->
+				i = start
+				if step == 0 or (step > 0 and start > end) or (step < 0 and start < end)
+					return []
+				while (start > end and i > end) or ( start < end and i < end )
+					a = i
+					i += step
+					a
 		floats: () ->
 			# .floats() - parseFloat(/x/) for /x/ in _this_
 			@map parseFloat
@@ -1978,23 +1990,33 @@ Object.Extend Event,
 		}
 
 	$.plugin () -> # LazyLoader plugin
-		name: "LazyLoader"
-		$:
-			script: (src) ->
-				provides = depends = null
-				s = document.createElement("script")
-				s.src = src
-				s.onload = () ->
+		create = (elementName, props) ->
+			Object.Extend document.createElement(elementName), props
+
+		lazy_load = (elementName, props) ->
+			n = create elementName, Object.Extend(props, {
+				onload: () ->
 					$.publish(provides) if provides != null
-				$("head").delay 10, () ->
-					if depends != null
-						$.subscribe depends, () => @append(s)
-					else
-						@append(s)
-				Object.Extend $(s), {
-					depends: (tag) -> depends = "onload-"+tag
-					provides: (tag) -> provides = "onload-"+tag
-				}
+			})
+			$("head").delay 10, () ->
+				if depends != null
+					$.subscribe depends, () => @append(n)
+				else
+					@append(n)
+			n = $(n)
+			Object.Extend n, {
+				depends: (tag) -> depends = elementName+"-"+tag; n
+				provides: (tag) -> provides = elementName+"-"+tag; n
+			}
+
+		return {
+			name: "LazyLoader"
+			$:
+				script: (src) ->
+					lazy_load "script", { src: src }
+				style: (src) ->
+					lazy_load "style", { href: src }
+		}
 
 	$
 

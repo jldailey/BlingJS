@@ -25,17 +25,17 @@
 	<h3>Download</h3>
 	<table class='download' cellspacing="0">
 		<tr>
-			<td><a href="bling.coffee">Coffee&nbsp;Script</a><td>&nbsp;<td>[56k]
+			<td><a href="js/bling.coffee">Coffee&nbsp;Script</a><td>&nbsp;<td>[56k]
 		<tr>
-			<td><a href="dist/bling.js">Full Source</a><td>&nbsp;<td>[70k]
+			<td><a href="js/bling.js">Full Source</a><td>&nbsp;<td>[74k]
 		<tr>
-			<td><a href="dist/min.bling.js">Minified</a><td>&nbsp;<td>[31k]
+			<td><a href="js/min.bling.js">Minified</a><td>&nbsp;<td>[33k]
 		<tr>
-			<td><a href="dist/min.bling.js.gz">Compressed</a><td>&nbsp;<td>[<b>9k</b>]
+			<td><a href="js/min.bling.js.gz">Compressed</a><td>&nbsp;<td>[<b>10k</b>]
 		<tr>
 			<td><a href="https://github.com/jldailey/BlingJS">[GitHub]</a><td>&nbsp;<td>[*]
 	</table>
-	<p class='small'>About &frac13;rd the size of jQuery.<br> (compare v1.4.4: 179k, 78k, 28k)</p>
+	<p class='small'>About &frac13;rd the size of jQuery.<br> (compare v1.6.3: 232k, 89k, 32k)</p>
 
 	<h3>Introduction</h3>
 	<p><i>BlingJS</i> defines operations to collect and manipulate sets.
@@ -125,11 +125,11 @@
 	<p>Built into the core is a simple template system, and it works by replacing substrings: 
 	<code>%(id)d</code>, <code>%(name)s</code>, and <code>%(dollars).2f</code> (similar to python substitution strings)
 	<p>Templates can start with DOM nodes, or with raw strings.
-	<textarea style="height:90px; resize: none" >
-	<li id="line-template">
-	 <span>%(title)s</span>
-	 <div>%(body)s</div>
-	</li>
+	<textarea style="height:95px">
+		<li id="line-template">
+		 <span>%(title)s</span>
+		 <div>%(body)s</div>
+		</li>
 	</textarea>
 	<p>Once you have the source you want to copy, you should usually initialize them with <a href='#doc:template'>template</a>.
 	<pre>

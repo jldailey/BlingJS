@@ -35,7 +35,22 @@ code.pp, textarea {
 	background-color:#ffc;
 	margin:0px 0px 0px -11px;
 	width: 320px;
-	overflow: scroll;
+	overflow: auto;
+	-webkit-transition: margin 100, width 100, padding 100;
+	-moz-transition: margin 100, width 100, padding 100;
+	-o-transition: margin 100, width 100, padding 100;
+	transition: margin 100, width 100, padding 100;
+	&:hover {
+		box-shadow: 2px 2px 4px #888;
+		-moz-box-shadow: 2px 2px 4px #888;
+		-o-box-shadow: 2px 2px 4px #888;
+		border-radius: 2px;
+		-moz-border-radius: 2px;
+		-o-border-radius: 2px;
+		margin-left: -20px;
+		padding-left: 2px;
+		width: 330px;
+	}
 }
 textarea {
 	margin-left: -26px;
@@ -43,6 +58,10 @@ textarea {
 	padding: 14px 20px;
 	width: 322px;
 	resize: none;
+	&:hover {
+		margin-left: -35px;
+		padding-left: 18px;
+	}
 }
 code {
 	font-family: courier, sans;

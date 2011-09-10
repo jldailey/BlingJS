@@ -1524,8 +1524,6 @@ Object.Extend Event,
 			transitionDuration = "-o-transition-duration"
 			transitionTiming = "-o-transition-timing-function"
 
-		# delete testStyle
-
 		return {
 			name: 'Transform'
 			$: {

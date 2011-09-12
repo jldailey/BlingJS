@@ -222,8 +222,8 @@ testGroup("HTML",
 		# console.log("toString: " + d[0].toString())
 		assertEqual( d.zip('innerHTML').toString(), '&lt;p&gt;' )
 	HTMLescape: () -> assertEqual($.HTML.escape("<p>"), "&lt;p&gt;")
-	dataName1: () -> assertEqual($.dataName("fooBar"), "foo-bar")
-	dataName2: () -> assertEqual($.dataName("FooBar"), "-foo-bar")
+	dashName1: () -> assertEqual($.dashName("fooBar"), "foo-bar")
+	dashName2: () -> assertEqual($.dashName("FooBar"), "-foo-bar")
 	html: () -> assertEqual($("tr").html().first(), "<td>1,1</td><td>1,2</td>")
 	append: () ->
 		try

@@ -1812,150 +1812,20 @@ Object.Extend Event,
 				output[j++] = rest
 			output.join ""
 
-		# mode names for the synth machine
-		TAGMODE = 0
-		IDMODE = 1
-		CLSMODE = 2
-		ATTRMODE = 3
-		VALMODE = 4
-		DTEXTMODE = 5
-		STEXTMODE = 6
-
-		synth = (expr) -> # $.synth(/expr/) - given a CSS expression, create DOM nodes that match
-			parent = null
-			tag = id = cls = attr = val = text = ""
-			attrs = {}
-			mode = TAGMODE
-			ret = $([])
-			ret.selector = expr
-			emitText = () -> # puts a TextNode in the results
-				node = $.HTML.parse text
-				if parent
-					parent.appendChild node
-				else
-					ret.push node
-				text = ""
-				TAGMODE
-			emitNode = () -> # puts a Node in the results
-				node = document.createElement(tag)
-				node.id = id or null
-				node.className = cls or null
-				for k of attrs
-					node.setAttribute k, attrs[k]
-				if parent
-					parent.appendChild node
-				else
-					ret.push node
-				parent = node
-				tag = id = cls = attr = val = text = ""
-				attrs = {}
-				TAGMODE
-			emitNodeAndReset = () ->
-				emitNode()
-				parent = null
-				TAGMODE
-			emitNodeAndSkip = () ->
-				emitNode()
-				if parent
-					parent = parent.parentNode
-				TAGMODE
-
-			beginClass = () -> cls += " " if cls.length > 0; CLSMODE
-			addToClass = (c) -> cls += c; null
-			beginAttr = () -> ATTRMODE
-			addToAttr = (c) -> attr += c; null
-			beginVal = () -> VALMODE
-			addToVal = (c) -> val += c; null
-			endAttr = () -> attrs[attr] = val; attr = val = ""; TAGMODE
-			beginId = () -> IDMODE
-			addToId = (c) -> id += c; null
-			beginDText = () -> DTEXTMODE
-			beginSText = () -> STEXTMODE
-			addToText = (c) -> text += c; null
-			addToTag = (c) -> tag += c; null
-
-			parse_table = [
-				{ # TAGMODE
-					'"': beginDText
-					"'": beginSText
-					"#": beginId
-					".": beginClass
-					"[": beginAttr
-					"+": emitNodeAndSkip
-					" ": emitNode
-					",": emitNodeAndReset
-					def: addToTag
-				},
-				{ # IDMODE
-					".": beginClass
-					"[": beginAttr
-					"+": emitNodeAndSkip
-					" ": emitNode
-					",": emitNodeAndReset
-					def: addToId
-				},
-				{ # CLSMODE
-					"#": beginId
-					".": beginClass
-					"[": beginAttr
-					"+": emitNodeAndSkip
-					" ": emitNode
-					",": emitNodeAndReset
-					def: addToClass
-				},
-				{ # ATTRMODE
-					"=": beginVal
-					"]": endAttr
-					def: addToAttr
-				},
-				{ # VALMODE
-					"]": endAttr
-					def: addToVal
-				},
-				{ # DTEXTMODE
-					'"': emitText
-					def: addToText
-				},
-				{ # STEXTMODE
-					"'": emitText
-					def: addToText
-				}
-			]
-
-			i = 0 # i is a read-marker within expr
-			# 'c' steps across the input, one character at a time
-			while c = expr[i++]
-				starting_mode = mode
-				modeline = parse_table[mode]
-				if c of modeline
-					mode = modeline[c](c)
-				else
-					mode = modeline['def'](c)
-				if mode is null
-					mode = starting_mode
-				# console.log "#{starting_mode} -> '#{c}' -> #{mode}"
-
-			emitNode() if tag.length > 0
-			emitText() if text.length > 0
-			return ret
-
-		{
+		return {
 			name: 'Template'
 			$:
 				render: render
-				synth: synth
 
 			template: (defaults) ->
 				# .template([defaults]) - mark nodes as templates, add optional defaults to .render()
-				# if defaults is passed, these will be the default values for v in .render(v)
 				@render = (args) ->
-					# an over-ride of the basic .render() that applies these defaults
+					# over-ride .render() to apply the defaults
 					render(@map($.HTML.stringify).join(""), Object.Extend(defaults,args))
 				@remove() # the template item itself should not be in the DOM
 
 			render: (args) ->
 				# .render(args) - replace %(var)s-type strings with values from args
-				# accepts nodes, returns a string
 				render(@map($.HTML.stringify).join(""), args)
 
 			synth: (expr) ->

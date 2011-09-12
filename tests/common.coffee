@@ -44,27 +44,33 @@ global.ui = switch process?.env.TERM
 	when undefined then UI.html
 	else UI.cterm
 
+argv = process?.argv
+if argv and argv.length > 2
+	test_to_run = argv[2]
+else
+	test_to_run = "*"
+
 # counters for test total/pass/fail
 total = [0,0,0]
 failures = []
 global.testGroup = (name, tests) ->
-	ui.output "Test: #{name}"
 	failed = passed = 0
 	for test_name of tests
-		test = tests[test_name]
-		total[0] += 1
-		try
-			test()
-			passed += 1
-			total[1] += 1
-			ui.output "#{test_name}...ok"
-		catch err
-			ui.output "#{test_name}...fail: '#{err.toString()}'"
-			failed += 1
-			total[2] += 1
-			failures.push(test_name)
-	# ui.output "#{ui.green}Pass: #{passed}#{ui.normal}" +
-		# ( if failed > 0 then "#{ui.yellow}/#{passed+failed}#{ui.normal}#{ui.red} Fail: #{failed}#{ui.normal} [ #{failures.join(', ')} ]" else "" )
+		if test_to_run in ["*", test_name, name]
+			test = tests[test_name]
+			total[0] += 1
+			try
+				test()
+				passed += 1
+				total[1] += 1
+				ui.output "#{name}_#{test_name}...ok"
+			catch err
+				ui.output "#{name}_#{test_name}...fail: '#{err.toString()}'"
+				failed += 1
+				total[2] += 1
+				failures.push(test_name)
+		# ui.output "#{ui.green}Pass: #{passed}#{ui.normal}" +
+			# ( if failed > 0 then "#{ui.yellow}/#{passed+failed}#{ui.normal}#{ui.red} Fail: #{failed}#{ui.normal} [ #{failures.join(', ')} ]" else "" )
 global.testReport = () ->
 	ui.output "Total: #{total[0]} Passed: #{total[1]} Failed: #{total[2]} [ #{failures.join(', ')} ]"
 

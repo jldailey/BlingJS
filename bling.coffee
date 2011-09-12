@@ -1733,14 +1733,15 @@ Object.Extend Event,
 		}
 
 	$.plugin () -> # Template plugin
-		match_forward = (text, find, against, start, stop) ->
+		match_forward = (text, find, against, start, stop = -1) ->
 			count = 1
-			if stop == null or stop is -1
-				stop = text.length
+			if stop < 0
+				stop = text.length + 1 + stop
 			for i in [start...stop]
-				if text[i] is against
+				t = text[i]
+				if t is against
 					count += 1
-				else if text[i] is find
+				else if t is find
 					count -= 1
 				if count is 0
 					return i

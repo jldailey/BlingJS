@@ -1497,7 +1497,7 @@ Object.Extend Event,
 			ret[x] = binder(x)
 		return ret
 
-	$.plugin () -> # Transform plugin
+	$.plugin () -> # Transform plugin, for accelerated animations
 		speeds = # constant speed names
 			"slow": 700
 			"medium": 500

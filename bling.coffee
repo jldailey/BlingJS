@@ -2036,8 +2036,8 @@ Object.Extend Event,
 
 			synth: (expr) ->
 				# .synth(expr) - create DOM nodes to match a simple css expression
-				# and the additional helper "text"
-				synth(expr).appendTo @
+				# supports: # tag, #id, .class, [attr=val], 'text'
+				new SynthMachine(expr, synth_table).run().appendTo @
 		}
 
 	$.plugin () -> # Pub/Sub plugin

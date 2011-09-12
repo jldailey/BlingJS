@@ -1748,6 +1748,7 @@ Object.Extend Event,
 			return -1
 
 		# the regex for the format specifiers in templates (from python)
+		# splits the format piece (%.2f, etc) into [key, pad, fixed, type, remainder]
 		type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/
 		chunk_re = /%[\(\/]/
 
@@ -1779,7 +1780,7 @@ Object.Extend Event,
 
 		render = (text, values) -> # $.render(/t/, /v/) - replace markers in string /t/ with values from /v/
 			cache = compile.cache[text] # get the cached version
-			if cache == null
+			if not cache?
 				cache = compile.cache[text] = compile(text) # or compile and cache it
 			output = [cache[0]] # the first block is always just text
 			j = 1 # insert marker into output

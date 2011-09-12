@@ -792,11 +792,11 @@ Object.Extend Event,
 			() ->
 				window.getComputedStyle(@, null).getPropertyValue(k)
 
-		dataNameToAttr = (k) ->
+		A = "A".charCodeAt(0)
+		Z = "Z".charCodeAt(0)
+		a = "a".charCodeAt(0)
+		dashName = (k) ->
 			ret = []
-			A = "A".charCodeAt(0)
-			Z = "Z".charCodeAt(0)
-			a = "a".charCodeAt(0)
 			for i in [0...k.length]
 				c = k.charCodeAt i
 				if Z >= c >= A
@@ -804,7 +804,11 @@ Object.Extend Event,
 					ret.push "-"
 				ret.push String.fromCharCode(c)
 			return ret.join("")
-
+		camelName = (k) ->
+			i = k.indexOf('-')
+			while i > -1
+				k = String.Splice(k, i, i+2, k[i+1].toUpperCase())
+				i = k.indexOf('-')
 
 		return {
 			name: 'Html'
@@ -831,7 +835,6 @@ Object.Extend Event,
 								d.appendChild(n)
 								ret = d.innerHTML # serialize to a string
 								d.removeChild(n) # clean up to prevent leaks
-								# delete n
 								ret
 							else "unknown type: " + Object.Type(n)
 					escape: (h) -> # $.HTML.escape(/h/) - accept html string /h/, a string with html-escapes like &amp;
@@ -842,8 +845,8 @@ Object.Extend Event,
 						# clean up so escaped content isn't leaked into the DOM
 						escaper.zap('data', '')
 						ret
-				dataName: (k) ->
-					return dataNameToAttr(k)
+				dashName: dashName
+				camelName: camelName
 
 			html: (h) -> # .html([h]) - get [or set] /x/.innerHTML for each node
 				switch Object.Type h

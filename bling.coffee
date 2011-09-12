@@ -2036,34 +2036,45 @@ Object.Extend Event,
 
 			synth: (expr) ->
 				# .synth(expr) - create DOM nodes to match a simple css expression
-				# supports the following css selectors:
-				# tag, #id, .class, [attr=val]
 				# and the additional helper "text"
 				synth(expr).appendTo @
 		}
 
 	$.plugin () -> # Pub/Sub plugin
-		handlers = {}
-		event_log = {}
-		{
-			name: "Pub/Sub"
+		subscribers = {} # a mapping of channel name to a list of subscribers
+		archive = {} # archive published events here, so they can be replayed if necessary
+		archive_limit = 1000 # maximum number of events (per type) to archive
+		archive_trim = 100 # how much to trim all at once if we go over the maximum
+
+		publish = (e, args = []) ->
+			$.log "published: #{e}", args
+			archive[e] ?= []
+			archive[e].push(args)
+			if archive[e].length > archive_limit
+				archive[e].splice(0, archive_trim)
+			for func in subscribers[e]
+				func.apply window, args
+
+		subscribe = (e, func, replay = true) ->
+			subscribers[e] ?= []
+			subscribers[e].push(func)
+			# replay the publish archive
+			if replay
+				for args in archive[e]
+					$.log "replayed: #{e}", args
+					func.apply window, args
+
+		# expose these for advanced users
+		publish.__defineSetter__ 'limit', (n) ->
+			archive_limit = n
+		publish.__defineSetter__ 'trim', (n) ->
+			archive_trim = n
+
+		return {
+			name: "PubSub"
 			$:
-				publish: (e, args = []) ->
-					$.log "published: #{e}", args
-					event_log[e] ?= []
-					event_log[e].push(args)
-					if e of handlers
-						for func in handlers[e]
-							func.apply window, args
-				subscribe: (e, func) ->
-					handlers[e] ?= []
-					# replay the event log
-					if e of event_log
-						for args in event_log[e]
-							$.log "replayed: #{e}", args
-							func.apply window, args
-					# save func for future events
-					handlers[e].push(func)
+				publish: publish
+				subscribe: subscribe
 		}
 
 	$.plugin () -> # LazyLoader plugin

@@ -1827,6 +1827,212 @@ Object.Extend Event,
 			render: (args) ->
 				# .render(args) - replace %(var)s-type strings with values from args
 				render(@map($.HTML.stringify).join(""), args)
+		}
+	
+	$.plugin () -> # Hash plugin
+		return {
+			$:
+				hash: (x) -> # .hash() - return a hash-code for the set
+					h = 0
+					for i in x
+						h += switch Object.Type(i)
+							when "string" then String.Checksum(i)
+							when "number" then String.Checksum(String(i))
+							when "bling" then $.hash(i)
+							when "array" then $.hash(i)
+							when "nodelist" then $.hash(i)
+							when "object" then String.Checksum(i.toString())
+		}
+
+	$.plugin () -> # Memoize plugin, depends on Hash
+		cache = {}
+		return {
+			$:
+				memoize: (f) ->
+					cache[f] = {}
+					return (a...) ->
+						h = $.hash(a)
+						m = cache[f]
+						if h of m
+							m[h]
+						else
+							m[h] = f.apply @, a
+		}
+
+	$.plugin () -> # StateMachine plugin
+		class StateMachine extends Bling
+			constructor: (input, modeTable) ->
+				@input = input
+				@mode = INIT
+				@prevmode = null
+				@modeline = null
+				@parent = null
+				@table = modeTable
+			setMode: (m) ->
+				@mode = m
+				@modeline = @table[m]
+				if @mode isnt @prevmode and 'enter' of @modeline
+					ret = @modeline.enter.call @
+					while Object.IsFunc(ret)
+						ret = ret.call @
+				@
+			run: () ->
+				i = 0
+				while c = @input[i++]
+					if c of @modeline
+						ret = @modeline[c].call @, c
+					else
+						ret = @modeline['def'].call @, c
+					while Object.IsFunc(ret)
+						ret = ret.call @
+				if 'eof' of @modeline
+					@modeline['eof'].call @
+		return {
+			$:
+				StateMachine: StateMachine
+		}
+
+	$.plugin () -> # Synth plugin, depends on StateMachine
+		go = (m) -> () -> @setMode(m)
+		INIT = 0
+		TAGMODE = 1
+		IDMODE = 2
+		CLSMODE = 3
+		ATTRMODE = 4
+		VALMODE = 5
+		DTEXTMODE = 6
+		STEXTMODE = 7
+		EMITTEXT = 8
+		DESCEND = 9
+		RESET = 10
+		SIBLING = 11
+		ERROR = 12
+		FINALIZE = 13
+
+		synth_table = [
+			{ # INIT
+				enter: () ->
+					@tag = @id = @cls = @attr = @val = @text = ""
+					@attrs = {}
+					go(TAGMODE)
+			},
+			{ # TAGMODE
+				'"': go(DTEXTMODE)
+				"'": go(STEXTMODE)
+				"#": go(IDMODE)
+				".": go(CLSMODE)
+				"[": go(ATTRMODE)
+				" ": go(DESCEND)
+				"+": go(SIBLING)
+				",": go(RESET)
+				def: (c) -> @tag += c
+				eof: go(FINALIZE)
+			},
+			{ # IDMODE
+				".": go(CLSMODE)
+				"[": go(ATTRMODE)
+				" ": go(DESCEND)
+				"+": go(SIBLING)
+				",": go(RESET)
+				def: (c) -> @id += c
+				eof: go(FINALIZE)
+			},
+			{ # CLSMODE
+				enter: () ->
+					@cls += " " if @cls.length > 0
+				"#": go(IDMODE)
+				".": go(CLSMODE)
+				"[": go(ATTRMODE)
+				" ": go(DESCEND)
+				"+": go(SIBLING)
+				",": go(RESET)
+				def: (c) -> @cls += c
+				eof: go(FINALIZE)
+			},
+			{ # ATTRMODE
+				"=": go(VALMODE)
+				"]": () -> @attrs[@attr] = @val; go(TAGMODE)
+				def: (c) -> @attr += c
+				eof: go(ERROR)
+			},
+			{ # VALMODE
+				"]": () -> @attrs[@attr] = @val; go(TAGMODE)
+				def: (c) -> @val += c
+				eof: go(ERROR)
+			},
+			{ # DTEXTMODE
+				'"': go(EMITTEXT)
+				def: (c) -> @text += c
+				eof: go(ERROR)
+			},
+			{ # STEXTMODE
+				"'": go(EMITTEXT)
+				def: (c) -> @text += c
+				eof: go(ERROR)
+			},
+			{ # EMITTEXT
+				enter: () ->
+					@emitText()
+					go(INIT)
+			},
+			{ # DESCEND
+				enter: () ->
+					@emitNode()
+					go(INIT)
+			},
+			{ # RESET
+				enter: () ->
+					@emitNode()
+					@parent = null
+					go(INIT)
+			},
+			{ # SIBLING
+				enter: () ->
+					@emitNode()
+					@parent = @parent?.parentNode
+					go(INIT)
+			},
+			{ # ERROR
+				enter: () ->
+					log "Error in synth expression: #{@input}"
+					@push "Error in synth expression: #{@input}"
+			},
+			{ # FINALIZE
+				enter: () ->
+					if tag.length
+						@emitNode()
+					if text.length
+						@emitText()
+			}
+		]
+
+		class SynthMachine extends $.StateMachine
+			emitNode: () ->
+				node = document.createElement(@tag)
+				node.id = @id or null
+				node.className = @cls or null
+				for k of attrs
+					node.setAttribute k, @attrs[k]
+				if @parent
+					@parent.appendChild node
+				else
+					@push node
+				@parent = node
+			emitText: () ->
+				node = $.HTML.parse @text
+				if @parent
+					@parent.appendChild node
+				else
+					@push node
+				@text = ""
+
+		synth = (expr) -> # $.synth(/expr/) - given a CSS expression, create DOM nodes that match
+			return new SynthMachine(expr, synth_table).run()
+
+		return {
+			name: "Synth"
+			$:
+				synth: (expr) -> new SynthMachine(expr, synth_table).run()
 
 			synth: (expr) ->
 				# .synth(expr) - create DOM nodes to match a simple css expression

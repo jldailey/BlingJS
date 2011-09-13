@@ -369,6 +369,13 @@ Object.Extend Event,
 								break
 					setTimeout next, n
 					return @
+				@cancel = (f) =>
+					if not Object.IsFunc(f)
+						throw Error "function expected, got #{Object.Type(f)}"
+					for i in [0...@length]
+						if @[i] == f
+							@splice(i, 1)
+							break
 		timeoutQueue = new TimeoutQueue
 
 		getter = (prop) -> # used in .zip()
@@ -391,7 +398,8 @@ Object.Extend Event,
 				delay: (n, f) ->
 					if f
 						timeoutQueue.schedule(f, n)
-					null # TODO: return an actor that can cancel
+					# return an actor that can cancel
+					return { cancel: () -> timeoutQueue.cancel(f) }
 
 			eq: (i) -> # .eq(/i/) - a new set containing only the /i/th item
 				a = $([@[i]])

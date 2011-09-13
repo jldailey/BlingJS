@@ -1180,7 +1180,7 @@ Object.Extend Event,
 						null
 
 			data: (k, v) ->
-				k = "data-#{dataNameToAttr(k)}"
+				k = "data-#{dashName(k)}"
 				$(this).attr(k, v)
 
 			toFragment: () ->
@@ -1839,6 +1839,7 @@ Object.Extend Event,
 	
 	$.plugin () -> # Hash plugin
 		return {
+			name: "Hash"
 			$:
 				hash: (x) -> # .hash() - return a hash-code for the set
 					h = 0
@@ -1855,6 +1856,7 @@ Object.Extend Event,
 	$.plugin () -> # Memoize plugin, depends on Hash
 		cache = {}
 		return {
+			name: "Memoize"
 			$:
 				memoize: (f) ->
 					cache[f] = {}

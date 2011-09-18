@@ -945,6 +945,7 @@ Object.Extend Event,
 				j = 0
 				# first node gets the real n
 				@take(1).each () ->
+					$.log "replace first"
 					@parentNode?.replaceChild(n, @)
 					b[j++] = n
 				# the rest get clones of n
@@ -1870,184 +1871,156 @@ Object.Extend Event,
 		}
 
 	$.plugin () -> # StateMachine plugin
-		class StateMachine extends Bling
-			constructor: (input, modeTable) ->
-				@input = input
-				@mode = INIT
-				@prevmode = null
-				@modeline = null
-				@parent = null
-				@table = modeTable
-			setMode: (m) ->
-				@mode = m
-				@modeline = @table[m]
-				if @mode isnt @prevmode and 'enter' of @modeline
-					ret = @modeline.enter.call @
+		class StateMachine
+			constructor: (stateTable) ->
+				@reset()
+				@table = stateTable
+				@.__defineGetter__ "modeline", () -> @table[@_mode]
+				@.__defineSetter__ "mode", (m) ->
+					@_lastMode = @_mode
+					@_mode = m
+					if @_mode isnt @_lastMode and 'enter' of @modeline
+						ret = @modeline['enter'].call @
+						while Object.IsFunc(ret)
+							ret = ret.call @
+				@.__defineGetter__ "mode", () -> @_mode
+
+			reset: () ->
+				@_mode = null
+				@_lastMode = null
+
+			# static and instance versions of a state-changer factory
+			GO: (m) -> () -> @mode = m
+			@GO: (m) -> () -> @mode = m
+
+			run: (input) ->
+				@mode = 0
+				for c in input
+					row = @modeline
+					if c of row
+						ret = row[c]
+					else if 'def' of row
+						ret = row['def']
 					while Object.IsFunc(ret)
-						ret = ret.call @
-				@
-			run: () ->
-				i = 0
-				while c = @input[i++]
-					if c of @modeline
-						ret = @modeline[c].call @, c
-					else
-						ret = @modeline['def'].call @, c
-					while Object.IsFunc(ret)
-						ret = ret.call @
+						ret = ret.call @, c
 				if 'eof' of @modeline
-					@modeline['eof'].call @
+					ret = @modeline['eof'].call @
+				while Object.IsFunc(ret)
+					ret = ret.call @
+				@reset()
+				return @
 		return {
+			name: "StateMachine"
 			$:
 				StateMachine: StateMachine
 		}
 
 	$.plugin () -> # Synth plugin, depends on StateMachine
-		go = (m) -> () -> @setMode(m)
-		INIT = 0
-		TAGMODE = 1
-		IDMODE = 2
-		CLSMODE = 3
-		ATTRMODE = 4
-		VALMODE = 5
-		DTEXTMODE = 6
-		STEXTMODE = 7
-		EMITTEXT = 8
-		DESCEND = 9
-		RESET = 10
-		SIBLING = 11
-		ERROR = 12
-		FINALIZE = 13
-
-		synth_table = [
-			{ # INIT
-				enter: () ->
-					@tag = @id = @cls = @attr = @val = @text = ""
-					@attrs = {}
-					go(TAGMODE)
-			},
-			{ # TAGMODE
-				'"': go(DTEXTMODE)
-				"'": go(STEXTMODE)
-				"#": go(IDMODE)
-				".": go(CLSMODE)
-				"[": go(ATTRMODE)
-				" ": go(DESCEND)
-				"+": go(SIBLING)
-				",": go(RESET)
-				def: (c) -> @tag += c
-				eof: go(FINALIZE)
-			},
-			{ # IDMODE
-				".": go(CLSMODE)
-				"[": go(ATTRMODE)
-				" ": go(DESCEND)
-				"+": go(SIBLING)
-				",": go(RESET)
-				def: (c) -> @id += c
-				eof: go(FINALIZE)
-			},
-			{ # CLSMODE
-				enter: () ->
-					@cls += " " if @cls.length > 0
-				"#": go(IDMODE)
-				".": go(CLSMODE)
-				"[": go(ATTRMODE)
-				" ": go(DESCEND)
-				"+": go(SIBLING)
-				",": go(RESET)
-				def: (c) -> @cls += c
-				eof: go(FINALIZE)
-			},
-			{ # ATTRMODE
-				"=": go(VALMODE)
-				"]": () -> @attrs[@attr] = @val; go(TAGMODE)
-				def: (c) -> @attr += c
-				eof: go(ERROR)
-			},
-			{ # VALMODE
-				"]": () -> @attrs[@attr] = @val; go(TAGMODE)
-				def: (c) -> @val += c
-				eof: go(ERROR)
-			},
-			{ # DTEXTMODE
-				'"': go(EMITTEXT)
-				def: (c) -> @text += c
-				eof: go(ERROR)
-			},
-			{ # STEXTMODE
-				"'": go(EMITTEXT)
-				def: (c) -> @text += c
-				eof: go(ERROR)
-			},
-			{ # EMITTEXT
-				enter: () ->
-					@emitText()
-					go(INIT)
-			},
-			{ # DESCEND
-				enter: () ->
-					@emitNode()
-					go(INIT)
-			},
-			{ # RESET
-				enter: () ->
-					@emitNode()
-					@parent = null
-					go(INIT)
-			},
-			{ # SIBLING
-				enter: () ->
-					@emitNode()
-					@parent = @parent?.parentNode
-					go(INIT)
-			},
-			{ # ERROR
-				enter: () ->
-					log "Error in synth expression: #{@input}"
-					@push "Error in synth expression: #{@input}"
-			},
-			{ # FINALIZE
-				enter: () ->
-					if tag.length
-						@emitNode()
-					if text.length
-						@emitText()
-			}
-		]
 
 		class SynthMachine extends $.StateMachine
+			@STATE_TABLE = [
+				{ # 0
+					enter: () ->
+						@tag = @id = @cls = @attr = @val = @text = ""
+						@attrs = {}
+						@GO(1)
+				},
+				{ # 1
+					'"': @GO(6), "'": @GO(7), "#": @GO(2), ".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
+					def: (c) -> @tag += c
+					eof: @GO(13)
+				},
+				{ # 2
+					".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
+					def: (c) -> @id += c
+					eof: @GO(13)
+				},
+				{ # 3
+					enter: () -> @cls += " " if @cls.length > 0
+					"#": @GO(2), ".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
+					def: (c) -> @cls += c
+					eof: @GO(13)
+				},
+				{ # 4
+					"=": @GO(5)
+					"]": () -> @attrs[@attr] = @val; @GO(1)
+					def: (c) -> @attr += c
+					eof: @GO(12)
+				},
+				{ # 5
+					"]": () -> @attrs[@attr] = @val; @GO(1)
+					def: (c) -> @val += c
+					eof: @GO(12)
+				},
+				{ # 6
+					'"': @GO(8)
+					def: (c) -> @text += c
+					eof: @GO(12)
+				},
+				{ # 7
+					"'": @GO(8)
+					def: (c) -> @text += c
+					eof: @GO(12)
+				},
+				{ # 8
+					enter: () ->
+						@emitText()
+						@GO(0)
+				},
+				{ # DESCEND
+					enter: () ->
+						@emitNode()
+						@GO(0)
+				},
+				{ # RESET
+					enter: () ->
+						@emitNode()
+						@parent = null
+						@GO(0)
+				},
+				{ # SIBLING
+					enter: () ->
+						@emitNode()
+						@parent = @parent?.parentNode
+						@GO(0)
+				},
+				{ # ERROR
+					enter: () -> $.log "Error in synth expression: #{@input}"
+				},
+				{ # FINALIZE
+					enter: () ->
+						@emitNode() if @tag.length
+						@emitText() if @text.length
+				}
+			]
+			constructor: () ->
+				super(SynthMachine.STATE_TABLE)
+				@fragment = @parent = document.createDocumentFragment()
 			emitNode: () ->
 				node = document.createElement(@tag)
 				node.id = @id or null
 				node.className = @cls or null
-				for k of attrs
+				for k of @attrs
 					node.setAttribute k, @attrs[k]
-				if @parent
-					@parent.appendChild node
-				else
-					@push node
+				@parent.appendChild node
 				@parent = node
 			emitText: () ->
-				node = $.HTML.parse @text
-				if @parent
-					@parent.appendChild node
-				else
-					@push node
+				@parent.appendChild $.HTML.parse(@text)
 				@text = ""
 
-		synth = (expr) -> # $.synth(/expr/) - given a CSS expression, create DOM nodes that match
-			return new SynthMachine(expr, synth_table).run()
+		synth = (expr) ->
 
 		return {
 			name: "Synth"
 			$:
-				synth: (expr) -> new SynthMachine(expr, synth_table).run()
-
-			synth: (expr) ->
-				# .synth(expr) - create DOM nodes to match a simple css expression
-				# supports: # tag, #id, .class, [attr=val], 'text'
-				new SynthMachine(expr, synth_table).run().appendTo @
+				synth: (expr) ->
+					# .synth(expr) - create DOM nodes to match a simple css expression
+					s = new SynthMachine()
+					s.run(expr)
+					if s.fragment.childNodes.length == 1
+						$(s.fragment.childNodes[0])
+					else
+						$(s.fragment)
 		}
 
 	$.plugin () -> # Pub/Sub plugin

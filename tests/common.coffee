@@ -17,7 +17,6 @@ global.document = dom.createDocument()
 global.window = global
 require("../bling.coffee")
 
-
 UI =
 	dumb: # a dumb terminal
 		output: (a...) -> console.log.apply console, a
@@ -69,6 +68,8 @@ global.testGroup = (name, tests) ->
 				failed += 1
 				total[2] += 1
 				failures.push(test_name)
+				if test_to_run isnt "*"
+					throw err
 		# ui.output "#{ui.green}Pass: #{passed}#{ui.normal}" +
 			# ( if failed > 0 then "#{ui.yellow}/#{passed+failed}#{ui.normal}#{ui.red} Fail: #{failed}#{ui.normal} [ #{failures.join(', ')} ]" else "" )
 global.testReport = () ->

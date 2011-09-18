@@ -213,14 +213,14 @@ testGroup("HTML",
 		d = $("<div>&nbsp;</div>")
 		assertEqual( Object.Type(d), "bling")
 		assertEqual( d.length, 1 )
-		d = d.child(0)
-		assertEqual( Object.Type(d), "bling")
-		assertEqual( d.length, 1 )
-		assertEqual( Object.Type(d[0]), "node")
-		d.zap('data', '<p>')
+		t = d.child(0)
+		assertEqual( Object.Type(t), "bling")
+		assertEqual( t.length, 1 )
+		assertEqual( Object.Type(t[0]), "node")
+		t.zap('data', '<p>')
 		# console.log("innerHTML: " + d[0].innerHTML)
 		# console.log("toString: " + d[0].toString())
-		assertEqual( d.zip('innerHTML').toString(), '&lt;p&gt;' )
+		assertEqual( d.zip('innerHTML').first(), '&lt;p&gt;' )
 	HTMLescape: () -> assertEqual($.HTML.escape("<p>"), "&lt;p&gt;")
 	dashName1: () -> assertEqual($.dashName("fooBar"), "foo-bar")
 	dashName2: () -> assertEqual($.dashName("FooBar"), "-foo-bar")
@@ -250,8 +250,34 @@ testGroup("HTML",
 	after2: () -> assertEqual($("<b></b>").after("<c></c>").parent().toString(), "$([<b/><c/>])")
 	wrap: () -> assertEqual($("<b></b>").wrap("<a></a>").parent().toString(), "$([<a><b/></a>])")
 	unwrap: () -> assertEqual($("<a><b/></a>").find("b").unwrap().first().parentNode, null)
-	replace: () -> assertEqual($("<a><b/><c/><b/></a>").find("b").replace("<d/>").toString(), "$([<a><d/><c/><d/></a>])")
+	replace: () -> assertEqual($("<a><b/><c/><b/></a>").find("b").replace("<p/>").parent().eq(0).toString(), "$([<a><p/><c/><p/></a>])")
 )
+
+testGroup("StateMachine",
+	hello: () ->
+		class TestMachine extends $.StateMachine
+			@STATE_TABLE = [
+				{ # 0
+					enter: () ->
+						@output = "<"
+						@GO(1)
+				}
+				{ # 1
+					def: (c) -> @output += c.toUpperCase()
+					eof: @GO(2)
+				}
+				{ # 2
+					enter: () -> @output += ">"
+				}
+			]
+			constructor: () ->
+				super(TestMachine.STATE_TABLE)
+				@output = ""
+		m = new TestMachine()
+		assertEqual(m.run("hello").output, "<HELLO>")
+		assertEqual(m.run("hi").output, "<HI>")
+)
+
 
 testGroup("Synth",
 	basic_node: () -> assertEqual($.synth("style").toString(), "$([<style/>])")

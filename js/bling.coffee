@@ -369,6 +369,13 @@ Object.Extend Event,
 								break
 					setTimeout next, n
 					return @
+				@cancel = (f) =>
+					if not Object.IsFunc(f)
+						throw Error "function expected, got #{Object.Type(f)}"
+					for i in [0...@length]
+						if @[i] == f
+							@splice(i, 1)
+							break
 		timeoutQueue = new TimeoutQueue
 
 		getter = (prop) -> # used in .zip()
@@ -391,7 +398,8 @@ Object.Extend Event,
 				delay: (n, f) ->
 					if f
 						timeoutQueue.schedule(f, n)
-					null # TODO: return an actor that can cancel
+					# return an actor that can cancel
+					return { cancel: () -> timeoutQueue.cancel(f) }
 
 			eq: (i) -> # .eq(/i/) - a new set containing only the /i/th item
 				a = $([@[i]])
@@ -792,11 +800,11 @@ Object.Extend Event,
 			() ->
 				window.getComputedStyle(@, null).getPropertyValue(k)
 
-		dataNameToAttr = (k) ->
+		A = "A".charCodeAt(0)
+		Z = "Z".charCodeAt(0)
+		a = "a".charCodeAt(0)
+		dashName = (k) ->
 			ret = []
-			A = "A".charCodeAt(0)
-			Z = "Z".charCodeAt(0)
-			a = "a".charCodeAt(0)
 			for i in [0...k.length]
 				c = k.charCodeAt i
 				if Z >= c >= A
@@ -804,7 +812,11 @@ Object.Extend Event,
 					ret.push "-"
 				ret.push String.fromCharCode(c)
 			return ret.join("")
-
+		camelName = (k) ->
+			i = k.indexOf('-')
+			while i > -1
+				k = String.Splice(k, i, i+2, k[i+1].toUpperCase())
+				i = k.indexOf('-')
 
 		return {
 			name: 'Html'
@@ -831,7 +843,6 @@ Object.Extend Event,
 								d.appendChild(n)
 								ret = d.innerHTML # serialize to a string
 								d.removeChild(n) # clean up to prevent leaks
-								# delete n
 								ret
 							else "unknown type: " + Object.Type(n)
 					escape: (h) -> # $.HTML.escape(/h/) - accept html string /h/, a string with html-escapes like &amp;
@@ -842,8 +853,8 @@ Object.Extend Event,
 						# clean up so escaped content isn't leaked into the DOM
 						escaper.zap('data', '')
 						ret
-				dataName: (k) ->
-					return dataNameToAttr(k)
+				dashName: dashName
+				camelName: camelName
 
 			html: (h) -> # .html([h]) - get [or set] /x/.innerHTML for each node
 				switch Object.Type h
@@ -934,6 +945,7 @@ Object.Extend Event,
 				j = 0
 				# first node gets the real n
 				@take(1).each () ->
+					$.log "replace first"
 					@parentNode?.replaceChild(n, @)
 					b[j++] = n
 				# the rest get clones of n
@@ -1169,7 +1181,7 @@ Object.Extend Event,
 						null
 
 			data: (k, v) ->
-				k = "data-#{dataNameToAttr(k)}"
+				k = "data-#{dashName(k)}"
 				$(this).attr(k, v)
 
 			toFragment: () ->
@@ -1494,7 +1506,7 @@ Object.Extend Event,
 			ret[x] = binder(x)
 		return ret
 
-	$.plugin () -> # Transform plugin
+	$.plugin () -> # Transform plugin, for accelerated animations
 		speeds = # constant speed names
 			"slow": 700
 			"medium": 500
@@ -1523,8 +1535,6 @@ Object.Extend Event,
 			transitionProperty = "-o-transition-property"
 			transitionDuration = "-o-transition-duration"
 			transitionTiming = "-o-transition-timing-function"
-
-		# delete testStyle
 
 		return {
 			name: 'Transform'
@@ -1732,20 +1742,22 @@ Object.Extend Event,
 		}
 
 	$.plugin () -> # Template plugin
-		match_forward = (text, find, against, start, stop) ->
+		match_forward = (text, find, against, start, stop = -1) ->
 			count = 1
-			if stop == null or stop is -1
-				stop = text.length
+			if stop < 0
+				stop = text.length + 1 + stop
 			for i in [start...stop]
-				if text[i] is against
+				t = text[i]
+				if t is against
 					count += 1
-				else if text[i] is find
+				else if t is find
 					count -= 1
 				if count is 0
 					return i
 			return -1
 
 		# the regex for the format specifiers in templates (from python)
+		# splits the format piece (%.2f, etc) into [key, pad, fixed, type, remainder]
 		type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/
 		chunk_re = /%[\(\/]/
 
@@ -1777,7 +1789,7 @@ Object.Extend Event,
 
 		render = (text, values) -> # $.render(/t/, /v/) - replace markers in string /t/ with values from /v/
 			cache = compile.cache[text] # get the cached version
-			if cache == null
+			if not cache?
 				cache = compile.cache[text] = compile(text) # or compile and cache it
 			output = [cache[0]] # the first block is always just text
 			j = 1 # insert marker into output
@@ -1809,182 +1821,243 @@ Object.Extend Event,
 				output[j++] = rest
 			output.join ""
 
-		# mode names for the synth machine
-		TAGMODE = 0
-		IDMODE = 1
-		CLSMODE = 2
-		ATTRMODE = 3
-		VALMODE = 4
-		DTEXTMODE = 5
-		STEXTMODE = 6
-
-		synth = (expr) -> # $.synth(/expr/) - given a CSS expression, create DOM nodes that match
-			parent = null
-			tag = id = cls = attr = val = text = ""
-			attrs = {}
-			mode = TAGMODE
-			ret = $([])
-			ret.selector = expr
-			emitText = () -> # puts a TextNode in the results
-				node = $.HTML.parse text
-				if parent
-					parent.appendChild node
-				else
-					ret.push node
-				text = ""
-				TAGMODE
-			emitNode = () -> # puts a Node in the results
-				node = document.createElement(tag)
-				node.id = id or null
-				node.className = cls or null
-				for k of attrs
-					node.setAttribute k, attrs[k]
-				if parent
-					parent.appendChild node
-				else
-					ret.push node
-				parent = node
-				tag = id = cls = attr = val = text = ""
-				attrs = {}
-				TAGMODE
-			emitNodeAndReset = () ->
-				emitNode()
-				parent = null
-				TAGMODE
-			emitNodeAndSkip = () ->
-				emitNode()
-				if parent
-					parent = parent.parentNode
-				TAGMODE
-
-			beginClass = () -> cls += " " if cls.length > 0; CLSMODE
-			addToClass = (c) -> cls += c; null
-			beginAttr = () -> ATTRMODE
-			addToAttr = (c) -> attr += c; null
-			beginVal = () -> VALMODE
-			addToVal = (c) -> val += c; null
-			endAttr = () -> attrs[attr] = val; attr = val = ""; TAGMODE
-			beginId = () -> IDMODE
-			addToId = (c) -> id += c; null
-			beginDText = () -> DTEXTMODE
-			beginSText = () -> STEXTMODE
-			addToText = (c) -> text += c; null
-			addToTag = (c) -> tag += c; null
-
-			parse_table = [
-				{ # TAGMODE
-					'"': beginDText
-					"'": beginSText
-					"#": beginId
-					".": beginClass
-					"[": beginAttr
-					"+": emitNodeAndSkip
-					" ": emitNode
-					",": emitNodeAndReset
-					def: addToTag
-				},
-				{ # IDMODE
-					".": beginClass
-					"[": beginAttr
-					"+": emitNodeAndSkip
-					" ": emitNode
-					",": emitNodeAndReset
-					def: addToId
-				},
-				{ # CLSMODE
-					"#": beginId
-					".": beginClass
-					"[": beginAttr
-					"+": emitNodeAndSkip
-					" ": emitNode
-					",": emitNodeAndReset
-					def: addToClass
-				},
-				{ # ATTRMODE
-					"=": beginVal
-					"]": endAttr
-					def: addToAttr
-				},
-				{ # VALMODE
-					"]": endAttr
-					def: addToVal
-				},
-				{ # DTEXTMODE
-					'"': emitText
-					def: addToText
-				},
-				{ # STEXTMODE
-					"'": emitText
-					def: addToText
-				}
-			]
-
-			i = 0 # i is a read-marker within expr
-			# 'c' steps across the input, one character at a time
-			while c = expr[i++]
-				starting_mode = mode
-				modeline = parse_table[mode]
-				if c of modeline
-					mode = modeline[c](c)
-				else
-					mode = modeline['def'](c)
-				if mode is null
-					mode = starting_mode
-				# console.log "#{starting_mode} -> '#{c}' -> #{mode}"
-
-			emitNode() if tag.length > 0
-			emitText() if text.length > 0
-			return ret
-
-		{
+		return {
 			name: 'Template'
 			$:
 				render: render
-				synth: synth
 
 			template: (defaults) ->
 				# .template([defaults]) - mark nodes as templates, add optional defaults to .render()
-				# if defaults is passed, these will be the default values for v in .render(v)
 				@render = (args) ->
-					# an over-ride of the basic .render() that applies these defaults
+					# over-ride .render() to apply the defaults
 					render(@map($.HTML.stringify).join(""), Object.Extend(defaults,args))
 				@remove() # the template item itself should not be in the DOM
 
 			render: (args) ->
 				# .render(args) - replace %(var)s-type strings with values from args
-				# accepts nodes, returns a string
 				render(@map($.HTML.stringify).join(""), args)
+		}
+	
+	$.plugin () -> # Hash plugin
+		return {
+			name: "Hash"
+			$:
+				hash: (x) -> # .hash() - return a hash-code for the set
+					h = 0
+					for i in x
+						h += switch Object.Type(i)
+							when "string" then String.Checksum(i)
+							when "number" then String.Checksum(String(i))
+							when "bling" then $.hash(i)
+							when "array" then $.hash(i)
+							when "nodelist" then $.hash(i)
+							when "object" then String.Checksum(i.toString())
+		}
 
-			synth: (expr) ->
-				# .synth(expr) - create DOM nodes to match a simple css expression
-				# supports the following css selectors:
-				# tag, #id, .class, [attr=val]
-				# and the additional helper "text"
-				synth(expr).appendTo @
+	$.plugin () -> # Memoize plugin, depends on Hash
+		cache = {}
+		return {
+			name: "Memoize"
+			$:
+				memoize: (f) ->
+					cache[f] = {}
+					return (a...) ->
+						h = $.hash(a)
+						m = cache[f]
+						if h of m
+							m[h]
+						else
+							m[h] = f.apply @, a
+		}
+
+	$.plugin () -> # StateMachine plugin
+		class StateMachine
+			constructor: (stateTable) ->
+				@reset()
+				@table = stateTable
+				@.__defineGetter__ "modeline", () -> @table[@_mode]
+				@.__defineSetter__ "mode", (m) ->
+					@_lastMode = @_mode
+					@_mode = m
+					if @_mode isnt @_lastMode and 'enter' of @modeline
+						ret = @modeline['enter'].call @
+						while Object.IsFunc(ret)
+							ret = ret.call @
+				@.__defineGetter__ "mode", () -> @_mode
+
+			reset: () ->
+				@_mode = null
+				@_lastMode = null
+
+			# static and instance versions of a state-changer factory
+			GO: (m) -> () -> @mode = m
+			@GO: (m) -> () -> @mode = m
+
+			run: (input) ->
+				@mode = 0
+				for c in input
+					row = @modeline
+					if c of row
+						ret = row[c]
+					else if 'def' of row
+						ret = row['def']
+					while Object.IsFunc(ret)
+						ret = ret.call @, c
+				if 'eof' of @modeline
+					ret = @modeline['eof'].call @
+				while Object.IsFunc(ret)
+					ret = ret.call @
+				@reset()
+				return @
+		return {
+			name: "StateMachine"
+			$:
+				StateMachine: StateMachine
+		}
+
+	$.plugin () -> # Synth plugin, depends on StateMachine
+
+		class SynthMachine extends $.StateMachine
+			@STATE_TABLE = [
+				{ # 0
+					enter: () ->
+						@tag = @id = @cls = @attr = @val = @text = ""
+						@attrs = {}
+						@GO(1)
+				},
+				{ # 1
+					'"': @GO(6), "'": @GO(7), "#": @GO(2), ".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
+					def: (c) -> @tag += c
+					eof: @GO(13)
+				},
+				{ # 2
+					".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
+					def: (c) -> @id += c
+					eof: @GO(13)
+				},
+				{ # 3
+					enter: () -> @cls += " " if @cls.length > 0
+					"#": @GO(2), ".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
+					def: (c) -> @cls += c
+					eof: @GO(13)
+				},
+				{ # 4
+					"=": @GO(5)
+					"]": () -> @attrs[@attr] = @val; @GO(1)
+					def: (c) -> @attr += c
+					eof: @GO(12)
+				},
+				{ # 5
+					"]": () -> @attrs[@attr] = @val; @GO(1)
+					def: (c) -> @val += c
+					eof: @GO(12)
+				},
+				{ # 6
+					'"': @GO(8)
+					def: (c) -> @text += c
+					eof: @GO(12)
+				},
+				{ # 7
+					"'": @GO(8)
+					def: (c) -> @text += c
+					eof: @GO(12)
+				},
+				{ # 8
+					enter: () ->
+						@emitText()
+						@GO(0)
+				},
+				{ # DESCEND
+					enter: () ->
+						@emitNode()
+						@GO(0)
+				},
+				{ # RESET
+					enter: () ->
+						@emitNode()
+						@parent = null
+						@GO(0)
+				},
+				{ # SIBLING
+					enter: () ->
+						@emitNode()
+						@parent = @parent?.parentNode
+						@GO(0)
+				},
+				{ # ERROR
+					enter: () -> $.log "Error in synth expression: #{@input}"
+				},
+				{ # FINALIZE
+					enter: () ->
+						@emitNode() if @tag.length
+						@emitText() if @text.length
+				}
+			]
+			constructor: () ->
+				super(SynthMachine.STATE_TABLE)
+				@fragment = @parent = document.createDocumentFragment()
+			emitNode: () ->
+				node = document.createElement(@tag)
+				node.id = @id or null
+				node.className = @cls or null
+				for k of @attrs
+					node.setAttribute k, @attrs[k]
+				@parent.appendChild node
+				@parent = node
+			emitText: () ->
+				@parent.appendChild $.HTML.parse(@text)
+				@text = ""
+
+		synth = (expr) ->
+
+		return {
+			name: "Synth"
+			$:
+				synth: (expr) ->
+					# .synth(expr) - create DOM nodes to match a simple css expression
+					s = new SynthMachine()
+					s.run(expr)
+					if s.fragment.childNodes.length == 1
+						$(s.fragment.childNodes[0])
+					else
+						$(s.fragment)
 		}
 
 	$.plugin () -> # Pub/Sub plugin
-		handlers = {}
-		event_log = {}
-		{
-			name: "Pub/Sub"
+		subscribers = {} # a mapping of channel name to a list of subscribers
+		archive = {} # archive published events here, so they can be replayed if necessary
+		archive_limit = 1000 # maximum number of events (per type) to archive
+		archive_trim = 100 # how much to trim all at once if we go over the maximum
+
+		publish = (e, args = []) ->
+			$.log "published: #{e}", args
+			archive[e] ?= []
+			archive[e].push(args)
+			if archive[e].length > archive_limit
+				archive[e].splice(0, archive_trim)
+			for func in subscribers[e]
+				func.apply window, args
+
+		subscribe = (e, func, replay = true) ->
+			subscribers[e] ?= []
+			subscribers[e].push(func)
+			# replay the publish archive
+			if replay
+				for args in archive[e]
+					$.log "replayed: #{e}", args
+					func.apply window, args
+
+		# expose these for advanced users
+		publish.__defineSetter__ 'limit', (n) ->
+			archive_limit = n
+		publish.__defineSetter__ 'trim', (n) ->
+			archive_trim = n
+
+		return {
+			name: "PubSub"
 			$:
-				publish: (e, args = []) ->
-					$.log "published: #{e}", args
-					event_log[e] ?= []
-					event_log[e].push(args)
-					if e of handlers
-						for func in handlers[e]
-							func.apply window, args
-				subscribe: (e, func) ->
-					handlers[e] ?= []
-					# replay the event log
-					if e of event_log
-						for args in event_log[e]
-							$.log "replayed: #{e}", args
-							func.apply window, args
-					# save func for future events
-					handlers[e].push(func)
+				publish: publish
+				subscribe: subscribe
 		}
 
 	$.plugin () -> # LazyLoader plugin

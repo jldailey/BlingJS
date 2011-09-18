@@ -513,6 +513,20 @@
             setTimeout(next, n);
             return this;
           }, this);
+          this.cancel = __bind(function(f) {
+            var i, _ref, _results;
+            if (!Object.IsFunc(f)) {
+              throw Error("function expected, got " + (Object.Type(f)));
+            }
+            _results = [];
+            for (i = 0, _ref = this.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
+              if (this[i] === f) {
+                this.splice(i, 1);
+                break;
+              }
+            }
+            return _results;
+          }, this);
         }
         return TimeoutQueue;
       })();
@@ -543,7 +557,11 @@
             if (f) {
               timeoutQueue.schedule(f, n);
             }
-            return null;
+            return {
+              cancel: function() {
+                return timeoutQueue.cancel(f);
+              }
+            };
           }
         },
         eq: function(i) {
@@ -971,7 +989,7 @@
       };
     });
     $.plugin(function() {
-      var after, before, dataNameToAttr, escaper, getCSSProperty, toNode;
+      var A, Z, a, after, before, camelName, dashName, escaper, getCSSProperty, toNode;
       before = function(a, b) {
         var df;
         if (!(a.parentNode != null)) {
@@ -1010,12 +1028,12 @@
           return window.getComputedStyle(this, null).getPropertyValue(k);
         };
       };
-      dataNameToAttr = function(k) {
-        var A, Z, a, c, i, ret, _ref;
+      A = "A".charCodeAt(0);
+      Z = "Z".charCodeAt(0);
+      a = "a".charCodeAt(0);
+      dashName = function(k) {
+        var c, i, ret, _ref;
         ret = [];
-        A = "A".charCodeAt(0);
-        Z = "Z".charCodeAt(0);
-        a = "a".charCodeAt(0);
         for (i = 0, _ref = k.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
           c = k.charCodeAt(i);
           if ((Z >= c && c >= A)) {
@@ -1025,6 +1043,16 @@
           ret.push(String.fromCharCode(c));
         }
         return ret.join("");
+      };
+      camelName = function(k) {
+        var i, _results;
+        i = k.indexOf('-');
+        _results = [];
+        while (i > -1) {
+          k = String.Splice(k, i, i + 2, k[i + 1].toUpperCase());
+          _results.push(i = k.indexOf('-'));
+        }
+        return _results;
       };
       return {
         name: 'Html',
@@ -1069,9 +1097,8 @@
               return ret;
             }
           },
-          dataName: function(k) {
-            return dataNameToAttr(k);
-          }
+          dashName: dashName,
+          camelName: camelName
         },
         html: function(h) {
           switch (Object.Type(h)) {
@@ -1094,7 +1121,6 @@
           }
         },
         append: function(x) {
-          var a;
           x = toNode(x);
           a = this.zip('appendChild');
           a.take(1).call(x);
@@ -1187,6 +1213,7 @@
           j = 0;
           this.take(1).each(function() {
             var _ref;
+            $.log("replace first");
             if ((_ref = this.parentNode) != null) {
               _ref.replaceChild(n, this);
             }
@@ -1476,7 +1503,7 @@
           });
         },
         data: function(k, v) {
-          k = "data-" + (dataNameToAttr(k));
+          k = "data-" + (dashName(k));
           return $(this).attr(k, v);
         },
         toFragment: function() {
@@ -2093,17 +2120,21 @@
       };
     });
     $.plugin(function() {
-      var ATTRMODE, CLSMODE, DTEXTMODE, IDMODE, STEXTMODE, TAGMODE, VALMODE, chunk_re, compile, match_forward, render, synth, type_re;
+      var chunk_re, compile, match_forward, render, type_re;
       match_forward = function(text, find, against, start, stop) {
-        var count, i;
+        var count, i, t;
+        if (stop == null) {
+          stop = -1;
+        }
         count = 1;
-        if (stop === null || stop === -1) {
-          stop = text.length;
+        if (stop < 0) {
+          stop = text.length + 1 + stop;
         }
         for (i = start; start <= stop ? i < stop : i > stop; start <= stop ? i++ : i--) {
-          if (text[i] === against) {
+          t = text[i];
+          if (t === against) {
             count += 1;
-          } else if (text[i] === find) {
+          } else if (t === find) {
             count -= 1;
           }
           if (count === 0) {
@@ -2144,7 +2175,7 @@
       render = function(text, values) {
         var cache, fixed, i, j, key, n, output, pad, rest, type, value, _ref, _ref2;
         cache = compile.cache[text];
-        if (cache === null) {
+        if (!(cache != null)) {
           cache = compile.cache[text] = compile(text);
         }
         output = [cache[0]];
@@ -2176,179 +2207,10 @@
         }
         return output.join("");
       };
-      TAGMODE = 0;
-      IDMODE = 1;
-      CLSMODE = 2;
-      ATTRMODE = 3;
-      VALMODE = 4;
-      DTEXTMODE = 5;
-      STEXTMODE = 6;
-      synth = function(expr) {
-        var addToAttr, addToClass, addToId, addToTag, addToText, addToVal, attr, attrs, beginAttr, beginClass, beginDText, beginId, beginSText, beginVal, c, cls, emitNode, emitNodeAndReset, emitNodeAndSkip, emitText, endAttr, i, id, mode, modeline, parent, parse_table, ret, starting_mode, tag, text, val;
-        parent = null;
-        tag = id = cls = attr = val = text = "";
-        attrs = {};
-        mode = TAGMODE;
-        ret = $([]);
-        ret.selector = expr;
-        emitText = function() {
-          var node;
-          node = $.HTML.parse(text);
-          if (parent) {
-            parent.appendChild(node);
-          } else {
-            ret.push(node);
-          }
-          text = "";
-          return TAGMODE;
-        };
-        emitNode = function() {
-          var k, node;
-          node = document.createElement(tag);
-          node.id = id || null;
-          node.className = cls || null;
-          for (k in attrs) {
-            node.setAttribute(k, attrs[k]);
-          }
-          if (parent) {
-            parent.appendChild(node);
-          } else {
-            ret.push(node);
-          }
-          parent = node;
-          tag = id = cls = attr = val = text = "";
-          attrs = {};
-          return TAGMODE;
-        };
-        emitNodeAndReset = function() {
-          emitNode();
-          parent = null;
-          return TAGMODE;
-        };
-        emitNodeAndSkip = function() {
-          emitNode();
-          if (parent) {
-            parent = parent.parentNode;
-          }
-          return TAGMODE;
-        };
-        beginClass = function() {
-          if (cls.length > 0) {
-            cls += " ";
-          }
-          return CLSMODE;
-        };
-        addToClass = function(c) {
-          cls += c;
-          return null;
-        };
-        beginAttr = function() {
-          return ATTRMODE;
-        };
-        addToAttr = function(c) {
-          attr += c;
-          return null;
-        };
-        beginVal = function() {
-          return VALMODE;
-        };
-        addToVal = function(c) {
-          val += c;
-          return null;
-        };
-        endAttr = function() {
-          attrs[attr] = val;
-          attr = val = "";
-          return TAGMODE;
-        };
-        beginId = function() {
-          return IDMODE;
-        };
-        addToId = function(c) {
-          id += c;
-          return null;
-        };
-        beginDText = function() {
-          return DTEXTMODE;
-        };
-        beginSText = function() {
-          return STEXTMODE;
-        };
-        addToText = function(c) {
-          text += c;
-          return null;
-        };
-        addToTag = function(c) {
-          tag += c;
-          return null;
-        };
-        parse_table = [
-          {
-            '"': beginDText,
-            "'": beginSText,
-            "#": beginId,
-            ".": beginClass,
-            "[": beginAttr,
-            "+": emitNodeAndSkip,
-            " ": emitNode,
-            ",": emitNodeAndReset,
-            def: addToTag
-          }, {
-            ".": beginClass,
-            "[": beginAttr,
-            "+": emitNodeAndSkip,
-            " ": emitNode,
-            ",": emitNodeAndReset,
-            def: addToId
-          }, {
-            "#": beginId,
-            ".": beginClass,
-            "[": beginAttr,
-            "+": emitNodeAndSkip,
-            " ": emitNode,
-            ",": emitNodeAndReset,
-            def: addToClass
-          }, {
-            "=": beginVal,
-            "]": endAttr,
-            def: addToAttr
-          }, {
-            "]": endAttr,
-            def: addToVal
-          }, {
-            '"': emitText,
-            def: addToText
-          }, {
-            "'": emitText,
-            def: addToText
-          }
-        ];
-        i = 0;
-        while (c = expr[i++]) {
-          starting_mode = mode;
-          modeline = parse_table[mode];
-          if (c in modeline) {
-            mode = modeline[c](c);
-          } else {
-            mode = modeline['def'](c);
-          }
-          if (mode === null) {
-            mode = starting_mode;
-          }
-        }
-        if (tag.length > 0) {
-          emitNode();
-        }
-        if (text.length > 0) {
-          emitText();
-        }
-        return ret;
-      };
       return {
         name: 'Template',
         $: {
-          render: render,
-          synth: synth
+          render: render
         },
         template: function(defaults) {
           this.render = function(args) {
@@ -2358,54 +2220,352 @@
         },
         render: function(args) {
           return render(this.map($.HTML.stringify).join(""), args);
-        },
-        synth: function(expr) {
-          return synth(expr).appendTo(this);
         }
       };
     });
     $.plugin(function() {
-      var event_log, handlers;
-      handlers = {};
-      event_log = {};
       return {
-        name: "Pub/Sub",
+        name: "Hash",
         $: {
-          publish: function(e, args) {
-            var func, _i, _len, _ref, _ref2, _results;
-            if (args == null) {
-              args = [];
+          hash: function(x) {
+            var h, i, _i, _len, _results;
+            h = 0;
+            _results = [];
+            for (_i = 0, _len = x.length; _i < _len; _i++) {
+              i = x[_i];
+              _results.push(h += (function() {
+                switch (Object.Type(i)) {
+                  case "string":
+                    return String.Checksum(i);
+                  case "number":
+                    return String.Checksum(String(i));
+                  case "bling":
+                    return $.hash(i);
+                  case "array":
+                    return $.hash(i);
+                  case "nodelist":
+                    return $.hash(i);
+                  case "object":
+                    return String.Checksum(i.toString());
+                }
+              })());
             }
-            $.log("published: " + e, args);
-            if ((_ref = event_log[e]) == null) {
-              event_log[e] = [];
-            }
-            event_log[e].push(args);
-            if (e in handlers) {
-              _ref2 = handlers[e];
+            return _results;
+          }
+        }
+      };
+    });
+    $.plugin(function() {
+      var cache;
+      cache = {};
+      return {
+        name: "Memoize",
+        $: {
+          memoize: function(f) {
+            cache[f] = {};
+            return function() {
+              var a, h, m;
+              a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+              h = $.hash(a);
+              m = cache[f];
+              if (h in m) {
+                return m[h];
+              } else {
+                return m[h] = f.apply(this, a);
+              }
+            };
+          }
+        }
+      };
+    });
+    $.plugin(function() {
+      var StateMachine;
+      StateMachine = (function() {
+        function StateMachine(stateTable) {
+          this.reset();
+          this.table = stateTable;
+          this.__defineGetter__("modeline", function() {
+            return this.table[this._mode];
+          });
+          this.__defineSetter__("mode", function(m) {
+            var ret, _results;
+            this._lastMode = this._mode;
+            this._mode = m;
+            if (this._mode !== this._lastMode && 'enter' in this.modeline) {
+              ret = this.modeline['enter'].call(this);
               _results = [];
-              for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
-                func = _ref2[_i];
-                _results.push(func.apply(window, args));
+              while (Object.IsFunc(ret)) {
+                _results.push(ret = ret.call(this));
               }
               return _results;
             }
-          },
-          subscribe: function(e, func) {
-            var args, _i, _len, _ref, _ref2;
-            if ((_ref = handlers[e]) == null) {
-              handlers[e] = [];
+          });
+          this.__defineGetter__("mode", function() {
+            return this._mode;
+          });
+        }
+        StateMachine.prototype.reset = function() {
+          this._mode = null;
+          return this._lastMode = null;
+        };
+        StateMachine.prototype.GO = function(m) {
+          return function() {
+            return this.mode = m;
+          };
+        };
+        StateMachine.GO = function(m) {
+          return function() {
+            return this.mode = m;
+          };
+        };
+        StateMachine.prototype.run = function(input) {
+          var c, ret, row, _i, _len;
+          this.mode = 0;
+          for (_i = 0, _len = input.length; _i < _len; _i++) {
+            c = input[_i];
+            row = this.modeline;
+            if (c in row) {
+              ret = row[c];
+            } else if ('def' in row) {
+              ret = row['def'];
             }
-            if (e in event_log) {
-              _ref2 = event_log[e];
-              for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
-                args = _ref2[_i];
-                $.log("replayed: " + e, args);
-                func.apply(window, args);
+            while (Object.IsFunc(ret)) {
+              ret = ret.call(this, c);
+            }
+          }
+          if ('eof' in this.modeline) {
+            ret = this.modeline['eof'].call(this);
+          }
+          while (Object.IsFunc(ret)) {
+            ret = ret.call(this);
+          }
+          this.reset();
+          return this;
+        };
+        return StateMachine;
+      })();
+      return {
+        name: "StateMachine",
+        $: {
+          StateMachine: StateMachine
+        }
+      };
+    });
+    $.plugin(function() {
+      var SynthMachine, synth;
+      SynthMachine = (function() {
+        __extends(SynthMachine, $.StateMachine);
+        SynthMachine.STATE_TABLE = [
+          {
+            enter: function() {
+              this.tag = this.id = this.cls = this.attr = this.val = this.text = "";
+              this.attrs = {};
+              return this.GO(1);
+            }
+          }, {
+            '"': SynthMachine.GO(6),
+            "'": SynthMachine.GO(7),
+            "#": SynthMachine.GO(2),
+            ".": SynthMachine.GO(3),
+            "[": SynthMachine.GO(4),
+            " ": SynthMachine.GO(9),
+            "+": SynthMachine.GO(11),
+            ",": SynthMachine.GO(10),
+            def: function(c) {
+              return this.tag += c;
+            },
+            eof: SynthMachine.GO(13)
+          }, {
+            ".": SynthMachine.GO(3),
+            "[": SynthMachine.GO(4),
+            " ": SynthMachine.GO(9),
+            "+": SynthMachine.GO(11),
+            ",": SynthMachine.GO(10),
+            def: function(c) {
+              return this.id += c;
+            },
+            eof: SynthMachine.GO(13)
+          }, {
+            enter: function() {
+              if (this.cls.length > 0) {
+                return this.cls += " ";
+              }
+            },
+            "#": SynthMachine.GO(2),
+            ".": SynthMachine.GO(3),
+            "[": SynthMachine.GO(4),
+            " ": SynthMachine.GO(9),
+            "+": SynthMachine.GO(11),
+            ",": SynthMachine.GO(10),
+            def: function(c) {
+              return this.cls += c;
+            },
+            eof: SynthMachine.GO(13)
+          }, {
+            "=": SynthMachine.GO(5),
+            "]": function() {
+              this.attrs[this.attr] = this.val;
+              return this.GO(1);
+            },
+            def: function(c) {
+              return this.attr += c;
+            },
+            eof: SynthMachine.GO(12)
+          }, {
+            "]": function() {
+              this.attrs[this.attr] = this.val;
+              return this.GO(1);
+            },
+            def: function(c) {
+              return this.val += c;
+            },
+            eof: SynthMachine.GO(12)
+          }, {
+            '"': SynthMachine.GO(8),
+            def: function(c) {
+              return this.text += c;
+            },
+            eof: SynthMachine.GO(12)
+          }, {
+            "'": SynthMachine.GO(8),
+            def: function(c) {
+              return this.text += c;
+            },
+            eof: SynthMachine.GO(12)
+          }, {
+            enter: function() {
+              this.emitText();
+              return this.GO(0);
+            }
+          }, {
+            enter: function() {
+              this.emitNode();
+              return this.GO(0);
+            }
+          }, {
+            enter: function() {
+              this.emitNode();
+              this.parent = null;
+              return this.GO(0);
+            }
+          }, {
+            enter: function() {
+              var _ref;
+              this.emitNode();
+              this.parent = (_ref = this.parent) != null ? _ref.parentNode : void 0;
+              return this.GO(0);
+            }
+          }, {
+            enter: function() {
+              return $.log("Error in synth expression: " + this.input);
+            }
+          }, {
+            enter: function() {
+              if (this.tag.length) {
+                this.emitNode();
+              }
+              if (this.text.length) {
+                return this.emitText();
               }
             }
-            return handlers[e].push(func);
           }
+        ];
+        function SynthMachine() {
+          SynthMachine.__super__.constructor.call(this, SynthMachine.STATE_TABLE);
+          this.fragment = this.parent = document.createDocumentFragment();
+        }
+        SynthMachine.prototype.emitNode = function() {
+          var k, node;
+          node = document.createElement(this.tag);
+          node.id = this.id || null;
+          node.className = this.cls || null;
+          for (k in this.attrs) {
+            node.setAttribute(k, this.attrs[k]);
+          }
+          this.parent.appendChild(node);
+          return this.parent = node;
+        };
+        SynthMachine.prototype.emitText = function() {
+          this.parent.appendChild($.HTML.parse(this.text));
+          return this.text = "";
+        };
+        return SynthMachine;
+      })();
+      synth = function(expr) {};
+      return {
+        name: "Synth",
+        $: {
+          synth: function(expr) {
+            var s;
+            s = new SynthMachine();
+            s.run(expr);
+            if (s.fragment.childNodes.length === 1) {
+              return $(s.fragment.childNodes[0]);
+            } else {
+              return $(s.fragment);
+            }
+          }
+        }
+      };
+    });
+    $.plugin(function() {
+      var archive, archive_limit, archive_trim, publish, subscribe, subscribers;
+      subscribers = {};
+      archive = {};
+      archive_limit = 1000;
+      archive_trim = 100;
+      publish = function(e, args) {
+        var func, _i, _len, _ref, _ref2, _results;
+        if (args == null) {
+          args = [];
+        }
+        $.log("published: " + e, args);
+        if ((_ref = archive[e]) == null) {
+          archive[e] = [];
+        }
+        archive[e].push(args);
+        if (archive[e].length > archive_limit) {
+          archive[e].splice(0, archive_trim);
+        }
+        _ref2 = subscribers[e];
+        _results = [];
+        for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
+          func = _ref2[_i];
+          _results.push(func.apply(window, args));
+        }
+        return _results;
+      };
+      subscribe = function(e, func, replay) {
+        var args, _i, _len, _ref, _ref2, _results;
+        if (replay == null) {
+          replay = true;
+        }
+        if ((_ref = subscribers[e]) == null) {
+          subscribers[e] = [];
+        }
+        subscribers[e].push(func);
+        if (replay) {
+          _ref2 = archive[e];
+          _results = [];
+          for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
+            args = _ref2[_i];
+            $.log("replayed: " + e, args);
+            _results.push(func.apply(window, args));
+          }
+          return _results;
+        }
+      };
+      publish.__defineSetter__('limit', function(n) {
+        return archive_limit = n;
+      });
+      publish.__defineSetter__('trim', function(n) {
+        return archive_trim = n;
+      });
+      return {
+        name: "PubSub",
+        $: {
+          publish: publish,
+          subscribe: subscribe
         }
       };
     });

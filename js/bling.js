@@ -394,11 +394,15 @@
       }
     };
     $.plugin(function() {
-      var symbol;
+      var preserve, symbol;
       symbol = null;
+      preserve = {};
       $.__defineSetter__("symbol", function(v) {
-        if (symbol in window) {
-          delete window[symbol];
+        if (symbol in preserve) {
+          window[symbol] = preserve[symbol];
+        }
+        if (v in window) {
+          preserve[v] = window[v];
         }
         symbol = v;
         return window[v] = Bling;

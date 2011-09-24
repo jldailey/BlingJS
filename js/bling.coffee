@@ -271,11 +271,14 @@ Object.Extend Event,
 			# log error.message
 			throw error
 
-	$.plugin () -> # Symbol - allow use of something other than $ by assigning to Bling.symbol
+	$.plugin () -> # Symbol - allow to safely use something other than $ by assigning to Bling.symbol
 		symbol = null
+		preserve = {}
 		$.__defineSetter__ "symbol", (v) ->
-			if symbol of window
-				delete window[symbol]
+			if symbol of preserve
+				window[symbol] = preserve[symbol]
+			if v of window
+				preserve[v] = window[v]
 			symbol = v
 			window[v] = Bling
 		$.__defineGetter__ "symbol", () -> symbol

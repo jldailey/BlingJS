@@ -945,7 +945,6 @@ Object.Extend Event,
 				j = 0
 				# first node gets the real n
 				@take(1).each () ->
-					$.log "replace first"
 					@parentNode?.replaceChild(n, @)
 					b[j++] = n
 				# the rest get clones of n
@@ -966,6 +965,10 @@ Object.Extend Event,
 						@zip("setAttribute").call(a, v)
 						return @
 
+			data: (k, v) ->
+				k = "data-#{dashName(k)}"
+				@attr(k, v)
+
 			addClass: (x) -> # .addClass(/x/) - add x to each node's .className
 				@removeClass(x).each () ->
 					c = @className.split(" ").filter (y) ->
@@ -974,14 +977,12 @@ Object.Extend Event,
 					@className = c.join " "
 
 			removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
-				notx = (y)->
-					y != x
+				notx = (y)-> y != x
 				@each () ->
-					@className = @className.split(" ").filter(notx).join(" ")
+					@className = @className?.split(" ").filter(notx).join(" ")
 
 			toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
-				notx = (y) ->
-					y != x
+				notx = (y) -> y != x
 				@each () ->
 					cls = @className.split(" ")
 					if( cls.indexOf(x) > -1 )
@@ -1179,10 +1180,6 @@ Object.Extend Event,
 						@cloneNode deep
 					else
 						null
-
-			data: (k, v) ->
-				k = "data-#{dashName(k)}"
-				$(this).attr(k, v)
 
 			toFragment: () ->
 				if @len() > 1

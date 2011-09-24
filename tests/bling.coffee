@@ -118,6 +118,11 @@ testGroup("Core",
 			sum += @
 		assertEqual(sum, 10)
 	map: () -> assertArrayEqual( $([1,2,3,4]).map( (x) -> x * x ), [1,4,9,16] )
+	map2: () ->
+		d = [1,2,3,4,5]
+		assertArrayEqual($(d).map(() -> @ * 2), [2,4,6,8,10])
+		# check that we get the same results when called twice (the original was not modified)
+		assertArrayEqual($(d).map(() -> @ * 2), [2,4,6,8,10])
 	reduce: () -> assertEqual( $([1,2,3,4]).reduce( (a,x) -> a + x ), 10)
 	union: () -> assertArrayEqual($([1,2,3,4]).union([2,3,4,5]), [1,2,3,4,5])
 	intersect: () -> assertArrayEqual($([1,2,3,4]).intersect([2,3,4,5]), [2,3,4])
@@ -182,46 +187,23 @@ testGroup("Core",
 )
 
 testGroup("HTML",
-	HTMLparse: () ->
+	parse: () ->
 		d = $.HTML.parse("<div><a></a><b></b><c></c></div>")
 		assertEqual( Object.Type(d), "node")
 		assertEqual( d.nodeName, "DIV")
-	zip_childNodes: () ->
-		d = $("<div><a></a><b></b><c></c></div>")
-		assertEqual( Object.Type(d), "bling")
-		assertEqual( d.length, 1)
-		assertEqual( Object.Type(d[0]), "node")
-		d = d.zip("childNodes")
-		assertEqual( Object.Type(d), "bling")
-		assertEqual( Object.Type(d[0]), "array" )
-		assertEqual( d[0].length, 3)
-	childN: () ->
-		d = $("<div><a></a><b></b><c></c></div>")
-		a = d.child(0)
-		assertEqual( Object.Type(a), "bling")
-		assertEqual( a.length, 1)
-		assertEqual( a[0].nodeName, "A")
-		b = d.child(1)
-		assertEqual( Object.Type(b), "bling")
-		assertEqual( b.length, 1)
-		assertEqual( b[0].nodeName, "B")
-		c = d.child(2)
-		assertEqual( Object.Type(c), "bling")
-		assertEqual( c.length, 1)
-		assertEqual( c[0].nodeName, "C")
+	stringify: () ->
+		h = "<div><a/><b/><c/></div>"
+		assertEqual( $.HTML.stringify($.HTML.parse(h)), h)
+	zip_childNodes: () -> assertEqual( $("<div><a></a><b></b><c></c></div>").zip("childNodes").flatten().map(Object.Type).toString(), "$([node, node, node])" )
+	child: () -> i = 0; d = $("<div><a></a><b></b><c></c></div>"); assertEqual( d.zip('childNodes').flatten().map( () -> d.child(i++) ).toString(), "$([$([<a/>]), $([<b/>]), $([<c/>])])")
 	textData: () ->
 		d = $("<div>&nbsp;</div>")
-		assertEqual( Object.Type(d), "bling")
-		assertEqual( d.length, 1 )
+		assertEqual( d.toString(), "$([<div>&nbsp;</div>])" )
 		t = d.child(0)
-		assertEqual( Object.Type(t), "bling")
-		assertEqual( t.length, 1 )
-		assertEqual( Object.Type(t[0]), "node")
+		assertEqual( t.toString(), "$([&nbsp;])")
 		t.zap('data', '<p>')
-		# console.log("innerHTML: " + d[0].innerHTML)
-		# console.log("toString: " + d[0].toString())
 		assertEqual( d.zip('innerHTML').first(), '&lt;p&gt;' )
-	HTMLescape: () -> assertEqual($.HTML.escape("<p>"), "&lt;p&gt;")
+	escape: () -> assertEqual($.HTML.escape("<p>"), "&lt;p&gt;")
 	dashName1: () -> assertEqual($.dashName("fooBar"), "foo-bar")
 	dashName2: () -> assertEqual($.dashName("FooBar"), "-foo-bar")
 	html: () -> assertEqual($("tr").html().first(), "<td>1,1</td><td>1,2</td>")
@@ -251,6 +233,20 @@ testGroup("HTML",
 	wrap: () -> assertEqual($("<b></b>").wrap("<a></a>").parent().toString(), "$([<a><b/></a>])")
 	unwrap: () -> assertEqual($("<a><b/></a>").find("b").unwrap().first().parentNode, null)
 	replace: () -> assertEqual($("<a><b/><c/><b/></a>").find("b").replace("<p/>").parent().eq(0).toString(), "$([<a><p/><c/><p/></a>])")
+	attr: () -> assertEqual($("<a href='#'></a>").attr("href").first(), "#")
+	attr2: () -> assertEqual($("<a data-lazy-href='#'></a>").attr("data-lazy-href").first(), "#")
+	attr3: () -> assertEqual($("<a data-lazy-href='#'></a>").attr("data-lazy-href","poop").attr("data-lazy-href").first(), "poop")
+	data: () -> assertEqual($("<a data-lazy-href='#'></a>").data("lazyHref").first(), "#")
+	data2: () -> assertEqual($("<a data-lazy-href='#'></a>").data("lazyHref","poop").data("lazyHref").first(), "poop")
+	removeClass: () -> assertEqual($("<a class='test'></a>").removeClass('test').toString(), "$([<a/>])")
+	removeClass2: () -> assertEqual($("<a></a>").removeClass('test').toString(), "$([<a/>])")
+	addClass: () -> assertEqual($("<a></a>").addClass("test").toString(), '$([<a class="test"/>])')
+	addClass2: () -> assertEqual($("<a class='test'></a>").addClass("test").toString(), '$([<a class="test"/>])')
+	addClass3: () -> assertEqual($("<a class='test test'></a>").addClass("test").toString(), '$([<a class="test"/>])')
+	toggleClass: () -> assertEqual($("<a class='on'></a>").toggleClass("on").toString(), "$([<a/>])")
+	toggleClass2: () -> assertEqual($("<a class='off'></a>").toggleClass("on").toString(), '$([<a class="off on"/>])')
+	toggleClass3: () -> assertEqual($("<a class=''></a>").toggleClass("on").toString(), '$([<a class="on"/>])')
+
 )
 
 testGroup("StateMachine",

@@ -2046,6 +2046,7 @@ Object.Extend Event,
 				for args in archive[e]
 					$.log "replayed: #{e}", args
 					func.apply window, args
+			func
 
 		# expose these for advanced users
 		publish.__defineSetter__ 'limit', (n) ->

@@ -1213,7 +1213,6 @@
           j = 0;
           this.take(1).each(function() {
             var _ref;
-            $.log("replace first");
             if ((_ref = this.parentNode) != null) {
               _ref.replaceChild(n, this);
             }
@@ -1240,6 +1239,10 @@
               return this;
           }
         },
+        data: function(k, v) {
+          k = "data-" + (dashName(k));
+          return this.attr(k, v);
+        },
         addClass: function(x) {
           return this.removeClass(x).each(function() {
             var c;
@@ -1256,7 +1259,8 @@
             return y !== x;
           };
           return this.each(function() {
-            return this.className = this.className.split(" ").filter(notx).join(" ");
+            var _ref;
+            return this.className = (_ref = this.className) != null ? _ref.split(" ").filter(notx).join(" ") : void 0;
           });
         },
         toggleClass: function(x) {
@@ -1501,10 +1505,6 @@
               return null;
             }
           });
-        },
-        data: function(k, v) {
-          k = "data-" + (dashName(k));
-          return $(this).attr(k, v);
         },
         toFragment: function() {
           var adder, df;

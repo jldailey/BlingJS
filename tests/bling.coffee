@@ -90,7 +90,12 @@ testGroup("Symbol",
 	set: () ->
 		Bling.symbol = "_"
 		assertEqual( _, Bling )
-		assert( not $? )
+	preserve: () ->
+		global.$ = "before"
+		Bling.symbol = "$"
+		assertEqual($, Bling)
+		Bling.symbol = "_"
+		assertEqual($, "before")
 	reset: () ->
 		Bling.symbol = "$"
 		assertEqual($, Bling)

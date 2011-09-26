@@ -2540,7 +2540,7 @@
         return _results;
       };
       subscribe = function(e, func, replay) {
-        var args, _i, _len, _ref, _ref2, _results;
+        var args, _i, _len, _ref, _ref2;
         if (replay == null) {
           replay = true;
         }
@@ -2550,14 +2550,13 @@
         subscribers[e].push(func);
         if (replay) {
           _ref2 = archive[e];
-          _results = [];
           for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
             args = _ref2[_i];
             $.log("replayed: " + e, args);
-            _results.push(func.apply(window, args));
+            func.apply(window, args);
           }
-          return _results;
         }
+        return func;
       };
       publish.__defineSetter__('limit', function(n) {
         return archive_limit = n;

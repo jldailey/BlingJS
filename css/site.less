@@ -1,13 +1,31 @@
 
 body {
 	font: 16px "Inconsolata", Arial, sans;
-	padding:10px;
-	margin-left:auto;
-	margin-right:auto;
-	border-right:1px dashed #ccc;
-	border-left:1px dashed #ccc;
-	background-color:white;
-	width: 300px;
+	margin: 0px auto;
+	width: 524px;
+	> .toc {
+		float: left;
+		min-width: 80px;
+		margin: 0 0 0 auto;
+		padding: 0;
+		position: fixed;
+		top: 0px;
+		li {
+			margin: 0px;
+			padding: 0px;
+			text-align: justify;
+		}
+	}
+	> .page {
+		float: left;
+		margin-right:auto;
+		margin-left: 130px;
+		border-right:1px dashed #ccc;
+		border-left:1px dashed #ccc;
+		background-color:white;
+		width: 300px;
+		padding:10px;
+	}
 }
 b { color:#800; }
 i { color:#822; }
@@ -63,8 +81,8 @@ textarea {
 		padding-left: 18px;
 	}
 }
-code {
-	font-family: courier, sans;
+code, .code {
+	font-family: "Inconsolata", courier, sans;
 	font-size: 16px;
 }
 

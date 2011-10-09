@@ -246,6 +246,9 @@
     NotNull: function(x) {
       return x !== null;
     },
+    NotEmpty: function(x) {
+      return x !== "" && x !== null;
+    },
     IndexFound: function(x) {
       return x > -1;
     },
@@ -595,11 +598,7 @@
           nn = this.len();
           for (i = 0; 0 <= nn ? i < nn : i > nn; 0 <= nn ? i++ : i--) {
             t = this[i];
-            try {
-              a[i] = f.call(t, t);
-            } catch (err) {
-              a[i] = err;
-            }
+            a[i] = f.call(t, t);
           }
           return a;
         },
@@ -1279,7 +1278,7 @@
               return this.className = cls.filter(notx).join(" ");
             } else {
               cls.push(x);
-              return this.className = cls.join(" ");
+              return this.className = cls.filter(Function.NotEmpty).join(" ");
             }
           });
         },

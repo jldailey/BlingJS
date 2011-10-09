@@ -174,6 +174,7 @@ Object.Extend Function,
 		r.toString = f.toString
 		r
 	NotNull: (x) -> x != null
+	NotEmpty: (x) -> x not in ["", null]
 	IndexFound: (x) -> x > -1
 	ReduceAnd: (x) -> x and @
 	UpperLimit: (x) -> (y) -> Math.min(x, y)
@@ -992,12 +993,12 @@ Object.Extend Event,
 						@className = cls.filter(notx).join(" ")
 					else
 						cls.push(x)
-						@className = cls.join(" ")
+						@className = cls.filter(Function.NotEmpty).join(" ")
 
 			hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x
 				@zip('className.split').call(" ").zip('indexOf').call(x).map Function.IndexFound
 
-			text: (t) -> # .text([t]) - get [or set] each node's .innerText
+			text: (t) -> # .text([t]) - get [or set] each node's .textContent
 				return @zap('textContent', t) if t?
 				return @zip('textContent')
 

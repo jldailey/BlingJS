@@ -132,10 +132,9 @@ testGroup("Core",
 	union: () -> assertArrayEqual($([1,2,3,4]).union([2,3,4,5]), [1,2,3,4,5])
 	intersect: () -> assertArrayEqual($([1,2,3,4]).intersect([2,3,4,5]), [2,3,4])
 	distinct: () -> assertArrayEqual($([1,2,2,3,4,3]).distinct(), [1,2,3,4])
-	contains: () ->
-		assert $([1,2,3,4]).contains(3)
-		assert $(["foo","bar","baz"]).contains("bar")
-	count: () -> assert $([1,2,2,3,4,3]).count(3) is 2
+	contains1: () -> assert $([1,2,3,4]).contains(3)
+	contains2: () -> assert $(["foo","bar","baz"]).contains("bar")
+	count: () -> assertEqual( $([1,2,2,3,4,3]).count(3), 2 )
 	zip: () -> assertArrayEqual($([ {id:1}, {id:2}, {id:3} ]).zip('id'), [1,2,3])
 	zap: () -> assertArrayEqual($([ {id:1}, {id:2}, {id:3} ]).zap('id', 13).zip('id'), [13,13,13])
 	zipzapmap: () -> assertArrayEqual($([ {id:1}, {id:2}, {id:3} ]).zipzapmap('id', () -> @ * 2).zip('id'), [2,4,6])
@@ -251,6 +250,12 @@ testGroup("HTML",
 	toggleClass: () -> assertEqual($("<a class='on'></a>").toggleClass("on").toString(), "$([<a/>])")
 	toggleClass2: () -> assertEqual($("<a class='off'></a>").toggleClass("on").toString(), '$([<a class="off on"/>])')
 	toggleClass3: () -> assertEqual($("<a class=''></a>").toggleClass("on").toString(), '$([<a class="on"/>])')
+	toggleClass4: () -> assertEqual($("<a></a>").toggleClass("on").toString(), '$([<a class="on"/>])')
+	hasClass: () -> assertEqual($("<a class='foo'></a>").hasClass("foo").first(), true)
+	hasClass2: () -> assertEqual($("<a class='bar'></a>").hasClass("foo").first(), false)
+	text: () -> assertEqual($("<a>Hello<b>World</b></a>").zip('innerText').toString(), "$([HelloWorld])")
+	text3: () -> assertEqual($("<a>Hello<b>World</b></a>").text().toString(), "$([HelloWorld])")
+	text2: () -> assertEqual($("<a>Hello<b>World</b></a>").text("Goodbye").toString(), "$([<a>Goodbye</a>])")
 
 )
 

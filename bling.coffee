@@ -998,7 +998,7 @@ Object.Extend Event,
 			hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x
 				@zip('className.split').call(" ").zip('indexOf').call(x).map Function.IndexFound
 
-			text: (t) -> # .text([t]) - get [or set] each node's .innerText
+			text: (t) -> # .text([t]) - get [or set] each node's .textContent
 				return @zap('textContent', t) if t?
 				return @zip('textContent')
 

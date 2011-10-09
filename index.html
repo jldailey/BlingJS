@@ -83,6 +83,9 @@
 		<p>...will return a set of StyleDeclaration objects, one for each div on the page.
 		<p>You can also zip compound names in order to extract nested properties.
 		<pre>
+		$("div").zip("style.backgroundColor")</pre>
+		<p>Or, you can even select bound methods from a set of objects.
+		<pre>
 		$("div").zip("style.setProperty")</pre>
 
 		<p>The above example also shows another useful feature of <a name='zip' class='bold code'>zip</a>:
@@ -93,10 +96,11 @@
 
 		<p>If you specify multiple columns, you get a list of simple objects with only the desired fields.
 		<pre>
-		$("div").eq(0).zip("id", "className")
-		== $([{'id':..., 
-					 'className':... 
-					}])</pre>
+		$("div")
+			.eq(0)
+			.zip("id", "className")
+		==
+		$([{'id':&mdash;,'className':&mdash;}, ... ])</pre>
 
 		<p>Naturally, <a name='.zap()' class='toc bold code'>zap</a> is the companion to <a name='zip' class='bold code'>zip</a>.  
 		The <a name='zap' class='bold code'>zap</a> operation allows assignment in a functional syntax.
@@ -120,10 +124,10 @@
 		<pre>
 		$("li").zap("className",
 			["odd", "even"])</pre>
-		<p>Each <code>&lt;li&gt;</code> will alternate between having class="odd" or class="even".
+		<p>Each <code>&lt;li&gt;</code> will alternate between having class="odd" or "even".
 
 		<h4><a name="Html Operations" class='toc'>Html Operations</a></h4>
-		<p>While BlingJS has all of the basic HTML and DOM manipulating operations that jQuery has (like <a name='html' class='bold code'>html</a>, <a name='text' class='bold code'>text</a>, <a name='after' class='bold code'>after</a>, <a name='append' class='bold code'>append</a>, <a href="html/doc.html#html">etc.</a>), 
+		<p>While BlingJS has all of the basic HTML and DOM manipulating operations that jQuery has (like <a name='html' class='bold code'>html</a>, <a name='text' class='bold code'>text</a>, <a name='after' class='bold code'>after</a>, <a name='append' class='bold code'>append</a>, <a href="">etc.</a>), 
 		it also has two powerful ways to generate content: synth, and template.
 
 		<h5><a name=".template()" class='toc'>Templates</a></h5>

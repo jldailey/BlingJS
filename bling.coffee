@@ -423,10 +423,10 @@ Object.Extend Event,
 				nn = @len()
 				for i in [0...nn]
 					t = @[i]
-					try
-						a[i] = f.call t,t
-					catch err
-						a[i] = err
+					# try
+					a[i] = f.call t,t
+					# catch err
+					# a[i] = err
 				a
 
 			reduce: (f, init) ->
@@ -804,23 +804,24 @@ Object.Extend Event,
 			() ->
 				window.getComputedStyle(@, null).getPropertyValue(k)
 
-		A = "A".charCodeAt(0)
-		Z = "Z".charCodeAt(0)
-		a = "a".charCodeAt(0)
-		dashName = (k) ->
-			ret = []
-			for i in [0...k.length]
-				c = k.charCodeAt i
-				if Z >= c >= A
-					c = (c - A) + a
-					ret.push "-"
-				ret.push String.fromCharCode(c)
-			return ret.join("")
-		camelName = (k) ->
-			i = k.indexOf('-')
+		# get some ordinal constants and give them safe names
+		ord_A = "A".charCodeAt(0)
+		ord_Z = "Z".charCodeAt(0)
+		ord_a = "a".charCodeAt(0)
+		dashName = (name) ->
+			ret = ""
+			for i in [0...name.length]
+				c = name.charCodeAt i
+				if ord_Z >= c >= ord_A # is upper case
+					c = (c - ord_A) + ord_a # shift to lower
+					ret += "-"
+				ret += String.fromCharCode(c)
+			return ret
+		camelName = (name) ->
+			i = name.indexOf('-')
 			while i > -1
-				k = String.Splice(k, i, i+2, k[i+1].toUpperCase())
-				i = k.indexOf('-')
+				name = String.Splice(name, i, i+2, name[i+1].toUpperCase())
+				i = name.indexOf('-')
 
 		return {
 			name: 'Html'
@@ -971,6 +972,7 @@ Object.Extend Event,
 
 			data: (k, v) ->
 				k = "data-#{dashName(k)}"
+				console.log k
 				@attr(k, v)
 
 			addClass: (x) -> # .addClass(/x/) - add x to each node's .className

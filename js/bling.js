@@ -992,7 +992,7 @@
       };
     });
     $.plugin(function() {
-      var A, Z, a, after, before, camelName, dashName, escaper, getCSSProperty, toNode;
+      var after, before, camelName, dashName, escaper, getCSSProperty, ord_A, ord_Z, ord_a, toNode;
       before = function(a, b) {
         var df;
         if (!(a.parentNode != null)) {
@@ -1031,29 +1031,29 @@
           return window.getComputedStyle(this, null).getPropertyValue(k);
         };
       };
-      A = "A".charCodeAt(0);
-      Z = "Z".charCodeAt(0);
-      a = "a".charCodeAt(0);
-      dashName = function(k) {
+      ord_A = "A".charCodeAt(0);
+      ord_Z = "Z".charCodeAt(0);
+      ord_a = "a".charCodeAt(0);
+      dashName = function(name) {
         var c, i, ret, _ref;
-        ret = [];
-        for (i = 0, _ref = k.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
-          c = k.charCodeAt(i);
-          if ((Z >= c && c >= A)) {
-            c = (c - A) + a;
-            ret.push("-");
+        ret = "";
+        for (i = 0, _ref = name.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
+          c = name.charCodeAt(i);
+          if ((ord_Z >= c && c >= ord_A)) {
+            c = (c - ord_A) + ord_a;
+            ret += "-";
           }
-          ret.push(String.fromCharCode(c));
+          ret += String.fromCharCode(c);
         }
-        return ret.join("");
+        return ret;
       };
-      camelName = function(k) {
+      camelName = function(name) {
         var i, _results;
-        i = k.indexOf('-');
+        i = name.indexOf('-');
         _results = [];
         while (i > -1) {
-          k = String.Splice(k, i, i + 2, k[i + 1].toUpperCase());
-          _results.push(i = k.indexOf('-'));
+          name = String.Splice(name, i, i + 2, name[i + 1].toUpperCase());
+          _results.push(i = name.indexOf('-'));
         }
         return _results;
       };
@@ -1124,6 +1124,7 @@
           }
         },
         append: function(x) {
+          var a;
           x = toNode(x);
           a = this.zip('appendChild');
           a.take(1).call(x);
@@ -1244,6 +1245,7 @@
         },
         data: function(k, v) {
           k = "data-" + (dashName(k));
+          console.log(k);
           return this.attr(k, v);
         },
         addClass: function(x) {

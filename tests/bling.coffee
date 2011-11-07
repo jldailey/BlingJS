@@ -101,7 +101,7 @@ testGroup("Symbol",
 		assertEqual($, Bling)
 )
 
-# set up a test document, to run DOM tests agains
+# set up a test document, to run DOM tests against
 document.body.innerHTML = "
 	<table>
 	<tr><td>1,1</td><td>1,2</td></tr>
@@ -137,7 +137,8 @@ testGroup("Core",
 	count: () -> assertEqual( $([1,2,2,3,4,3]).count(3), 2 )
 	zip: () -> assertArrayEqual($([ {id:1}, {id:2}, {id:3} ]).zip('id'), [1,2,3])
 	zap: () -> assertArrayEqual($([ {id:1}, {id:2}, {id:3} ]).zap('id', 13).zip('id'), [13,13,13])
-	zipzapmap: () -> assertArrayEqual($([ {id:1}, {id:2}, {id:3} ]).zipzapmap('id', () -> @ * 2).zip('id'), [2,4,6])
+	zapf: () -> assertArrayEqual($([ {id:1}, {id:2}, {id:3} ]).zap('id', () -> @ * 2).zip('id'), [2,4,6])
+	zapf2: () -> assertArrayEqual($([ {sub:{id:1}}, {sub:{id:2}}, {sub:{id:3}} ]).zap('sub.id', () -> @ * 2).zip('sub.id'), [2,4,6])
 	take1: () -> assertArrayEqual($([1,2,3,4]).take(-2), [3,4])
 	take2: () -> assertArrayEqual($([1,2,3,4]).take(-1), [4])
 	take3: () -> assertArrayEqual($([1,2,3,4]).take(0), [])
@@ -253,9 +254,12 @@ testGroup("HTML",
 	toggleClass4: () -> assertEqual($("<a></a>").toggleClass("on").toString(), '$([<a class="on"/>])')
 	hasClass: () -> assertEqual($("<a class='foo'></a>").hasClass("foo").first(), true)
 	hasClass2: () -> assertEqual($("<a class='bar'></a>").hasClass("foo").first(), false)
-	text: () -> assertEqual($("<a>Hello<b>World</b></a>").zip('innerText').toString(), "$([HelloWorld])")
+	text1: () -> assertEqual($("<a>Hello<b>World</b></a>").zip('innerText').toString(), "$([HelloWorld])")
 	text3: () -> assertEqual($("<a>Hello<b>World</b></a>").text().toString(), "$([HelloWorld])")
 	text2: () -> assertEqual($("<a>Hello<b>World</b></a>").text("Goodbye").toString(), "$([<a>Goodbye</a>])")
+	value1: () -> assertEqual($("<input type='text' value='foo'/>").val().toString(), "$([foo])")
+	value2: () -> assertEqual($("<input />").val().toString(), "$([])")
+	value3: () -> assertEqual($("<input type='checkbox' checked />").val().toString(), "$([on])")
 
 )
 
@@ -298,115 +302,3 @@ testGroup("Synth",
 
 testReport()
 
-### still need tests for all of these:
-  'HTML',
-  'duration',
-  'http',
-  'post',
-  'get',
-  'render',
-  'synth'
-]
-[ 
-  'toString',
-  'delay',
-  'log',
-  'len',
-  'unwrap',
-  'replace',
-  'attr',
-  'addClass',
-  'removeClass',
-  'toggleClass',
-  'hasClass',
-  'text',
-  'val',
-  'css',
-  'defaultCss',
-  'empty',
-  'rect',
-  'width',
-  'height',
-  'top',
-  'left',
-  'bottom',
-  'right',
-  'position',
-  'center',
-  'scrollToCenter',
-  'child',
-  'children',
-  'parent',
-  'parents',
-  'prev',
-  'next',
-  'remove',
-  'find',
-  'clone',
-  'data',
-  'toFragment',
-  'floats',
-  'ints',
-  'px',
-  'min',
-  'max',
-  'average',
-  'sum',
-  'squares',
-  'magnitude',
-  'scale',
-  'normalize',
-  'bind',
-  'unbind',
-  'once',
-  'cycle',
-  'trigger',
-  'live',
-  'die',
-  'liveCycle',
-  'click',
-  'ready',
-  'mousemove',
-  'mousedown',
-  'mouseup',
-  'mouseover',
-  'mouseout',
-  'blur',
-  'focus',
-  'load',
-  'unload',
-  'reset',
-  'submit',
-  'keyup',
-  'keydown',
-  'change',
-  'abort',
-  'cut',
-  'copy',
-  'paste',
-  'selection',
-  'drag',
-  'drop',
-  'orientationchange',
-  'touchstart',
-  'touchmove',
-  'touchend',
-  'touchcancel',
-  'gesturestart',
-  'gestureend',
-  'gesturecancel',
-  'hashchange',
-  'transform',
-  'hide',
-  'show',
-  'toggle',
-  'fadeIn',
-  'fadeOut',
-  'fadeLeft',
-  'fadeRight',
-  'fadeUp',
-  'fadeDown',
-  'template',
-  'render',
-  'synth' ]
-###

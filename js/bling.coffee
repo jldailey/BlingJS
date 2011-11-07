@@ -537,22 +537,18 @@ Object.Extend Event,
 			zap: (p, v) ->
 				# .zap(p, v) - set /x/./p/ = /v/ for all /x/ in _this_.
 				# just like zip, zap("a.b") == zip("a").zap("b")
-				# but unlike zip, you cannot assign to many /p/ at once
+				# but unlike zip, you cannot assign to different /p/ at once
 				i = p.indexOf(".")
 				if i > -1 # recurse compound names
 					@zip(p.substr(0, i)).zap(p.substr(i+1), v)
 				else if Object.IsArray(v) # accept /v/ as an array of values
 					@each () ->
 						@[p] = v[++i % v.length] # i starts at -1 because of the failed indexOf
+				else if Object.IsFunc(v)
+					@zap(p, @zip(p).map(v))
 				else # accept a scalar /v/, even if v is undefined
 					@each () ->
 						@[p] = v
-
-			zipzapmap: (p, f) -> # TODO: need a better name for this
-				# .zipzapmap(p, f) - set /x/./p/ = /f/(/x/./p/) for all /x/ in _this_.
-				v = @zip(p)
-				v = v.map(f)
-				@zap(p, v)
 
 			take: (n) ->
 				# .take([/n/]) - collect the first /n/ elements of _this_.

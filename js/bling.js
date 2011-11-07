@@ -722,17 +722,13 @@
             return this.each(function() {
               return this[p] = v[++i % v.length];
             });
+          } else if (Object.IsFunc(v)) {
+            return this.zap(p, this.zip(p).map(v));
           } else {
             return this.each(function() {
               return this[p] = v;
             });
           }
-        },
-        zipzapmap: function(p, f) {
-          var v;
-          v = this.zip(p);
-          v = v.map(f);
-          return this.zap(p, v);
         },
         take: function(n) {
           var a, end, i, j, nn, start;

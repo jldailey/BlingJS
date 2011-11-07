@@ -46,7 +46,7 @@ $(DIST)/bling.js: ../bling.coffee
 	cd .. && coffee -o dist -c bling.coffee
 
 compiler-latest.zip:
-	@wget http://closure-compiler.googlecode.com/files/compiler-latest.zip
+	@curl http://closure-compiler.googlecode.com/files/compiler-latest.zip > compiler-latest.zip
 
 compiler.jar: compiler-latest.zip
 	@unzip -o compiler-latest.zip compiler.jar

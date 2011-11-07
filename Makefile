@@ -1,6 +1,6 @@
 all:
 
-test:
+test: all
 	for i in tests/bling.coffee; do coffee $$i; done
 
 %:

@@ -73,7 +73,7 @@ global.testGroup = (name, tests) ->
 		# ui.output "#{ui.green}Pass: #{passed}#{ui.normal}" +
 			# ( if failed > 0 then "#{ui.yellow}/#{passed+failed}#{ui.normal}#{ui.red} Fail: #{failed}#{ui.normal} [ #{failures.join(', ')} ]" else "" )
 global.testReport = () ->
-	ui.output "Total: #{total[0]} Passed: #{total[1]} Failed: #{total[2]} [ #{failures.join(', ')} ]"
+	ui.output "#{total[0]} Tests, #{total[1]} Passed, #{total[2]} Failed: [ #{failures.join(', ')} ]"
 
 testGroup("Testing Framework"
 	pass: () -> true

@@ -1,5 +1,4 @@
 
-// try {
 (function indexJS($) {
 	$(document)
 	.ready(function () {
@@ -18,17 +17,13 @@
 	.ready(function () {
 		var initial_tab = /(^|\n)\t/g,
 			all_tabs = /\t/g
-		$("pre").zipzapmap('innerHTML', function(html) {
+		$("pre").zap('innerHTML', function(html) {
 			return $.prettyPrint($.HTML.escape(html)
 				.replace(all_tabs, "  "));
 		})
 		// clean up textarea's also
-		$("textarea").zipzapmap('value', function (value) {
+		$("textarea").zap('value', function (value) {
 			return value.replace(initial_tab,'$1').replace(all_tabs, "  ")
 		})
 	})
 })(Bling)
-// } catch ( err ) {
-	// throw err;
-	// alert("JavaScript error:" + err);
-// }

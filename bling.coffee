@@ -1830,7 +1830,6 @@ Object.Extend Event,
 		}
 
 	$.plugin () -> # Synth plugin, depends on StateMachine
-
 		class SynthMachine extends $.StateMachine
 			@STATE_TABLE = [
 				{ # 0: START
@@ -1922,8 +1921,6 @@ Object.Extend Event,
 				@parent.appendChild $.HTML.parse(@text)
 				@text = ""
 
-		synth = (expr) ->
-
 		return {
 			name: "Synth"
 			$:
@@ -1951,12 +1948,12 @@ Object.Extend Event,
 				archive[e].splice(0, archive_trim)
 			for func in subscribers[e]
 				func.apply null, args
+			@
 
 		subscribe = (e, func, replay = true) ->
 			subscribers[e] ?= []
 			subscribers[e].push(func)
-			# replay the publish archive
-			if replay
+			if replay # replay the publish archive
 				for args in archive[e]
 					$.log "replayed: #{e}", args
 					func.apply null, args
@@ -1973,6 +1970,7 @@ Object.Extend Event,
 		# expose these for advanced users
 		publish.__defineSetter__ 'limit', (n) ->
 			archive_limit = n
+			# enforce the new limit immediately
 			for e of archive
 				if archive[e].length > archive_limit
 					archive[e].splice(0, archive_trim)
@@ -1985,36 +1983,6 @@ Object.Extend Event,
 				publish: publish
 				subscribe: subscribe
 				unsubscribe: unsubscribe
-		}
-
-	$.plugin () -> # LazyLoader plugin
-		create = (elementName, props) ->
-			Object.Extend document.createElement(elementName), props
-
-		lazy_load = (elementName, props) ->
-			depends = provides = null
-			n = create elementName, Object.Extend(props, {
-				onload: () ->
-					$.publish(provides) if provides != null
-			})
-			$("head").delay 10, () ->
-				if depends != null
-					$.subscribe depends, () => @append(n)
-				else
-					@append(n)
-			n = $(n)
-			Object.Extend n, {
-				depends: (tag) -> depends = elementName+"-"+tag; n
-				provides: (tag) -> provides = elementName+"-"+tag; n
-			}
-
-		return {
-			name: "LazyLoader"
-			$:
-				script: (src) ->
-					lazy_load "script", { src: src }
-				style: (src) ->
-					lazy_load "link", { href: src, rel: "stylesheet" }
 		}
 
 	$

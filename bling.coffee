@@ -1756,20 +1756,14 @@ Object.Extend Event,
 							when "object" then String.Checksum(i.toString())
 		}
 
-	$.plugin () -> # Memoize plugin, depends on Hash
-		cache = {}
+	$.plugin () -> # Memoize plugin, depends on Hash plugin
 		return {
 			name: "Memoize"
 			$:
 				memoize: (f) ->
-					cache[f] = {}
-					return (a...) ->
-						h = $.hash(a)
-						m = cache[f]
-						if h of m
-							m[h]
-						else
-							m[h] = f.apply @, a
+					cache = {}
+					(a...) ->
+						cache[$.hash(a)] ?= f.apply @, a
 		}
 
 	$.plugin () -> # StateMachine plugin

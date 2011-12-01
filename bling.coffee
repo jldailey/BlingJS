@@ -194,6 +194,26 @@ Object.Extend Array,
 		for i in b
 			a[j++] = i
 		a
+	Compact: (a, buffer = "", into = []) ->
+		if not Object.IsArray(a)
+			return a
+		for i in a
+			switch true
+				when not Object.IsDefined(i) then continue
+				when Object.IsSimple(i) then buffer += i
+				when Object.IsArray(i)
+					ret = Array.Compact(i, buffer, into)
+					switch Object.Type(ret)
+						when "string" then buffer = ret
+						when "array" then ( into = ret; buffer = "" )
+				else
+					if buffer.length > 0 then ( into.push buffer; buffer = "" )
+					into.push i
+		if into.length is 0
+			return buffer
+		if buffer.length > 0
+			into.push buffer
+		return into
 
 Object.Extend Number,
 	Px: (x, d=0) ->

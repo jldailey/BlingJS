@@ -11,7 +11,7 @@ http://creativecommons.org/licenses/MIT/
 
 ###
 
-if not "querySelectorAll" of document
+if not document?.querySelectorAll
 	alert "This browser is not supported"
 	`return`
 
@@ -59,7 +59,7 @@ Bling = (selector, context = document) ->
 	return set
 
 # Blings extend from arrays
-Bling.fn = new Array # a copy(!) of the Array prototype
+Bling.fn = new Array # a copy! of the Array prototype
 
 Object.Keys = (o, inherited = false) -> # Object.Keys(/o/, [/inherited/]) - get a list of key names
 	# by default, does not include properties inherited from a prototype

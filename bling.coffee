@@ -1932,7 +1932,7 @@ Object.Extend Event,
 			if archive[e].length > archive_limit
 				archive[e].splice(0, archive_trim)
 			for func in subscribers[e]
-				func.apply window, args
+				func.apply null, args
 
 		subscribe = (e, func, replay = true) ->
 			subscribers[e] ?= []
@@ -1941,12 +1941,23 @@ Object.Extend Event,
 			if replay
 				for args in archive[e]
 					$.log "replayed: #{e}", args
-					func.apply window, args
+					func.apply null, args
 			func
+
+		unsubscribe = (e, func) ->
+			if not func?
+				subscribers[e] = []
+			else
+				i = subscribers[e]?.indexOf(func)
+				if i > -1
+					subscribers[e].splice(i,i)
 
 		# expose these for advanced users
 		publish.__defineSetter__ 'limit', (n) ->
 			archive_limit = n
+			for e of archive
+				if archive[e].length > archive_limit
+					archive[e].splice(0, archive_trim)
 		publish.__defineSetter__ 'trim', (n) ->
 			archive_trim = n
 
@@ -1955,6 +1966,7 @@ Object.Extend Event,
 			$:
 				publish: publish
 				subscribe: subscribe
+				unsubscribe: unsubscribe
 		}
 
 	$.plugin () -> # LazyLoader plugin

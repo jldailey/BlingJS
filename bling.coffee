@@ -1815,75 +1815,75 @@ Object.Extend Event,
 
 		class SynthMachine extends $.StateMachine
 			@STATE_TABLE = [
-				{ # 0
+				{ # 0: START
 					enter: () ->
 						@tag = @id = @cls = @attr = @val = @text = ""
 						@attrs = {}
 						@GO(1)
 				},
-				{ # 1
+				{ # 1: read a tag name
 					'"': @GO(6), "'": @GO(7), "#": @GO(2), ".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
 					def: (c) -> @tag += c
 					eof: @GO(13)
 				},
-				{ # 2
+				{ # 2: read an #id
 					".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
 					def: (c) -> @id += c
 					eof: @GO(13)
 				},
-				{ # 3
+				{ # 3: read a .class name
 					enter: () -> @cls += " " if @cls.length > 0
 					"#": @GO(2), ".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
 					def: (c) -> @cls += c
 					eof: @GO(13)
 				},
-				{ # 4
+				{ # 4: read an attribute name (left-side)
 					"=": @GO(5)
 					"]": () -> @attrs[@attr] = @val; @GO(1)
 					def: (c) -> @attr += c
 					eof: @GO(12)
 				},
-				{ # 5
+				{ # 5: read an attribute value (right-side)
 					"]": () -> @attrs[@attr] = @val; @GO(1)
 					def: (c) -> @val += c
 					eof: @GO(12)
 				},
-				{ # 6
+				{ # 6: read d-quoted text
 					'"': @GO(8)
 					def: (c) -> @text += c
 					eof: @GO(12)
 				},
-				{ # 7
+				{ # 7: read s-quoted text
 					"'": @GO(8)
 					def: (c) -> @text += c
 					eof: @GO(12)
 				},
-				{ # 8
+				{ # 8: emit text and continue
 					enter: () ->
 						@emitText()
 						@GO(0)
 				},
-				{ # DESCEND
+				{ # 9: emit node and descend
 					enter: () ->
 						@emitNode()
 						@GO(0)
 				},
-				{ # RESET
+				{ # 10: emit node and start a new tree
 					enter: () ->
 						@emitNode()
 						@parent = null
 						@GO(0)
 				},
-				{ # SIBLING
+				{ # 11: emit node and step sideways to create a sibling
 					enter: () ->
 						@emitNode()
 						@parent = @parent?.parentNode
 						@GO(0)
 				},
-				{ # ERROR
+				{ # 12: ERROR
 					enter: () -> $.log "Error in synth expression: #{@input}"
 				},
-				{ # FINALIZE
+				{ # 13: FINALIZE
 					enter: () ->
 						@emitNode() if @tag.length
 						@emitText() if @text.length

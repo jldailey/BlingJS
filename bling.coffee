@@ -824,15 +824,15 @@ Object.Extend Event,
 		ord_a = "a".charCodeAt(0)
 		dashName = (name) ->
 			ret = ""
-			for i in [0...name.length]
+			for i in [0...(name?.length|0)]
 				c = name.charCodeAt i
 				if ord_Z >= c >= ord_A # is upper case
 					c = (c - ord_A) + ord_a # shift to lower
-					ret += "-"
+					ret += '-'
 				ret += String.fromCharCode(c)
 			return ret
 		camelName = (name) ->
-			i = name.indexOf('-')
+			i = name?.indexOf('-')
 			while i > -1
 				name = String.Splice(name, i, i+2, name[i+1].toUpperCase())
 				i = name.indexOf('-')

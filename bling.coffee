@@ -238,15 +238,13 @@ Object.Extend Event,
 		evt.preventDefault()
 		evt.cancelBubble = true
 		evt.returnValue = false
-	,
 	Prevent: (evt) ->
 		evt.preventDefault()
-	,
 	Stop: (evt) ->
 	 evt.stopPropagation()
 	 evt.cancelBubble = true
 
-(($) -> # protected name_space
+(($) -> # protected name space
 
 	$.plugins = []
 
@@ -769,7 +767,7 @@ Object.Extend Event,
 
 	$.plugin () -> # Html plugin
 		before = (a,b) -> # insert b before a
-			# create a fragment is parent node is null
+			# create a fragment if parent node is null
 			if not a.parentNode?
 				df = document.createDocumentFragment()
 				df.appendChild(a)

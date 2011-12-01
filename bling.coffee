@@ -1533,7 +1533,7 @@ Object.Extend Event,
 			"now": 0
 		# matches all the accelerated css property names
 		accel_props_re = /(?:scale(?:3d)*|translate(?:[XYZ]|3d)*|rotate(?:[XYZ]|3d)*)/
-		updateDelay = 50 # ms to wait for DOM changes to apply
+		updateDelay = 30 # ms to wait for DOM changes to apply
 		testStyle = document.createElement("div").style
 
 		# detect which browser's transform properties to use
@@ -1565,7 +1565,7 @@ Object.Extend Event,
 
 			# like jquery's animate(), but using only webkit-transition/transform
 			transform: (end_css, speed, easing, callback) ->
-				# .transform(cssobject, [/speed/], [/callback/]) - animate css properties on each node
+				# .transform(css, [/speed/], [/callback/]) - animate css properties on each node
 				# animate css properties over a duration
 				# accelerated: scale, translate, rotate, scale3d,
 				# ... translateX, translateY, translateZ, translate3d,
@@ -1630,8 +1630,7 @@ Object.Extend Event,
 				# WARNING: NOT EXACT!
 				@delay(duration, callback)
 
-			hide: (callback) ->
-				# .hide() - each node gets display:none
+			hide: (callback) -> # .hide() - each node gets display:none
 				@each () ->
 					if @style
 						@_display = "" # stash the old display
@@ -1641,8 +1640,7 @@ Object.Extend Event,
 				.trigger("hide")
 				.delay(updateDelay, callback)
 
-			show: (callback) ->
-				# .show() - show each node
+			show: (callback) -> # .show() - show each node
 				@each () ->
 					if @style
 						@style.display = @_display
@@ -1650,8 +1648,7 @@ Object.Extend Event,
 				.trigger("show")
 				.delay(updateDelay, callback)
 
-			toggle: (callback) ->
-				# .toggle() - show each hidden node, hide each visible one
+			toggle: (callback) -> # .toggle() - show each hidden node, hide each visible one
 				@weave(@css("display"))
 					.fold (display, node) ->
 						if display is "none"
@@ -1665,31 +1662,25 @@ Object.Extend Event,
 						node
 					.delay(updateDelay, callback)
 
-			fadeIn: (speed, callback) ->
-				# .fadeIn() - fade each node to opacity 1.0
+			fadeIn: (speed, callback) -> # .fadeIn() - fade each node to opacity 1.0
 				@.css('opacity','0.0')
 					.show () ->
 						@transform {
 							opacity:"1.0",
 							translate3d: [0,0,0]
 						}, speed, callback
-			fadeOut: (speed, callback, x = 0.0, y = 0.0) ->
-				# .fadeOut() - fade each node to opacity:0.0
+			fadeOut: (speed, callback, x = 0.0, y = 0.0) -> # .fadeOut() - fade each node to opacity:0.0
 				@transform {
 					opacity:"0.0",
 					translate3d:[x,y,0.0]
 				}, speed, () -> @hide(callback)
-			fadeLeft: (speed, callback) ->
-				# .fadeLeft() - fadeOut and move offscreen to the left
+			fadeLeft: (speed, callback) -> # .fadeLeft() - fadeOut and move offscreen to the left
 				@fadeOut(speed, callback, "-"+@width().first(), 0.0)
-			fadeRight: (speed, callback) ->
-				# .fadeRight() - fadeOut and move offscreen to the right
+			fadeRight: (speed, callback) -> # .fadeRight() - fadeOut and move offscreen to the right
 				@fadeOut(speed, callback, @width().first(), 0.0)
-			fadeUp: (speed, callback) ->
-				# .fadeUp() - fadeOut and move off the top
+			fadeUp: (speed, callback) -> # .fadeUp() - fadeOut and move off the top
 				@fadeOut(speed, callback, 0.0, "-"+@height().first())
-			fadeDown: (speed, callback)  ->
-				# .fadeDown() - fadeOut and move off the bottom
+			fadeDown: (speed, callback)  -> # .fadeDown() - fadeOut and move off the bottom
 				@fadeOut(speed, callback, 0.0, @height().first())
 		}
 

@@ -1546,6 +1546,11 @@ Object.Extend Event,
 		updateDelay = 30 # ms to wait for DOM changes to apply
 		testStyle = document.createElement("div").style
 
+		transformProperty = "transform"
+		transitionProperty = "transition-property"
+		transitionDuration = "transition-duration"
+		transitionTiming = "transition-timing-function"
+
 		# detect which browser's transform properties to use
 		if "WebkitTransform" of testStyle
 			transformProperty = "-webkit-transform"
@@ -1776,7 +1781,7 @@ Object.Extend Event,
 		}
 
 	$.plugin () -> # Memoize plugin, depends on Hash plugin
-		return {
+		{
 			name: "Memoize"
 			$:
 				memoize: (f) ->

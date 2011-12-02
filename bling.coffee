@@ -219,48 +219,43 @@ Object.Extend String,
 		@
 
 Object.Extend Array,
-	Coalesce: (a...) ->
-		# Array.Coalesce - returns the first non-null argument
+	Coalesce: (a...) -> # Array.Coalesce - returns the first non-null argument
 		if Object.IsArray(a[0])
 			Array.Coalesce a[0]...
 		else
 			for i in a
 				return i if i?
-	Extend: (a, b) ->
+	Extend: (a, b) -> # Array.Extend - pushes each item from b into a
 		j = a.length
 		for i in b
 			a[j++] = i
 		a
-	Compact: (a, buffer = "", into = []) ->
+	Compact: (a, buffer = new String.Builder(), into = [], topLevel = true) -> # Array.Compact reduces /a/ by joining adjacent stringy items
 		if not Object.IsArray(a)
 			return a
 		for i in a
 			switch true
 				when not Object.IsDefined(i) then continue
-				when Object.IsSimple(i) then buffer += i
-				when Object.IsArray(i)
-					ret = Array.Compact(i, buffer, into)
-					switch Object.Type(ret)
-						when "string" then buffer = ret
-						when "array" then ( into = ret; buffer = "" )
+				when Object.IsSimple(i) then buffer.append(i)
+				when Object.IsArray(i) then Array.Compact(i, buffer, into, false)
 				else
-					if buffer.length > 0 then ( into.push buffer; buffer = "" )
+					into.push buffer.toString() if buffer.length > 0
 					into.push i
+					buffer.clear()
 		if into.length is 0
-			return buffer
-		if buffer.length > 0
-			into.push buffer
+			return buffer.toString()
+		if buffer.length > 0 and topLevel
+			into.push buffer.toString()
+			buffer.clear()
 		return into
 
 Object.Extend Number,
-	Px: (x, d=0) ->
-		# Px(/x/, /delta/=0) - convert a number-ish x to pixels
+	Px: (x, d=0) -> # Px(/x/, /delta/=0) - convert a number-ish x to pixels
 		x? and (parseInt(x,10)+(d|0))+"px"
-	# mappable versions of max() and min()
-	AtLeast: (x) ->
+	AtLeast: (x) -> # mappable version of max()
 		(y) ->
 			Math.max parseFloat(y or 0), x
-	AtMost: (x) ->
+	AtMost: (x) -> # mappable version of min()
 		(y) ->
 			Math.min parseFloat(y or 0), x
 
@@ -474,7 +469,7 @@ Object.Extend Event,
 					a = f.call(@, a, @)
 				a
 
-			union: (other, strict) ->
+			union: (other, strict = true) ->
 				# .union(/other/) - collect all /x/ from _this_ and /y/ from _other_.
 				# no duplicates, use .concat() if you want to preserve dupes
 				# 'strict' forces === comparison
@@ -509,12 +504,12 @@ Object.Extend Event,
 							break
 				ret
 
-			distinct: (strict) ->
+			distinct: (strict = true) ->
 				# .distinct() - a copy of _this_ without duplicates.
 				# 'strict' forces === comparison
 				@union(@, strict)
 
-			contains: (item, strict) ->
+			contains: (item, strict = true) ->
 				# .contains(/x/) - true if /x/ is in _this_, false otherwise.
 				# 'strict' forces === comparison
 				for t in @
@@ -522,7 +517,7 @@ Object.Extend Event,
 						return true
 				return false
 
-			count: (item, strict) ->
+			count: (item, strict = true) ->
 				# .count(/x/) - returns how many times /x/ occurs in _this_.
 				# since we want to be able to search for null values with .count(null)
 				# but if you just call .count(), it returns the total length

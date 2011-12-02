@@ -16,7 +16,7 @@ if not document?.querySelectorAll
 	`return`
 
 # local shortcuts
-if console and console.log
+if console?.log
 	log = (a...) ->
 		console.log.apply(console, a)
 else
@@ -108,11 +108,10 @@ Object.Extend Object,
 				"boolean"
 			when Object.IsError o
 				"error"
+			when Object.IsWindow o
+				"window"
 			when Object.IsObject o
-				if "setInterval" of o # same crude method that jQuery uses
-					"window"
-				else
-					"object"
+				"object"
 	IsType: (o,T) -> # Object.IsType(o,T) - true if object o is of type T (directly or indirectly)
 		if o == null
 			o is T
@@ -128,12 +127,16 @@ Object.Extend Object,
 		o? and Object.IsType o, Number
 	IsBoolean: (o) ->
 		typeof o is "boolean"
+	IsSimple: (o) ->
+		Object.IsString(o) or Object.IsNumber(o) or Object.IsBoolean(o)
 	IsFunc: (o) -> # Object.IsFunc(a) - true if object a is a function
 		o? and (typeof o is "function" or Object.IsType(o, Function)) and o.call?
 	IsNode: (o) -> # Object.IsNode(o) - true if object is a DOM node
-		o? and o.nodeType > 0
+		o?.nodeType > 0
 	IsFragment: (o) -> # Object.IsFragment(o) - true if object is a DocumentFragment node
-		o? and o.nodeType is 11
+		o?.nodeType is 11
+	IsWindow: (o) -> # Object.IsWindow(o) - true if this is the global object
+		"setInterval" of o # same crude method that jQuery uses
 	IsArray: (o) -> # Object.IsArray(o) - true if object is an Array (or inherits Array)
 		o? and (Object.ToString(o) is "[object Array]" or Object.IsType(o, Array))
 	IsBling: (o) ->
@@ -181,6 +184,40 @@ Object.Extend Function,
 	LowerLimit: (x) -> (y) -> Math.max(x, y)
 	Px: (d) -> () -> Number.Px(@,d)
 
+Object.Extend String,
+	PadLeft: (s, n, c = " ") -> # String.PadLeft(string, width, fill=" ")
+		while s.length < n
+			s = c + s
+		s
+	PadRight: (s, n, c = " ") -> # String.PadRight(string, width, fill=" ")
+		while s.length < n
+			s = s + c
+		s
+	Splice: (s, i, j, n) -> # String.Splice(string, start, end, n) - replace a substring with n
+		nn = s.length
+		end = j
+		if end < 0
+			end += nn
+		start = i
+		if start < 0
+			start += nn
+		s.substring(0,start) + n + s.substring(end)
+	Checksum: (s) -> # String.Checksum(string) - Adler32 checksum of a string
+		a = 1; b = 0
+		for i in [0...s.length]
+			a = (a + s.charCodeAt(i)) % 65521
+			b = (b + a) % 65521
+		return (b << 16) | a
+	Builder: () -> # String.Builder - builds a string
+		if Object.IsWindow(@) then return new String.Builder()
+		items = []
+		@length   = 0
+		@append   = (s) => items.push s; @length += s?.toString().length|0
+		@prepend  = (s) => items.splice 0,0,s; @length += s?.toString().length|0
+		@clear    = ( ) => items = []; @length = 0
+		@toString = ( ) => items.join("")
+		@
+
 Object.Extend Array,
 	Coalesce: (a...) ->
 		# Array.Coalesce - returns the first non-null argument
@@ -227,30 +264,6 @@ Object.Extend Number,
 		(y) ->
 			Math.min parseFloat(y or 0), x
 
-Object.Extend String,
-	PadLeft: (s, n, c = " ") -> # String.PadLeft(string, width, fill=" ")
-		while s.length < n
-			s = c + s
-		s
-	PadRight: (s, n, c = " ") -> # String.PadRight(string, width, fill=" ")
-		while s.length < n
-			s = s + c
-		s
-	Splice: (s, i, j, n) -> # String.Splice(string, start, end, n) - replace a substring with n
-		nn = s.length
-		end = j
-		if end < 0
-			end += nn
-		start = i
-		if start < 0
-			start += nn
-		s.substring(0,start) + n + s.substring(end)
-	Checksum: (s) -> # String.Checksum(string) - Adler32 checksum of a string
-		a = 1; b = 0
-		for i in [0...s.length]
-			a = (a + s.charCodeAt(i)) % 65521
-			b = (b + a) % 65521
-		return (b << 16) | a
 
 Object.Extend Event,
 	Cancel: (evt) ->

@@ -832,6 +832,8 @@ Object.Extend Event,
 		ord_A = "A".charCodeAt(0)
 		ord_Z = "Z".charCodeAt(0)
 		ord_a = "a".charCodeAt(0)
+
+		# convert between dash-names and camelNames
 		dashName = (name) ->
 			ret = ""
 			for i in [0...(name?.length|0)]
@@ -996,7 +998,6 @@ Object.Extend Event,
 
 			data: (k, v) ->
 				k = "data-#{dashName(k)}"
-				console.log k
 				@attr(k, v)
 
 			addClass: (x) -> # .addClass(/x/) - add x to each node's .className

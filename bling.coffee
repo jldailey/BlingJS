@@ -1224,14 +1224,13 @@ Object.Extend Event,
 	$.plugin () -> # Math plugin
 		name: 'Maths'
 		$:
-			range: (start, end, step = 1) ->
-				i = start
-				if step == 0 or (step > 0 and start > end) or (step < 0 and start < end)
-					return []
-				while (start > end and i > end) or ( start < end and i < end )
-					a = i
-					i += step
-					a
+			range: (start, end, step = 1) -> # $.range generates an array of numbers
+				step *= -1 if end < start and step > 0 # force step to have the same direction as start->end
+				steps = Math.ceil( (end - start) / step )
+				start + (i*step) for i in [0...steps]
+			zeros: (n) -> # $.zeros generates an array of /n/ zeros
+				0 for i in [0...n]
+
 		floats: () ->
 			# .floats() - parseFloat(/x/) for /x/ in _this_
 			@map parseFloat

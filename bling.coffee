@@ -771,7 +771,9 @@ Object.Extend Event,
 
 			delay: (n, f) -> # .delay(/n/, /f/) -  continue with /f/ on _this_ after /n/ milliseconds
 				if f
-					timeoutQueue.schedule Function.Bound(f, @), n
+					g = Function.Bound(f, @)
+					timeoutQueue.schedule g, n
+					@.cancel = () -> timeoutQueue.cancel g
 				@
 
 			log: (label) -> # .log([label]) - console.log([/label/] + /x/) for /x/ in _this_

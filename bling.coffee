@@ -220,11 +220,9 @@ Object.Extend String,
 
 Object.Extend Array,
 	Coalesce: (a...) -> # Array.Coalesce - returns the first non-null argument
-		if Object.IsArray(a[0])
-			Array.Coalesce a[0]...
-		else
-			for i in a
-				return i if i?
+		if Object.IsArray(a[0]) then return Array.Coalesce a[0]...
+		for i in a
+			return i if i?
 	Extend: (a, b) -> # Array.Extend - pushes each item from b into a
 		j = a.length
 		for i in b
@@ -258,7 +256,6 @@ Object.Extend Number,
 	AtMost: (x) -> # mappable version of min()
 		(y) ->
 			Math.min parseFloat(y or 0), x
-
 
 Object.Extend Event,
 	Cancel: (evt) ->
@@ -377,35 +374,36 @@ Object.Extend Event,
 		}
 
 	$.plugin () -> # Core - the functional basis for all other modules
-		class TimeoutQueue extends Array # (new TimeoutQueue).schedule(f, 10);
+		
+		TimeoutQueue = () -> # new TimeoutQueue().schedule(f, 10);
 			# TimeoutQueue works like setTimeout but enforces strictness on the order
 			# (still has the same basic timing inaccuracy, but will always fire
 			# callbacks in the order they were originally scheduled.)
-			constructor: () ->
-				next = () => # next() consumes the next handler on the queue
-					if @length > 0
-						@shift()() # shift AND call
-				@schedule = (f, n) => # schedule(f, n) sets f to run after n or more milliseconds
-					if not Object.IsFunc(f)
-						throw Error "function expected, got: #{typeof f}"
-					nn = @length
-					f.order = n + new Date().getTime()
-					if nn is 0 or f.order > @[nn-1].order # short-cut the common-case: f belongs after the end
-						@push(f)
-					else
-						for i in [0...nn]
-							if @[i].order > f.order
-								@splice(i, 0, f)
-								break
-					setTimeout next, n
-					return @
-				@cancel = (f) =>
-					if not Object.IsFunc(f)
-						throw Error "function expected, got #{Object.Type(f)}"
-					for i in [0...@length]
-						if @[i] == f
-							@splice(i, 1)
+			q = []
+			next = () => # next() consumes the next handler on the queue
+				if q.length > 0
+					q.shift()() # shift AND call
+			@schedule = (f, n) => # schedule(f, n) sets f to run after n or more milliseconds
+				if not Object.IsFunc(f)
+					throw Error "function expected, got: #{typeof f}"
+				nq = q.length
+				f.order = n + new Date().getTime()
+				if nq is 0 or f.order > q[nq-1].order # short-cut the common-case: f belongs after the end
+					q.push(f)
+				else
+					for i in [0...nq]
+						if q[i].order > f.order
+							q.splice(i, 0, f)
 							break
+				setTimeout next, n
+				return @
+			@cancel = (f) =>
+				if not Object.IsFunc(f)
+					throw Error "function expected, got #{Object.Type(f)}"
+				for i in [0...q.length]
+					if q[i] == f
+						q.splice(i, 1)
+						break
 		timeoutQueue = new TimeoutQueue
 
 		getter = (prop) -> # used in .zip()

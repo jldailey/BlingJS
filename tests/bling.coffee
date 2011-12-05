@@ -42,6 +42,12 @@ testGroup("Array",
 	Coalesce1: () -> assertEqual(Array.Coalesce(null, 42, 22), 42)
 	Coalesce2: () -> assertEqual(Array.Coalesce([null, 14, 42]), 14)
 	Extend: () -> assertArrayEqual(Array.Extend([1,2,3],[3,4,5]), [1,2,3,3,4,5])
+	Compact1: () -> assertEqual(Array.Compact([1,2,3]), "123")
+	Compact2: () -> assertEqual(Array.Compact([1,{a:1},3]).toString(), "1,[object Object],3")
+	Compact3: () -> assertEqual(Array.Compact([1,[2,3],4]), "1234")
+	Compact4: () -> assertEqual(Array.Compact([1,[2,3],[4,5]]), "12345")
+	Compact5: () -> assertEqual(Array.Compact([1,[2,3],[4,{a:1},5]]).toString(), "1234,[object Object],5")
+	Compact6: () -> assertEqual(Array.Compact([1,[2,3],[4,{a:1},[5],[6]]]).toString(), "1234,[object Object],56")
 )
 
 testGroup("Number",

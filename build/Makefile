@@ -14,6 +14,7 @@ minify: $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
 clean:
 	rm -f $(DIST)/*.js
+	rm -f $(DIST_PLUGINS)/*.js
 
 dist: $(DIST)/bling.js minify plugin
 
@@ -60,3 +61,5 @@ $(DIST)/min.%.js: $(DIST)/%.js compiler.jar
 
 report:
 	@cd $(DIST) && wc -c `ls *.js *.gz | sort` | grep -v total | grep -v externs.js
+
+.PHONY: all minify clean dist site publish plugin

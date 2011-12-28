@@ -246,6 +246,15 @@ Object.Extend Array,
 			into.push buffer.toString()
 			buffer.clear()
 		return into
+	Search: (a, f = ((x)->true), from = 0, to = -1) -> # UNTESTED: just noodling for now
+		if not Object.IsArray(a)
+			return
+		n = a.length
+		if from < 0 then from += n
+		if to < 0 then to += n
+		for i in [from..to]
+			if f(a[i]) then return a[i]
+		return null
 
 Object.Extend Number,
 	Px: (x, d=0) -> # Px(/x/, /delta/=0) - convert a number-ish x to pixels
@@ -1008,17 +1017,23 @@ Object.Extend Event,
 			removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
 				notx = (y)-> y != x
 				@each () ->
-					@className = @className?.split(" ").filter(notx).join(" ")
+					c = @className?.split(" ").filter(notx).join(" ")
+					if c.length is 0
+						@removeAttribute('class')
 
 			toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
 				notx = (y) -> y != x
 				@each () ->
 					cls = @className.split(" ")
 					if( cls.indexOf(x) > -1 )
-						@className = cls.filter(notx).join(" ")
+						c = cls.filter(notx).join(" ")
 					else
 						cls.push(x)
-						@className = cls.filter(Function.NotEmpty).join(" ")
+						c = cls.filter(Function.NotEmpty).join(" ")
+					if c.length > 0
+						@className = c
+					else
+						@removeAttribute('class')
 
 			hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x
 				@zip('className.split').call(" ").zip('indexOf').call(x).map Function.IndexFound

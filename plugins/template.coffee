@@ -15,11 +15,12 @@
 				if not current_engine?
 					current_engine = name
 			render: (text, args) ->
-				engines[current_engine](text, args)
+				if current_engine of engines
+					engines[current_engine](text, args)
 		}
 		template.__defineSetter__ 'engine', (v) ->
 			if not v of engines
-				$.error "invalid template engine: #{v} not one of #{Object.Keys[engines]}"
+				throw new Error "invalid template engine: #{v} not one of #{Object.Keys[engines]}"
 			else
 				current_engine = v
 		template.__defineGetter__ 'engine', () -> current_engine
@@ -30,20 +31,21 @@
 				template: template
 		}
 	
+	match_forward = (text, find, against, start, stop = -1) -> # a brace-matcher, useful in most template parsing steps
+		count = 1
+		if stop < 0
+			stop = text.length + 1 + stop
+		for i in [start...stop]
+			t = text[i]
+			if t is against
+				count += 1
+			else if t is find
+				count -= 1
+			if count is 0
+				return i
+		return -1
+
 	$.template.register_engine 'pythonic', (() ->
-		match_forward = (text, find, against, start, stop = -1) ->
-			count = 1
-			if stop < 0
-				stop = text.length + 1 + stop
-			for i in [start...stop]
-				t = text[i]
-				if t is against
-					count += 1
-				else if t is find
-					count -= 1
-				if count is 0
-					return i
-			return -1
 
 		# the regex for the format specifiers in templates (from python)
 		# splits the format piece (%.2f, etc) into [key, pad, fixed, type, remainder]
@@ -111,6 +113,27 @@
 			output.join ""
 
 		return render
+	)()
+
+	$.template.register_engine 'null', (() ->
+		return (text, values) ->
+			text
+	)()
+
+	$.template.register_engine 'js-eval', (() ->
+		class TemplateMachine extends $.StateMachine
+			@STATE_TABLE = [
+				{ # 0: START
+					enter: () ->
+						@data = []
+						@GO(1)
+				},
+				{ # 1: read anything
+				}
+			]
+			
+		return (text, values) ->
+			text
 	)()
 
 

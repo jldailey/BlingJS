@@ -2,7 +2,7 @@ global.assert = (c, msg) ->
 	if not c
 		throw Error msg
 global.assertEqual = (a, b, label) ->
-	if a isnt b
+	if a != b
 		throw Error "#{label or ''} (#{a?.toString()}) should equal (#{b?.toString()})"
 global.assertArrayEqual = (a, b, label) ->
 	for i in [0...a.length]

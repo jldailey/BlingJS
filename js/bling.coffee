@@ -11,12 +11,12 @@ http://creativecommons.org/licenses/MIT/
 
 ###
 
-if not "querySelectorAll" of document
+if not document?.querySelectorAll
 	alert "This browser is not supported"
 	`return`
 
 # local shortcuts
-if console and console.log
+if console?.log
 	log = (a...) ->
 		console.log.apply(console, a)
 else
@@ -59,7 +59,7 @@ Bling = (selector, context = document) ->
 	return set
 
 # Blings extend from arrays
-Bling.fn = new Array # a copy(!) of the Array prototype
+Bling.fn = new Array # a copy! of the Array prototype
 
 Object.Keys = (o, inherited = false) -> # Object.Keys(/o/, [/inherited/]) - get a list of key names
 	# by default, does not include properties inherited from a prototype
@@ -108,11 +108,10 @@ Object.Extend Object,
 				"boolean"
 			when Object.IsError o
 				"error"
+			when Object.IsWindow o
+				"window"
 			when Object.IsObject o
-				if "setInterval" of o # same crude method that jQuery uses
-					"window"
-				else
-					"object"
+				"object"
 	IsType: (o,T) -> # Object.IsType(o,T) - true if object o is of type T (directly or indirectly)
 		if o == null
 			o is T
@@ -128,12 +127,16 @@ Object.Extend Object,
 		o? and Object.IsType o, Number
 	IsBoolean: (o) ->
 		typeof o is "boolean"
+	IsSimple: (o) ->
+		Object.IsString(o) or Object.IsNumber(o) or Object.IsBoolean(o)
 	IsFunc: (o) -> # Object.IsFunc(a) - true if object a is a function
 		o? and (typeof o is "function" or Object.IsType(o, Function)) and o.call?
 	IsNode: (o) -> # Object.IsNode(o) - true if object is a DOM node
-		o? and o.nodeType > 0
+		o?.nodeType > 0
 	IsFragment: (o) -> # Object.IsFragment(o) - true if object is a DocumentFragment node
-		o? and o.nodeType is 11
+		o?.nodeType is 11
+	IsWindow: (o) -> # Object.IsWindow(o) - true if this is the global object
+		"setInterval" of o # same crude method that jQuery uses
 	IsArray: (o) -> # Object.IsArray(o) - true if object is an Array (or inherits Array)
 		o? and (Object.ToString(o) is "[object Array]" or Object.IsType(o, Array))
 	IsBling: (o) ->
@@ -181,32 +184,6 @@ Object.Extend Function,
 	LowerLimit: (x) -> (y) -> Math.max(x, y)
 	Px: (d) -> () -> Number.Px(@,d)
 
-Object.Extend Array,
-	Coalesce: (a...) ->
-		# Array.Coalesce - returns the first non-null argument
-		if Object.IsArray(a[0])
-			Array.Coalesce a[0]...
-		else
-			for i in a
-				return i if i?
-	Extend: (a, b) ->
-		j = a.length
-		for i in b
-			a[j++] = i
-		a
-
-Object.Extend Number,
-	Px: (x, d=0) ->
-		# Px(/x/, /delta/=0) - convert a number-ish x to pixels
-		x? and (parseInt(x,10)+(d|0))+"px"
-	# mappable versions of max() and min()
-	AtLeast: (x) ->
-		(y) ->
-			Math.max parseFloat(y or 0), x
-	AtMost: (x) ->
-		(y) ->
-			Math.min parseFloat(y or 0), x
-
 Object.Extend String,
 	PadLeft: (s, n, c = " ") -> # String.PadLeft(string, width, fill=" ")
 		while s.length < n
@@ -231,6 +208,63 @@ Object.Extend String,
 			a = (a + s.charCodeAt(i)) % 65521
 			b = (b + a) % 65521
 		return (b << 16) | a
+	Builder: () -> # String.Builder - builds a string
+		if Object.IsWindow(@) then return new String.Builder()
+		items = []
+		@length   = 0
+		@append   = (s) => items.push s; @length += s?.toString().length|0
+		@prepend  = (s) => items.splice 0,0,s; @length += s?.toString().length|0
+		@clear    = ( ) => items = []; @length = 0
+		@toString = ( ) => items.join("")
+		@
+
+Object.Extend Array,
+	Coalesce: (a...) -> # Array.Coalesce - returns the first non-null argument
+		if Object.IsArray(a[0]) then return Array.Coalesce a[0]...
+		for i in a
+			return i if i?
+	Extend: (a, b) -> # Array.Extend - pushes each item from b into a
+		j = a.length
+		for i in b
+			a[j++] = i
+		a
+	Compact: (a, buffer = new String.Builder(), into = [], topLevel = true) -> # Array.Compact reduces /a/ by joining adjacent stringy items
+		if not Object.IsArray(a)
+			return a
+		for i in a
+			switch true
+				when not Object.IsDefined(i) then continue
+				when Object.IsSimple(i) then buffer.append(i)
+				when Object.IsArray(i) then Array.Compact(i, buffer, into, false)
+				else
+					into.push buffer.toString() if buffer.length > 0
+					into.push i
+					buffer.clear()
+		if into.length is 0
+			return buffer.toString()
+		if buffer.length > 0 and topLevel
+			into.push buffer.toString()
+			buffer.clear()
+		return into
+	Search: (a, f = ((x)->true), from = 0, to = -1) -> # UNTESTED: just noodling for now
+		if not Object.IsArray(a)
+			return
+		n = a.length
+		if from < 0 then from += n
+		if to < 0 then to += n
+		for i in [from..to]
+			if f(a[i]) then return a[i]
+		return null
+
+Object.Extend Number,
+	Px: (x, d=0) -> # Px(/x/, /delta/=0) - convert a number-ish x to pixels
+		x? and (parseInt(x,10)+(d|0))+"px"
+	AtLeast: (x) -> # mappable version of max()
+		(y) ->
+			Math.max parseFloat(y or 0), x
+	AtMost: (x) -> # mappable version of min()
+		(y) ->
+			Math.min parseFloat(y or 0), x
 
 Object.Extend Event,
 	Cancel: (evt) ->
@@ -238,15 +272,13 @@ Object.Extend Event,
 		evt.preventDefault()
 		evt.cancelBubble = true
 		evt.returnValue = false
-	,
 	Prevent: (evt) ->
 		evt.preventDefault()
-	,
 	Stop: (evt) ->
 	 evt.stopPropagation()
 	 evt.cancelBubble = true
 
-(($) -> # protected name_space
+(($) -> # protected name space
 
 	$.plugins = []
 
@@ -351,35 +383,36 @@ Object.Extend Event,
 		}
 
 	$.plugin () -> # Core - the functional basis for all other modules
-		class TimeoutQueue extends Array # (new TimeoutQueue).schedule(f, 10);
+		
+		TimeoutQueue = () -> # new TimeoutQueue().schedule(f, 10);
 			# TimeoutQueue works like setTimeout but enforces strictness on the order
 			# (still has the same basic timing inaccuracy, but will always fire
 			# callbacks in the order they were originally scheduled.)
-			constructor: () ->
-				next = () => # next() consumes the next handler on the queue
-					if @length > 0
-						@shift()() # shift AND call
-				@schedule = (f, n) => # schedule(f, n) sets f to run after n or more milliseconds
-					if not Object.IsFunc(f)
-						throw Error "function expected, got: #{typeof f}"
-					nn = @length
-					f.order = n + new Date().getTime()
-					if nn is 0 or f.order > @[nn-1].order # short-cut the common-case: f belongs after the end
-						@push(f)
-					else
-						for i in [0...nn]
-							if @[i].order > f.order
-								@splice(i, 0, f)
-								break
-					setTimeout next, n
-					return @
-				@cancel = (f) =>
-					if not Object.IsFunc(f)
-						throw Error "function expected, got #{Object.Type(f)}"
-					for i in [0...@length]
-						if @[i] == f
-							@splice(i, 1)
+			q = []
+			next = () => # next() consumes the next handler on the queue
+				if q.length > 0
+					q.shift()() # shift AND call
+			@schedule = (f, n) => # schedule(f, n) sets f to run after n or more milliseconds
+				if not Object.IsFunc(f)
+					throw Error "function expected, got: #{typeof f}"
+				nq = q.length
+				f.order = n + new Date().getTime()
+				if nq is 0 or f.order > q[nq-1].order # short-cut the common-case: f belongs after the end
+					q.push(f)
+				else
+					for i in [0...nq]
+						if q[i].order > f.order
+							q.splice(i, 0, f)
 							break
+				setTimeout next, n
+				return @
+			@cancel = (f) =>
+				if not Object.IsFunc(f)
+					throw Error "function expected, got #{Object.Type(f)}"
+				for i in [0...q.length]
+					if q[i] == f
+						q.splice(i, 1)
+						break
 		timeoutQueue = new TimeoutQueue
 
 		getter = (prop) -> # used in .zip()
@@ -443,7 +476,7 @@ Object.Extend Event,
 					a = f.call(@, a, @)
 				a
 
-			union: (other, strict) ->
+			union: (other, strict = true) ->
 				# .union(/other/) - collect all /x/ from _this_ and /y/ from _other_.
 				# no duplicates, use .concat() if you want to preserve dupes
 				# 'strict' forces === comparison
@@ -478,12 +511,12 @@ Object.Extend Event,
 							break
 				ret
 
-			distinct: (strict) ->
+			distinct: (strict = true) ->
 				# .distinct() - a copy of _this_ without duplicates.
 				# 'strict' forces === comparison
 				@union(@, strict)
 
-			contains: (item, strict) ->
+			contains: (item, strict = true) ->
 				# .contains(/x/) - true if /x/ is in _this_, false otherwise.
 				# 'strict' forces === comparison
 				for t in @
@@ -491,7 +524,7 @@ Object.Extend Event,
 						return true
 				return false
 
-			count: (item, strict) ->
+			count: (item, strict = true) ->
 				# .count(/x/) - returns how many times /x/ occurs in _this_.
 				# since we want to be able to search for null values with .count(null)
 				# but if you just call .count(), it returns the total length
@@ -745,7 +778,9 @@ Object.Extend Event,
 
 			delay: (n, f) -> # .delay(/n/, /f/) -  continue with /f/ on _this_ after /n/ milliseconds
 				if f
-					timeoutQueue.schedule Function.Bound(f, @), n
+					g = Function.Bound(f, @)
+					timeoutQueue.schedule g, n
+					@.cancel = () -> timeoutQueue.cancel g
 				@
 
 			log: (label) -> # .log([label]) - console.log([/label/] + /x/) for /x/ in _this_
@@ -769,7 +804,7 @@ Object.Extend Event,
 
 	$.plugin () -> # Html plugin
 		before = (a,b) -> # insert b before a
-			# create a fragment is parent node is null
+			# create a fragment if parent node is null
 			if not a.parentNode?
 				df = document.createDocumentFragment()
 				df.appendChild(a)
@@ -804,17 +839,19 @@ Object.Extend Event,
 		ord_A = "A".charCodeAt(0)
 		ord_Z = "Z".charCodeAt(0)
 		ord_a = "a".charCodeAt(0)
+
+		# convert between dash-names and camelNames
 		dashName = (name) ->
 			ret = ""
-			for i in [0...name.length]
+			for i in [0...(name?.length|0)]
 				c = name.charCodeAt i
 				if ord_Z >= c >= ord_A # is upper case
 					c = (c - ord_A) + ord_a # shift to lower
-					ret += "-"
+					ret += '-'
 				ret += String.fromCharCode(c)
 			return ret
 		camelName = (name) ->
-			i = name.indexOf('-')
+			i = name?.indexOf('-')
 			while i > -1
 				name = String.Splice(name, i, i+2, name[i+1].toUpperCase())
 				i = name.indexOf('-')
@@ -968,7 +1005,6 @@ Object.Extend Event,
 
 			data: (k, v) ->
 				k = "data-#{dashName(k)}"
-				console.log k
 				@attr(k, v)
 
 			addClass: (x) -> # .addClass(/x/) - add x to each node's .className
@@ -981,17 +1017,23 @@ Object.Extend Event,
 			removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
 				notx = (y)-> y != x
 				@each () ->
-					@className = @className?.split(" ").filter(notx).join(" ")
+					c = @className?.split(" ").filter(notx).join(" ")
+					if c.length is 0
+						@removeAttribute('class')
 
 			toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
 				notx = (y) -> y != x
 				@each () ->
 					cls = @className.split(" ")
 					if( cls.indexOf(x) > -1 )
-						@className = cls.filter(notx).join(" ")
+						c = cls.filter(notx).join(" ")
 					else
 						cls.push(x)
-						@className = cls.filter(Function.NotEmpty).join(" ")
+						c = cls.filter(Function.NotEmpty).join(" ")
+					if c.length > 0
+						@className = c
+					else
+						@removeAttribute('class')
 
 			hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x
 				@zip('className.split').call(" ").zip('indexOf').call(x).map Function.IndexFound
@@ -1195,14 +1237,13 @@ Object.Extend Event,
 	$.plugin () -> # Math plugin
 		name: 'Maths'
 		$:
-			range: (start, end, step = 1) ->
-				i = start
-				if step == 0 or (step > 0 and start > end) or (step < 0 and start < end)
-					return []
-				while (start > end and i > end) or ( start < end and i < end )
-					a = i
-					i += step
-					a
+			range: (start, end, step = 1) -> # $.range generates an array of numbers
+				step *= -1 if end < start and step > 0 # force step to have the same direction as start->end
+				steps = Math.ceil( (end - start) / step )
+				start + (i*step) for i in [0...steps]
+			zeros: (n) -> # $.zeros generates an array of /n/ zeros
+				0 for i in [0...n]
+
 		floats: () ->
 			# .floats() - parseFloat(/x/) for /x/ in _this_
 			@map parseFloat
@@ -1515,8 +1556,13 @@ Object.Extend Event,
 			"now": 0
 		# matches all the accelerated css property names
 		accel_props_re = /(?:scale(?:3d)*|translate(?:[XYZ]|3d)*|rotate(?:[XYZ]|3d)*)/
-		updateDelay = 50 # ms to wait for DOM changes to apply
+		updateDelay = 30 # ms to wait for DOM changes to apply
 		testStyle = document.createElement("div").style
+
+		transformProperty = "transform"
+		transitionProperty = "transition-property"
+		transitionDuration = "transition-duration"
+		transitionTiming = "transition-timing-function"
 
 		# detect which browser's transform properties to use
 		if "WebkitTransform" of testStyle
@@ -1547,7 +1593,7 @@ Object.Extend Event,
 
 			# like jquery's animate(), but using only webkit-transition/transform
 			transform: (end_css, speed, easing, callback) ->
-				# .transform(cssobject, [/speed/], [/callback/]) - animate css properties on each node
+				# .transform(css, [/speed/], [/callback/]) - animate css properties on each node
 				# animate css properties over a duration
 				# accelerated: scale, translate, rotate, scale3d,
 				# ... translateX, translateY, translateZ, translate3d,
@@ -1612,8 +1658,7 @@ Object.Extend Event,
 				# WARNING: NOT EXACT!
 				@delay(duration, callback)
 
-			hide: (callback) ->
-				# .hide() - each node gets display:none
+			hide: (callback) -> # .hide() - each node gets display:none
 				@each () ->
 					if @style
 						@_display = "" # stash the old display
@@ -1623,8 +1668,7 @@ Object.Extend Event,
 				.trigger("hide")
 				.delay(updateDelay, callback)
 
-			show: (callback) ->
-				# .show() - show each node
+			show: (callback) -> # .show() - show each node
 				@each () ->
 					if @style
 						@style.display = @_display
@@ -1632,8 +1676,7 @@ Object.Extend Event,
 				.trigger("show")
 				.delay(updateDelay, callback)
 
-			toggle: (callback) ->
-				# .toggle() - show each hidden node, hide each visible one
+			toggle: (callback) -> # .toggle() - show each hidden node, hide each visible one
 				@weave(@css("display"))
 					.fold (display, node) ->
 						if display is "none"
@@ -1647,31 +1690,25 @@ Object.Extend Event,
 						node
 					.delay(updateDelay, callback)
 
-			fadeIn: (speed, callback) ->
-				# .fadeIn() - fade each node to opacity 1.0
+			fadeIn: (speed, callback) -> # .fadeIn() - fade each node to opacity 1.0
 				@.css('opacity','0.0')
 					.show () ->
 						@transform {
 							opacity:"1.0",
 							translate3d: [0,0,0]
 						}, speed, callback
-			fadeOut: (speed, callback, x = 0.0, y = 0.0) ->
-				# .fadeOut() - fade each node to opacity:0.0
+			fadeOut: (speed, callback, x = 0.0, y = 0.0) -> # .fadeOut() - fade each node to opacity:0.0
 				@transform {
 					opacity:"0.0",
 					translate3d:[x,y,0.0]
 				}, speed, () -> @hide(callback)
-			fadeLeft: (speed, callback) ->
-				# .fadeLeft() - fadeOut and move offscreen to the left
+			fadeLeft: (speed, callback) -> # .fadeLeft() - fadeOut and move offscreen to the left
 				@fadeOut(speed, callback, "-"+@width().first(), 0.0)
-			fadeRight: (speed, callback) ->
-				# .fadeRight() - fadeOut and move offscreen to the right
+			fadeRight: (speed, callback) -> # .fadeRight() - fadeOut and move offscreen to the right
 				@fadeOut(speed, callback, @width().first(), 0.0)
-			fadeUp: (speed, callback) ->
-				# .fadeUp() - fadeOut and move off the top
+			fadeUp: (speed, callback) -> # .fadeUp() - fadeOut and move off the top
 				@fadeOut(speed, callback, 0.0, "-"+@height().first())
-			fadeDown: (speed, callback)  ->
-				# .fadeDown() - fadeOut and move off the bottom
+			fadeDown: (speed, callback)  -> # .fadeDown() - fadeOut and move off the bottom
 				@fadeOut(speed, callback, 0.0, @height().first())
 		}
 
@@ -1740,103 +1777,6 @@ Object.Extend Event,
 			}
 		}
 
-	$.plugin () -> # Template plugin
-		match_forward = (text, find, against, start, stop = -1) ->
-			count = 1
-			if stop < 0
-				stop = text.length + 1 + stop
-			for i in [start...stop]
-				t = text[i]
-				if t is against
-					count += 1
-				else if t is find
-					count -= 1
-				if count is 0
-					return i
-			return -1
-
-		# the regex for the format specifiers in templates (from python)
-		# splits the format piece (%.2f, etc) into [key, pad, fixed, type, remainder]
-		type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/
-		chunk_re = /%[\(\/]/
-
-		compile = (text) ->
-			chunks = text.split chunk_re
-			n = chunks.length
-			ret = [chunks[0]]
-			j = 1 # insert marker into ret
-			for i in [1...n]
-				end = match_forward chunks[i], ')', '(', 0, -1
-				if end is -1
-					return "Template syntax error: unmatched '%(' starting at: #{chunks[i].substring(0,15)}"
-				key = chunks[i].substring 0, end
-				rest = chunks[i].substring end
-				match = type_re.exec rest
-				if match is null
-					return "Template syntax error: invalid type specifier starting at '#{rest}'"
-				rest = match[4]
-				ret[j++] = key
-				# the |0 operation coerces to a number,
-				# anything that doesnt map becomes 0,
-				# so "3" -> 3, "" -> 0, null -> 0, etc.
-				ret[j++] = match[1]|0
-				ret[j++] = match[2]|0
-				ret[j++] = match[3]
-				ret[j++] = rest
-			return ret
-		compile.cache = {}
-
-		render = (text, values) -> # $.render(/t/, /v/) - replace markers in string /t/ with values from /v/
-			cache = compile.cache[text] # get the cached version
-			if not cache?
-				cache = compile.cache[text] = compile(text) # or compile and cache it
-			output = [cache[0]] # the first block is always just text
-			j = 1 # insert marker into output
-			n = cache.length
-
-			# then the rest of the cache items are: [key, pad, fixed, type, text remainder] 5-lets
-			for i in [1..n-5] by 5
-				[key, pad, fixed, type, rest] = cache[i..i+4]
-				# the value to render for @ key
-				value = values[key]
-				# require the value
-				if not value?
-					value = "missing value: #{key}"
-				# format the value according to the format options
-				# currently supports 'd', 'f', and 's'
-				switch type
-					when 'd'
-						output[j++] = "" + parseInt(value, 10)
-					when 'f'
-						output[j++] = parseFloat(value).toFixed(fixed)
-					# output unsupported formats like %s strings
-					# TODO: add support for more formats
-					when 's'
-						output[j++] = "" + value
-					else
-						output[j++] = "" + value
-				if pad > 0
-					output[j] = String.PadLeft output[j], pad
-				output[j++] = rest
-			output.join ""
-
-		return {
-			name: 'Template'
-			$:
-				render: render
-
-			template: (defaults) ->
-				# .template([defaults]) - mark nodes as templates, add optional defaults to .render()
-				@render = (args) ->
-					# over-ride .render() to apply the defaults
-					render(@map($.HTML.stringify).join(""), Object.Extend(defaults,args))
-				@remove() # the template item itself should not be in the DOM
-
-			render: (args) ->
-				# .render(args) - replace %(var)s-type strings with values from args
-				render(@map($.HTML.stringify).join(""), args)
-		}
-	
 	$.plugin () -> # Hash plugin
 		return {
 			name: "Hash"
@@ -1853,20 +1793,14 @@ Object.Extend Event,
 							when "object" then String.Checksum(i.toString())
 		}
 
-	$.plugin () -> # Memoize plugin, depends on Hash
-		cache = {}
-		return {
+	$.plugin () -> # Memoize plugin, depends on Hash plugin
+		{
 			name: "Memoize"
 			$:
 				memoize: (f) ->
-					cache[f] = {}
-					return (a...) ->
-						h = $.hash(a)
-						m = cache[f]
-						if h of m
-							m[h]
-						else
-							m[h] = f.apply @, a
+					cache = {}
+					(a...) ->
+						cache[$.hash(a)] ?= f.apply @, a
 		}
 
 	$.plugin () -> # StateMachine plugin
@@ -1915,78 +1849,77 @@ Object.Extend Event,
 		}
 
 	$.plugin () -> # Synth plugin, depends on StateMachine
-
 		class SynthMachine extends $.StateMachine
 			@STATE_TABLE = [
-				{ # 0
+				{ # 0: START
 					enter: () ->
 						@tag = @id = @cls = @attr = @val = @text = ""
 						@attrs = {}
 						@GO(1)
 				},
-				{ # 1
+				{ # 1: read a tag name
 					'"': @GO(6), "'": @GO(7), "#": @GO(2), ".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
 					def: (c) -> @tag += c
 					eof: @GO(13)
 				},
-				{ # 2
+				{ # 2: read an #id
 					".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
 					def: (c) -> @id += c
 					eof: @GO(13)
 				},
-				{ # 3
+				{ # 3: read a .class name
 					enter: () -> @cls += " " if @cls.length > 0
 					"#": @GO(2), ".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
 					def: (c) -> @cls += c
 					eof: @GO(13)
 				},
-				{ # 4
+				{ # 4: read an attribute name (left-side)
 					"=": @GO(5)
 					"]": () -> @attrs[@attr] = @val; @GO(1)
 					def: (c) -> @attr += c
 					eof: @GO(12)
 				},
-				{ # 5
+				{ # 5: read an attribute value (right-side)
 					"]": () -> @attrs[@attr] = @val; @GO(1)
 					def: (c) -> @val += c
 					eof: @GO(12)
 				},
-				{ # 6
+				{ # 6: read d-quoted text
 					'"': @GO(8)
 					def: (c) -> @text += c
 					eof: @GO(12)
 				},
-				{ # 7
+				{ # 7: read s-quoted text
 					"'": @GO(8)
 					def: (c) -> @text += c
 					eof: @GO(12)
 				},
-				{ # 8
+				{ # 8: emit text and continue
 					enter: () ->
 						@emitText()
 						@GO(0)
 				},
-				{ # DESCEND
+				{ # 9: emit node and descend
 					enter: () ->
 						@emitNode()
 						@GO(0)
 				},
-				{ # RESET
+				{ # 10: emit node and start a new tree
 					enter: () ->
 						@emitNode()
 						@parent = null
 						@GO(0)
 				},
-				{ # SIBLING
+				{ # 11: emit node and step sideways to create a sibling
 					enter: () ->
 						@emitNode()
 						@parent = @parent?.parentNode
 						@GO(0)
 				},
-				{ # ERROR
+				{ # 12: ERROR
 					enter: () -> $.log "Error in synth expression: #{@input}"
 				},
-				{ # FINALIZE
+				{ # 13: FINALIZE
 					enter: () ->
 						@emitNode() if @tag.length
 						@emitText() if @text.length
@@ -2006,8 +1939,6 @@ Object.Extend Event,
 			emitText: () ->
 				@parent.appendChild $.HTML.parse(@text)
 				@text = ""
-
-		synth = (expr) ->
 
 		return {
 			name: "Synth"
@@ -2035,21 +1966,33 @@ Object.Extend Event,
 			if archive[e].length > archive_limit
 				archive[e].splice(0, archive_trim)
 			for func in subscribers[e]
-				func.apply window, args
+				func.apply null, args
+			@
 
 		subscribe = (e, func, replay = true) ->
 			subscribers[e] ?= []
 			subscribers[e].push(func)
-			# replay the publish archive
-			if replay
+			if replay # replay the publish archive
 				for args in archive[e]
 					$.log "replayed: #{e}", args
-					func.apply window, args
+					func.apply null, args
 			func
+
+		unsubscribe = (e, func) ->
+			if not func?
+				subscribers[e] = []
+			else
+				i = subscribers[e]?.indexOf(func)
+				if i > -1
+					subscribers[e].splice(i,i)
 
 		# expose these for advanced users
 		publish.__defineSetter__ 'limit', (n) ->
 			archive_limit = n
+			# enforce the new limit immediately
+			for e of archive
+				if archive[e].length > archive_limit
+					archive[e].splice(0, archive_trim)
 		publish.__defineSetter__ 'trim', (n) ->
 			archive_trim = n
 
@@ -2058,36 +2001,7 @@ Object.Extend Event,
 			$:
 				publish: publish
 				subscribe: subscribe
-		}
-
-	$.plugin () -> # LazyLoader plugin
-		create = (elementName, props) ->
-			Object.Extend document.createElement(elementName), props
-
-		lazy_load = (elementName, props) ->
-			depends = provides = null
-			n = create elementName, Object.Extend(props, {
-				onload: () ->
-					$.publish(provides) if provides != null
-			})
-			$("head").delay 10, () ->
-				if depends != null
-					$.subscribe depends, () => @append(n)
-				else
-					@append(n)
-			n = $(n)
-			Object.Extend n, {
-				depends: (tag) -> depends = elementName+"-"+tag; n
-				provides: (tag) -> provides = elementName+"-"+tag; n
-			}
-
-		return {
-			name: "LazyLoader"
-			$:
-				script: (src) ->
-					lazy_load "script", { src: src }
-				style: (src) ->
-					lazy_load "link", { href: src, rel: "stylesheet" }
+				unsubscribe: unsubscribe
 		}
 
 	$

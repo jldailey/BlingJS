@@ -1,4 +1,5 @@
 (function() {
+
   /*
   
   bling.js
@@ -9,22 +10,17 @@
   (Copyright) 2011
   (License) released under the MIT License
   http://creativecommons.org/licenses/MIT/
-  
   */
+
   var Bling, COMMASEP, EVENTSEP_RE, OBJECT_RE, log;
-  var __slice = Array.prototype.slice, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
-    for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
-    function ctor() { this.constructor = child; }
-    ctor.prototype = parent.prototype;
-    child.prototype = new ctor;
-    child.__super__ = parent.prototype;
-    return child;
-  }, __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
-  if (!"querySelectorAll" in document) {
+  var __slice = Array.prototype.slice, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
+
+  if (!(typeof document !== "undefined" && document !== null ? document.querySelectorAll : void 0)) {
     alert("This browser is not supported");
     return;
   }
-  if (console && console.log) {
+
+  if (typeof console !== "undefined" && console !== null ? console.log : void 0) {
     log = function() {
       var a;
       a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
@@ -37,14 +33,16 @@
       return alert(a.join(", "));
     };
   }
+
   COMMASEP = ", ";
+
   EVENTSEP_RE = /,* +/;
+
   OBJECT_RE = /\[object (\w+)\]/;
+
   Bling = function(selector, context) {
     var set, type;
-    if (context == null) {
-      context = document;
-    }
+    if (context == null) context = document;
     type = Object.Type(selector);
     if (type === "undefined" || type === "null") {
       set = [];
@@ -73,28 +71,25 @@
     set.length = set.len();
     return set;
   };
+
   Bling.fn = new Array;
+
   Object.Keys = function(o, inherited) {
     var i, j, keys;
-    if (inherited == null) {
-      inherited = false;
-    }
+    if (inherited == null) inherited = false;
     keys = [];
     j = 0;
     for (i in o) {
-      if (inherited || o.hasOwnProperty(i)) {
-        keys[j++] = i;
-      }
+      if (inherited || o.hasOwnProperty(i)) keys[j++] = i;
     }
     return keys;
   };
+
   Object.Extend = function(a, b, k) {
     var i, _i, _len, _ref;
     if (Object.prototype.toString.apply(k) === "[object Array]") {
       for (i in k) {
-        if (b[k[i]] !== void 0) {
-          a[k[i]] = b[k[i]];
-        }
+        if (b[k[i]] !== void 0) a[k[i]] = b[k[i]];
       }
     } else {
       _ref = (k = Object.Keys(b));
@@ -105,6 +100,7 @@
     }
     return a;
   };
+
   Object.Extend(Object, {
     Type: function(o) {
       var _ref;
@@ -135,12 +131,10 @@
           return "boolean";
         case Object.IsError(o):
           return "error";
+        case Object.IsWindow(o):
+          return "window";
         case Object.IsObject(o):
-          if ("setInterval" in o) {
-            return "window";
-          } else {
-            return "object";
-          }
+          return "object";
       }
     },
     IsType: function(o, T) {
@@ -163,14 +157,20 @@
     IsBoolean: function(o) {
       return typeof o === "boolean";
     },
+    IsSimple: function(o) {
+      return Object.IsString(o) || Object.IsNumber(o) || Object.IsBoolean(o);
+    },
     IsFunc: function(o) {
       return (o != null) && (typeof o === "function" || Object.IsType(o, Function)) && (o.call != null);
     },
     IsNode: function(o) {
-      return (o != null) && o.nodeType > 0;
+      return (o != null ? o.nodeType : void 0) > 0;
     },
     IsFragment: function(o) {
-      return (o != null) && o.nodeType === 11;
+      return (o != null ? o.nodeType : void 0) === 11;
+    },
+    IsWindow: function(o) {
+      return "setInterval" in o;
     },
     IsArray: function(o) {
       return (o != null) && (Object.ToString(o) === "[object Array]" || Object.IsType(o, Array));
@@ -190,12 +190,8 @@
     },
     Unbox: function(a) {
       if ((a != null) && Object.IsObject(a)) {
-        if (Object.IsString(a)) {
-          return a.toString();
-        }
-        if (Object.IsNumber(a)) {
-          return Number(a);
-        }
+        if (Object.IsString(a)) return a.toString();
+        if (Object.IsNumber(a)) return Number(a);
       }
       return a;
     },
@@ -203,13 +199,12 @@
       return Object.prototype.toString.apply(x);
     }
   });
+
   Object.Extend(Function, {
     Empty: function() {},
     Bound: function(f, t, args) {
       var r;
-      if (args == null) {
-        args = [];
-      }
+      if (args == null) args = [];
       if ("bind" in f) {
         args.splice(0, 0, t);
         r = f.bind.apply(f, args);
@@ -217,9 +212,7 @@
         r = function() {
           var a;
           a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-          if (args.length > 0) {
-            a = args;
-          }
+          if (args.length > 0) a = args;
           return f.apply(t, args);
         };
       }
@@ -230,9 +223,7 @@
     },
     Trace: function(f, label, tracer) {
       var r;
-      if (tracer == null) {
-        tracer = log;
-      }
+      if (tracer == null) tracer = log;
       r = function() {
         var a;
         a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
@@ -271,19 +262,74 @@
       };
     }
   });
+
+  Object.Extend(String, {
+    PadLeft: function(s, n, c) {
+      if (c == null) c = " ";
+      while (s.length < n) {
+        s = c + s;
+      }
+      return s;
+    },
+    PadRight: function(s, n, c) {
+      if (c == null) c = " ";
+      while (s.length < n) {
+        s = s + c;
+      }
+      return s;
+    },
+    Splice: function(s, i, j, n) {
+      var end, nn, start;
+      nn = s.length;
+      end = j;
+      if (end < 0) end += nn;
+      start = i;
+      if (start < 0) start += nn;
+      return s.substring(0, start) + n + s.substring(end);
+    },
+    Checksum: function(s) {
+      var a, b, i, _ref;
+      a = 1;
+      b = 0;
+      for (i = 0, _ref = s.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
+        a = (a + s.charCodeAt(i)) % 65521;
+        b = (b + a) % 65521;
+      }
+      return (b << 16) | a;
+    },
+    Builder: function() {
+      var items;
+      var _this = this;
+      if (Object.IsWindow(this)) return new String.Builder();
+      items = [];
+      this.length = 0;
+      this.append = function(s) {
+        items.push(s);
+        return _this.length += (s != null ? s.toString().length : void 0) | 0;
+      };
+      this.prepend = function(s) {
+        items.splice(0, 0, s);
+        return _this.length += (s != null ? s.toString().length : void 0) | 0;
+      };
+      this.clear = function() {
+        items = [];
+        return _this.length = 0;
+      };
+      this.toString = function() {
+        return items.join("");
+      };
+      return this;
+    }
+  });
+
   Object.Extend(Array, {
     Coalesce: function() {
       var a, i, _i, _len;
       a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-      if (Object.IsArray(a[0])) {
-        return Array.Coalesce.apply(Array, a[0]);
-      } else {
-        for (_i = 0, _len = a.length; _i < _len; _i++) {
-          i = a[_i];
-          if (i != null) {
-            return i;
-          }
-        }
+      if (Object.IsArray(a[0])) return Array.Coalesce.apply(Array, a[0]);
+      for (_i = 0, _len = a.length; _i < _len; _i++) {
+        i = a[_i];
+        if (i != null) return i;
       }
     },
     Extend: function(a, b) {
@@ -294,13 +340,60 @@
         a[j++] = i;
       }
       return a;
+    },
+    Compact: function(a, buffer, into, topLevel) {
+      var i, _i, _len;
+      if (buffer == null) buffer = new String.Builder();
+      if (into == null) into = [];
+      if (topLevel == null) topLevel = true;
+      if (!Object.IsArray(a)) return a;
+      for (_i = 0, _len = a.length; _i < _len; _i++) {
+        i = a[_i];
+        switch (true) {
+          case !Object.IsDefined(i):
+            continue;
+          case Object.IsSimple(i):
+            buffer.append(i);
+            break;
+          case Object.IsArray(i):
+            Array.Compact(i, buffer, into, false);
+            break;
+          default:
+            if (buffer.length > 0) into.push(buffer.toString());
+            into.push(i);
+            buffer.clear();
+        }
+      }
+      if (into.length === 0) return buffer.toString();
+      if (buffer.length > 0 && topLevel) {
+        into.push(buffer.toString());
+        buffer.clear();
+      }
+      return into;
+    },
+    Search: function(a, f, from, to) {
+      var i, n;
+      if (f == null) {
+        f = (function(x) {
+          return true;
+        });
+      }
+      if (from == null) from = 0;
+      if (to == null) to = -1;
+      if (!Object.IsArray(a)) return;
+      n = a.length;
+      if (from < 0) from += n;
+      if (to < 0) to += n;
+      for (i = from; from <= to ? i <= to : i >= to; from <= to ? i++ : i--) {
+        if (f(a[i])) return a[i];
+      }
+      return null;
     }
   });
+
   Object.Extend(Number, {
     Px: function(x, d) {
-      if (d == null) {
-        d = 0;
-      }
+      if (d == null) d = 0;
       return (x != null) && (parseInt(x, 10) + (d | 0)) + "px";
     },
     AtLeast: function(x) {
@@ -314,49 +407,7 @@
       };
     }
   });
-  Object.Extend(String, {
-    PadLeft: function(s, n, c) {
-      if (c == null) {
-        c = " ";
-      }
-      while (s.length < n) {
-        s = c + s;
-      }
-      return s;
-    },
-    PadRight: function(s, n, c) {
-      if (c == null) {
-        c = " ";
-      }
-      while (s.length < n) {
-        s = s + c;
-      }
-      return s;
-    },
-    Splice: function(s, i, j, n) {
-      var end, nn, start;
-      nn = s.length;
-      end = j;
-      if (end < 0) {
-        end += nn;
-      }
-      start = i;
-      if (start < 0) {
-        start += nn;
-      }
-      return s.substring(0, start) + n + s.substring(end);
-    },
-    Checksum: function(s) {
-      var a, b, i, _ref;
-      a = 1;
-      b = 0;
-      for (i = 0, _ref = s.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
-        a = (a + s.charCodeAt(i)) % 65521;
-        b = (b + a) % 65521;
-      }
-      return (b << 16) | a;
-    }
-  });
+
   Object.Extend(Event, {
     Cancel: function(evt) {
       evt.stopPropagation();
@@ -372,6 +423,7 @@
       return evt.cancelBubble = true;
     }
   });
+
   (function($) {
     $.plugins = [];
     $.plugin = function(constructor) {
@@ -380,9 +432,7 @@
         name = constructor.name;
         plugin = constructor.call($, $);
         name = name || plugin.name;
-        if (!name) {
-          throw Error("plugin requires a 'name'");
-        }
+        if (!name) throw Error("plugin requires a 'name'");
         $.plugins.push(name);
         $.plugins[name] = plugin;
         delete plugin.name;
@@ -401,12 +451,8 @@
       symbol = null;
       preserve = {};
       $.__defineSetter__("symbol", function(v) {
-        if (symbol in preserve) {
-          window[symbol] = preserve[symbol];
-        }
-        if (v in window) {
-          preserve[v] = window[v];
-        }
+        if (symbol in preserve) window[symbol] = preserve[symbol];
+        if (v in window) preserve[v] = window[v];
         symbol = v;
         return window[v] = Bling;
       });
@@ -438,13 +484,9 @@
       });
       Array.prototype.join = Array.Coalesce(Array.prototype.join, function(sep) {
         var n, s;
-        if (sep == null) {
-          sep = '';
-        }
+        if (sep == null) sep = '';
         n = this.length;
-        if (n === 0) {
-          return "";
-        }
+        if (n === 0) return "";
         s = this[n - 1];
         while (--n > 0) {
           s = this[n - 1] + sep + s;
@@ -471,9 +513,7 @@
         oldClone = Element.prototype.cloneNode;
         Element.prototype.cloneNode = function(deep) {
           var i, n, _i, _len, _ref;
-          if (deep == null) {
-            deep = false;
-          }
+          if (deep == null) deep = false;
           n = oldClone.call(this);
           if (deep) {
             _ref = this.childNodes;
@@ -491,69 +531,63 @@
     });
     $.plugin(function() {
       var TimeoutQueue, getter, timeoutQueue, zipper;
-      TimeoutQueue = (function() {
-        __extends(TimeoutQueue, Array);
-        function TimeoutQueue() {
-          var next;
-          next = __bind(function() {
-            if (this.length > 0) {
-              return this.shift()();
-            }
-          }, this);
-          this.schedule = __bind(function(f, n) {
-            var i, nn;
-            if (!Object.IsFunc(f)) {
-              throw Error("function expected, got: " + (typeof f));
-            }
-            nn = this.length;
-            f.order = n + new Date().getTime();
-            if (nn === 0 || f.order > this[nn - 1].order) {
-              this.push(f);
-            } else {
-              for (i = 0; 0 <= nn ? i < nn : i > nn; 0 <= nn ? i++ : i--) {
-                if (this[i].order > f.order) {
-                  this.splice(i, 0, f);
-                  break;
-                }
-              }
-            }
-            setTimeout(next, n);
-            return this;
-          }, this);
-          this.cancel = __bind(function(f) {
-            var i, _ref, _results;
-            if (!Object.IsFunc(f)) {
-              throw Error("function expected, got " + (Object.Type(f)));
-            }
-            _results = [];
-            for (i = 0, _ref = this.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
-              if (this[i] === f) {
-                this.splice(i, 1);
+      TimeoutQueue = function() {
+        var next, q;
+        var _this = this;
+        q = [];
+        next = function() {
+          if (q.length > 0) return q.shift()();
+        };
+        this.schedule = function(f, n) {
+          var i, nq;
+          if (!Object.IsFunc(f)) {
+            throw Error("function expected, got: " + (typeof f));
+          }
+          nq = q.length;
+          f.order = n + new Date().getTime();
+          if (nq === 0 || f.order > q[nq - 1].order) {
+            q.push(f);
+          } else {
+            for (i = 0; 0 <= nq ? i < nq : i > nq; 0 <= nq ? i++ : i--) {
+              if (q[i].order > f.order) {
+                q.splice(i, 0, f);
                 break;
               }
             }
-            return _results;
-          }, this);
-        }
-        return TimeoutQueue;
-      })();
+          }
+          setTimeout(next, n);
+          return _this;
+        };
+        return this.cancel = function(f) {
+          var i, _ref, _results;
+          if (!Object.IsFunc(f)) {
+            throw Error("function expected, got " + (Object.Type(f)));
+          }
+          _results = [];
+          for (i = 0, _ref = q.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
+            if (q[i] === f) {
+              q.splice(i, 1);
+              break;
+            } else {
+              _results.push(void 0);
+            }
+          }
+          return _results;
+        };
+      };
       timeoutQueue = new TimeoutQueue;
       getter = function(prop) {
         return function() {
           var v;
           v = this[prop];
-          if (Object.IsFunc(v)) {
-            return Function.Bound(v, this);
-          }
+          if (Object.IsFunc(v)) return Function.Bound(v, this);
           return v;
         };
       };
       zipper = function(prop) {
         var i;
         i = prop.indexOf(".");
-        if (i > -1) {
-          return this.zip(prop.substr(0, i)).zip(prop.substr(i + 1));
-        }
+        if (i > -1) return this.zip(prop.substr(0, i)).zip(prop.substr(i + 1));
         return this.map(getter(prop));
       };
       return {
@@ -561,9 +595,7 @@
         $: {
           log: log,
           delay: function(n, f) {
-            if (f) {
-              timeoutQueue.schedule(f, n);
-            }
+            if (f) timeoutQueue.schedule(f, n);
             return {
               cancel: function() {
                 return timeoutQueue.cancel(f);
@@ -617,6 +649,7 @@
         },
         union: function(other, strict) {
           var i, j, ret, x;
+          if (strict == null) strict = true;
           ret = $();
           x = i = j = 0;
           ret.context = this;
@@ -624,15 +657,11 @@
             return ret.context.union(other, strict);
           };
           while (x = this[j++]) {
-            if (!ret.contains(x, strict)) {
-              ret[i++] = x;
-            }
+            if (!ret.contains(x, strict)) ret[i++] = x;
           }
           j = 0;
           while (x = other[j++]) {
-            if (!ret.contains(x, strict)) {
-              ret[i++] = x;
-            }
+            if (!ret.contains(x, strict)) ret[i++] = x;
           }
           return ret;
         },
@@ -661,28 +690,25 @@
           return ret;
         },
         distinct: function(strict) {
+          if (strict == null) strict = true;
           return this.union(this, strict);
         },
         contains: function(item, strict) {
           var t, _i, _len;
+          if (strict == null) strict = true;
           for (_i = 0, _len = this.length; _i < _len; _i++) {
             t = this[_i];
-            if ((strict && t === item) || (!strict && t === item)) {
-              return true;
-            }
+            if ((strict && t === item) || (!strict && t === item)) return true;
           }
           return false;
         },
         count: function(item, strict) {
           var ret;
-          if (item === void 0) {
-            return this.len();
-          }
+          if (strict == null) strict = true;
+          if (item === void 0) return this.len();
           ret = 0;
           this.each(function(t) {
-            if ((strict && t === item) || (!strict && t === item)) {
-              return ret++;
-            }
+            if ((strict && t === item) || (!strict && t === item)) return ret++;
           });
           return ret;
         },
@@ -752,9 +778,7 @@
         },
         skip: function(n) {
           var a, end, i, j, start;
-          if (n == null) {
-            n = 0;
-          }
+          if (n == null) n = 0;
           start = Math.max(0, n | 0);
           end = this.len();
           a = $();
@@ -769,9 +793,7 @@
           return a;
         },
         first: function(n) {
-          if (n == null) {
-            n = 1;
-          }
+          if (n == null) n = 1;
           if (n === 1) {
             return this[0];
           } else {
@@ -779,9 +801,7 @@
           }
         },
         last: function(n) {
-          if (n == null) {
-            n = 1;
-          }
+          if (n == null) n = 1;
           if (n === 1) {
             return this[this.len() - 1];
           } else {
@@ -790,20 +810,12 @@
         },
         slice: function(start, end) {
           var b, i, j, n;
-          if (start == null) {
-            start = 0;
-          }
-          if (end == null) {
-            end = this.len();
-          }
+          if (start == null) start = 0;
+          if (end == null) end = this.len();
           j = 0;
           n = this.len();
-          if (start < 0) {
-            start += n;
-          }
-          if (end < 0) {
-            end += n;
-          }
+          if (start < 0) start += n;
+          if (end < 0) end += n;
           b = $();
           b.context = this;
           b.selector = function() {
@@ -859,9 +871,7 @@
           j = 0;
           for (_i = 0, _len = this.length; _i < _len; _i++) {
             it = this[_i];
-            if (g.call(it, it)) {
-              b[j++] = it;
-            }
+            if (g.call(it, it)) b[j++] = it;
           }
           return b;
         },
@@ -908,9 +918,7 @@
           for (i = 0, _ref = n - 1; i < _ref; i += 2) {
             b[j++] = f.call(this, this[i], this[i + 1]);
           }
-          if ((n % 2) === 1) {
-            b[j++] = f.call(this, this[n - 1], void 0);
-          }
+          if ((n % 2) === 1) b[j++] = f.call(this, this[n - 1], void 0);
           return b;
         },
         flatten: function() {
@@ -959,8 +967,13 @@
           }).join(COMMASEP) + "])";
         },
         delay: function(n, f) {
+          var g;
           if (f) {
-            timeoutQueue.schedule(Function.Bound(f, this), n);
+            g = Function.Bound(f, this);
+            timeoutQueue.schedule(g, n);
+            this.cancel = function() {
+              return timeoutQueue.cancel(g);
+            };
           }
           return this;
         },
@@ -1033,11 +1046,11 @@
       dashName = function(name) {
         var c, i, ret, _ref;
         ret = "";
-        for (i = 0, _ref = name.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
+        for (i = 0, _ref = (name != null ? name.length : void 0) | 0; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
           c = name.charCodeAt(i);
           if ((ord_Z >= c && c >= ord_A)) {
             c = (c - ord_A) + ord_a;
-            ret += "-";
+            ret += '-';
           }
           ret += String.fromCharCode(c);
         }
@@ -1045,7 +1058,7 @@
       };
       camelName = function(name) {
         var i, _results;
-        i = name.indexOf('-');
+        i = name != null ? name.indexOf('-') : void 0;
         _results = [];
         while (i > -1) {
           name = String.Splice(name, i, i + 2, name[i + 1].toUpperCase());
@@ -1063,9 +1076,7 @@
               node.innerHTML = h;
               childNodes = node.childNodes;
               n = childNodes.length;
-              if (n === 1) {
-                return node.removeChild(childNodes[0]);
-              }
+              if (n === 1) return node.removeChild(childNodes[0]);
               df = document.createDocumentFragment();
               for (i = 0; 0 <= n ? i < n : i > n; 0 <= n ? i++ : i--) {
                 df.appendChild(node.removeChild(childNodes[0]));
@@ -1146,9 +1157,7 @@
           return this;
         },
         prependTo: function(x) {
-          if (x != null) {
-            $(x).prepend(this);
-          }
+          if (x != null) $(x).prepend(this);
           return this;
         },
         before: function(x) {
@@ -1213,17 +1222,13 @@
           j = 0;
           this.take(1).each(function() {
             var _ref;
-            if ((_ref = this.parentNode) != null) {
-              _ref.replaceChild(n, this);
-            }
+            if ((_ref = this.parentNode) != null) _ref.replaceChild(n, this);
             return b[j++] = n;
           });
           this.skip(1).each(function() {
             var c, _ref;
             c = n.cloneNode(true);
-            if ((_ref = this.parentNode) != null) {
-              _ref.replaceChild(c, this);
-            }
+            if ((_ref = this.parentNode) != null) _ref.replaceChild(c, this);
             return b[j++] = c;
           });
           return b;
@@ -1241,7 +1246,6 @@
         },
         data: function(k, v) {
           k = "data-" + (dashName(k));
-          console.log(k);
           return this.attr(k, v);
         },
         addClass: function(x) {
@@ -1260,8 +1264,9 @@
             return y !== x;
           };
           return this.each(function() {
-            var _ref;
-            return this.className = (_ref = this.className) != null ? _ref.split(" ").filter(notx).join(" ") : void 0;
+            var c, _ref;
+            c = (_ref = this.className) != null ? _ref.split(" ").filter(notx).join(" ") : void 0;
+            if (c.length === 0) return this.removeAttribute('class');
           });
         },
         toggleClass: function(x) {
@@ -1270,13 +1275,18 @@
             return y !== x;
           };
           return this.each(function() {
-            var cls;
+            var c, cls;
             cls = this.className.split(" ");
             if (cls.indexOf(x) > -1) {
-              return this.className = cls.filter(notx).join(" ");
+              c = cls.filter(notx).join(" ");
             } else {
               cls.push(x);
-              return this.className = cls.filter(Function.NotEmpty).join(" ");
+              c = cls.filter(Function.NotEmpty).join(" ");
+            }
+            if (c.length > 0) {
+              return this.className = c;
+            } else {
+              return this.removeAttribute('class');
             }
           });
         },
@@ -1284,15 +1294,11 @@
           return this.zip('className.split').call(" ").zip('indexOf').call(x).map(Function.IndexFound);
         },
         text: function(t) {
-          if (t != null) {
-            return this.zap('textContent', t);
-          }
+          if (t != null) return this.zap('textContent', t);
           return this.zip('textContent');
         },
         val: function(v) {
-          if (v != null) {
-            return this.zap('value', v);
-          }
+          if (v != null) return this.zap('value', v);
           return this.zip('value');
         },
         css: function(k, v) {
@@ -1348,48 +1354,32 @@
           return this.zip('getBoundingClientRect').call();
         },
         width: function(w) {
-          if (w === null) {
-            return this.rect().zip("width");
-          }
+          if (w === null) return this.rect().zip("width");
           return this.css("width", w);
         },
         height: function(h) {
-          if (h === null) {
-            return this.rect().zip("height");
-          }
+          if (h === null) return this.rect().zip("height");
           return this.css("height", h);
         },
         top: function(y) {
-          if (y === null) {
-            return this.rect().zip("top");
-          }
+          if (y === null) return this.rect().zip("top");
           return this.css("top", y);
         },
         left: function(x) {
-          if (x === null) {
-            return this.rect().zip("left");
-          }
+          if (x === null) return this.rect().zip("left");
           return this.css("left", x);
         },
         bottom: function(x) {
-          if (x === null) {
-            return this.rect().zip("bottom");
-          }
+          if (x === null) return this.rect().zip("bottom");
           return this.css("bottom", x);
         },
         right: function(x) {
-          if (x === null) {
-            return this.rect().zip("right");
-          }
+          if (x === null) return this.rect().zip("right");
           return this.css("right", x);
         },
         position: function(x, y) {
-          if (x === null) {
-            return this.rect();
-          }
-          if (y === null) {
-            return this.css("left", Number.Px(x));
-          }
+          if (x === null) return this.rect();
+          if (y === null) return this.css("left", Number.Px(x));
           return this.css({
             top: Number.Px(y),
             left: Number.Px(x)
@@ -1397,9 +1387,7 @@
         },
         center: function(mode) {
           var body, vh, vw;
-          if (mode == null) {
-            mode = "viewport";
-          }
+          if (mode == null) mode = "viewport";
           body = document.body;
           vh = body.scrollTop + (body.clientHeight / 2);
           vw = body.scrollLeft + (body.clientWidth / 2);
@@ -1433,9 +1421,7 @@
           return this.zip('childNodes').map(function() {
             var i;
             i = n;
-            if (i < 0) {
-              i += this.length;
-            }
+            if (i < 0) i += this.length;
             return this[i];
           });
         },
@@ -1485,9 +1471,7 @@
         },
         remove: function() {
           return this.each(function() {
-            if (this.parentNode) {
-              return this.parentNode.removeChild(this);
-            }
+            if (this.parentNode) return this.parentNode.removeChild(this);
           });
         },
         find: function(css) {
@@ -1496,9 +1480,7 @@
           }).flatten();
         },
         clone: function(deep) {
-          if (deep == null) {
-            deep = true;
-          }
+          if (deep == null) deep = true;
           return this.map(function() {
             if (Object.IsNode(this)) {
               return this.cloneNode(deep);
@@ -1524,19 +1506,21 @@
         name: 'Maths',
         $: {
           range: function(start, end, step) {
-            var a, i, _results;
-            if (step == null) {
-              step = 1;
-            }
-            i = start;
-            if (step === 0 || (step > 0 && start > end) || (step < 0 && start < end)) {
-              return [];
-            }
+            var i, steps, _results;
+            if (step == null) step = 1;
+            if (end < start && step > 0) step *= -1;
+            steps = Math.ceil((end - start) / step);
             _results = [];
-            while ((start > end && i > end) || (start < end && i < end)) {
-              a = i;
-              i += step;
-              _results.push(a);
+            for (i = 0; 0 <= steps ? i < steps : i > steps; 0 <= steps ? i++ : i--) {
+              _results.push(start + (i * step));
+            }
+            return _results;
+          },
+          zeros: function(n) {
+            var i, _results;
+            _results = [];
+            for (i = 0; 0 <= n ? i < n : i > n; 0 <= n ? i++ : i--) {
+              _results.push(0);
             }
             return _results;
           }
@@ -1550,9 +1534,7 @@
           });
         },
         px: function(delta) {
-          if (delta == null) {
-            delta = 0;
-          }
+          if (delta == null) delta = 0;
           return this.ints().map(Function.Px(delta));
         },
         min: function() {
@@ -1596,12 +1578,8 @@
       events = ['mousemove', 'mousedown', 'mouseup', 'mouseover', 'mouseout', 'blur', 'focus', 'load', 'unload', 'reset', 'submit', 'keyup', 'keydown', 'change', 'abort', 'cut', 'copy', 'paste', 'selection', 'drag', 'drop', 'orientationchange', 'touchstart', 'touchmove', 'touchend', 'touchcancel', 'gesturestart', 'gestureend', 'gesturecancel', 'hashchange'];
       binder = function(e) {
         return function(f) {
-          if (f == null) {
-            f = {};
-          }
-          if (Object.IsFunc(f)) {
-            return this.bind(e, f);
-          }
+          if (f == null) f = {};
+          if (Object.IsFunc(f)) return this.bind(e, f);
           return this.trigger(e, f);
         };
       };
@@ -1653,9 +1631,7 @@
           c = (e || "").split(EVENTSEP_RE);
           h = function(evt) {
             ret = f.apply(this, arguments);
-            if (ret === false) {
-              Event.Prevent(evt);
-            }
+            if (ret === false) Event.Prevent(evt);
             return ret;
           };
           return this.each(function() {
@@ -1715,9 +1691,7 @@
         },
         trigger: function(evt, args) {
           var e, evt_i, evts, _i, _len;
-          if (args == null) {
-            args = {};
-          }
+          if (args == null) args = {};
           evts = (evt || "").split(EVENTSEP_RE);
           args = Object.Extend({
             bubbles: true,
@@ -1834,9 +1808,7 @@
           });
         },
         click: function(f) {
-          if (f == null) {
-            f = {};
-          }
+          if (f == null) f = {};
           if (this.css("cursor").intersect(["auto", ""]).len() > 0) {
             this.css("cursor", "pointer");
           }
@@ -1847,9 +1819,7 @@
           }
         },
         ready: function(f) {
-          if (f == null) {
-            f = {};
-          }
+          if (f == null) f = {};
           if (Object.IsFunc(f)) {
             if (readyTriggered) {
               return f.call(this);
@@ -1877,8 +1847,12 @@
         "now": 0
       };
       accel_props_re = /(?:scale(?:3d)*|translate(?:[XYZ]|3d)*|rotate(?:[XYZ]|3d)*)/;
-      updateDelay = 50;
+      updateDelay = 30;
       testStyle = document.createElement("div").style;
+      transformProperty = "transform";
+      transitionProperty = "transition-property";
+      transitionDuration = "transition-duration";
+      transitionTiming = "transition-timing-function";
       if ("WebkitTransform" in testStyle) {
         transformProperty = "-webkit-transform";
         transitionProperty = "-webkit-transition-property";
@@ -1901,9 +1875,7 @@
           duration: function(speed) {
             var d;
             d = speeds[speed];
-            if (d != null) {
-              return d;
-            }
+            if (d != null) return d;
             return parseFloat(speed);
           }
         },
@@ -1917,9 +1889,7 @@
             callback = easing;
             easing = null;
           }
-          if (!(speed != null)) {
-            speed = "normal";
-          }
+          if (!(speed != null)) speed = "normal";
           easing || (easing = "ease");
           duration = $.duration(speed) + "ms";
           props = [];
@@ -1942,9 +1912,7 @@
           for (i in css) {
             props[p++] = i;
           }
-          if (trans) {
-            props[p++] = transformProperty;
-          }
+          if (trans) props[p++] = transformProperty;
           css[transitionProperty] = props.join(COMMASEP);
           css[transitionDuration] = props.map(function() {
             return duration;
@@ -1952,9 +1920,7 @@
           css[transitionTiming] = props.map(function() {
             return easing;
           }).join(COMMASEP);
-          if (trans) {
-            css[transformProperty] = trans;
-          }
+          if (trans) css[transformProperty] = trans;
           this.css(css);
           return this.delay(duration, callback);
         },
@@ -2000,12 +1966,8 @@
           });
         },
         fadeOut: function(speed, callback, x, y) {
-          if (x == null) {
-            x = 0.0;
-          }
-          if (y == null) {
-            y = 0.0;
-          }
+          if (x == null) x = 0.0;
+          if (y == null) y = 0.0;
           return this.transform({
             opacity: "0.0",
             translate3d: [x, y, 0.0]
@@ -2044,9 +2006,7 @@
         $: {
           http: function(url, opts) {
             var xhr;
-            if (opts == null) {
-              opts = {};
-            }
+            if (opts == null) opts = {};
             xhr = new XMLHttpRequest();
             if (Object.IsFunc(opts)) {
               opts = {
@@ -2079,9 +2039,7 @@
             xhr.timeout = opts.timeout;
             xhr.followRedirects = opts.followRedirects;
             xhr.onreadystatechange = function() {
-              if (opts.state) {
-                opts.state();
-              }
+              if (opts.state) opts.state();
               if (xhr.readyState === 4) {
                 if (xhr.status === 200) {
                   return opts.success(xhr.responseText);
@@ -2094,9 +2052,7 @@
             return $([xhr]);
           },
           post: function(url, opts) {
-            if (opts == null) {
-              opts = {};
-            }
+            if (opts == null) opts = {};
             if (Object.IsFunc(opts)) {
               opts = {
                 success: opts
@@ -2106,9 +2062,7 @@
             return $.http(url, opts);
           },
           get: function(url, opts) {
-            if (opts == null) {
-              opts = {};
-            }
+            if (opts == null) opts = {};
             if (Object.IsFunc(opts)) {
               opts = {
                 success: opts
@@ -2117,110 +2071,6 @@
             opts.method = "GET";
             return $.http(url, opts);
           }
-        }
-      };
-    });
-    $.plugin(function() {
-      var chunk_re, compile, match_forward, render, type_re;
-      match_forward = function(text, find, against, start, stop) {
-        var count, i, t;
-        if (stop == null) {
-          stop = -1;
-        }
-        count = 1;
-        if (stop < 0) {
-          stop = text.length + 1 + stop;
-        }
-        for (i = start; start <= stop ? i < stop : i > stop; start <= stop ? i++ : i--) {
-          t = text[i];
-          if (t === against) {
-            count += 1;
-          } else if (t === find) {
-            count -= 1;
-          }
-          if (count === 0) {
-            return i;
-          }
-        }
-        return -1;
-      };
-      type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/;
-      chunk_re = /%[\(\/]/;
-      compile = function(text) {
-        var chunks, end, i, j, key, match, n, rest, ret;
-        chunks = text.split(chunk_re);
-        n = chunks.length;
-        ret = [chunks[0]];
-        j = 1;
-        for (i = 1; 1 <= n ? i < n : i > n; 1 <= n ? i++ : i--) {
-          end = match_forward(chunks[i], ')', '(', 0, -1);
-          if (end === -1) {
-            return "Template syntax error: unmatched '%(' starting at: " + (chunks[i].substring(0, 15));
-          }
-          key = chunks[i].substring(0, end);
-          rest = chunks[i].substring(end);
-          match = type_re.exec(rest);
-          if (match === null) {
-            return "Template syntax error: invalid type specifier starting at '" + rest + "'";
-          }
-          rest = match[4];
-          ret[j++] = key;
-          ret[j++] = match[1] | 0;
-          ret[j++] = match[2] | 0;
-          ret[j++] = match[3];
-          ret[j++] = rest;
-        }
-        return ret;
-      };
-      compile.cache = {};
-      render = function(text, values) {
-        var cache, fixed, i, j, key, n, output, pad, rest, type, value, _ref, _ref2;
-        cache = compile.cache[text];
-        if (!(cache != null)) {
-          cache = compile.cache[text] = compile(text);
-        }
-        output = [cache[0]];
-        j = 1;
-        n = cache.length;
-        for (i = 1, _ref = n - 5; i <= _ref; i += 5) {
-          _ref2 = cache.slice(i, (i + 4 + 1) || 9e9), key = _ref2[0], pad = _ref2[1], fixed = _ref2[2], type = _ref2[3], rest = _ref2[4];
-          value = values[key];
-          if (!(value != null)) {
-            value = "missing value: " + key;
-          }
-          switch (type) {
-            case 'd':
-              output[j++] = "" + parseInt(value, 10);
-              break;
-            case 'f':
-              output[j++] = parseFloat(value).toFixed(fixed);
-              break;
-            case 's':
-              output[j++] = "" + value;
-              break;
-            default:
-              output[j++] = "" + value;
-          }
-          if (pad > 0) {
-            output[j] = String.PadLeft(output[j], pad);
-          }
-          output[j++] = rest;
-        }
-        return output.join("");
-      };
-      return {
-        name: 'Template',
-        $: {
-          render: render
-        },
-        template: function(defaults) {
-          this.render = function(args) {
-            return render(this.map($.HTML.stringify).join(""), Object.Extend(defaults, args));
-          };
-          return this.remove();
-        },
-        render: function(args) {
-          return render(this.map($.HTML.stringify).join(""), args);
         }
       };
     });
@@ -2257,23 +2107,16 @@
       };
     });
     $.plugin(function() {
-      var cache;
-      cache = {};
       return {
         name: "Memoize",
         $: {
           memoize: function(f) {
-            cache[f] = {};
+            var cache;
+            cache = {};
             return function() {
-              var a, h, m;
+              var a, _name, _ref;
               a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-              h = $.hash(a);
-              m = cache[f];
-              if (h in m) {
-                return m[h];
-              } else {
-                return m[h] = f.apply(this, a);
-              }
+              return (_ref = cache[_name = $.hash(a)]) != null ? _ref : cache[_name] = f.apply(this, a);
             };
           }
         }
@@ -2282,6 +2125,7 @@
     $.plugin(function() {
       var StateMachine;
       StateMachine = (function() {
+
         function StateMachine(stateTable) {
           this.reset();
           this.table = stateTable;
@@ -2305,20 +2149,24 @@
             return this._mode;
           });
         }
+
         StateMachine.prototype.reset = function() {
           this._mode = null;
           return this._lastMode = null;
         };
+
         StateMachine.prototype.GO = function(m) {
           return function() {
             return this.mode = m;
           };
         };
+
         StateMachine.GO = function(m) {
           return function() {
             return this.mode = m;
           };
         };
+
         StateMachine.prototype.run = function(input) {
           var c, ret, row, _i, _len;
           this.mode = 0;
@@ -2334,16 +2182,16 @@
               ret = ret.call(this, c);
             }
           }
-          if ('eof' in this.modeline) {
-            ret = this.modeline['eof'].call(this);
-          }
+          if ('eof' in this.modeline) ret = this.modeline['eof'].call(this);
           while (Object.IsFunc(ret)) {
             ret = ret.call(this);
           }
           this.reset();
           return this;
         };
+
         return StateMachine;
+
       })();
       return {
         name: "StateMachine",
@@ -2353,9 +2201,11 @@
       };
     });
     $.plugin(function() {
-      var SynthMachine, synth;
+      var SynthMachine;
       SynthMachine = (function() {
+
         __extends(SynthMachine, $.StateMachine);
+
         SynthMachine.STATE_TABLE = [
           {
             enter: function() {
@@ -2388,9 +2238,7 @@
             eof: SynthMachine.GO(13)
           }, {
             enter: function() {
-              if (this.cls.length > 0) {
-                return this.cls += " ";
-              }
+              if (this.cls.length > 0) return this.cls += " ";
             },
             "#": SynthMachine.GO(2),
             ".": SynthMachine.GO(3),
@@ -2462,19 +2310,17 @@
             }
           }, {
             enter: function() {
-              if (this.tag.length) {
-                this.emitNode();
-              }
-              if (this.text.length) {
-                return this.emitText();
-              }
+              if (this.tag.length) this.emitNode();
+              if (this.text.length) return this.emitText();
             }
           }
         ];
+
         function SynthMachine() {
           SynthMachine.__super__.constructor.call(this, SynthMachine.STATE_TABLE);
           this.fragment = this.parent = document.createDocumentFragment();
         }
+
         SynthMachine.prototype.emitNode = function() {
           var k, node;
           node = document.createElement(this.tag);
@@ -2486,13 +2332,15 @@
           this.parent.appendChild(node);
           return this.parent = node;
         };
+
         SynthMachine.prototype.emitText = function() {
           this.parent.appendChild($.HTML.parse(this.text));
           return this.text = "";
         };
+
         return SynthMachine;
+
       })();
-      synth = function(expr) {};
       return {
         name: "Synth",
         $: {
@@ -2510,53 +2358,61 @@
       };
     });
     $.plugin(function() {
-      var archive, archive_limit, archive_trim, publish, subscribe, subscribers;
+      var archive, archive_limit, archive_trim, publish, subscribe, subscribers, unsubscribe;
       subscribers = {};
       archive = {};
       archive_limit = 1000;
       archive_trim = 100;
       publish = function(e, args) {
-        var func, _i, _len, _ref, _ref2, _results;
-        if (args == null) {
-          args = [];
-        }
+        var func, _i, _len, _ref, _ref2;
+        if (args == null) args = [];
         $.log("published: " + e, args);
-        if ((_ref = archive[e]) == null) {
-          archive[e] = [];
-        }
+        if ((_ref = archive[e]) == null) archive[e] = [];
         archive[e].push(args);
-        if (archive[e].length > archive_limit) {
-          archive[e].splice(0, archive_trim);
-        }
+        if (archive[e].length > archive_limit) archive[e].splice(0, archive_trim);
         _ref2 = subscribers[e];
-        _results = [];
         for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
           func = _ref2[_i];
-          _results.push(func.apply(window, args));
+          func.apply(null, args);
         }
-        return _results;
+        return this;
       };
       subscribe = function(e, func, replay) {
         var args, _i, _len, _ref, _ref2;
-        if (replay == null) {
-          replay = true;
-        }
-        if ((_ref = subscribers[e]) == null) {
-          subscribers[e] = [];
-        }
+        if (replay == null) replay = true;
+        if ((_ref = subscribers[e]) == null) subscribers[e] = [];
         subscribers[e].push(func);
         if (replay) {
           _ref2 = archive[e];
           for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
             args = _ref2[_i];
             $.log("replayed: " + e, args);
-            func.apply(window, args);
+            func.apply(null, args);
           }
         }
         return func;
       };
+      unsubscribe = function(e, func) {
+        var i, _ref;
+        if (!(func != null)) {
+          return subscribers[e] = [];
+        } else {
+          i = (_ref = subscribers[e]) != null ? _ref.indexOf(func) : void 0;
+          if (i > -1) return subscribers[e].splice(i, i);
+        }
+      };
       publish.__defineSetter__('limit', function(n) {
-        return archive_limit = n;
+        var e, _results;
+        archive_limit = n;
+        _results = [];
+        for (e in archive) {
+          if (archive[e].length > archive_limit) {
+            _results.push(archive[e].splice(0, archive_trim));
+          } else {
+            _results.push(void 0);
+          }
+        }
+        return _results;
       });
       publish.__defineSetter__('trim', function(n) {
         return archive_trim = n;
@@ -2565,63 +2421,12 @@
         name: "PubSub",
         $: {
           publish: publish,
-          subscribe: subscribe
-        }
-      };
-    });
-    $.plugin(function() {
-      var create, lazy_load;
-      create = function(elementName, props) {
-        return Object.Extend(document.createElement(elementName), props);
-      };
-      lazy_load = function(elementName, props) {
-        var depends, n, provides;
-        depends = provides = null;
-        n = create(elementName, Object.Extend(props, {
-          onload: function() {
-            if (provides !== null) {
-              return $.publish(provides);
-            }
-          }
-        }));
-        $("head").delay(10, function() {
-          if (depends !== null) {
-            return $.subscribe(depends, __bind(function() {
-              return this.append(n);
-            }, this));
-          } else {
-            return this.append(n);
-          }
-        });
-        n = $(n);
-        return Object.Extend(n, {
-          depends: function(tag) {
-            depends = elementName + "-" + tag;
-            return n;
-          },
-          provides: function(tag) {
-            provides = elementName + "-" + tag;
-            return n;
-          }
-        });
-      };
-      return {
-        name: "LazyLoader",
-        $: {
-          script: function(src) {
-            return lazy_load("script", {
-              src: src
-            });
-          },
-          style: function(src) {
-            return lazy_load("link", {
-              href: src,
-              rel: "stylesheet"
-            });
-          }
+          subscribe: subscribe,
+          unsubscribe: unsubscribe
         }
       };
     });
     return $;
   })(Bling);
+
 }).call(this);

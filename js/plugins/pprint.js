@@ -1,4 +1,4 @@
-(function() {
+
   (function($) {
     return $.plugin(function() {
       var all_numbers, bling_html, bling_symbol, closing_quote, comment_html, first_comment, first_quote, keyword_html, keywords, multiline_comment, number_html, operator_html, operators, quoted_html, singleline_comment, split_comments, split_quoted, tab_html, tabs;
@@ -32,18 +32,10 @@
         var a, b;
         a = s.indexOf('"', i);
         b = s.indexOf("'", i);
-        if (a === -1) {
-          a = s.length;
-        }
-        if (b === -1) {
-          b = s.length;
-        }
-        if (a === b) {
-          return [null, -1];
-        }
-        if (a < b) {
-          return ['"', a];
-        }
+        if (a === -1) a = s.length;
+        if (b === -1) b = s.length;
+        if (a === b) return [null, -1];
+        if (a < b) return ['"', a];
         return ["'", b];
       };
       closing_quote = function(s, i, q) {
@@ -88,18 +80,10 @@
         var a, b;
         a = s.match(singleline_comment);
         b = s.match(multiline_comment);
-        if (a === b) {
-          return [-1, null];
-        }
-        if (a === null && b !== null) {
-          return [b.index, b[0]];
-        }
-        if (a !== null && b === null) {
-          return [a.index, a[0]];
-        }
-        if (b.index < a.index) {
-          return [b.index, b[0]];
-        }
+        if (a === b) return [-1, null];
+        if (a === null && b !== null) return [b.index, b[0]];
+        if (a !== null && b === null) return [a.index, a[0]];
+        if (b.index < a.index) return [b.index, b[0]];
         return [a.index, a[0]];
       };
       split_comments = function(s) {
@@ -127,9 +111,7 @@
         $: {
           prettyPrint: function(js, colors) {
             var cls, css, ret;
-            if (Object.IsFunc(js)) {
-              js = js.toString();
-            }
+            if (Object.IsFunc(js)) js = js.toString();
             if (!Object.IsString(js)) {
               throw TypeError("prettyPrint requires a function or string to format, not '" + Object.Type(js) + "'");
             }
@@ -151,11 +133,10 @@
             return ret = "<code class='pp'>" + ($(split_comments(js)).fold(function(text, comment) {
               return $(split_quoted(text)).fold(function(code, quoted) {
                 return code.replace(operators, operator_html).replace(all_numbers, number_html).replace(keywords, keyword_html).replace(bling_symbol, bling_html).replace(tabs, tab_html) + quoted_html(quoted);
-              }).join('') + comment_html(comment);
-            }).join('')) + "</code>";
+              });
+            }).join('') + comment_html(comment).join('')) + "</code>";
           }
         }
       };
     });
   })(Bling);
-}).call(this);

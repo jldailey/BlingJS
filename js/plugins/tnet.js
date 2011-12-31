@@ -1,4 +1,4 @@
-(function() {
+
   (function($) {
     return $.plugin(function() {
       var parseArray, parseObject, parseOne;
@@ -7,7 +7,7 @@
         i = data.indexOf(":");
         if (i > 0) {
           len = parseInt(data.slice(0, i), 10);
-          item = data.slice(i + 1, i + 1 + len);
+          item = data.slice(i + 1, (i + 1 + len));
           type = data[i + 1 + len];
           extra = data.slice(i + len + 2);
           item = (function() {
@@ -18,7 +18,6 @@
                 return String(item);
               case "!":
                 return item === "true";
-                break;
               case "~":
                 return null;
               case "]":
@@ -105,4 +104,3 @@
       };
     });
   })(Bling);
-}).call(this);

@@ -1,4 +1,4 @@
-(function() {
+
   (function($) {
     return $.plugin(function() {
       Dialog(selector, opts)(function() {
@@ -8,12 +8,8 @@
           draggable: true
         }, opts);
         dialog = $(selector).addClass("dialog");
-        if (opts.draggable) {
-          dialog.draggable();
-        }
-        if (opts.autoOpen) {
-          dialog.show().center();
-        }
+        if (opts.draggable) dialog.draggable();
+        if (opts.autoOpen) dialog.show().center();
         dialog.find("button.close, .close-button").bind("click touchstart", function() {
           dialog.hide();
           return false;
@@ -101,9 +97,7 @@
               color: opts.textColor
             });
           }
-          if (Object.IsFunc(opts.change)) {
-            return opts.change(_progress);
-          }
+          if (Object.IsFunc(opts.change)) return opts.change(_progress);
         });
       });
       Accordion(selector, opts)(function() {
@@ -124,9 +118,7 @@
           body = t.eq(1).addClass("body").hide();
           bodyVisible = false;
           return title.click(function() {
-            if (opts.exclusive) {
-              node.find(".body").hide();
-            }
+            if (opts.exclusive) node.find(".body").hide();
             if (bodyVisible) {
               if (!opts.sticky) {
                 body.hide().removeClass("visible");
@@ -226,4 +218,3 @@
       };
     });
   })(Bling);
-}).call(this);

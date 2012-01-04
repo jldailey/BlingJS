@@ -60,14 +60,14 @@
           }
         }
         while (i < n) {
-          q = first_quote(s, i);
+          q = firstQuote(s, i);
           j = q[1];
           if (j === -1) {
             ret.push(s.substring(i));
             break;
           }
           ret.push(s.substring(i, j));
-          k = closing_quote(s, j + 1, q[0]);
+          k = closingQuote(s, j + 1, q[0]);
           if (k === -1) {
             throw Error("unclosed quote: " + q[0] + " starting at " + j);
           }
@@ -78,8 +78,8 @@
       };
       firstComment = function(s) {
         var a, b;
-        a = s.match(singleline_comment);
-        b = s.match(multiline_comment);
+        a = s.match(singlelineComment);
+        b = s.match(multilineComment);
         if (a === b) return [-1, null];
         if (a === null && b !== null) return [b.index, b[0]];
         if (a !== null && b === null) return [a.index, a[0]];
@@ -93,7 +93,7 @@
         n = s.length;
         while (i < n) {
           ss = s.substring(i);
-          q = first_comment(ss);
+          q = firstComment(ss);
           j = q[0];
           if (j > -1) {
             ret.push(ss.substring(0, j));

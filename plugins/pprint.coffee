@@ -1,23 +1,23 @@
 (($) ->
 	$.plugin () -> # Pretty Print plugin
 		operators = /!==|!=|!|\#|\%|\%=|\&|\&\&|\&\&=|&=|\*|\*=|\+|\+=|-|-=|->|\.{1,3}|\/|\/=|:|::|;|<<=|<<|<=|<|===|==|=|>>>=|>>=|>=|>>>|>>|>|\?|@|\[|\]|}|{|\^|\^=|\^\^|\^\^=|\|=|\|\|=|\|\||\||~/g
-		operator_html = "<span class='opr'>$&</span>"
+		operatorHtml = "<span class='opr'>$&</span>"
 		keywords = /\b[Ff]unction\b|\bvar\b|\.prototype\b|\.__proto__\b|\bString\b|\bArray\b|\bNumber\b|\bObject\b|\bbreak\b|\bcase\b|\bcontinue\b|\bdelete\b|\bdo\b|\bif\b|\belse\b|\bfinally\b|\binstanceof\b|\breturn\b|\bthrow\b|\btry\b|\btypeof\b|\btrue\b|\bfalse\b/g
-		keyword_html = "<span class='kwd'>$&</span>"
-		all_numbers = /\d+\.*\d*/g
-		number_html = "<span class='num'>$&</span>"
-		bling_symbol = /\$(\(|\.)/g
-		bling_html = "<span class='bln'>$$</span>$1"
+		keywordHtml = "<span class='kwd'>$&</span>"
+		allNumbers = /\d+\.*\d*/g
+		numberHtml = "<span class='num'>$&</span>"
+		blingSymbol = /\$(\(|\.)/g
+		blingHtml = "<span class='bln'>$$</span>$1"
 		tabs = /\t/g
-		tab_html = "&nbsp;&nbsp;"
-		singleline_comment = /\/\/.*?(?:\n|$)/
-		multiline_comment = /\/\*(?:.|\n)*?\*\//
-		comment_html = (comment) ->
+		tabHtml = "&nbsp;&nbsp;"
+		singlelineComment = /\/\/.*?(?:\n|$)/
+		multilineComment = /\/\*(?:.|\n)*?\*\//
+		commentHtml = (comment) ->
 			if comment then "<span class='com'>#{comment}</span>" else ""
-		quoted_html = (quoted) ->
+		quotedHtml = (quoted) ->
 			if quoted then "<span class='str'>#{quoted}</span>" else ""
 
-		first_quote = (s, i) -> # return the type of quote and its first index (after i)
+		firstQuote = (s, i) -> # return the type of quote and its first index (after i)
 			a = s.indexOf('"', i)
 			b = s.indexOf("'", i)
 			# move pointers to the end if no quotes were found
@@ -28,12 +28,12 @@
 			# 
 			return ['"', a] if a < b
 			return ["'", b]
-		closing_quote = (s, i, q) -> # find the closing quote
+		closingQuote = (s, i, q) -> # find the closing quote
 			r = s.indexOf(q, i)
 			while( s.charAt(r-1) is "\\" and 0 < r < s.length)
 				r = s.indexOf(q, r+1)
 			r
-		split_quoted = (s) -> # splits a string into a list where even items were inside quoted strings, odd items were unquoted
+		splitQuoted = (s) -> # splits a string into a list where even items were inside quoted strings, odd items were unquoted
 			i = 0
 			n = s.length
 			ret = []
@@ -44,35 +44,35 @@
 					s = s.toString()
 					n = s.length
 			while( i < n )
-				q = first_quote(s, i)
+				q = firstQuote(s, i)
 				j = q[1]
 				if( j is -1 )
 					ret.push(s.substring(i))
 					break
 				ret.push(s.substring(i,j))
-				k = closing_quote(s, j+1, q[0])
+				k = closingQuote(s, j+1, q[0])
 				if( k is -1 )
 					throw Error("unclosed quote: "+q[0]+" starting at "+j)
 				ret.push(s.substring(j, k+1))
 				i = k+1
 			ret
 
-		first_comment = (s) ->
-			a = s.match(singleline_comment)
-			b = s.match(multiline_comment)
+		firstComment = (s) ->
+			a = s.match(singlelineComment)
+			b = s.match(multilineComment)
 			return [-1, null] if a is b
 			return [b.index, b[0]] if a == null and b != null
 			return [a.index, a[0]] if a != null && b == null
 			return [b.index, b[0]] if b.index < a.index
 			return [a.index, a[0]]
 
-		split_comments = (s) ->
+		splitComments = (s) ->
 			ret = []
 			i = 0
 			n = s.length
 			while( i < n )
 				ss = s.substring(i)
-				q = first_comment(ss)
+				q = firstComment(ss)
 				j = q[0]
 				if( j > -1 )
 					ret.push(ss.substring(0,j))
@@ -82,6 +82,12 @@
 					ret.push(ss)
 					break
 			ret
+
+		foldCodeAndQuoted = (code, quoted) ->
+			code.replace(operators, operatorHtml).replace(allNumbers, numberHtml).replace(keywords, keywordHtml).replace(blingSymbol, blingHtml).replace(tabs, tabHtml) + quotedHtml(quoted)
+
+		foldTextAndComments = (text, comment) ->
+			$(splitQuoted(text)).fold(foldCodeAndQuoted).join('') + commentHtml(comment)
 
 		return {
 			name: "PrettyPrint"
@@ -105,12 +111,7 @@
 						$.synth("style#prettyPrint")
 							.text(css)
 							.appendTo("head")
-					ret = "<code class='pp'>" +
-						($(split_comments(js)).fold (text, comment) ->
-								$(split_quoted(text)).fold (code, quoted) ->
-									code.replace(operators, operator_html).replace(all_numbers, number_html).replace(keywords, keyword_html).replace(bling_symbol, bling_html).replace(tabs, tab_html) + quoted_html(quoted)
-							.join('') + comment_html(comment)
-						.join('')) + "</code>"
+					ret = "<code class='pp'>" + ($(splitComments(js)).fold(foldTextAndComments).join('')) + "</code>"
 		}
 
 )(Bling)

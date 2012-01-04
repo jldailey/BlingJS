@@ -1,34 +1,34 @@
 
   (function($) {
     return $.plugin(function() {
-      var all_numbers, bling_html, bling_symbol, closing_quote, comment_html, first_comment, first_quote, keyword_html, keywords, multiline_comment, number_html, operator_html, operators, quoted_html, singleline_comment, split_comments, split_quoted, tab_html, tabs;
+      var allNumbers, blingHtml, blingSymbol, closingQuote, commentHtml, firstComment, firstQuote, foldCodeAndQuoted, foldTextAndComments, keywordHtml, keywords, multilineComment, numberHtml, operatorHtml, operators, quotedHtml, singlelineComment, splitComments, splitQuoted, tabHtml, tabs;
       operators = /!==|!=|!|\#|\%|\%=|\&|\&\&|\&\&=|&=|\*|\*=|\+|\+=|-|-=|->|\.{1,3}|\/|\/=|:|::|;|<<=|<<|<=|<|===|==|=|>>>=|>>=|>=|>>>|>>|>|\?|@|\[|\]|}|{|\^|\^=|\^\^|\^\^=|\|=|\|\|=|\|\||\||~/g;
-      operator_html = "<span class='opr'>$&</span>";
+      operatorHtml = "<span class='opr'>$&</span>";
       keywords = /\b[Ff]unction\b|\bvar\b|\.prototype\b|\.__proto__\b|\bString\b|\bArray\b|\bNumber\b|\bObject\b|\bbreak\b|\bcase\b|\bcontinue\b|\bdelete\b|\bdo\b|\bif\b|\belse\b|\bfinally\b|\binstanceof\b|\breturn\b|\bthrow\b|\btry\b|\btypeof\b|\btrue\b|\bfalse\b/g;
-      keyword_html = "<span class='kwd'>$&</span>";
-      all_numbers = /\d+\.*\d*/g;
-      number_html = "<span class='num'>$&</span>";
-      bling_symbol = /\$(\(|\.)/g;
-      bling_html = "<span class='bln'>$$</span>$1";
+      keywordHtml = "<span class='kwd'>$&</span>";
+      allNumbers = /\d+\.*\d*/g;
+      numberHtml = "<span class='num'>$&</span>";
+      blingSymbol = /\$(\(|\.)/g;
+      blingHtml = "<span class='bln'>$$</span>$1";
       tabs = /\t/g;
-      tab_html = "&nbsp;&nbsp;";
-      singleline_comment = /\/\/.*?(?:\n|$)/;
-      multiline_comment = /\/\*(?:.|\n)*?\*\//;
-      comment_html = function(comment) {
+      tabHtml = "&nbsp;&nbsp;";
+      singlelineComment = /\/\/.*?(?:\n|$)/;
+      multilineComment = /\/\*(?:.|\n)*?\*\//;
+      commentHtml = function(comment) {
         if (comment) {
           return "<span class='com'>" + comment + "</span>";
         } else {
           return "";
         }
       };
-      quoted_html = function(quoted) {
+      quotedHtml = function(quoted) {
         if (quoted) {
           return "<span class='str'>" + quoted + "</span>";
         } else {
           return "";
         }
       };
-      first_quote = function(s, i) {
+      firstQuote = function(s, i) {
         var a, b;
         a = s.indexOf('"', i);
         b = s.indexOf("'", i);
@@ -38,7 +38,7 @@
         if (a < b) return ['"', a];
         return ["'", b];
       };
-      closing_quote = function(s, i, q) {
+      closingQuote = function(s, i, q) {
         var r;
         r = s.indexOf(q, i);
         while (s.charAt(r - 1) === "\\" && (0 < r && r < s.length)) {
@@ -46,7 +46,7 @@
         }
         return r;
       };
-      split_quoted = function(s) {
+      splitQuoted = function(s) {
         var i, j, k, n, q, ret;
         i = 0;
         n = s.length;
@@ -76,7 +76,7 @@
         }
         return ret;
       };
-      first_comment = function(s) {
+      firstComment = function(s) {
         var a, b;
         a = s.match(singleline_comment);
         b = s.match(multiline_comment);
@@ -86,7 +86,7 @@
         if (b.index < a.index) return [b.index, b[0]];
         return [a.index, a[0]];
       };
-      split_comments = function(s) {
+      splitComments = function(s) {
         var i, j, n, q, ret, ss;
         ret = [];
         i = 0;
@@ -105,6 +105,12 @@
           }
         }
         return ret;
+      };
+      foldCodeAndQuoted = function(code, quoted) {
+        return code.replace(operators, operatorHtml).replace(allNumbers, numberHtml).replace(keywords, keywordHtml).replace(blingSymbol, blingHtml).replace(tabs, tabHtml) + quotedHtml(quoted);
+      };
+      foldTextAndComments = function(text, comment) {
+        return $(splitQuoted(text)).fold(foldCodeAndQuoted).join('') + commentHtml(comment);
       };
       return {
         name: "PrettyPrint",
@@ -130,11 +136,7 @@
               }
               $.synth("style#prettyPrint").text(css).appendTo("head");
             }
-            return ret = "<code class='pp'>" + ($(split_comments(js)).fold(function(text, comment) {
-              return $(split_quoted(text)).fold(function(code, quoted) {
-                return code.replace(operators, operator_html).replace(all_numbers, number_html).replace(keywords, keyword_html).replace(bling_symbol, bling_html).replace(tabs, tab_html) + quoted_html(quoted);
-              });
-            }).join('') + comment_html(comment).join('')) + "</code>";
+            return ret = "<code class='pp'>" + ($(splitComments(js)).fold(foldTextAndComments).join('')) + "</code>";
           }
         }
       };

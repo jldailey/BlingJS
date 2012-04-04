@@ -2,7 +2,7 @@
 
 	$.plugin () ->
 
-		Dialog(selector, opts) ->
+		Dialog = (selector, opts) ->
 			# $.UI.Dialog(selector, opts) - make a dialog
 			opts = Object.Extend({
 				autoOpen: false
@@ -21,7 +21,7 @@
 					false
 			dialog
 		
-		Draggable(selector, opts) ->
+		Draggable = (selector, opts) ->
 			# $.UI.Dialog(selector, opts) - make an object draggable
 			opts = Object.Extend({
 				handleCSS: {}
@@ -90,7 +90,7 @@
 				# attach the handle
 				.append(handle)
 
-		ProgressBar(selector, opts) ->
+		ProgressBar = (selector, opts) ->
 			# $.UI.ProgressBar - make a progress bar
 			opts = Object.Extend({
 				change: Function.Empty
@@ -130,7 +130,7 @@
 				if Object.IsFunc(opts.change)
 					opts.change(_progress)
 
-		Accordion(selector, opts) ->
+		Accordion = (selector, opts) ->
 			# $.UI.Accordion - make an accordion
 			opts = Object.Extend({
 				exclusive: false
@@ -177,7 +177,7 @@
 
 			return node
 
-		ViewStack(selector, opts) ->
+		ViewStack = (selector, opts) ->
 			# $.UI.ViewStack - make a set visually exclusive
 			items = $(selector)
 				.css {
@@ -204,7 +204,7 @@
 					items.activate(this._viewIndex)
 			items
 
-		Tabs(selector, views) ->
+		Tabs = (selector, views) ->
 			# $.UI.Tabs - make tab items control a viewstack
 			tabs = $(selector)
 			views = $(views).viewStack()

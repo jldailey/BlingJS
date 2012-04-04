@@ -61,7 +61,7 @@ Bling = (selector, context = document) ->
 # Blings extend from arrays
 Bling.fn = new Array # a copy! of the Array prototype
 
-Object.Keys = (o, inherited = false) -> # Object.Keys(/o/, [/inherited/]) - get a list of key names
+Object.Keys ?= (o, inherited = false) -> # Object.Keys(/o/, [/inherited/]) - get a list of key names
 	# by default, does not include properties inherited from a prototype
 	keys = []; j = 0
 	for i of o
@@ -69,14 +69,14 @@ Object.Keys = (o, inherited = false) -> # Object.Keys(/o/, [/inherited/]) - get 
 			keys[j++] = i
 	keys
 
-Object.Extend = (a, b, k) -> # Object.Extend(a, b, [k]) - merge values from b into a
+Object.Extend ?= (a, b, k) -> # Object.Extend(a, b, [k]) - merge values from b into a
 	# if k is present, it should be an array of property names
 	if Object::toString.apply(k) is "[object Array]" # cant use Object.IsArray yet
 		for i of k
-			a[k[i]] = b[k[i]] unless b[k[i]] is undefined
+			a[k[i]] ?= b[k[i]] unless b[k[i]] is undefined
 	else
 		for i in (k = Object.Keys(b))
-			a[i] = b[i]
+			a[i] ?= b[i]
 	a
 
 Object.Extend Object,

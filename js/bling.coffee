@@ -60,6 +60,7 @@ Bling = (selector, context = document) ->
 
 # Blings extend from arrays
 Bling.fn = new Array # a (shallow) copy (!) of the Array prototype
+Bling.toString = () -> "function Bling(selector, context) { [...] }"
 
 Object.Keys ?= (o, inherited = false) -> # Object.Keys(/o/, [/inherited/]) - get a list of key names
 	# by default, does not include properties inherited from a prototype

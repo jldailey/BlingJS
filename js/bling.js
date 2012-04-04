@@ -75,6 +75,10 @@
 
   Bling.fn = new Array;
 
+  Bling.toString = function() {
+    return "function Bling(selector, context) { [...] }";
+  };
+
   if ((_ref = Object.Keys) == null) {
     Object.Keys = function(o, inherited) {
       var i, j, keys;

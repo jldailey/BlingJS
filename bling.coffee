@@ -154,6 +154,13 @@ Object.Extend Object,
 		a
 	ToString: (x) ->
 		Object::toString.apply(x)
+	Get: (o, key, def) ->
+		dot = key.indexOf '.'
+		if dot isnt -1
+			return Object.Get(Object.Get(o, key.substring(0,dot)), key.substring(dot+1), def)
+		if key of o
+			return o[key]
+		return def
 
 Object.Extend Function,
 	Empty: () -> # the empty function

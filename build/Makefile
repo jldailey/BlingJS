@@ -40,15 +40,16 @@ publish:
 	&& git checkout master \
 	&& git stash pop || true
 
-plugin: plugin_minify plugin_compile
+plugin: plugin_compile plugin_minify
 
-plugin_minify: $(DIST_PLUGINS)/min.lazy.js $(DIST_PLUGINS)/min.pprint.js $(DIST_PLUGINS)/min.template.js $(DIST_PLUGINS)/min.tnet.js $(DIST_PLUGINS)/min.ui.js
+plugin_minify: $(DIST_PLUGINS)/min.lazy.js $(DIST_PLUGINS)/min.pprint.js $(DIST_PLUGINS)/min.template.js $(DIST_PLUGINS)/min.tnet.js $(DIST_PLUGINS)/min.ui.js $(DIST_PLUGINS)/min.all.js
 
 $(DIST_PLUGINS)/min.%.js: $(DIST_PLUGINS)/%.js compiler.jar
 	$(JAVA) -jar compiler.jar --js=$< --js_output_file=$@ --compilation_level=$(LEVEL) --externs externs
 	
 plugin_compile:
 	coffee -o $(DIST_PLUGINS) -c $(PLUGINS)/*.coffee
+	cat $(DIST_PLUGINS)/*.js > $(DIST_PLUGINS)/all.js
 
 $(DIST)/bling.js: ../bling.coffee
 	cd .. && coffee -o dist -c bling.coffee

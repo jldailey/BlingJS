@@ -12,7 +12,7 @@
   http://creativecommons.org/licenses/MIT/
   */
 
-  var Bling, COMMASEP, EVENTSEP_RE, OBJECT_RE, log;
+  var Bling, COMMASEP, EVENTSEP_RE, OBJECT_RE, log, _ref, _ref2;
   var __slice = Array.prototype.slice, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
 
   if (!(typeof document !== "undefined" && document !== null ? document.querySelectorAll : void 0)) {
@@ -74,36 +74,42 @@
 
   Bling.fn = new Array;
 
-  Object.Keys = function(o, inherited) {
-    var i, j, keys;
-    if (inherited == null) inherited = false;
-    keys = [];
-    j = 0;
-    for (i in o) {
-      if (inherited || o.hasOwnProperty(i)) keys[j++] = i;
-    }
-    return keys;
-  };
+  if ((_ref = Object.Keys) == null) {
+    Object.Keys = function(o, inherited) {
+      var i, j, keys;
+      if (inherited == null) inherited = false;
+      keys = [];
+      j = 0;
+      for (i in o) {
+        if (inherited || o.hasOwnProperty(i)) keys[j++] = i;
+      }
+      return keys;
+    };
+  }
 
-  Object.Extend = function(a, b, k) {
-    var i, _i, _len, _ref;
-    if (Object.prototype.toString.apply(k) === "[object Array]") {
-      for (i in k) {
-        if (b[k[i]] !== void 0) a[k[i]] = b[k[i]];
+  if ((_ref2 = Object.Extend) == null) {
+    Object.Extend = function(a, b, k) {
+      var i, _i, _len, _name, _ref3, _ref4, _ref5;
+      if (Object.prototype.toString.apply(k) === "[object Array]") {
+        for (i in k) {
+          if (b[k[i]] !== void 0) {
+            if ((_ref3 = a[_name = k[i]]) == null) a[_name] = b[k[i]];
+          }
+        }
+      } else {
+        _ref4 = (k = Object.Keys(b));
+        for (_i = 0, _len = _ref4.length; _i < _len; _i++) {
+          i = _ref4[_i];
+          if ((_ref5 = a[i]) == null) a[i] = b[i];
+        }
       }
-    } else {
-      _ref = (k = Object.Keys(b));
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        i = _ref[_i];
-        a[i] = b[i];
-      }
-    }
-    return a;
-  };
+      return a;
+    };
+  }
 
   Object.Extend(Object, {
     Type: function(o) {
-      var _ref;
+      var _ref3;
       if (o === void 0) return "undefined";
       if (o === null) return "null";
       if (Object.IsString(o)) return "string";
@@ -115,7 +121,7 @@
       if (Object.IsNode(o)) return "node";
       if (Object.IsFunc(o)) return "function";
       if (Object.IsType(o, "RegExp")) return "regexp";
-      if ((_ref = String(o)) === "true" || _ref === "false") return "boolean";
+      if ((_ref3 = String(o)) === "true" || _ref3 === "false") return "boolean";
       if (Object.IsError(o)) return "error";
       if (Object.IsWindow(o)) return "window";
       if (Object.IsObject(o)) return "object";
@@ -162,8 +168,8 @@
       return (o != null) && Object.IsType(o, Bling);
     },
     IsError: function(o) {
-      var _ref;
-      return (o != null) && ((_ref = o.constructor) != null ? _ref.name : void 0) === "Error";
+      var _ref3;
+      return (o != null) && ((_ref3 = o.constructor) != null ? _ref3.name : void 0) === "Error";
     },
     IsObject: function(o) {
       return (o != null) && typeof o === "object";
@@ -271,10 +277,10 @@
       return s.substring(0, start) + n + s.substring(end);
     },
     Checksum: function(s) {
-      var a, b, i, _ref;
+      var a, b, i, _ref3;
       a = 1;
       b = 0;
-      for (i = 0, _ref = s.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
+      for (i = 0, _ref3 = s.length; 0 <= _ref3 ? i < _ref3 : i > _ref3; 0 <= _ref3 ? i++ : i--) {
         a = (a + s.charCodeAt(i)) % 65521;
         b = (b + a) % 65521;
       }
@@ -495,13 +501,13 @@
       if (Element.prototype.cloneNode.length === 0) {
         oldClone = Element.prototype.cloneNode;
         Element.prototype.cloneNode = function(deep) {
-          var i, n, _i, _len, _ref;
+          var i, n, _i, _len, _ref3;
           if (deep == null) deep = false;
           n = oldClone.call(this);
           if (deep) {
-            _ref = this.childNodes;
-            for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-              i = _ref[_i];
+            _ref3 = this.childNodes;
+            for (_i = 0, _len = _ref3.length; _i < _len; _i++) {
+              i = _ref3[_i];
               n.appendChild(i.cloneNode(true));
             }
           }
@@ -542,12 +548,12 @@
           return _this;
         };
         return this.cancel = function(f) {
-          var i, _ref, _results;
+          var i, _ref3, _results;
           if (!Object.IsFunc(f)) {
             throw Error("function expected, got " + (Object.Type(f)));
           }
           _results = [];
-          for (i = 0, _ref = q.length; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
+          for (i = 0, _ref3 = q.length; 0 <= _ref3 ? i < _ref3 : i > _ref3; 0 <= _ref3 ? i++ : i--) {
             if (q[i] === f) {
               q.splice(i, 1);
               break;
@@ -872,7 +878,7 @@
           }, $());
         },
         weave: function(b) {
-          var c, i, n, nn, _ref;
+          var c, i, n, nn, _ref3;
           nn = this.len();
           n = b.length;
           i = nn - 1;
@@ -881,7 +887,7 @@
           c.selector = function() {
             return c.context.weave(b);
           };
-          for (i = _ref = nn - 1; _ref <= 0 ? i <= 0 : i >= 0; _ref <= 0 ? i++ : i--) {
+          for (i = _ref3 = nn - 1; _ref3 <= 0 ? i <= 0 : i >= 0; _ref3 <= 0 ? i++ : i--) {
             c[(i * 2) + 1] = this[i];
           }
           for (i = 0; 0 <= n ? i < n : i > n; 0 <= n ? i++ : i--) {
@@ -890,7 +896,7 @@
           return c;
         },
         fold: function(f) {
-          var b, i, j, n, _ref;
+          var b, i, j, n, _ref3;
           n = this.len();
           j = 0;
           b = $();
@@ -898,7 +904,7 @@
           b.selector = function() {
             return b.context.fold(f);
           };
-          for (i = 0, _ref = n - 1; i < _ref; i += 2) {
+          for (i = 0, _ref3 = n - 1; i < _ref3; i += 2) {
             b[j++] = f.call(this, this[i], this[i + 1]);
           }
           if ((n % 2) === 1) b[j++] = f.call(this, this[n - 1], void 0);
@@ -1027,9 +1033,9 @@
       ord_Z = "Z".charCodeAt(0);
       ord_a = "a".charCodeAt(0);
       dashName = function(name) {
-        var c, i, ret, _ref;
+        var c, i, ret, _ref3;
         ret = "";
-        for (i = 0, _ref = (name != null ? name.length : void 0) | 0; 0 <= _ref ? i < _ref : i > _ref; 0 <= _ref ? i++ : i--) {
+        for (i = 0, _ref3 = (name != null ? name.length : void 0) | 0; 0 <= _ref3 ? i < _ref3 : i > _ref3; 0 <= _ref3 ? i++ : i--) {
           c = name.charCodeAt(i);
           if ((ord_Z >= c && c >= ord_A)) {
             c = (c - ord_A) + ord_a;
@@ -1203,14 +1209,14 @@
           b = $();
           j = 0;
           this.take(1).each(function() {
-            var _ref;
-            if ((_ref = this.parentNode) != null) _ref.replaceChild(n, this);
+            var _ref3;
+            if ((_ref3 = this.parentNode) != null) _ref3.replaceChild(n, this);
             return b[j++] = n;
           });
           this.skip(1).each(function() {
-            var c, _ref;
+            var c, _ref3;
             c = n.cloneNode(true);
-            if ((_ref = this.parentNode) != null) _ref.replaceChild(c, this);
+            if ((_ref3 = this.parentNode) != null) _ref3.replaceChild(c, this);
             return b[j++] = c;
           });
           return b;
@@ -1246,8 +1252,8 @@
             return y !== x;
           };
           return this.each(function() {
-            var c, _ref;
-            c = (_ref = this.className) != null ? _ref.split(" ").filter(notx).join(" ") : void 0;
+            var c, _ref3;
+            c = (_ref3 = this.className) != null ? _ref3.split(" ").filter(notx).join(" ") : void 0;
             if (c.length === 0) return this.removeAttribute('class');
           });
         },
@@ -2096,9 +2102,9 @@
             var cache;
             cache = {};
             return function() {
-              var a, _name, _ref;
+              var a, _name, _ref3;
               a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-              return (_ref = cache[_name = $.hash(a)]) != null ? _ref : cache[_name] = f.apply(this, a);
+              return (_ref3 = cache[_name = $.hash(a)]) != null ? _ref3 : cache[_name] = f.apply(this, a);
             };
           }
         }
@@ -2281,9 +2287,9 @@
             }
           }, {
             enter: function() {
-              var _ref;
+              var _ref3;
               this.emitNode();
-              this.parent = (_ref = this.parent) != null ? _ref.parentNode : void 0;
+              this.parent = (_ref3 = this.parent) != null ? _ref3.parentNode : void 0;
               return this.GO(0);
             }
           }, {
@@ -2346,28 +2352,28 @@
       archive_limit = 1000;
       archive_trim = 100;
       publish = function(e, args) {
-        var func, _i, _len, _ref, _ref2;
+        var func, _i, _len, _ref3, _ref4;
         if (args == null) args = [];
         $.log("published: " + e, args);
-        if ((_ref = archive[e]) == null) archive[e] = [];
+        if ((_ref3 = archive[e]) == null) archive[e] = [];
         archive[e].push(args);
         if (archive[e].length > archive_limit) archive[e].splice(0, archive_trim);
-        _ref2 = subscribers[e];
-        for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
-          func = _ref2[_i];
+        _ref4 = subscribers[e];
+        for (_i = 0, _len = _ref4.length; _i < _len; _i++) {
+          func = _ref4[_i];
           func.apply(null, args);
         }
         return this;
       };
       subscribe = function(e, func, replay) {
-        var args, _i, _len, _ref, _ref2;
+        var args, _i, _len, _ref3, _ref4;
         if (replay == null) replay = true;
-        if ((_ref = subscribers[e]) == null) subscribers[e] = [];
+        if ((_ref3 = subscribers[e]) == null) subscribers[e] = [];
         subscribers[e].push(func);
         if (replay) {
-          _ref2 = archive[e];
-          for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
-            args = _ref2[_i];
+          _ref4 = archive[e];
+          for (_i = 0, _len = _ref4.length; _i < _len; _i++) {
+            args = _ref4[_i];
             $.log("replayed: " + e, args);
             func.apply(null, args);
           }
@@ -2375,11 +2381,11 @@
         return func;
       };
       unsubscribe = function(e, func) {
-        var i, _ref;
+        var i, _ref3;
         if (!(func != null)) {
           return subscribers[e] = [];
         } else {
-          i = (_ref = subscribers[e]) != null ? _ref.indexOf(func) : void 0;
+          i = (_ref3 = subscribers[e]) != null ? _ref3.indexOf(func) : void 0;
           if (i > -1) return subscribers[e].splice(i, i);
         }
       };

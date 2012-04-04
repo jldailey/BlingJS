@@ -81,37 +81,21 @@ Object.Extend = (a, b, k) -> # Object.Extend(a, b, [k]) - merge values from b in
 
 Object.Extend Object,
 	Type: (o) ->
-		switch true
-			when o is undefined
-				"undefined"
-			when o is null
-				"null"
-			when Object.IsString o
-				"string"
-			when Object.IsType o, Bling
-				"bling"
-			when Object.IsArray o
-				"array"
-			when Object.IsType o, NodeList
-				"nodelist"
-			when Object.IsNumber o
-				"number"
-			when Object.IsFragment o
-				"fragment"
-			when Object.IsNode o
-				"node"
-			when Object.IsFunc o
-				"function"
-			when Object.IsType o, "RegExp"
-				"regexp"
-			when String(o) in ["true", "false"]
-				"boolean"
-			when Object.IsError o
-				"error"
-			when Object.IsWindow o
-				"window"
-			when Object.IsObject o
-				"object"
+		if o is undefined then return "undefined"
+		if o is null then return "null"
+		if Object.IsString o then return "string"
+		if Object.IsType o, Bling then return "bling"
+		if Object.IsArray o then return "array"
+		if Object.IsType o, NodeList then return "nodelist"
+		if Object.IsNumber o then return "number"
+		if Object.IsFragment o then return "fragment"
+		if Object.IsNode o then return "node"
+		if Object.IsFunc o then return "function"
+		if Object.IsType o, "RegExp" then return "regexp"
+		if String(o) in ["true", "false"] then return "boolean"
+		if Object.IsError o then return "error"
+		if Object.IsWindow o then return "window"
+		if Object.IsObject o then return "object"
 	IsType: (o,T) -> # Object.IsType(o,T) - true if object o is of type T (directly or indirectly)
 		if o == null
 			o is T

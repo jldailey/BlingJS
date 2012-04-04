@@ -104,38 +104,21 @@
   Object.Extend(Object, {
     Type: function(o) {
       var _ref;
-      switch (true) {
-        case o === void 0:
-          return "undefined";
-        case o === null:
-          return "null";
-        case Object.IsString(o):
-          return "string";
-        case Object.IsType(o, Bling):
-          return "bling";
-        case Object.IsArray(o):
-          return "array";
-        case Object.IsType(o, NodeList):
-          return "nodelist";
-        case Object.IsNumber(o):
-          return "number";
-        case Object.IsFragment(o):
-          return "fragment";
-        case Object.IsNode(o):
-          return "node";
-        case Object.IsFunc(o):
-          return "function";
-        case Object.IsType(o, "RegExp"):
-          return "regexp";
-        case (_ref = String(o)) === "true" || _ref === "false":
-          return "boolean";
-        case Object.IsError(o):
-          return "error";
-        case Object.IsWindow(o):
-          return "window";
-        case Object.IsObject(o):
-          return "object";
-      }
+      if (o === void 0) return "undefined";
+      if (o === null) return "null";
+      if (Object.IsString(o)) return "string";
+      if (Object.IsType(o, Bling)) return "bling";
+      if (Object.IsArray(o)) return "array";
+      if (Object.IsType(o, NodeList)) return "nodelist";
+      if (Object.IsNumber(o)) return "number";
+      if (Object.IsFragment(o)) return "fragment";
+      if (Object.IsNode(o)) return "node";
+      if (Object.IsFunc(o)) return "function";
+      if (Object.IsType(o, "RegExp")) return "regexp";
+      if ((_ref = String(o)) === "true" || _ref === "false") return "boolean";
+      if (Object.IsError(o)) return "error";
+      if (Object.IsWindow(o)) return "window";
+      if (Object.IsObject(o)) return "object";
     },
     IsType: function(o, T) {
       if (o === null) {

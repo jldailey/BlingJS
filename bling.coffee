@@ -444,17 +444,7 @@ Object.Extend Event,
 				@
 
 			map: (f) -> # .map(/f/) - collect /f/.call(/x/, /x/) for every item /x/ in _this_.
-				a = $()
-				a.context = @
-				a.selector = () -> a.context.map(f)
-				nn = @len()
-				for i in [0...nn]
-					t = @[i]
-					# try
-					a[i] = f.call t,t
-					# catch err
-					# a[i] = err
-				a
+				$( (f.call(t,t) for t in @) )
 
 			reduce: (f, init) ->
 				# .reduce(/f/, [/init/]) - accumulate a = /f/(a, /x/) for /x/ in _this_.

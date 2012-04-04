@@ -36,6 +36,11 @@
         }
       };
     });
+    $.template.register_engine('null', (function() {
+      return function(text, values) {
+        return text;
+      };
+    })());
     match_forward = function(text, find, against, start, stop) {
       var count, i, t;
       if (stop == null) stop = -1;
@@ -113,11 +118,6 @@
         return output.join("");
       };
       return render;
-    })());
-    $.template.register_engine('null', (function() {
-      return function(text, values) {
-        return text;
-      };
     })());
     return $.template.register_engine('js-eval', (function() {
       var TemplateMachine;

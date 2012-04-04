@@ -613,10 +613,6 @@
         eq: function(i) {
           var a;
           a = $([this[i]]);
-          a.context = this;
-          a.selector = function() {
-            return a.context.eq(i);
-          };
           return a;
         },
         each: function(f) {
@@ -628,18 +624,16 @@
           return this;
         },
         map: function(f) {
-          var a, i, nn, t;
-          a = $();
-          a.context = this;
-          a.selector = function() {
-            return a.context.map(f);
-          };
-          nn = this.len();
-          for (i = 0; 0 <= nn ? i < nn : i > nn; 0 <= nn ? i++ : i--) {
-            t = this[i];
-            a[i] = f.call(t, t);
-          }
-          return a;
+          var t;
+          return $((function() {
+            var _i, _len, _results;
+            _results = [];
+            for (_i = 0, _len = this.length; _i < _len; _i++) {
+              t = this[_i];
+              _results.push(f.call(t, t));
+            }
+            return _results;
+          }).call(this));
         },
         reduce: function(f, init) {
           var a, t;
@@ -659,10 +653,6 @@
           if (strict == null) strict = true;
           ret = $();
           x = i = j = 0;
-          ret.context = this;
-          ret.selector = function() {
-            return ret.context.union(other, strict);
-          };
           while (x = this[j++]) {
             if (!ret.contains(x, strict)) ret[i++] = x;
           }
@@ -682,10 +672,6 @@
           } else {
             nn = other.length;
           }
-          ret.context = this;
-          ret.selector = function() {
-            return ret.context.intersect(other);
-          };
           for (i = 0; 0 <= n ? i < n : i > n; 0 <= n ? i++ : i--) {
             for (j = 0; 0 <= nn ? j < nn : j > nn; 0 <= nn ? j++ : j--) {
               if (this[i] === other[j]) {
@@ -773,10 +759,6 @@
             end = nn;
           }
           a = $();
-          a.context = this;
-          a.selector = function() {
-            return a.context.take(n);
-          };
           j = 0;
           for (i = start; start <= end ? i < end : i > end; start <= end ? i++ : i--) {
             a[j++] = this[i];
@@ -789,10 +771,6 @@
           start = Math.max(0, n | 0);
           end = this.len();
           a = $();
-          a.context = this;
-          a.selector = function() {
-            return a.context.skip(n);
-          };
           j = 0;
           for (i = start; start <= end ? i < end : i > end; start <= end ? i++ : i--) {
             a[j++] = this[i];
@@ -824,10 +802,6 @@
           if (start < 0) start += n;
           if (end < 0) end += n;
           b = $();
-          b.context = this;
-          b.selector = function() {
-            return b.context.slice(start, end);
-          };
           for (i = start; start <= end ? i < end : i > end; start <= end ? i++ : i--) {
             b[j++] = this[i];
           }
@@ -854,10 +828,6 @@
         filter: function(f) {
           var b, g, it, j, _i, _len;
           b = $();
-          b.context = this;
-          b.selector = function() {
-            return b.context.filter(f);
-          };
           switch (Object.Type(f)) {
             case "string":
               g = function(x) {
@@ -901,10 +871,6 @@
           n = b.length;
           i = nn - 1;
           c = $();
-          c.context = this;
-          c.selector = function() {
-            return c.context.weave(b);
-          };
           for (i = _ref3 = nn - 1; _ref3 <= 0 ? i <= 0 : i >= 0; _ref3 <= 0 ? i++ : i--) {
             c[(i * 2) + 1] = this[i];
           }
@@ -918,10 +884,6 @@
           n = this.len();
           j = 0;
           b = $();
-          b.context = this;
-          b.selector = function() {
-            return b.context.fold(f);
-          };
           for (i = 0, _ref3 = n - 1; i < _ref3; i += 2) {
             b[j++] = f.call(this, this[i], this[i + 1]);
           }
@@ -931,10 +893,6 @@
         flatten: function() {
           var b, c, d, i, j, k, n;
           b = $();
-          b.context = this;
-          b.selector = function() {
-            return b.context.flatten();
-          };
           n = this.len();
           k = 0;
           for (i = 0; 0 <= n ? i < n : i > n; 0 <= n ? i++ : i--) {

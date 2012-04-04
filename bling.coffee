@@ -11,10 +11,6 @@ http://creativecommons.org/licenses/MIT/
 
 ###
 
-if not document?.querySelectorAll
-	alert "This browser is not supported"
-	`return`
-
 # local shortcuts
 if console?.log
 	log = (a...) ->
@@ -23,9 +19,13 @@ else
 	log = (a...) ->
 		alert a.join(", ")
 
+if not document?.querySelectorAll
+	log "Warning: This environment has limited supported"
+
 # constants
 COMMASEP = ", "
 EVENTSEP_RE = /,* +/
+FORCE_RE = /!$/ # tells Object.Extend to overwrite existing properties
 OBJECT_RE = /\[object (\w+)\]/
 
 Bling = (selector, context = document) ->
@@ -59,7 +59,7 @@ Bling = (selector, context = document) ->
 	return set
 
 # Blings extend from arrays
-Bling.fn = new Array # a copy! of the Array prototype
+Bling.fn = new Array # a (shallow) copy (!) of the Array prototype
 
 Object.Keys ?= (o, inherited = false) -> # Object.Keys(/o/, [/inherited/]) - get a list of key names
 	# by default, does not include properties inherited from a prototype
@@ -72,11 +72,20 @@ Object.Keys ?= (o, inherited = false) -> # Object.Keys(/o/, [/inherited/]) - get
 Object.Extend ?= (a, b, k) -> # Object.Extend(a, b, [k]) - merge values from b into a
 	# if k is present, it should be an array of property names
 	if Object::toString.apply(k) is "[object Array]" # cant use Object.IsArray yet
-		for i of k
-			a[k[i]] ?= b[k[i]] unless b[k[i]] is undefined
+		for key in k
+			if FORCE_RE.test(key)
+				key = key.replace(FORCE_RE,"")
+				a[key] = b[key] unless b[key] is undefined
+			else
+				a[key] ?= b[key] unless b[key] is undefined
 	else
-		for i in (k = Object.Keys(b))
-			a[i] ?= b[i]
+		for key in Object.Keys(b)
+			if FORCE_RE.test(key)
+				v = b[key]
+				key = key.replace(FORCE_RE,"")
+				a[key] = v
+			else
+				a[key] ?= b[key]
 	a
 
 Object.Extend Object,
@@ -293,7 +302,7 @@ Object.Extend Event,
 			Object.Extend(Bling.fn, plugin)
 		catch error
 			log "failed to load plugin #{name}"
-			# log error.message
+			log error.message
 			throw error
 
 	$.plugin () -> # Symbol - allow to safely use something other than $ by assigning to Bling.symbol
@@ -442,10 +451,10 @@ Object.Extend Event,
 					f.call(i, i)
 				@
 
-			map: (f) -> # .map(/f/) - collect /f/.call(/x/, /x/) for every item /x/ in _this_.
+			"map!": (f) -> # .map(/f/) - collect /f/.call(/x/, /x/) for every item /x/ in _this_.
 				$( (f.call(t,t) for t in @) )
 
-			reduce: (f, init) ->
+			"reduce!": (f, init) ->
 				# .reduce(/f/, [/init/]) - accumulate a = /f/(a, /x/) for /x/ in _this_.
 				# along with respecting the context, we pass only the accumulation and one argument
 				# so you can use functions like Math.min directly $([1,2,3]).reduce(Math.min)
@@ -633,23 +642,20 @@ Object.Extend Event,
 					@[++i] = b[++j]
 				@
 
-			push: (b) ->
+			"push!": (b) ->
 				# .push(/b/) - override Array.push to return _this_
 				Array::push.call(@, b)
 				@
 
-			filter: (f) ->
+			"filter!": (f) ->
 				# .filter(/f/) - collect all /x/ from _this_ where /x/./f/(/x/) is true
 				# or if f is a selector string, collects nodes that match the selector
 				# or if f is a RegExp, collect nodes where f.test(x) is true
 				b = $()
-				switch Object.Type f
-					when "string"
-						g = (x) -> x.matchesSelector(f)
-					when "regexp"
-						g = (x) -> f.test(x)
-					when "function"
-						g = f
+				g = switch Object.Type f
+					when "string" then (x) -> x.matchesSelector(f)
+					when "regexp" then (x) -> f.test(x)
+					when "function" then f
 					else
 						throw new Error("unsupported type passed to filter: #{Object.Type(f)}")
 				j = 0
@@ -733,7 +739,7 @@ Object.Extend Event,
 					else
 						@
 
-			toString: () -> # .toString() - maps toString across @
+			"toString!": () -> # .toString() - maps toString across @
 				$.symbol + "([" + @map () ->
 					t = Object.Type(@)
 					if t in ["undefined","null","window"]
@@ -877,7 +883,7 @@ Object.Extend Event,
 
 			append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
 				x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
-				a = @zip('appendChild').log('appendChild')
+				a = @zip('appendChild')
 				a.take(1).call(x)
 				a.skip(1).each (f) ->
 					f(x.cloneNode(true)) # f is already bound to @

@@ -176,7 +176,6 @@ Object.Extend Function,
 	LowerLimit: (x) -> (y) -> Math.max(x, y)
 	Px: (d) -> () -> Number.Px(@,d)
 
-
 Object.Extend String,
 	PadLeft: (s, n, c = " ") -> # String.PadLeft(string, width, fill=" ")
 		while s.length < n
@@ -434,8 +433,6 @@ Object.Extend Event,
 
 			eq: (i) -> # .eq(/i/) - a new set containing only the /i/th item
 				a = $([@[i]])
-				a.context = @
-				a.selector = () -> a.context.eq(i)
 				a
 
 			each: (f) -> # .each(/f/) - apply function /f/ to every item /x/ in _this_.
@@ -466,8 +463,6 @@ Object.Extend Event,
 				# 'strict' forces === comparison
 				ret = $()
 				x = i = j = 0
-				ret.context = @
-				ret.selector = () -> ret.context.union(other, strict)
 				while x = @[j++]
 					if not ret.contains(x, strict) # TODO: could speed this up by inlining contains
 						ret[i++] = x
@@ -486,8 +481,6 @@ Object.Extend Event,
 					nn = other.len()
 				else
 					nn = other.length
-				ret.context = @
-				ret.selector = () -> ret.context.intersect(other)
 				for i in [0...n]
 					for j in [0...nn]
 						if @[i] is other[j]
@@ -577,8 +570,6 @@ Object.Extend Event,
 					start = Math.max 0, nn+n
 					end = nn
 				a = $()
-				a.context = @
-				a.selector = () -> a.context.take(n)
 				j = 0
 				for i in [start...end]
 					a[j++] = @[i]
@@ -590,8 +581,6 @@ Object.Extend Event,
 				start = Math.max 0, n|0
 				end = @len()
 				a = $()
-				a.context = @
-				a.selector = () -> a.context.skip(n)
 				j = 0
 				for i in [start...end]
 					a[j++] = @[i]
@@ -623,8 +612,6 @@ Object.Extend Event,
 				start += n if start < 0
 				end += n if end < 0
 				b = $()
-				b.context = @
-				b.selector = () -> b.context.slice(start, end)
 				for i in [start...end]
 					b[j++] = @[i]
 				b
@@ -653,8 +640,6 @@ Object.Extend Event,
 				# or if f is a selector string, collects nodes that match the selector
 				# or if f is a RegExp, collect nodes where f.test(x) is true
 				b = $()
-				b.context = @
-				b.selector = () -> b.context.filter(f)
 				switch Object.Type f
 					when "string"
 						g = (x) -> x.matchesSelector(f)
@@ -696,8 +681,6 @@ Object.Extend Event,
 				n = b.length
 				i = nn - 1
 				c = $()
-				c.context = @
-				c.selector = () -> c.context.weave(b)
 				# first spread out this, from back to front
 				for i in [nn-1..0]
 					c[(i*2)+1] = @[i]
@@ -716,8 +699,6 @@ Object.Extend Event,
 				j = 0
 				# at least 2 items are required in the set
 				b = $()
-				b.context = @
-				b.selector = () -> b.context.fold(f)
 				for i in [0...n-1] by 2
 					b[j++] = f.call @, @[i], @[i+1]
 				# if there is an odd man out, make one last call
@@ -727,8 +708,6 @@ Object.Extend Event,
 
 			flatten: () -> # .flatten() - collect the union of all sets in _this_
 				b = $()
-				b.context = @
-				b.selector = () -> b.context.flatten()
 				n = @len()
 				k = 0 # insert marker
 				for i in [0...n]

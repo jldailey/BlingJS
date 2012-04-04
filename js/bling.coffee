@@ -1951,6 +1951,7 @@ Object.Extend Event,
 			archive[e].push(args)
 			if archive[e].length > archive_limit
 				archive[e].splice(0, archive_trim)
+			subscribers[e] ?= []
 			for func in subscribers[e]
 				func.apply null, args
 			@
@@ -1959,6 +1960,7 @@ Object.Extend Event,
 			subscribers[e] ?= []
 			subscribers[e].push(func)
 			if replay # replay the publish archive
+				archive[e] ?= []
 				for args in archive[e]
 					$.log "replayed: #{e}", args
 					func.apply null, args

@@ -2353,28 +2353,30 @@
       archive_limit = 1000;
       archive_trim = 100;
       publish = function(e, args) {
-        var func, _i, _len, _ref3, _ref4;
+        var func, _i, _len, _ref3, _ref4, _ref5;
         if (args == null) args = [];
         $.log("published: " + e, args);
         if ((_ref3 = archive[e]) == null) archive[e] = [];
         archive[e].push(args);
         if (archive[e].length > archive_limit) archive[e].splice(0, archive_trim);
-        _ref4 = subscribers[e];
-        for (_i = 0, _len = _ref4.length; _i < _len; _i++) {
-          func = _ref4[_i];
+        if ((_ref4 = subscribers[e]) == null) subscribers[e] = [];
+        _ref5 = subscribers[e];
+        for (_i = 0, _len = _ref5.length; _i < _len; _i++) {
+          func = _ref5[_i];
           func.apply(null, args);
         }
         return this;
       };
       subscribe = function(e, func, replay) {
-        var args, _i, _len, _ref3, _ref4;
+        var args, _i, _len, _ref3, _ref4, _ref5;
         if (replay == null) replay = true;
         if ((_ref3 = subscribers[e]) == null) subscribers[e] = [];
         subscribers[e].push(func);
         if (replay) {
-          _ref4 = archive[e];
-          for (_i = 0, _len = _ref4.length; _i < _len; _i++) {
-            args = _ref4[_i];
+          if ((_ref4 = archive[e]) == null) archive[e] = [];
+          _ref5 = archive[e];
+          for (_i = 0, _len = _ref5.length; _i < _len; _i++) {
+            args = _ref5[_i];
             $.log("replayed: " + e, args);
             func.apply(null, args);
           }

@@ -12,13 +12,8 @@
   http://creativecommons.org/licenses/MIT/
   */
 
-  var Bling, COMMASEP, EVENTSEP_RE, OBJECT_RE, log, _ref, _ref2;
+  var Bling, COMMASEP, EVENTSEP_RE, FORCE_RE, OBJECT_RE, log, _ref, _ref2;
   var __slice = Array.prototype.slice, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
-
-  if (!(typeof document !== "undefined" && document !== null ? document.querySelectorAll : void 0)) {
-    alert("This browser is not supported");
-    return;
-  }
 
   if (typeof console !== "undefined" && console !== null ? console.log : void 0) {
     log = function() {
@@ -34,9 +29,15 @@
     };
   }
 
+  if (!(typeof document !== "undefined" && document !== null ? document.querySelectorAll : void 0)) {
+    log("Warning: This environment has limited supported");
+  }
+
   COMMASEP = ", ";
 
   EVENTSEP_RE = /,* +/;
+
+  FORCE_RE = /!$/;
 
   OBJECT_RE = /\[object (\w+)\]/;
 
@@ -89,18 +90,28 @@
 
   if ((_ref2 = Object.Extend) == null) {
     Object.Extend = function(a, b, k) {
-      var i, _i, _len, _name, _ref3, _ref4, _ref5;
+      var key, v, _i, _j, _len, _len2, _ref3, _ref4, _ref5;
       if (Object.prototype.toString.apply(k) === "[object Array]") {
-        for (i in k) {
-          if (b[k[i]] !== void 0) {
-            if ((_ref3 = a[_name = k[i]]) == null) a[_name] = b[k[i]];
+        for (_i = 0, _len = k.length; _i < _len; _i++) {
+          key = k[_i];
+          if (FORCE_RE.test(key)) {
+            key = key.replace(FORCE_RE, "");
+            if (b[key] !== void 0) a[key] = b[key];
+          } else {
+            if (b[key] !== void 0) if ((_ref3 = a[key]) == null) a[key] = b[key];
           }
         }
       } else {
-        _ref4 = (k = Object.Keys(b));
-        for (_i = 0, _len = _ref4.length; _i < _len; _i++) {
-          i = _ref4[_i];
-          if ((_ref5 = a[i]) == null) a[i] = b[i];
+        _ref4 = Object.Keys(b);
+        for (_j = 0, _len2 = _ref4.length; _j < _len2; _j++) {
+          key = _ref4[_j];
+          if (FORCE_RE.test(key)) {
+            v = b[key];
+            key = key.replace(FORCE_RE, "");
+            a[key] = v;
+          } else {
+            if ((_ref5 = a[key]) == null) a[key] = b[key];
+          }
         }
       }
       return a;
@@ -449,6 +460,7 @@
         return Object.Extend(Bling.fn, plugin);
       } catch (error) {
         log("failed to load plugin " + name);
+        log(error.message);
         throw error;
       }
     };
@@ -625,7 +637,7 @@
           }
           return this;
         },
-        map: function(f) {
+        "map!": function(f) {
           var t;
           return $((function() {
             var _i, _len, _results;
@@ -637,7 +649,7 @@
             return _results;
           }).call(this));
         },
-        reduce: function(f, init) {
+        "reduce!": function(f, init) {
           var a, t;
           a = init;
           t = this;
@@ -824,30 +836,29 @@
           }
           return this;
         },
-        push: function(b) {
+        "push!": function(b) {
           Array.prototype.push.call(this, b);
           return this;
         },
-        filter: function(f) {
+        "filter!": function(f) {
           var b, g, it, j, _i, _len;
           b = $();
-          switch (Object.Type(f)) {
-            case "string":
-              g = function(x) {
-                return x.matchesSelector(f);
-              };
-              break;
-            case "regexp":
-              g = function(x) {
-                return f.test(x);
-              };
-              break;
-            case "function":
-              g = f;
-              break;
-            default:
-              throw new Error("unsupported type passed to filter: " + (Object.Type(f)));
-          }
+          g = (function() {
+            switch (Object.Type(f)) {
+              case "string":
+                return function(x) {
+                  return x.matchesSelector(f);
+                };
+              case "regexp":
+                return function(x) {
+                  return f.test(x);
+                };
+              case "function":
+                return f;
+              default:
+                throw new Error("unsupported type passed to filter: " + (Object.Type(f)));
+            }
+          })();
           j = 0;
           for (_i = 0, _len = this.length; _i < _len; _i++) {
             it = this[_i];
@@ -923,7 +934,7 @@
             }
           });
         },
-        toString: function() {
+        "toString!": function() {
           return $.symbol + "([" + this.map(function() {
             var t;
             t = Object.Type(this);
@@ -1100,7 +1111,7 @@
         append: function(x) {
           var a;
           x = toNode(x);
-          a = this.zip('appendChild').log('appendChild');
+          a = this.zip('appendChild');
           a.take(1).call(x);
           a.skip(1).each(function(f) {
             return f(x.cloneNode(true));

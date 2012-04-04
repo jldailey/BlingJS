@@ -223,6 +223,23 @@
       r.toString = f.toString;
       return r;
     },
+    TraceAll: function(o, tracer) {
+      var k, _i, _len, _ref3;
+      if (tracer == null) tracer = log;
+      switch (Object.Type(o)) {
+        case "function":
+          return Function.Trace(o, null, tracer);
+        case "object":
+          _ref3 = Object.Keys(o);
+          for (_i = 0, _len = _ref3.length; _i < _len; _i++) {
+            k = _ref3[_i];
+            o[k] = Function.TraceAll(o[k], tracer);
+          }
+          return o;
+        default:
+          return o;
+      }
+    },
     NotNull: function(x) {
       return x !== null;
     },
@@ -1122,7 +1139,7 @@
         append: function(x) {
           var a;
           x = toNode(x);
-          a = this.zip('appendChild');
+          a = this.zip('appendChild').log('appendChild');
           a.take(1).call(x);
           a.skip(1).each(function(f) {
             return f(x.cloneNode(true));

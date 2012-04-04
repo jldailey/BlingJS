@@ -160,6 +160,14 @@ Object.Extend Function,
 		tracer "Function.Trace: #{label or f.name} created."
 		r.toString = f.toString
 		r
+	TraceAll: (o, tracer = log) ->
+		return switch Object.Type(o)
+			when "function" then Function.Trace(o, null, tracer)
+			when "object"
+				for k in Object.Keys(o)
+					o[k] = Function.TraceAll(o[k], tracer)
+				o
+			else o
 	NotNull: (x) -> x != null
 	NotEmpty: (x) -> x not in ["", null]
 	IndexFound: (x) -> x > -1
@@ -167,6 +175,7 @@ Object.Extend Function,
 	UpperLimit: (x) -> (y) -> Math.min(x, y)
 	LowerLimit: (x) -> (y) -> Math.max(x, y)
 	Px: (d) -> () -> Number.Px(@,d)
+
 
 Object.Extend String,
 	PadLeft: (s, n, c = " ") -> # String.PadLeft(string, width, fill=" ")
@@ -896,7 +905,7 @@ Object.Extend Event,
 
 			append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
 				x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
-				a = @zip('appendChild')
+				a = @zip('appendChild').log('appendChild')
 				a.take(1).call(x)
 				a.skip(1).each (f) ->
 					f(x.cloneNode(true)) # f is already bound to @

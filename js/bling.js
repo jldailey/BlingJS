@@ -2355,7 +2355,6 @@
       publish = function(e, args) {
         var func, _i, _len, _ref3, _ref4, _ref5;
         if (args == null) args = [];
-        $.log("published: " + e, args);
         if ((_ref3 = archive[e]) == null) archive[e] = [];
         archive[e].push(args);
         if (archive[e].length > archive_limit) archive[e].splice(0, archive_trim);
@@ -2377,7 +2376,6 @@
           _ref5 = archive[e];
           for (_i = 0, _len = _ref5.length; _i < _len; _i++) {
             args = _ref5[_i];
-            $.log("replayed: " + e, args);
             func.apply(null, args);
           }
         }
@@ -2388,7 +2386,8 @@
         if (!(func != null)) {
           return subscribers[e] = [];
         } else {
-          i = (_ref3 = subscribers[e]) != null ? _ref3.indexOf(func) : void 0;
+          if ((_ref3 = subscribers[e]) == null) subscribers[e] = [];
+          i = subscribers[e].indexOf(func);
           if (i > -1) return subscribers[e].splice(i, i);
         }
       };

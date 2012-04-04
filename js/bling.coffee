@@ -1946,7 +1946,6 @@ Object.Extend Event,
 		archive_trim = 100 # how much to trim all at once if we go over the maximum
 
 		publish = (e, args = []) ->
-			$.log "published: #{e}", args
 			archive[e] ?= []
 			archive[e].push(args)
 			if archive[e].length > archive_limit
@@ -1962,7 +1961,6 @@ Object.Extend Event,
 			if replay # replay the publish archive
 				archive[e] ?= []
 				for args in archive[e]
-					$.log "replayed: #{e}", args
 					func.apply null, args
 			func
 
@@ -1970,7 +1968,8 @@ Object.Extend Event,
 			if not func?
 				subscribers[e] = []
 			else
-				i = subscribers[e]?.indexOf(func)
+				subscribers[e] ?= []
+				i = subscribers[e].indexOf(func)
 				if i > -1
 					subscribers[e].splice(i,i)
 

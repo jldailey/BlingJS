@@ -1,8 +1,9 @@
 
   (function($) {
     return $.plugin(function() {
-      Dialog(selector, opts)(function() {
-        var dialog, opts;
+      var Accordion, Dialog, Draggable, ProgressBar, Tabs, ViewStack;
+      Dialog = function(selector, opts) {
+        var dialog;
         opts = Object.Extend({
           autoOpen: false,
           draggable: true
@@ -15,9 +16,9 @@
           return false;
         });
         return dialog;
-      });
-      Draggable(selector, opts)(function() {
-        var dragObject, handle, moving, oX, oY, opts;
+      };
+      Draggable = function(selector, opts) {
+        var dragObject, handle, moving, oX, oY;
         opts = Object.Extend({
           handleCSS: {}
         }, opts);
@@ -68,9 +69,9 @@
           position: "relative",
           "padding-top": dragObject.css("padding-top").map(Number.AtLeast(parseInt(opts.handleCSS.height, 10))).px().first()
         }.append(handle));
-      });
-      ProgressBar(selector, opts)(function() {
-        var node, opts, _bg, _color, _progress;
+      };
+      ProgressBar = function(selector, opts) {
+        var node, _bg, _color, _progress;
         opts = Object.Extend({
           change: Function.Empty,
           backgroundColor: "#fff",
@@ -99,9 +100,9 @@
           }
           if (Object.IsFunc(opts.change)) return opts.change(_progress);
         });
-      });
-      Accordion(selector, opts)(function() {
-        var initRow, node, opts, selectedChild;
+      };
+      Accordion = function(selector, opts) {
+        var initRow, node, selectedChild;
         opts = Object.Extend({
           exclusive: false,
           sticky: false
@@ -144,8 +145,8 @@
         });
         node.children().first().filter("*").map(initRow);
         return node;
-      });
-      ViewStack(selector, opts)(function() {
+      };
+      ViewStack = function(selector, opts) {
         var active, items, j, _ref;
         items = $(selector).css({
           position: "relative",
@@ -170,9 +171,9 @@
           }));
         }
         return items;
-      });
-      Tabs(selector, views)(function() {
-        var i, nn, tabs, views;
+      };
+      Tabs = function(selector, views) {
+        var i, nn, tabs;
         tabs = $(selector);
         views = $(views).viewStack();
         nn = tabs.len();
@@ -185,7 +186,7 @@
           views.activate(this._tabIndex);
           return $(this).addClass("active");
         });
-      });
+      };
       return {
         name: 'UI',
         $: {

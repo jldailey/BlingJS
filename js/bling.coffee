@@ -855,6 +855,7 @@ Object.Extend Event,
 			while i > -1
 				name = String.Splice(name, i, i+2, name[i+1].toUpperCase())
 				i = name.indexOf('-')
+			name
 
 		return {
 			name: 'Html'

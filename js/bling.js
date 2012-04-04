@@ -1057,14 +1057,13 @@
         return ret;
       };
       camelName = function(name) {
-        var i, _results;
+        var i;
         i = name != null ? name.indexOf('-') : void 0;
-        _results = [];
         while (i > -1) {
           name = String.Splice(name, i, i + 2, name[i + 1].toUpperCase());
-          _results.push(i = name.indexOf('-'));
+          i = name.indexOf('-');
         }
-        return _results;
+        return name;
       };
       return {
         name: 'Html',

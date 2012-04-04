@@ -592,10 +592,12 @@
         };
       };
       zipper = function(prop) {
-        var i;
+        var g, i, ret;
         i = prop.indexOf(".");
         if (i > -1) return this.zip(prop.substr(0, i)).zip(prop.substr(i + 1));
-        return this.map(getter(prop));
+        g = getter(prop);
+        ret = this.map(g);
+        return ret;
       };
       return {
         name: 'Core',
@@ -706,14 +708,15 @@
           return ret;
         },
         zip: function() {
-          var a, i, j, k, list, n, nn, o, set;
+          var a, i, j, k, list, n, nn, o, ret, set;
           a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
           n = a.length;
           switch (n) {
             case 0:
               return $();
             case 1:
-              return zipper.call(this, a[0]);
+              ret = zipper.call(this, a[0]);
+              return ret;
             default:
               set = {};
               nn = this.len();

@@ -547,7 +547,7 @@
           setTimeout(next, n);
           return _this;
         };
-        return this.cancel = function(f) {
+        this.cancel = function(f) {
           var i, _ref3, _results;
           if (!Object.IsFunc(f)) {
             throw Error("function expected, got " + (Object.Type(f)));
@@ -563,8 +563,9 @@
           }
           return _results;
         };
+        return this;
       };
-      timeoutQueue = new TimeoutQueue;
+      timeoutQueue = new TimeoutQueue();
       getter = function(prop) {
         return function() {
           var v;
@@ -957,7 +958,7 @@
         },
         delay: function(n, f) {
           var g;
-          if (f) {
+          if (Object.Type(f) === "function") {
             g = Function.Bound(f, this);
             timeoutQueue.schedule(g, n);
             this.cancel = function() {

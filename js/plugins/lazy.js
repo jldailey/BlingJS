@@ -9,7 +9,7 @@
         var depends, n, provides;
         depends = provides = null;
         n = create(elementName, Object.Extend(props, {
-          onload: function() {
+          "onload!": function() {
             if (provides != null) return $.publish(provides);
           }
         }));
@@ -40,13 +40,13 @@
         $: {
           script: function(src) {
             return lazy_load("script", {
-              src: src
+              "src!": src
             });
           },
           style: function(src) {
             return lazy_load("link", {
-              href: src,
-              rel: "stylesheet"
+              "href!": src,
+              "rel!": "stylesheet"
             });
           }
         }

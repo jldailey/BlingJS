@@ -397,7 +397,8 @@ Object.Extend Event,
 					if q[i] == f
 						q.splice(i, 1)
 						break
-		timeoutQueue = new TimeoutQueue
+			@
+		timeoutQueue = new TimeoutQueue()
 
 		getter = (prop) -> # used in .zip()
 			() ->
@@ -761,10 +762,10 @@ Object.Extend Event,
 				.join(COMMASEP) + "])"
 
 			delay: (n, f) -> # .delay(/n/, /f/) -  continue with /f/ on _this_ after /n/ milliseconds
-				if f
+				if Object.Type(f) is "function"
 					g = Function.Bound(f, @)
-					timeoutQueue.schedule g, n
-					@.cancel = () -> timeoutQueue.cancel g
+					timeoutQueue.schedule(g, n)
+					@.cancel = () -> timeoutQueue.cancel(g)
 				@
 
 			log: (label) -> # .log([label]) - console.log([/label/] + /x/) for /x/ in _this_

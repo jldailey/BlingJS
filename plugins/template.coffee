@@ -1,11 +1,8 @@
 (($) ->
 
-	engines = {}
-
-
+	engines = {} # a registry for different template engines
 
 	$.plugin () -> # Template plugin, pythonic style: %(value).2f
-
 		current_engine = null
 		engines = {}
 
@@ -31,6 +28,11 @@
 				template: template
 		}
 	
+	$.template.register_engine 'null', (() ->
+		return (text, values) ->
+			text
+	)()
+
 	match_forward = (text, find, against, start, stop = -1) -> # a brace-matcher, useful in most template parsing steps
 		count = 1
 		if stop < 0
@@ -47,9 +49,7 @@
 
 	$.template.register_engine 'pythonic', (() ->
 
-		# the regex for the format specifiers in templates (from python)
-		# splits the format piece (%.2f, etc) into [key, pad, fixed, type, remainder]
-		type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/
+		type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/ # '%.2f' becomes [key, pad, fixed, type, remainder]
 		chunk_re = /%[\(\/]/
 
 		compile = (text) ->
@@ -115,12 +115,7 @@
 		return render
 	)()
 
-	$.template.register_engine 'null', (() ->
-		return (text, values) ->
-			text
-	)()
-
-	$.template.register_engine 'js-eval', (() ->
+	$.template.register_engine 'js-eval', (() -> # work in progress...
 		class TemplateMachine extends $.StateMachine
 			@STATE_TABLE = [
 				{ # 0: START

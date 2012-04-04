@@ -8,7 +8,7 @@ PLUGINS=../plugins
 DIST_PLUGINS=$(DIST)/plugins
 # TEMP:=$(shell mktemp /tmp/blingjs.XXXXXX)
 
-all: dist report
+all: clean dist report
 
 minify: $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
@@ -40,9 +40,11 @@ publish:
 	&& git checkout master \
 	&& git stash pop || true
 
-plugin: plugin_compile plugin_minify
+plugin: plugin_compile plugin_minify plugin_compress
 
 plugin_minify: $(DIST_PLUGINS)/min.lazy.js $(DIST_PLUGINS)/min.pprint.js $(DIST_PLUGINS)/min.template.js $(DIST_PLUGINS)/min.tnet.js $(DIST_PLUGINS)/min.ui.js $(DIST_PLUGINS)/min.all.js
+
+plugin_compress: $(DIST_PLUGINS)/min.lazy.js.gz $(DIST_PLUGINS)/min.pprint.js.gz $(DIST_PLUGINS)/min.template.js.gz $(DIST_PLUGINS)/min.tnet.js.gz $(DIST_PLUGINS)/min.ui.js.gz $(DIST_PLUGINS)/min.all.js.gz
 
 $(DIST_PLUGINS)/min.%.js: $(DIST_PLUGINS)/%.js compiler.jar
 	$(JAVA) -jar compiler.jar --js=$< --js_output_file=$@ --compilation_level=$(LEVEL) --externs externs

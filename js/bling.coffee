@@ -418,7 +418,9 @@ Object.Extend Event,
 			i = prop.indexOf(".")
 			if i > -1
 				return @zip(prop.substr(0, i)).zip(prop.substr(i+1))
-			return @map getter(prop)
+			g = getter(prop)
+			ret = @map(g)
+			return ret
 
 		return {
 			name: 'Core'
@@ -525,7 +527,8 @@ Object.Extend Event,
 					when 0
 						return $()
 					when 1
-						return zipper.call(@, a[0])
+						ret = zipper.call(@, a[0])
+						return ret
 					else # > 1
 						# if more than one argument is passed, new objects
 						# with only those properties, will be returned

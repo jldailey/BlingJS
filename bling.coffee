@@ -906,15 +906,19 @@ Object.Extend Number,
 				if i > -1
 					subscribers[e].splice(i,i)
 
-		# expose these for advanced users
-		publish.__defineSetter__ 'limit', (n) ->
-			archive_limit = n
-			# enforce the new limit immediately
-			for e of archive
-				if archive[e].length > archive_limit
-					archive[e].splice(0, archive_trim)
-		publish.__defineSetter__ 'trim', (n) ->
-			archive_trim = n
+		# expose 'limit' and 'trim' for advanced users
+		Object.defineProperty publish, 'limit',
+			set: (n) ->
+				archive_limit = n
+				# enforce the new limit immediately
+				for e of archive
+					if archive[e].length > archive_limit
+						archive[e].splice(0, archive_trim)
+			get: () -> archive_limit
+
+		Object.defineProperty publish, 'trim',
+			set: (n) -> archive_trim = Math.min(n, archive_limit)
+			get: () -> archive_trim
 
 		return {
 			name: "PubSub"

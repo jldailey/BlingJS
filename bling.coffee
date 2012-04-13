@@ -47,22 +47,22 @@ Types = (() ->
 	register = (name, check) ->
 		checks[name] = check
 		Object["Is"+capital(name)] = check
-		order.push name
+		order.unshift name
 	classify = (obj) ->
 		for name in order
 			if checks[name]?.call obj, obj
 				return name
 		"unknown"
 	classify.register = register
+	register "object", (o) -> o? and typeof o is "object"
+	register "error", (o) -> o? and Object.IsType o, "Error"
+	register "regexp", (o) -> o? and Object.IsType o, "RegExp"
 	register "string", (o) -> o? and (typeof o is "string" or Object.IsType(o, String))
 	register "array", (o) -> o? and Array.isArray?(o) or Object.IsType(o, Array)
 	register "number", (o) -> o? and Object.IsType o, Number
 	register "boolean", (o) -> typeof o is "boolean" or String(o) in ["true","false"]
-	register "null", (x) -> x == null
 	register "undefined", (x) -> x is undefined
-	register "regexp", (o) -> o? and Object.IsType o, "RegExp"
-	register "error", (o) -> o? and Object.IsType o, "Error"
-	register "object", (o) -> o? and typeof o is "object"
+	register "null", (x) -> x == null
 	return {
 		register: register
 		classify: classify

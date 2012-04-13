@@ -279,7 +279,7 @@ Object.Extend Array,
 			return a
 		for i in a
 			switch true
-				when not Object.IsDefined(i) then continue
+				when not i? then continue
 				when Object.IsSimple(i) then buffer.append(i)
 				when Object.IsArray(i) then Array.Compact(i, buffer, into, false)
 				else
@@ -321,18 +321,6 @@ Object.Extend Number,
 		(y) ->
 			Math.min parseFloat(y or 0), x
 
-Object.Extend Event,
-	Cancel: (evt) ->
-		evt.stopPropagation()
-		evt.preventDefault()
-		evt.cancelBubble = true
-		evt.returnValue = false
-	Prevent: (evt) ->
-		evt.preventDefault()
-	Stop: (evt) ->
-	 evt.stopPropagation()
-	 evt.cancelBubble = true
-
 (($) -> # protected name space
 
 	$.plugins = []
@@ -362,16 +350,18 @@ Object.Extend Event,
 	$.plugin () -> # Symbol - allow to safely use something other than $ by assigning to Bling.symbol
 		symbol = null
 		preserve = {}
-		$.__defineSetter__ "symbol", (v) ->
-			if symbol of preserve
-				window[symbol] = preserve[symbol]
-			if v of window
-				preserve[v] = window[v]
-			symbol = v
-			window[v] = Bling
-		$.__defineGetter__ "symbol", () -> symbol
+		g = Object.global
+		Object.defineProperty $, "symbol",
+			set: (v) ->
+				if symbol of preserve
+					g[symbol] = preserve[symbol]
+				if v of g
+					preserve[v] = g[v]
+				symbol = v
+				g[v] = Bling
+			get: () -> symbol
 		$.symbol = "$"
-		window["Bling"] = Bling
+		g["Bling"] = Bling
 
 		return {
 			name: "Symbol"
@@ -405,40 +395,39 @@ Object.Extend Event,
 				s
 		)
 
-		Element::matchesSelector = Array.Coalesce(
-			Element::webkitMatchesSelector,
-			Element::mozMatchesSelector,
-			Element::matchesSelector
-		)
+		if Element?
+			Element::matchesSelector = Array.Coalesce(
+				Element::webkitMatchesSelector,
+				Element::mozMatchesSelector,
+				Element::matchesSelector
+			)
+			oldToString = Element::toString
+			Element::toString = (css_mode) ->
+				if css_mode
+					name = @nodeName.toLowerCase()
+					if @id?
+						name += "##{@id}"
+					else if @className?
+						name += ".#{@className.split(" ").join(".")}"
+					name
+				else
+					oldToString.apply @
 
-		oldToString = Element::toString
-		Element::toString = (css_mode) ->
-			if css_mode
-				name = @nodeName.toLowerCase()
-				if @id?
-					name += "##{@id}"
-				else if @className?
-					name += ".#{@className.split(" ").join(".")}"
-				name
-			else
-				oldToString.apply @
-
-		# if cloneNode does not take a 'deep' argument, add support
-		if Element::cloneNode.length is 0
-			oldClone = Element::cloneNode
-			Element::cloneNode = (deep = false) ->
-				n = oldClone.call(@)
-				if deep
-					for i in @childNodes
-						n.appendChild i.cloneNode true
-				return n
+			# if cloneNode does not take a 'deep' argument, add support
+			if Element::cloneNode.length is 0
+				oldClone = Element::cloneNode
+				Element::cloneNode = (deep = false) ->
+					n = oldClone.call(@)
+					if deep
+						for i in @childNodes
+							n.appendChild i.cloneNode true
+					return n
 
 		return {
 			name: "Compat"
 		}
 
 	$.plugin () -> # Core - the functional basis for all other modules
-		
 		TimeoutQueue = () -> # new TimeoutQueue().schedule(f, 10);
 			# TimeoutQueue works like setTimeout but enforces strictness on the order
 			# (still has the same basic timing inaccuracy, but will always fire

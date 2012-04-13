@@ -43,26 +43,52 @@ capital = (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring
 
 Types = (() ->
 	order = []
-	checks = {}
-	register = (name, check) ->
-		checks[name] = check
-		Object["Is"+capital(name)] = check
-		order.unshift name
+	cache = {}
+	register = (name, data) ->
+		cache[name] = Object.Mixin('Type', data)
+		if "check" of data
+			Object["Is"+capital(name)] = data.check
+		if not name in order
+			order.unshift name
 	classify = (obj) ->
 		for name in order
 			if checks[name]?.call obj, obj
 				return name
 		"unknown"
 	classify.register = register
-	register "object", (o) -> o? and typeof o is "object"
-	register "error", (o) -> o? and Object.IsType o, "Error"
-	register "regexp", (o) -> o? and Object.IsType o, "RegExp"
-	register "string", (o) -> o? and (typeof o is "string" or Object.IsType(o, String))
-	register "array", (o) -> o? and Array.isArray?(o) or Object.IsType(o, Array)
-	register "number", (o) -> o? and Object.IsType o, Number
-	register "boolean", (o) -> typeof o is "boolean" or String(o) in ["true","false"]
-	register "undefined", (x) -> x is undefined
-	register "null", (x) -> x == null
+	Object.Interface 'Type',
+		check: (o) -> true # is o an instance of this type
+		asArray: (o,c) -> [o] # how to convert into an array
+
+	register "unknown", {}
+	register "object",
+		check: (o) -> o? and typeof o is "object"
+	register "error",
+		check: (o) -> o? and Object.IsType o, "Error"
+	register "regexp",
+		check: (o) -> o? and Object.IsType o, "RegExp"
+	register "string",
+		check: (o) -> o? and (typeof o is "string" or Object.IsType(o, String))
+		asArray: (s,c) ->
+			s = s.trimLeft()
+			if s[0] is "<"
+				set = [Bling.HTML.parse(s)]
+			else if c.querySelectorAll
+				set = c.querySelectorAll(s)
+			else
+				throw Error "invalid context: #{c} (type: #{Object.Type c})"
+	register "array",
+		check: (o) -> o? and Array.isArray?(o) or Object.IsType(o, Array)
+		asArray: (o) -> o
+	register "number",
+		check: (o) -> o? and Object.IsType o, Number
+		asArray: (o) -> new Array(o)
+	register "boolean",
+		check: (o) -> typeof o is "boolean" or String(o) in ["true","false"]
+	register "undefined",
+		check: (x) -> x is undefined
+	register "null",
+		check: (x) -> x is null
 	return {
 		register: register
 		classify: classify
@@ -72,24 +98,8 @@ Types = (() ->
 default_context = document ? {}
 
 Bling = (selector, context = default_context) ->
-	type = Object.Type selector
-	if type in ["undefined", "null"]
-		set = []
-	else if type in ["array", "bling", "nodelist"]
-		set = selector
-	else if type in ["node", "window", "function"]
-		set = [ selector ]
-	else if type is "number"
-		set = new Array selector
-	else if type is "string"
-		selector = selector.trimLeft()
-		if selector[0] is "<"
-			set = [Bling.HTML.parse(selector)]
-		else if context.querySelectorAll
-			set = context.querySelectorAll(selector)
-		else
-			throw Error "invalid context: #{context} (type: #{Object.Type context})"
-	else
+	set = (Object.Type.classify selector)?.asArray(selector, context)
+	if not set?
 		throw Error "invalid selector: #{selector} (type: #{Object.Type selector})"
 
 	# hijack the prototype of the input set
@@ -101,8 +111,8 @@ Bling = (selector, context = default_context) ->
 	# firefox doesn't set the .length properly when we hijack the prototype
 	set.length = set.len()
 	set
-# Blings are sets that extend from arrays
-Bling.fn = new Array # use a shallow copy (!) of the Array prototype
+# Blings are sets that extend from arrays, doesnt use .prototype so we dont need 'new'
+Bling.fn = new Array # use a shallow copy (!) of the Array prototype, plugins will extend this
 Bling.toString = () -> "function Bling(selector, context) { ... }" # dont waste a bunch of space in logs
 Types.register "bling", (o) -> o? and Object.IsType(o, Bling)
 

@@ -9,40 +9,44 @@ http://creativecommons.org/licenses/MIT/
 ###
 
 # local shortcuts
-if console?.log
-	log = (a...) -> console.log.apply(console, a)
-else
-	log = (a...) -> alert a.join(", ")
+log = (a...) ->
+	try return console.log?.apply console, a
+	alert a.join(", ")
 
 if not document?.querySelectorAll
 	log "Warning: This environment has limited supported"
-	default_context = {}
-else
-	default_context = document
 
-# convert between dash-names and camelNames
-dashName = (name) ->
-	ret = ""
-	for i in [0...(name?.length|0)]
-		c = name.charCodeAt i
-		if ord_Z >= c >= ord_A # is upper case
-			c = (c - ord_A) + ord_a # shift to lower
-			ret += '-'
-		ret += String.fromCharCode(c)
-	return ret
-camelName = (name) ->
-	i = name?.indexOf('-')
-	while i > -1
-		name = String.Splice(name, i, i+2, name[i+1].toUpperCase())
-		i = name.indexOf('-')
-	name
+
+# constants
+COMMASEP = ", "
+EVENTSEP_RE = /,* +/
+FORCE_RE = /!$/ # tells Object.Extend to overwrite existing properties
+OBJECT_RE = /\[object (\w+)\]/
+ORD_A = "A".charCodeAt(0)
+ORD_Z = "Z".charCodeAt(0)
+ORD_a = "a".charCodeAt(0)
+
+dash = (name) ->
+		ret = ""
+		for i in [0...(name?.length|0)]
+			c = name.charCodeAt i
+			if ORD_Z >= c >= ORD_A # is upper case
+				c = (c - ORD_A) + ORD_a # shift to lower
+				ret += '-'
+			ret += String.fromCharCode(c)
+		return ret
+camel = (name) ->
+		while (i = name?.indexOf('-')) > -1
+			name = String.Splice(name, i, i+2, name[i+1].toUpperCase())
+		name
+capital = (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
 
 Types = (() ->
 	order = []
 	checks = {}
 	register = (name, check) ->
 		checks[name] = check
-		Object[camelName("is-#{name}")] = check
+		Object["Is"+capital(name)] = check
 		order.push name
 	classify = (obj) ->
 		for name in order
@@ -55,17 +59,17 @@ Types = (() ->
 	register "number", (o) -> o? and Object.IsType o, Number
 	register "boolean", (o) -> typeof o is "boolean" or String(o) in ["true","false"]
 	register "null", (x) -> x == null
-	register "undefined", (x) -> !Object.IsDefined(x)
+	register "undefined", (x) -> x is undefined
 	register "regexp", (o) -> o? and Object.IsType o, "RegExp"
 	register "error", (o) -> o? and Object.IsType o, "Error"
-	register "function", (o) -> o? and (typeof o is "function" or Object.Implements(o, "Function")) # this may recurse through 'fake' functions (objects acting as if), but will terminate eventually with 'real' functions (the 'call' and 'apply' that satisfy the Function interface)
-	register "global", (o) -> Object.Implements(o, "Global")
 	register "object", (o) -> o? and typeof o is "object"
 	return {
 		register: register
 		classify: classify
 	}
 )()
+
+default_context = document ? {}
 
 Bling = (selector, context = default_context) ->
 	type = Object.Type selector
@@ -102,11 +106,6 @@ Bling.fn = new Array # use a shallow copy (!) of the Array prototype
 Bling.toString = () -> "function Bling(selector, context) { ... }" # dont waste a bunch of space in logs
 Types.register "bling", (o) -> o? and Object.IsType(o, Bling)
 
-# constants
-COMMASEP = ", "
-EVENTSEP_RE = /,* +/
-FORCE_RE = /!$/ # tells Object.Extend to overwrite existing properties
-OBJECT_RE = /\[object (\w+)\]/
 
 Object.Keys ?= (o, inherited = false) -> # Object.Keys(/o/, [/inherited/]) - get a list of key names
 	keys = []; j = 0
@@ -204,16 +203,17 @@ Object.Interface 'Iterator',
 			f.call t, t
 		@
 	readAll: (n) -> (@next() while @hasMore() and ((not n?) or (n-- >= 0)) )
-
 Types.register "iterator", (o) -> o? and Object.Implements(o, "Iterator")
 
 Object.Interface 'Function',
 	name: ''
 	apply: (c, a) -> interfaceError('apply')
 	call: (a...) -> @apply a[0], a.slice(1)
+Types.register "function", (o) -> o? and (typeof o is "function" or Object.Implements(o, "Function"))
 
 Object.Interface 'Global',
 	setInterval: () -> # the same way jQuery detects the window object
+Types.register "global", (o) -> o? and Object.Implements(o, "Global")
 
 for k in Object.Keys(interfaces)
 	if not Object.Implements(interfaces[k], k) # assert the invariant of the interfaces system
@@ -260,6 +260,9 @@ Object.Extend Function,
 		(a...) -> cache[Object.Hash(a)] ?= f.apply @, a
 
 Object.Extend String,
+	Dashize: dash
+	Camelize: camel
+	Capitalize: capital
 	PadLeft: (s, n, c = " ") -> # String.PadLeft(string, width, fill=" ")
 		while s.length < n
 			s = c + s
@@ -986,10 +989,6 @@ Object.Extend Number,
 				() ->
 					window.getComputedStyle(@, null).getPropertyValue(k)
 
-			# get some ordinal constants and give them safe names
-			ord_A = "A".charCodeAt(0)
-			ord_Z = "Z".charCodeAt(0)
-			ord_a = "a".charCodeAt(0)
 
 			return {
 				name: 'Html'
@@ -1026,8 +1025,8 @@ Object.Extend Number,
 							# clean up so escaped content isn't leaked into the DOM
 							escaper.zap('data', '')
 							ret
-					dashName: dashName
-					camelName: camelName
+					camelName: String.Camelize
+					dashName: String.Dashize
 
 				html: (h) -> # .html([h]) - get [or set] /x/.innerHTML for each node
 					switch Object.Type h
@@ -1138,7 +1137,7 @@ Object.Extend Number,
 							return @
 
 				data: (k, v) ->
-					k = "data-#{dashName(k)}"
+					k = "data-#{String.Dashize(k)}"
 					@attr(k, v)
 
 				addClass: (x) -> # .addClass(/x/) - add x to each node's .className

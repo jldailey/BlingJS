@@ -20,6 +20,53 @@ if not document?.querySelectorAll
 else
 	default_context = document
 
+# convert between dash-names and camelNames
+dashName = (name) ->
+	ret = ""
+	for i in [0...(name?.length|0)]
+		c = name.charCodeAt i
+		if ord_Z >= c >= ord_A # is upper case
+			c = (c - ord_A) + ord_a # shift to lower
+			ret += '-'
+		ret += String.fromCharCode(c)
+	return ret
+camelName = (name) ->
+	i = name?.indexOf('-')
+	while i > -1
+		name = String.Splice(name, i, i+2, name[i+1].toUpperCase())
+		i = name.indexOf('-')
+	name
+
+Types = (() ->
+	order = []
+	checks = {}
+	register = (name, check) ->
+		checks[name] = check
+		Object[camelName("is-#{name}")] = check
+		order.push name
+	classify = (obj) ->
+		for name in order
+			if checks[name]?.call obj, obj
+				return name
+		"unknown"
+	classify.register = register
+	register "string", (o) -> o? and (typeof o is "string" or Object.IsType(o, String))
+	register "array", (o) -> o? and Array.isArray?(o) or Object.IsType(o, Array)
+	register "number", (o) -> o? and Object.IsType o, Number
+	register "boolean", (o) -> typeof o is "boolean" or String(o) in ["true","false"]
+	register "null", (x) -> x == null
+	register "undefined", (x) -> !Object.IsDefined(x)
+	register "regexp", (o) -> o? and Object.IsType o, "RegExp"
+	register "error", (o) -> o? and Object.IsType o, "Error"
+	register "function", (o) -> o? and (typeof o is "function" or Object.Implements(o, "Function")) # this may recurse through 'fake' functions (objects acting as if), but will terminate eventually with 'real' functions (the 'call' and 'apply' that satisfy the Function interface)
+	register "global", (o) -> Object.Implements(o, "Global")
+	register "object", (o) -> o? and typeof o is "object"
+	return {
+		register: register
+		classify: classify
+	}
+)()
+
 Bling = (selector, context = default_context) ->
 	type = Object.Type selector
 	if type in ["undefined", "null"]
@@ -42,16 +89,18 @@ Bling = (selector, context = default_context) ->
 		throw Error "invalid selector: #{selector} (type: #{Object.Type selector})"
 
 	# hijack the prototype of the input set
-	set.constructor = Bling
-	set.__proto__ = Bling.fn
-	set.selector = selector
-	set.context = context
+	Object.Extend set,
+		constructor: Bling
+		__proto__: Bling.fn
+		selector: selector
+		context: context
 	# firefox doesn't set the .length properly when we hijack the prototype
 	set.length = set.len()
-	return set
+	set
 # Blings are sets that extend from arrays
 Bling.fn = new Array # use a shallow copy (!) of the Array prototype
-Bling.toString = () -> "function Bling(selector, context) { ... }"
+Bling.toString = () -> "function Bling(selector, context) { ... }" # dont waste a bunch of space in logs
+Types.register "bling", (o) -> o? and Object.IsType(o, Bling)
 
 # constants
 COMMASEP = ", "
@@ -67,7 +116,7 @@ Object.Keys ?= (o, inherited = false) -> # Object.Keys(/o/, [/inherited/]) - get
 	keys
 
 Object.Extend ?= (a, b, k) -> # Object.Extend(a, b, [whitelist]) - merge values from b into a
-	if Object::toString.apply(k) is "[object Array]" # cant use Object.IsArray yet
+	if Array.isArray(k)
 		for key in k
 			if FORCE_RE.test(key)
 				key = key.replace(FORCE_RE,"")
@@ -87,25 +136,7 @@ Object.Extend ?= (a, b, k) -> # Object.Extend(a, b, [whitelist]) - merge values 
 interfaces = {} # a private cache of defined interfaces
 
 Object.Extend Object,
-	Type: (o) ->
-		return switch true
-			when o is undefined then "undefined"
-			when o is null then "null"
-			when Object.IsIterator o then "iterator"
-			when Object.IsString o then "string"
-			when Object.IsBling o then "bling"
-			when Object.IsArray o then "array"
-			when Object.IsNumber o then "number"
-			when Object.IsType o, "NodeList" then "nodelist"
-			when Object.IsFragment o then "fragment"
-			when Object.IsNode o then "node"
-			when Object.IsRegExp o then "regexp"
-			when Object.IsBoolean o then "boolean"
-			when Object.IsError o then "error"
-			when Object.IsFunc o then "function"
-			when Object.IsWindow o then "window"
-			when Object.IsObject o then "object"
-			else "unknown"
+	Type: Types.classify
 	IsType: (o,T) -> # Object.IsType(o,T) - true if object o is of type T (directly or inherits)
 		if o == null then o is T
 		else if o.constructor is T then true
@@ -113,10 +144,10 @@ Object.Extend Object,
 			o.constructor.name is T or Object::toString.apply(o).replace(OBJECT_RE, "$1") is T
 		else # recurse through sub-classes
 			Object.IsType o.__proto__, T
-	Enhance: (c, o) -> (o.__proto__ = c; o) # similar to Extend, but hot-wires prototypes on an instance
+	Enhance: (c, o) -> (o.__proto__ = c; o) # similar to Extend, but hot-wires prototypes to the instance
 	Interface: (name, fields) -> interfaces[name] = fields # a simple interface system for duck-typing
 	Mixin: (name, o) -> Object.Enhance interfaces[name], o
-	Implements: (name, o) -> # check if o has all the correct fields for the named interface
+	Implements: (o, name) -> # check if o has all the correct fields for the named interface
 		fields = interfaces[name]
 		if not o? or not fields?
 			return false # no such interface or object
@@ -129,22 +160,7 @@ Object.Extend Object,
 			if type is "function" and o[field].length < value.length
 				return false # not enough parameters to function
 		return true # successfully passed all checks
-	IsString: (o) -> # Object.IsString(a) - true if object a is a string
-		o? and (typeof o is "string" or Object.IsType(o, String))
-	IsNumber: (o) -> o? and Object.IsType o, Number
-	IsBoolean: (o) -> typeof o is "boolean" or String(o) in ["true","false"]
-	IsSimple: (o) -> Object.IsString(o) or Object.IsNumber(o) or Object.IsBoolean(o)
-	IsFunc: (o) -> o? and (typeof o is "function" or Object.Implements('Function', o)) # this may recurse through 'fake' functions (objects acting as if), but will terminate eventually with 'real' functions (the 'call' and 'apply' that satisfy the Function interface)
-	IsNode: (o) -> o?.nodeType > 0
-	IsFragment: (o) -> o?.nodeType is 11
-	IsWindow: (o) -> Object.Implements("Global", o)
-	IsGlobal: (o) -> Object.Implements("Global", o)
-	IsArray: (o) -> o? and (Object::toString.apply(o) is "[object Array]" or Object.IsType(o, Array))
-	IsBling: (o) -> o? and Object.IsType(o, Bling)
-	IsError: (o) -> o? and o.constructor?.name is "Error"
-	IsObject: (o) -> o? and typeof o is "object"
-	IsIterator: (o) -> o? and Object.IsFunc(o.next) and Object.IsFunc(o.hasMore)
-	IsRegExp: (o) -> o? and Object.IsType o, "RegExp"
+	IsSimple: (o) -> Object.Type(o) in ["string", "number", "boolean"]
 	IsDefined: (o) -> o?
 	Unbox: (a) -> # Object.Unbox(o) - primitive types can be 'boxed' in an object
 		if a? and Object.IsObject(a)
@@ -153,17 +169,22 @@ Object.Extend Object,
 		a
 	Get: (o, key, def) ->
 		dot = key.indexOf '.'
-		if dot isnt -1
-			return Object.Get(Object.Get(o, key.substring(0,dot)), key.substring(dot+1), def)
-		if key of o
-			return o[key]
-		return def
+		return switch true
+			when dot isnt -1 then Object.Get(Object.Get(o, key.substring(0,dot)), key.substring(dot+1), def)
+			when key of o then o[key]
+			else def
 	Hash: (x) -> # Object.Hash(o) - return a (not super safe, signed integer) hash-code for the set
-		switch Object.Type(x)
+		return switch Object.Type(x)
 			when "string" then String.Checksum(x)
 			when "number" then String.Checksum(String(x))
+			when "node" then String.Checksum(x.nodeName) + Object.Hash(x.attributes) + String.Checksum(x.innerHTML)
+			when "nodelist" then (Object.Hash(i) for i in x).reduce (a,x) -> a+x
+			when "bling" then Object.Hash(x.selector) + Object.Hash(x.context) + Object.Hash(x.toArray())
 			when "array" then (Object.Hash(i) for i in x).reduce (a,x) -> a+x
 			when "object" then (Object.Hash(x[k]) for k of x) + Object.Hash(Object.Keys(x))
+			when "undefined" then 3
+			when "null" then 2
+			else 1
 
 Object.defineProperty Object, 'global',
 	get: () -> window ? global
@@ -182,6 +203,9 @@ Object.Interface 'Iterator',
 			t = @next()
 			f.call t, t
 		@
+	readAll: (n) -> (@next() while @hasMore() and ((not n?) or (n-- >= 0)) )
+
+Types.register "iterator", (o) -> o? and Object.Implements(o, "Iterator")
 
 Object.Interface 'Function',
 	name: ''
@@ -192,7 +216,7 @@ Object.Interface 'Global',
 	setInterval: () -> # the same way jQuery detects the window object
 
 for k in Object.Keys(interfaces)
-	if not Object.Implements(k, interfaces[k]) # assert the invariant of the interfaces system
+	if not Object.Implements(interfaces[k], k) # assert the invariant of the interfaces system
 		throw new Error("assertion failure: interfaces invariant doesnt hold")
 
 Object.Extend Function,
@@ -320,11 +344,9 @@ Object.Extend Number,
 	Px: (x, d=0) -> # Px(/x/, /delta/=0) - convert a number-ish x to pixels
 		x? and (parseInt(x,10)+(d|0))+"px"
 	AtLeast: (x) -> # mappable version of max()
-		(y) ->
-			Math.max parseFloat(y or 0), x
+		(y) -> Math.max parseFloat(y or 0), x
 	AtMost: (x) -> # mappable version of min()
-		(y) ->
-			Math.min parseFloat(y or 0), x
+		(y) -> Math.min parseFloat(y or 0), x
 
 (($) -> # protected name space
 
@@ -821,6 +843,10 @@ Object.Extend Number,
 				while i > -1 and @[i] is undefined
 					i--
 				return i+1
+
+			toArray: () ->
+				@.__proto__ = Array.prototype
+				@
 		}
 
 	$.plugin () -> # Math plugin
@@ -923,6 +949,10 @@ Object.Extend Number,
 		}
 
 	if Object.global.document?
+		Types.register "nodelist", (o) -> o? and Object.IsType(o,"NodeList")
+		Types.register "fragment", (o) -> o?.nodeType is 11
+		Types.register "node", (o) -> o?.nodeType > 0
+
 		$.plugin () -> # Html plugin
 			before = (a,b) -> # insert b before a
 				# create a fragment if parent node is null
@@ -960,23 +990,6 @@ Object.Extend Number,
 			ord_A = "A".charCodeAt(0)
 			ord_Z = "Z".charCodeAt(0)
 			ord_a = "a".charCodeAt(0)
-
-			# convert between dash-names and camelNames
-			dashName = (name) ->
-				ret = ""
-				for i in [0...(name?.length|0)]
-					c = name.charCodeAt i
-					if ord_Z >= c >= ord_A # is upper case
-						c = (c - ord_A) + ord_a # shift to lower
-						ret += '-'
-					ret += String.fromCharCode(c)
-				return ret
-			camelName = (name) ->
-				i = name?.indexOf('-')
-				while i > -1
-					name = String.Splice(name, i, i+2, name[i+1].toUpperCase())
-					i = name.indexOf('-')
-				name
 
 			return {
 				name: 'Html'
@@ -1076,21 +1089,20 @@ Object.Extend Number,
 					parent = toNode(parent)
 					if Object.IsFragment(parent)
 						throw new Error("cannot wrap with a fragment")
-					@map (child) ->
-						if Object.IsFragment(child)
-							parent.appendChild(child)
-						else if Object.IsNode(child)
-							p = child.parentNode
-							if not p
+					@each (child) ->
+						switch Object.Type(child)
+							when "fragment"
 								parent.appendChild(child)
-							else
-								# swap out the DOM nodes using a placeholder element
-								marker = document.createElement("dummy")
-								# put a marker in the DOM, put removed node in new parent
-								parent.appendChild( p.replaceChild(marker, child) )
-								# replace marker with new parent
-								p.replaceChild(parent, marker)
-						child
+							when "node"
+								p = child.parentNode
+								if not p
+									parent.appendChild(child)
+								else # swap out the DOM nodes using a placeholder element
+									marker = document.createElement("dummy")
+									# put a marker in the DOM, put removed node in new parent
+									parent.appendChild( p.replaceChild(marker, child) )
+									# replace marker with new parent
+									p.replaceChild(parent, marker)
 
 				unwrap: () -> # .unwrap() - replace each node's parent with itself
 					@each () ->
@@ -1805,10 +1817,8 @@ Object.Extend Number,
 
 				die: (e, f) ->
 					# die(e, [f]) - stop f [or all] from living for event e
-					selector = @selector
-					context = @context
-					h = unregister_live selector, context, e, f
-					$(context).unbind e, h
+					h = unregister_live @selector, @context, e, f
+					$(@context).unbind e, h
 					@
 
 				liveCycle: (e, funcs...) ->

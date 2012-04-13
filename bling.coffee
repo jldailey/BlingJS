@@ -18,7 +18,7 @@ if not document?.querySelectorAll
 	log "Warning: This environment has limited supported"
 	default_context = {}
 else
-	default_content = document
+	default_context = document
 
 Bling = (selector, context = default_context) ->
 	type = Object.Type selector
@@ -176,9 +176,7 @@ Object.Interface 'Iterator',
 	reset: () -> @
 	# if you implement the top three, and use Mixin() you get these default implementations
 	skip: (n=1) -> (@next() for _ in [0...n])
-	map: (f) ->
-		Object.Enhance @,
-			next: () => f(@next())
+	map: (f) -> Object.Enhance @, { next: () => f @next() }
 	each: (f) ->
 		while @hasMore()
 			t = @next()

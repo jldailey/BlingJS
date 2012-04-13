@@ -120,9 +120,7 @@ document.body.innerHTML = "
 "
 testGroup("Core",
 	eq: () ->
-		tds = $("td")
-		assertEqual(tds.length, 8)
-		assertEqual($("td").eq(0).text()[0], "1,1")
+		assertEqual($([1,2,3]).eq(1)[0], 2)
 	each: () ->
 		sum = 0
 		$([1,2,3,4]).each () ->

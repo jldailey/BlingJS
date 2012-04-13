@@ -828,48 +828,37 @@ Object.Extend Number,
 			zeros: (n) -> # $.zeros generates an array of /n/ zeros
 				0 for i in [0...n]
 
-		floats: () ->
-			# .floats() - parseFloat(/x/) for /x/ in _this_
+		floats: () -> # .floats() - parseFloat(/x/) for /x/ in _this_
 			@map parseFloat
 
-		ints: () ->
-			# .ints() - parseInt(/x/) for /x/ in _this_
+		ints: () -> # .ints() - parseInt(/x/) for /x/ in _this_
 			@map () -> parseInt @, 10
 
-		px: (delta=0) ->
-			# .px([delta]) - collect "NNpx" strings
+		px: (delta=0) -> # .px([delta]) - collect "NNpx" strings
 			@ints().map Function.Px(delta)
 
-		min: () ->
-			# .min() - select the smallest /x/ in _this_
+		min: () -> # .min() - select the smallest /x/ in _this_
 			@reduce (a) -> Math.min @, a
 
-		max: () ->
-			# .max() - select the largest /x/ in _this_
+		max: () -> # .max() - select the largest /x/ in _this_
 			@reduce (a) -> Math.max @, a
 
-		average: () ->
-			# .average() - compute the average of all /x/ in _this_
+		average: () -> # .average() - compute the average of all /x/ in _this_
 			@sum() / @len()
 
-		sum: () ->
-			# .sum() - add all /x/ in _this_
+		sum: () -> # .sum() - add all /x/ in _this_
 			@reduce (a) -> a + @
 
-		squares: ()  ->
-			# .squares() - collect /x*x/ for each /x/ in _this_
+		squares: ()  -> # .squares() - collect /x*x/ for each /x/ in _this_
 			@map () -> @ * @
 
-		magnitude: () ->
-			# .magnitude() - compute the vector length of _this_
+		magnitude: () -> # .magnitude() - compute the vector length of _this_
 			Math.sqrt @floats().squares().sum()
 
-		scale: (r) ->
-			# .scale(/r/) - /x/ *= /r/ for /x/ in _this_
+		scale: (r) -> # .scale(/r/) - /x/ *= /r/ for /x/ in _this_
 			@map () -> r * @
 
-		normalize: () ->
-			# .normalize() - scale _this_ so that .magnitude() == 1
+		normalize: () -> # .normalize() - scale _this_ so that .magnitude() == 1
 			@scale(1/@magnitude())
 
 	$.plugin () -> # Pub/Sub plugin

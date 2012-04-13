@@ -84,70 +84,116 @@ Object.Extend ?= (a, b, k) -> # Object.Extend(a, b, [whitelist]) - merge values 
 				a[key] ?= b[key]
 	a
 
+interfaces = {} # a private cache of defined interfaces
+
 Object.Extend Object,
 	Type: (o) ->
-		if o is undefined then return "undefined"
-		if o is null then return "null"
-		if Object.IsString o then return "string"
-		if Object.IsType o, Bling then return "bling"
-		if Object.IsArray o then return "array"
-		if Object.IsType o, NodeList then return "nodelist"
-		if Object.IsNumber o then return "number"
-		if Object.IsFragment o then return "fragment"
-		if Object.IsNode o then return "node"
-		if Object.IsFunc o then return "function"
-		if Object.IsType o, "RegExp" then return "regexp"
-		if String(o) in ["true", "false"] then return "boolean"
-		if Object.IsError o then return "error"
-		if Object.IsWindow o then return "window"
-		if Object.IsObject o then return "object"
-	IsType: (o,T) -> # Object.IsType(o,T) - true if object o is of type T (directly or indirectly)
-		if o == null
-			o is T
-		else if o.constructor is T
-			true
+		return switch true
+			when o is undefined then "undefined"
+			when o is null then "null"
+			when Object.IsIterator o then "iterator"
+			when Object.IsString o then "string"
+			when Object.IsBling o then "bling"
+			when Object.IsArray o then "array"
+			when Object.IsNumber o then "number"
+			when Object.IsType o, "NodeList" then "nodelist"
+			when Object.IsFragment o then "fragment"
+			when Object.IsNode o then "node"
+			when Object.IsRegExp o then "regexp"
+			when Object.IsBoolean o then "boolean"
+			when Object.IsError o then "error"
+			when Object.IsFunc o then "function"
+			when Object.IsWindow o then "window"
+			when Object.IsObject o then "object"
+			else "unknown"
+	IsType: (o,T) -> # Object.IsType(o,T) - true if object o is of type T (directly or inherits)
+		if o == null then o is T
+		else if o.constructor is T then true
 		else if typeof T is "string"
 			o.constructor.name is T or Object::toString.apply(o).replace(OBJECT_RE, "$1") is T
-		else
-			Object.IsType o.__proto__, T # recurse through sub-classes
+		else # recurse through sub-classes
+			Object.IsType o.__proto__, T
+	Enhance: (c, o) -> (o.__proto__ = c; o) # similar to Extend, but hot-wires prototypes on an instance
+	Interface: (name, fields) -> interfaces[name] = fields # a simple interface system for duck-typing
+	Mixin: (name, o) -> Object.Enhance interfaces[name], o
+	Implements: (name, o) -> # check if o has all the correct fields for the named interface
+		fields = interfaces[name]
+		if not o? or not fields?
+			return false # no such interface or object
+		for field in Object.Keys(fields)
+			value = fields[field]
+			expected = Object.Type(value)
+			type = Object.Type(o[field])
+			if not (type is expected)
+				return false # wrong type
+			if type is "function" and o[field].length < value.length
+				return false # not enough parameters to function
+		return true # successfully passed all checks
 	IsString: (o) -> # Object.IsString(a) - true if object a is a string
 		o? and (typeof o is "string" or Object.IsType(o, String))
-	IsNumber: (o) ->
-		o? and Object.IsType o, Number
-	IsBoolean: (o) ->
-		typeof o is "boolean"
-	IsSimple: (o) ->
-		Object.IsString(o) or Object.IsNumber(o) or Object.IsBoolean(o)
-	IsFunc: (o) -> # Object.IsFunc(a) - true if object a is a function
-		o? and (typeof o is "function" or Object.IsType(o, Function)) and o.call?
-	IsNode: (o) -> # Object.IsNode(o) - true if object is a DOM node
-		o?.nodeType > 0
-	IsFragment: (o) -> # Object.IsFragment(o) - true if object is a DocumentFragment node
-		o?.nodeType is 11
-	IsWindow: (o) -> # Object.IsWindow(o) - true if this is the global object
-		"setInterval" of o # same crude method that jQuery uses
-	IsArray: (o) -> # Object.IsArray(o) - true if object is an Array (or inherits Array)
-		o? and (Object.ToString(o) is "[object Array]" or Object.IsType(o, Array))
-	IsBling: (o) ->
-		o? and Object.IsType(o, Bling)
-	IsError: (o) ->
-		o? and o.constructor?.name is "Error"
-	IsObject: (o) -> # Object.IsObject(o) - true if a is an object
-		o? and typeof o is "object"
-	IsDefined: (o) -> # Object.IsDefined(o) - true if a is not null nor undefined
-		o?
+	IsNumber: (o) -> o? and Object.IsType o, Number
+	IsBoolean: (o) -> typeof o is "boolean" or String(o) in ["true","false"]
+	IsSimple: (o) -> Object.IsString(o) or Object.IsNumber(o) or Object.IsBoolean(o)
+	IsFunc: (o) -> o? and (typeof o is "function" or Object.Implements('Function', o)) # this may recurse through 'fake' functions (objects acting as if), but will terminate eventually with 'real' functions (the 'call' and 'apply' that satisfy the Function interface)
+	IsNode: (o) -> o?.nodeType > 0
+	IsFragment: (o) -> o?.nodeType is 11
+	IsWindow: (o) -> Object.Implements("Global", o)
+	IsGlobal: (o) -> Object.Implements("Global", o)
+	IsArray: (o) -> o? and (Object::toString.apply(o) is "[object Array]" or Object.IsType(o, Array))
+	IsBling: (o) -> o? and Object.IsType(o, Bling)
+	IsError: (o) -> o? and o.constructor?.name is "Error"
+	IsObject: (o) -> o? and typeof o is "object"
+	IsIterator: (o) -> o? and Object.IsFunc(o.next) and Object.IsFunc(o.hasMore)
+	IsRegExp: (o) -> o? and Object.IsType o, "RegExp"
+	IsDefined: (o) -> o?
 	Unbox: (a) -> # Object.Unbox(o) - primitive types can be 'boxed' in an object
 		if a? and Object.IsObject(a)
 			return a.toString() if Object.IsString a
 			return Number(a) if Object.IsNumber a
 		a
-	ToString: (x) ->
-		Object::toString.apply(x)
+	Hash: (x) -> # Object.Hash(o) - return a (not super safe, signed integer) hash-code for the set
+		switch Object.Type(x)
+			when "string" then String.Checksum(x)
+			when "number" then String.Checksum(String(x))
+			when "array" then (Object.Hash(i) for i in x).reduce (a,x) -> a+x
+			when "object" then (Object.Hash(x[k]) for k of x) + Object.Hash(Object.Keys(x))
+
+Object.defineProperty Object, 'global',
+	get: () -> window ? global
+
+interfaceError = (name) -> throw new Error("Interface was never given an implementation for: #{name}")
+
+Object.Interface 'Iterator',
+	next: () ->
+	hasMore: () -> false
+	reset: () -> @
+	# if you implement the top three, and use Mixin() you get these default implementations
+	skip: (n=1) -> (@next() for _ in [0...n])
+	map: (f) ->
+		Object.Enhance @,
+			next: () => f(@next())
+	each: (f) ->
+		while @hasMore()
+			t = @next()
+			f.call t, t
+		@
+
+Object.Interface 'Function',
+	name: ''
+	apply: (c, a) -> interfaceError('apply')
+	call: (a...) -> @apply a[0], a.slice(1)
+
+Object.Interface 'Global',
+	setInterval: () -> # the same way jQuery detects the window object
+
+for k in Object.Keys(interfaces)
+	if not Object.Implements(k, interfaces[k]) # assert the invariant of the interfaces system
+		throw new Error("assertion failure: interfaces invariant doesnt hold")
 
 Object.Extend Function,
 	Empty: () -> # the empty function
 	Bound: (f, t, args = []) -> # Function.Bound(/f/, /t/) - whenever /f/ is called, _this_ is /t/
-		if "bind" of f
+		if Object.IsFunc f.bind
 			args.splice 0, 0, t
 			r = f.bind.apply f, args
 		else
@@ -243,15 +289,24 @@ Object.Extend Array,
 			into.push buffer.toString()
 			buffer.clear()
 		return into
-	Search: (a, f = ((x)->true), from = 0, to = -1) -> # UNTESTED: just noodling for now
-		if not Object.IsArray(a)
-			return
-		n = a.length
-		if from < 0 then from += n
-		if to < 0 then to += n
-		for i in [from..to]
-			if f(a[i]) then return a[i]
-		return null
+	Iter: (a) ->
+		i = 0
+		Object.Mixin 'Iterator',
+			next: () -> a[i++]
+			hasMore: () -> i < a.length
+			reset: () -> i = 0; @
+			skip: (n=1) -> i += n; @
+	Swap: (a, i,j) ->
+		if i isnt j
+			[a[i],a[j]] = [a[j],a[i]]
+		a
+	Shuffle: (a) ->
+		i = a.length-1
+		while i >= 0
+			j = Math.floor(Math.random() * i)
+			Array.Swap(a, i,j)
+			i--
+		a
 
 Object.Extend Number,
 	Px: (x, d=0) -> # Px(/x/, /delta/=0) - convert a number-ish x to pixels

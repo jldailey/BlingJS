@@ -16,6 +16,8 @@ log = (a...) ->
 if not document?.querySelectorAll
 	log "Warning: This environment has limited supported"
 
+Object.defineProperty Object, 'global',
+	get: () -> window ? global
 
 # constants
 COMMASEP = ", "
@@ -27,38 +29,38 @@ ORD_Z = "Z".charCodeAt(0)
 ORD_a = "a".charCodeAt(0)
 
 dash = (name) ->
-		ret = ""
-		for i in [0...(name?.length|0)]
-			c = name.charCodeAt i
-			if ORD_Z >= c >= ORD_A # is upper case
-				c = (c - ORD_A) + ORD_a # shift to lower
-				ret += '-'
-			ret += String.fromCharCode(c)
-		return ret
+	ret = ""
+	for i in [0...(name?.length|0)]
+		c = name.charCodeAt i
+		if ORD_Z >= c >= ORD_A # is upper case
+			c = (c - ORD_A) + ORD_a # shift to lower
+			ret += '-'
+		ret += String.fromCharCode(c)
+	return ret
 camel = (name) ->
-		while (i = name?.indexOf('-')) > -1
-			name = String.Splice(name, i, i+2, name[i+1].toUpperCase())
-		name
+	while (i = name?.indexOf('-')) > -1
+		name = String.Splice(name, i, i+2, name[i+1].toUpperCase())
+	name
 capital = (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
 
-Types = (() ->
+Object.Type = (() ->
+	Object.Interface 'Type',
+		name: ''
+		check: (o) -> true # is o an instance of this type
+		asArray: (o,c) -> [o] # how to convert an instance into an array
+		hash: (o) -> String.Checksum(o.toString?() ? String(o))
 	order = []
 	cache = {}
 	register = (name, data) ->
+		data[name] = name
 		cache[name] = Object.Mixin('Type', data)
-		if "check" of data
-			Object["Is"+capital(name)] = data.check
+		Object["Is"+capital(name)] = data.check
 		if not name in order
 			order.unshift name
 	classify = (obj) ->
 		for name in order
-			if checks[name]?.call obj, obj
-				return name
-		"unknown"
-	classify.register = register
-	Object.Interface 'Type',
-		check: (o) -> true # is o an instance of this type
-		asArray: (o,c) -> [o] # how to convert into an array
+			if data[name]?.check.call obj, obj # this should alway eventually match
+				return data[name] # because of the "unknown" type being the last check
 
 	register "unknown", {}
 	register "object",
@@ -89,10 +91,13 @@ Types = (() ->
 		check: (x) -> x is undefined
 	register "null",
 		check: (x) -> x is null
-	return {
+	
+	ret = (o) ->
+		classify(o).name
+	
+	return Object.Extend ret,
 		register: register
 		classify: classify
-	}
 )()
 
 default_context = document ? {}
@@ -145,7 +150,6 @@ Object.Extend ?= (a, b, k) -> # Object.Extend(a, b, [whitelist]) - merge values 
 interfaces = {} # a private cache of defined interfaces
 
 Object.Extend Object,
-	Type: Types.classify
 	IsType: (o,T) -> # Object.IsType(o,T) - true if object o is of type T (directly or inherits)
 		if o == null then o is T
 		else if o.constructor is T then true
@@ -183,6 +187,7 @@ Object.Extend Object,
 			when key of o then o[key]
 			else def
 	Hash: (x) -> # Object.Hash(o) - return a (not super safe, signed integer) hash-code for the set
+		# TODO: Object.Type.classify(x).hash(x)
 		return switch Object.Type(x)
 			when "string" then String.Checksum(x)
 			when "number" then String.Checksum(String(x))
@@ -195,35 +200,36 @@ Object.Extend Object,
 			when "null" then 2
 			else 1
 
-Object.defineProperty Object, 'global',
-	get: () -> window ? global
 
 interfaceError = (name) -> throw new Error("Interface was never given an implementation for: #{name}")
 
 Object.Interface 'Iterator',
-	next: () ->
-	hasMore: () -> false
+	next: () -> null
+	hasNext: () -> false
 	reset: () -> @
 	# if you implement the top three, and use Mixin() you get these default implementations
 	skip: (n=1) -> (@next() for _ in [0...n])
-	map: (f) -> Object.Enhance @, { next: () => f @next() }
+	map: (f) -> Object.Enhance @, { next: () => f @next() } # a beautiful little expression
 	each: (f) ->
-		while @hasMore()
+		while @hasNext()
 			t = @next()
 			f.call t, t
 		@
-	readAll: (n) -> (@next() while @hasMore() and ((not n?) or (n-- >= 0)) )
-Types.register "iterator", (o) -> o? and Object.Implements(o, "Iterator")
+	readAll: (n) -> (@next() while @hasNext() and ((not n?) or (n-- >= 0)) )
+Types.register "iterator",
+	check: (o) -> o? and Object.Implements(o, "Iterator")
 
 Object.Interface 'Function',
 	name: ''
 	apply: (c, a) -> interfaceError('apply')
 	call: (a...) -> @apply a[0], a.slice(1)
-Types.register "function", (o) -> o? and (typeof o is "function" or Object.Implements(o, "Function"))
+Types.register "function",
+	check: (o) -> o? and (typeof o is "function" or Object.Implements(o, "Function"))
 
 Object.Interface 'Global',
 	setInterval: () -> # the same way jQuery detects the window object
-Types.register "global", (o) -> o? and Object.Implements(o, "Global")
+Types.register "global",
+	check: (o) -> o? and Object.Implements(o, "Global")
 
 for k in Object.Keys(interfaces)
 	if not Object.Implements(interfaces[k], k) # assert the invariant of the interfaces system
@@ -311,7 +317,7 @@ Object.Extend Array,
 		if Object.IsArray(a[0]) then return Array.Coalesce a[0]...
 		for i in a
 			return i if i?
-	Extend: (a, b) -> # Array.Extend - pushes each item from b into a
+	Extend: (a, b) -> # Array.Extend - pushes each item from b into a (in-place)
 		j = a.length
 		for i in b
 			a[j++] = i
@@ -338,7 +344,7 @@ Object.Extend Array,
 		i = 0
 		Object.Mixin 'Iterator',
 			next: () -> a[i++]
-			hasMore: () -> i < a.length
+			hasNext: () -> i < a.length
 			reset: () -> i = 0; @
 			skip: (n=1) -> i += n; @
 	Swap: (a, i,j) ->
@@ -868,9 +874,9 @@ Object.Extend Number,
 			range: (start, end, step = 1) -> # $.range generates an array of numbers
 				step *= -1 if end < start and step > 0 # force step to have the same direction as start->end
 				steps = Math.ceil( (end - start) / step )
-				start + (i*step) for i in [0...steps]
-			zeros: (n) -> # $.zeros generates an array of /n/ zeros
-				0 for i in [0...n]
+				(start + (i*step) for i in [0...steps])
+			zeros: (n) -> 0 for i in [0...n]
+			ones: (n) -> 1 for i in [0...n]
 
 		floats: () -> # .floats() - parseFloat(/x/) for /x/ in _this_
 			@map parseFloat

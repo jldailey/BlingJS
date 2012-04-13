@@ -818,439 +818,6 @@ Object.Extend Number,
 				return i+1
 		}
 
-	$.plugin () -> # Html plugin
-		before = (a,b) -> # insert b before a
-			# create a fragment if parent node is null
-			if not a.parentNode?
-				df = document.createDocumentFragment()
-				df.appendChild(a)
-			a.parentNode.insertBefore b, a
-
-		after = (a,b) -> # insert b after a
-			if not a.parentNode?
-				df = document.createDocumentFragment()
-				df.appendChild(a)
-			a.parentNode.insertBefore b, a.nextSibling
-
-		toNode = (x) -> # convert nearly anything to something node-like for use in the DOM
-			switch Object.Type x
-				when "fragment" then x
-				when "node" then x
-				when "bling" then x.toFragment()
-				when "string" then $(x).toFragment()
-				when "function" then $(x.toString()).toFragment()
-				else
-					throw new Error "toNode called with invalid argument: #{x} (type: #{Object.Type x})"
-
-		escaper = null
-
-		getCSSProperty = (k) ->
-			# window.getComputedStyle is not a normal function
-			# (it doesnt support .call() so we can't use it with .map())
-			# so define something that does work properly for use in .css
-			() ->
-				window.getComputedStyle(@, null).getPropertyValue(k)
-
-		# get some ordinal constants and give them safe names
-		ord_A = "A".charCodeAt(0)
-		ord_Z = "Z".charCodeAt(0)
-		ord_a = "a".charCodeAt(0)
-
-		# convert between dash-names and camelNames
-		dashName = (name) ->
-			ret = ""
-			for i in [0...(name?.length|0)]
-				c = name.charCodeAt i
-				if ord_Z >= c >= ord_A # is upper case
-					c = (c - ord_A) + ord_a # shift to lower
-					ret += '-'
-				ret += String.fromCharCode(c)
-			return ret
-		camelName = (name) ->
-			i = name?.indexOf('-')
-			while i > -1
-				name = String.Splice(name, i, i+2, name[i+1].toUpperCase())
-				i = name.indexOf('-')
-			name
-
-		return {
-			name: 'Html'
-
-			$:
-				HTML: # $.HTML.* - HTML methods similar to the global JSON object
-					parse: (h) -> # $.HTML.parse(/h/) - parse the html in string h, a Node.
-						node = document.createElement("div")
-						node.innerHTML = h
-						childNodes = node.childNodes
-						n = childNodes.length
-						if n is 1
-							return node.removeChild(childNodes[0])
-						df = document.createDocumentFragment()
-						for i in [0...n]
-							df.appendChild(node.removeChild(childNodes[0]))
-						return df
-					stringify: (n) -> # $.HTML.stringify(/n/) - the _Node_ /n/ in it's html-string form
-						switch Object.Type n
-							when "string" then n
-							when "node"
-								n = n.cloneNode(true)
-								d = document.createElement("div")
-								d.appendChild(n)
-								ret = d.innerHTML # serialize to a string
-								d.removeChild(n) # clean up to prevent leaks
-								ret
-							else "unknown type: " + Object.Type(n)
-					escape: (h) -> # $.HTML.escape(/h/) - accept html string /h/, a string with html-escapes like &amp;
-						escaper or= $("<div>&nbsp;</div>").child(0)
-						# insert html using the text node's .data property
-						# then get escaped html from the parent's .innerHTML
-						ret = escaper.zap('data', h).zip("parentNode.innerHTML").first()
-						# clean up so escaped content isn't leaked into the DOM
-						escaper.zap('data', '')
-						ret
-				dashName: dashName
-				camelName: camelName
-
-			html: (h) -> # .html([h]) - get [or set] /x/.innerHTML for each node
-				switch Object.Type h
-					when "undefined"
-						return @zip 'innerHTML'
-					when "string"
-						return @zap 'innerHTML', h
-					when "bling"
-						return @html h.toFragment()
-					when "node"
-						return @each () -> # replace all our children with the new child
-							@replaceChild @childNodes[0], h
-							while @childNodes.length > 1
-								@removeChild @childNodes[1]
-
-			append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
-				x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
-				a = @zip('appendChild')
-				a.take(1).call(x)
-				a.skip(1).each (f) ->
-					f(x.cloneNode(true)) # f is already bound to @
-				@
-
-			appendTo: (x) -> # .appendTo(/n/) - each node [or a fragment] will become the last child of n
-				$(x).append(@)
-				@
-
-			prepend: (x) -> # .prepend(/n/) - insert n [or a clone] as the first child of each node
-				if x?
-					x = toNode(x)
-					@take(1).each () ->
-						before @childNodes[0], x
-					@skip(1).each () ->
-						before @childNodes[0], x.cloneNode(true)
-				@
-
-			prependTo: (x) -> # .prependTo(/n/) - each node [or a fragment] will become the first child of n
-				if x?
-					$(x).prepend(@)
-				@
-
-			before: (x) -> # .before(/x/) - insert content x before each node
-				if x?
-					x = toNode(x)
-					@take(1).each () -> before @, x
-					@skip(1).each () -> before @, x.cloneNode(true)
-				@
-
-			after: (x) -> # .after(/n/) - insert content n after each node
-				if x?
-					x = toNode(x)
-					@take(1).each () -> after @, x
-					@skip(1).each () -> after @, x.cloneNode(true)
-				@
-
-			wrap: (parent) -> # .wrap(/p/) - p becomes the new .parentNode of each node
-				# all items of @ will become children of parent
-				# parent will take each child's position in the DOM
-				parent = toNode(parent)
-				if Object.IsFragment(parent)
-					throw new Error("cannot wrap with a fragment")
-				@map (child) ->
-					if Object.IsFragment(child)
-						parent.appendChild(child)
-					else if Object.IsNode(child)
-						p = child.parentNode
-						if not p
-							parent.appendChild(child)
-						else
-							# swap out the DOM nodes using a placeholder element
-							marker = document.createElement("dummy")
-							# put a marker in the DOM, put removed node in new parent
-							parent.appendChild( p.replaceChild(marker, child) )
-							# replace marker with new parent
-							p.replaceChild(parent, marker)
-					child
-
-			unwrap: () -> # .unwrap() - replace each node's parent with itself
-				@each () ->
-					if @parentNode and @parentNode.parentNode
-						@parentNode.parentNode.replaceChild(@, @parentNode)
-					else if @parentNode
-						@parentNode.removeChild(@)
-
-			replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
-				n = toNode(n)
-				b = $()
-				j = 0
-				# first node gets the real n
-				@take(1).each () ->
-					@parentNode?.replaceChild(n, @)
-					b[j++] = n
-				# the rest get clones of n
-				@skip(1).each () ->
-					c = n.cloneNode(true)
-					@parentNode?.replaceChild(c, @)
-					b[j++] = c
-				# the set of inserted nodes
-				b
-
-			attr: (a,v) -> # .attr(a, [v]) - get [or set] an /a/ttribute [/v/alue]
-				switch v
-					when undefined
-						return @zip("getAttribute").call(a, v)
-					when null
-						return @zip("removeAttribute").call(a, v)
-					else
-						@zip("setAttribute").call(a, v)
-						return @
-
-			data: (k, v) ->
-				k = "data-#{dashName(k)}"
-				@attr(k, v)
-
-			addClass: (x) -> # .addClass(/x/) - add x to each node's .className
-				@removeClass(x).each () ->
-					c = @className.split(" ").filter (y) ->
-						y isnt ""
-					c.push(x) # since we dont know the len, its still faster to push, rather than insert at len()
-					@className = c.join " "
-
-			removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
-				notx = (y)-> y != x
-				@each () ->
-					c = @className?.split(" ").filter(notx).join(" ")
-					if c.length is 0
-						@removeAttribute('class')
-
-			toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
-				notx = (y) -> y != x
-				@each () ->
-					cls = @className.split(" ")
-					if( cls.indexOf(x) > -1 )
-						c = cls.filter(notx).join(" ")
-					else
-						cls.push(x)
-						c = cls.filter(Function.NotEmpty).join(" ")
-					if c.length > 0
-						@className = c
-					else
-						@removeAttribute('class')
-
-			hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x
-				@zip('className.split').call(" ").zip('indexOf').call(x).map Function.IndexFound
-
-			text: (t) -> # .text([t]) - get [or set] each node's .textContent
-				return @zap('textContent', t) if t?
-				return @zip('textContent')
-
-			val: (v) -> # .val([v]) - get [or set] each node's .value
-				return @zap('value', v) if v?
-				return @zip('value')
-
-			css: (k,v) ->
-				# .css(k, [v]) - get/set css properties for each node
-				# called with string k and undefd v -> value of k
-				# called with string k and string v -> set property k = v
-				# called with object k and undefd v -> set css(x, k[x]) for x in k
-				if v? or Object.IsObject k
-					setter = @zip 'style.setProperty'
-					nn = setter.len()
-					if Object.IsObject k
-						for i of k
-							setter.call i, k[i], ""
-					else if Object.IsString v
-						setter.call k, v, ""
-					else if Object.IsArray v
-						n = Math.max v.length, nn
-						for i in [0...n]
-							setter[i%nn] k, v[i%n], ""
-					return @
-				else
-					# collect the computed values
-					cv = @map getCSSProperty(k)
-					# collect the values specified directly on the node
-					ov = @zip('style').zip k
-					# weave and fold them so that object values override computed values
-					ov.weave(cv).fold (x,y) ->
-						x or y
-
-			defaultCss: (k, v) ->
-				# .defaultCss(k, [v]) - adds an inline style tag to the head for the current selector.
-				# If k is an object of k:v pairs, then no second argument is needed.
-				# Unlike css() which applies css directly to the style attribute,
-				# defaultCss() adds actual css text to the page, based on @selector,
-				# so it can still be over-ridden by external css files (such as themes)
-				# also, @selector need not match any nodes at the time of the call
-				sel = @selector
-				style = ""
-				if Object.IsString(k)
-					if Object.IsString(v)
-						style += "#{sel} { #{k}: #{v} } "
-					else throw Error("defaultCss requires a value with a string key")
-				else if Object.IsObject(k)
-					style += "#{sel} { "
-					style += "#{i}: #{k[i]}; " for i of k
-					style += "} "
-				$.synth("style").text(style).appendTo("head")
-				@
-
-			empty: () -> # .empty() - remove all children
-				@html ""
-
-			rect: () -> # .rect() - collect a ClientRect for each node in @
-				@zip('getBoundingClientRect').call()
-
-			width: (w) -> # .width([/w/]) - get [or set] each node's width value
-				if w == null
-					return @rect().zip("width")
-				return @css("width", w)
-
-			height: (h) -> # .height([/h/]) - get [or set] each node's height value
-				if h == null
-					return @rect().zip("height")
-				return @css("height", h)
-
-			top: (y) -> # .top([/y/]) - get [or set] each node's top value
-				if y == null
-					return @rect().zip("top")
-				return @css("top", y)
-
-			left: (x) -> # .left([/x/]) - get [or set] each node's left value
-				if x == null
-					return @rect().zip("left")
-				return @css("left", x)
-
-			bottom: (x) -> # .bottom([/x/]) - get [or set] each node's bottom value
-				if x == null
-					return @rect().zip("bottom")
-				return @css("bottom", x)
-
-			right: (x) -> # .right([/x/]) - get [or set] each node's right value
-				if x == null
-					return @rect().zip("right")
-				return @css("right", x)
-
-			position: (x, y) -> # .position([/x/, [/y/]]) - get [or set] each node's top and left values
-				if x == null
-					return @rect()
-				# with just x, just set style.left
-				if y == null
-					return @css("left", Number.Px(x))
-				# with x and y, set style.top and style.left
-				return @css({top: Number.Px(y), left: Number.Px(x)})
-
-			center: (mode ="viewport") -> # .center([mode]) - move the elements to the center of the screen
-				# mode is one of: "viewport" (default), "horizontal" or "vertical"
-				# TODO: "viewport" should probably use window.innerHeight
-				# TODO: this is all wrong...
-				body = document.body
-				vh = body.scrollTop  + (body.clientHeight/2)
-				vw = body.scrollLeft + (body.clientWidth/2)
-				@each () ->
-					t = $(@)
-					h = t.height().floats().first()
-					w = t.width().floats().first()
-					if mode is "viewport" or mode is "horizontal"
-						x = vw - (w/2)
-					else
-						x = NaN
-					if mode is "viewport" or mode is "vertical"
-						y = vh - (h/2)
-					else
-						y = NaN
-					t.css {
-						position: "absolute",
-						left: Number.Px(x),
-						top: Number.Px(y)
-					}
-
-			scrollToCenter: () -> # .scrollToCenter() - scroll first node to center of viewport
-				document.body.scrollTop = @zip('offsetTop')[0] - (window.innerHeight / 2)
-				@
-
-			child: (n) -> # .child(/n/) - returns the /n/th childNode for each in _this_
-				@zip('childNodes').map () ->
-					i = n
-					if i < 0
-						i += @length
-					@[i]
-
-			children: () -> # .children() - collect all children of each node
-				@map () ->
-					$(@childNodes, @)
-
-			parent: () -> # .parent() - collect .parentNode from each of _this_
-				@zip('parentNode')
-
-			parents: () -> # .parents() - collects the full ancestry up to the owner
-				@map () ->
-					b = $()
-					j = 0
-					p = @
-					while p = p.parentNode
-						b[j++] = p
-					b
-
-			prev: () -> # .prev() - collects the chain of .previousSibling nodes
-				@map () ->
-					b = $()
-					j = 0
-					p = @
-					while p = p.previousSibling
-						b[j++] = p
-					b
-
-			next: () -> # .next() - collect the chain of .nextSibling nodes
-				@map () ->
-					b = $()
-					j = 0
-					p = @
-					while p = p.nextSibling
-						b[j++] = p
-					b
-
-			remove: () -> # .remove() - removes each node in _this_ from the DOM
-				@each ()->
-					if @parentNode
-						@parentNode.removeChild(@)
-
-			find: (css) -> # .find(/css/) - collect nodes matching /css/
-				@filter("*") # limit to only nodes
-					.map( () -> $(css, @) )
-					.flatten()
-
-			clone: (deep=true) -> # .clone(deep=true) - copies a set of DOM nodes
-				@map () ->
-					if Object.IsNode @
-						@cloneNode deep
-					else
-						null
-
-			toFragment: () ->
-				if @len() > 1
-					df = document.createDocumentFragment()
-					adder = Function.Bound(df.appendChild, df)
-					@map(toNode).map adder
-					return df
-				return toNode(@[0])
-		}
-
 	$.plugin () -> # Math plugin
 		name: 'Maths'
 		$:
@@ -2022,7 +1589,959 @@ Object.Extend Number,
 				unsubscribe: unsubscribe
 		}
 
-	$
+	if Object.global.document?
+		$.plugin () -> # Html plugin
+			before = (a,b) -> # insert b before a
+				# create a fragment if parent node is null
+				if not a.parentNode?
+					df = document.createDocumentFragment()
+					df.appendChild(a)
+				a.parentNode.insertBefore b, a
+
+			after = (a,b) -> # insert b after a
+				if not a.parentNode?
+					df = document.createDocumentFragment()
+					df.appendChild(a)
+				a.parentNode.insertBefore b, a.nextSibling
+
+			toNode = (x) -> # convert nearly anything to something node-like for use in the DOM
+				switch Object.Type x
+					when "fragment" then x
+					when "node" then x
+					when "bling" then x.toFragment()
+					when "string" then $(x).toFragment()
+					when "function" then $(x.toString()).toFragment()
+					else
+						throw new Error "toNode called with invalid argument: #{x} (type: #{Object.Type x})"
+
+			escaper = null
+
+			getCSSProperty = (k) ->
+				# window.getComputedStyle is not a normal function
+				# (it doesnt support .call() so we can't use it with .map())
+				# so define something that does work properly for use in .css
+				() ->
+					window.getComputedStyle(@, null).getPropertyValue(k)
+
+			# get some ordinal constants and give them safe names
+			ord_A = "A".charCodeAt(0)
+			ord_Z = "Z".charCodeAt(0)
+			ord_a = "a".charCodeAt(0)
+
+			# convert between dash-names and camelNames
+			dashName = (name) ->
+				ret = ""
+				for i in [0...(name?.length|0)]
+					c = name.charCodeAt i
+					if ord_Z >= c >= ord_A # is upper case
+						c = (c - ord_A) + ord_a # shift to lower
+						ret += '-'
+					ret += String.fromCharCode(c)
+				return ret
+			camelName = (name) ->
+				i = name?.indexOf('-')
+				while i > -1
+					name = String.Splice(name, i, i+2, name[i+1].toUpperCase())
+					i = name.indexOf('-')
+				name
+
+			return {
+				name: 'Html'
+
+				$:
+					HTML: # $.HTML.* - HTML methods similar to the global JSON object
+						parse: (h) -> # $.HTML.parse(/h/) - parse the html in string h, a Node.
+							node = document.createElement("div")
+							node.innerHTML = h
+							childNodes = node.childNodes
+							n = childNodes.length
+							if n is 1
+								return node.removeChild(childNodes[0])
+							df = document.createDocumentFragment()
+							for i in [0...n]
+								df.appendChild(node.removeChild(childNodes[0]))
+							return df
+						stringify: (n) -> # $.HTML.stringify(/n/) - the _Node_ /n/ in it's html-string form
+							switch Object.Type n
+								when "string" then n
+								when "node"
+									n = n.cloneNode(true)
+									d = document.createElement("div")
+									d.appendChild(n)
+									ret = d.innerHTML # serialize to a string
+									d.removeChild(n) # clean up to prevent leaks
+									ret
+								else "unknown type: " + Object.Type(n)
+						escape: (h) -> # $.HTML.escape(/h/) - accept html string /h/, a string with html-escapes like &amp;
+							escaper or= $("<div>&nbsp;</div>").child(0)
+							# insert html using the text node's .data property
+							# then get escaped html from the parent's .innerHTML
+							ret = escaper.zap('data', h).zip("parentNode.innerHTML").first()
+							# clean up so escaped content isn't leaked into the DOM
+							escaper.zap('data', '')
+							ret
+					dashName: dashName
+					camelName: camelName
+
+				html: (h) -> # .html([h]) - get [or set] /x/.innerHTML for each node
+					switch Object.Type h
+						when "undefined"
+							return @zip 'innerHTML'
+						when "string"
+							return @zap 'innerHTML', h
+						when "bling"
+							return @html h.toFragment()
+						when "node"
+							return @each () -> # replace all our children with the new child
+								@replaceChild @childNodes[0], h
+								while @childNodes.length > 1
+									@removeChild @childNodes[1]
+
+				append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
+					x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
+					a = @zip('appendChild')
+					a.take(1).call(x)
+					a.skip(1).each (f) ->
+						f(x.cloneNode(true)) # f is already bound to @
+					@
+
+				appendTo: (x) -> # .appendTo(/n/) - each node [or a fragment] will become the last child of n
+					$(x).append(@)
+					@
+
+				prepend: (x) -> # .prepend(/n/) - insert n [or a clone] as the first child of each node
+					if x?
+						x = toNode(x)
+						@take(1).each () ->
+							before @childNodes[0], x
+						@skip(1).each () ->
+							before @childNodes[0], x.cloneNode(true)
+					@
+
+				prependTo: (x) -> # .prependTo(/n/) - each node [or a fragment] will become the first child of n
+					if x?
+						$(x).prepend(@)
+					@
+
+				before: (x) -> # .before(/x/) - insert content x before each node
+					if x?
+						x = toNode(x)
+						@take(1).each () -> before @, x
+						@skip(1).each () -> before @, x.cloneNode(true)
+					@
+
+				after: (x) -> # .after(/n/) - insert content n after each node
+					if x?
+						x = toNode(x)
+						@take(1).each () -> after @, x
+						@skip(1).each () -> after @, x.cloneNode(true)
+					@
+
+				wrap: (parent) -> # .wrap(/p/) - p becomes the new .parentNode of each node
+					# all items of @ will become children of parent
+					# parent will take each child's position in the DOM
+					parent = toNode(parent)
+					if Object.IsFragment(parent)
+						throw new Error("cannot wrap with a fragment")
+					@map (child) ->
+						if Object.IsFragment(child)
+							parent.appendChild(child)
+						else if Object.IsNode(child)
+							p = child.parentNode
+							if not p
+								parent.appendChild(child)
+							else
+								# swap out the DOM nodes using a placeholder element
+								marker = document.createElement("dummy")
+								# put a marker in the DOM, put removed node in new parent
+								parent.appendChild( p.replaceChild(marker, child) )
+								# replace marker with new parent
+								p.replaceChild(parent, marker)
+						child
+
+				unwrap: () -> # .unwrap() - replace each node's parent with itself
+					@each () ->
+						if @parentNode and @parentNode.parentNode
+							@parentNode.parentNode.replaceChild(@, @parentNode)
+						else if @parentNode
+							@parentNode.removeChild(@)
+
+				replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
+					n = toNode(n)
+					b = $()
+					j = 0
+					# first node gets the real n
+					@take(1).each () ->
+						@parentNode?.replaceChild(n, @)
+						b[j++] = n
+					# the rest get clones of n
+					@skip(1).each () ->
+						c = n.cloneNode(true)
+						@parentNode?.replaceChild(c, @)
+						b[j++] = c
+					# the set of inserted nodes
+					b
+
+				attr: (a,v) -> # .attr(a, [v]) - get [or set] an /a/ttribute [/v/alue]
+					switch v
+						when undefined
+							return @zip("getAttribute").call(a, v)
+						when null
+							return @zip("removeAttribute").call(a, v)
+						else
+							@zip("setAttribute").call(a, v)
+							return @
+
+				data: (k, v) ->
+					k = "data-#{dashName(k)}"
+					@attr(k, v)
+
+				addClass: (x) -> # .addClass(/x/) - add x to each node's .className
+					@removeClass(x).each () ->
+						c = @className.split(" ").filter (y) ->
+							y isnt ""
+						c.push(x) # since we dont know the len, its still faster to push, rather than insert at len()
+						@className = c.join " "
+
+				removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
+					notx = (y)-> y != x
+					@each () ->
+						c = @className?.split(" ").filter(notx).join(" ")
+						if c.length is 0
+							@removeAttribute('class')
+
+				toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
+					notx = (y) -> y != x
+					@each () ->
+						cls = @className.split(" ")
+						if( cls.indexOf(x) > -1 )
+							c = cls.filter(notx).join(" ")
+						else
+							cls.push(x)
+							c = cls.filter(Function.NotEmpty).join(" ")
+						if c.length > 0
+							@className = c
+						else
+							@removeAttribute('class')
+
+				hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x
+					@zip('className.split').call(" ").zip('indexOf').call(x).map Function.IndexFound
+
+				text: (t) -> # .text([t]) - get [or set] each node's .textContent
+					return @zap('textContent', t) if t?
+					return @zip('textContent')
+
+				val: (v) -> # .val([v]) - get [or set] each node's .value
+					return @zap('value', v) if v?
+					return @zip('value')
+
+				css: (k,v) ->
+					# .css(k, [v]) - get/set css properties for each node
+					# called with string k and undefd v -> value of k
+					# called with string k and string v -> set property k = v
+					# called with object k and undefd v -> set css(x, k[x]) for x in k
+					if v? or Object.IsObject k
+						setter = @zip 'style.setProperty'
+						nn = setter.len()
+						if Object.IsObject k
+							for i of k
+								setter.call i, k[i], ""
+						else if Object.IsString v
+							setter.call k, v, ""
+						else if Object.IsArray v
+							n = Math.max v.length, nn
+							for i in [0...n]
+								setter[i%nn] k, v[i%n], ""
+						return @
+					else
+						# collect the computed values
+						cv = @map getCSSProperty(k)
+						# collect the values specified directly on the node
+						ov = @zip('style').zip k
+						# weave and fold them so that object values override computed values
+						ov.weave(cv).fold (x,y) ->
+							x or y
+
+				defaultCss: (k, v) ->
+					# .defaultCss(k, [v]) - adds an inline style tag to the head for the current selector.
+					# If k is an object of k:v pairs, then no second argument is needed.
+					# Unlike css() which applies css directly to the style attribute,
+					# defaultCss() adds actual css text to the page, based on @selector,
+					# so it can still be over-ridden by external css files (such as themes)
+					# also, @selector need not match any nodes at the time of the call
+					sel = @selector
+					style = ""
+					if Object.IsString(k)
+						if Object.IsString(v)
+							style += "#{sel} { #{k}: #{v} } "
+						else throw Error("defaultCss requires a value with a string key")
+					else if Object.IsObject(k)
+						style += "#{sel} { "
+						style += "#{i}: #{k[i]}; " for i of k
+						style += "} "
+					$("<style></style>").text(style).appendTo("head")
+					@
+
+				empty: () -> # .empty() - remove all children
+					@html ""
+
+				rect: () -> # .rect() - collect a ClientRect for each node in @
+					@zip('getBoundingClientRect').call()
+
+				width: (w) -> # .width([/w/]) - get [or set] each node's width value
+					if w == null
+						return @rect().zip("width")
+					return @css("width", w)
+
+				height: (h) -> # .height([/h/]) - get [or set] each node's height value
+					if h == null
+						return @rect().zip("height")
+					return @css("height", h)
+
+				top: (y) -> # .top([/y/]) - get [or set] each node's top value
+					if y == null
+						return @rect().zip("top")
+					return @css("top", y)
+
+				left: (x) -> # .left([/x/]) - get [or set] each node's left value
+					if x == null
+						return @rect().zip("left")
+					return @css("left", x)
+
+				bottom: (x) -> # .bottom([/x/]) - get [or set] each node's bottom value
+					if x == null
+						return @rect().zip("bottom")
+					return @css("bottom", x)
+
+				right: (x) -> # .right([/x/]) - get [or set] each node's right value
+					if x == null
+						return @rect().zip("right")
+					return @css("right", x)
+
+				position: (x, y) -> # .position([/x/, [/y/]]) - get [or set] each node's top and left values
+					if x == null
+						return @rect()
+					# with just x, just set style.left
+					if y == null
+						return @css("left", Number.Px(x))
+					# with x and y, set style.top and style.left
+					return @css({top: Number.Px(y), left: Number.Px(x)})
+
+				center: (mode ="viewport") -> # .center([mode]) - move the elements to the center of the screen
+					# mode is one of: "viewport" (default), "horizontal" or "vertical"
+					# TODO: "viewport" should probably use window.innerHeight
+					# TODO: this is all wrong...
+					body = document.body
+					vh = body.scrollTop  + (body.clientHeight/2)
+					vw = body.scrollLeft + (body.clientWidth/2)
+					@each () ->
+						t = $(@)
+						h = t.height().floats().first()
+						w = t.width().floats().first()
+						if mode is "viewport" or mode is "horizontal"
+							x = vw - (w/2)
+						else
+							x = NaN
+						if mode is "viewport" or mode is "vertical"
+							y = vh - (h/2)
+						else
+							y = NaN
+						t.css {
+							position: "absolute",
+							left: Number.Px(x),
+							top: Number.Px(y)
+						}
+
+				scrollToCenter: () -> # .scrollToCenter() - scroll first node to center of viewport
+					document.body.scrollTop = @zip('offsetTop')[0] - (window.innerHeight / 2)
+					@
+
+				child: (n) -> # .child(/n/) - returns the /n/th childNode for each in _this_
+					@zip('childNodes').map () ->
+						i = n
+						if i < 0
+							i += @length
+						@[i]
+
+				children: () -> # .children() - collect all children of each node
+					@map () ->
+						$(@childNodes, @)
+
+				parent: () -> # .parent() - collect .parentNode from each of _this_
+					@zip('parentNode')
+
+				parents: () -> # .parents() - collects the full ancestry up to the owner
+					@map () ->
+						b = $()
+						j = 0
+						p = @
+						while p = p.parentNode
+							b[j++] = p
+						b
+
+				prev: () -> # .prev() - collects the chain of .previousSibling nodes
+					@map () ->
+						b = $()
+						j = 0
+						p = @
+						while p = p.previousSibling
+							b[j++] = p
+						b
+
+				next: () -> # .next() - collect the chain of .nextSibling nodes
+					@map () ->
+						b = $()
+						j = 0
+						p = @
+						while p = p.nextSibling
+							b[j++] = p
+						b
+
+				remove: () -> # .remove() - removes each node in _this_ from the DOM
+					@each ()->
+						if @parentNode
+							@parentNode.removeChild(@)
+
+				find: (css) -> # .find(/css/) - collect nodes matching /css/
+					@filter("*") # limit to only nodes
+						.map( () -> $(css, @) )
+						.flatten()
+
+				clone: (deep=true) -> # .clone(deep=true) - copies a set of DOM nodes
+					@map () ->
+						if Object.IsNode @
+							@cloneNode deep
+						else
+							null
+
+				toFragment: () ->
+					if @len() > 1
+						df = document.createDocumentFragment()
+						adder = Function.Bound(df.appendChild, df)
+						@map(toNode).map adder
+						return df
+					return toNode(@[0])
+			}
+
+		$.plugin () -> # Transform plugin, for accelerated animations
+			speeds = # constant speed names
+				"slow": 700
+				"medium": 500
+				"normal": 300
+				"fast": 100
+				"instant": 0
+				"now": 0
+			# matches all the accelerated css property names
+			accel_props_re = /(?:scale(?:3d)*|translate(?:[XYZ]|3d)*|rotate(?:[XYZ]|3d)*)/
+			updateDelay = 30 # ms to wait for DOM changes to apply
+			testStyle = document.createElement("div").style
+
+			transformProperty = "transform"
+			transitionProperty = "transition-property"
+			transitionDuration = "transition-duration"
+			transitionTiming = "transition-timing-function"
+
+			# detect which browser's transform properties to use
+			if "WebkitTransform" of testStyle
+				transformProperty = "-webkit-transform"
+				transitionProperty = "-webkit-transition-property"
+				transitionDuration = "-webkit-transition-duration"
+				transitionTiming = "-webkit-transition-timing-function"
+			else if "MozTransform" of testStyle
+				transformProperty = "-moz-transform"
+				transitionProperty = "-moz-transition-property"
+				transitionDuration = "-moz-transition-duration"
+				transitionTiming = "-moz-transition-timing-function"
+			else if "OTransform" of testStyle
+				transformProperty = "-o-transform"
+				transitionProperty = "-o-transition-property"
+				transitionDuration = "-o-transition-duration"
+				transitionTiming = "-o-transition-timing-function"
+
+			return {
+				name: 'Transform'
+				$: {
+					duration: (speed) ->
+						# $.duration(/s/) - given a speed description (string|number), a number in milliseconds
+						d = speeds[speed]
+						return d if d?
+						return parseFloat speed
+				}
+
+				# like jquery's animate(), but using only webkit-transition/transform
+				transform: (end_css, speed, easing, callback) ->
+					# .transform(css, [/speed/], [/callback/]) - animate css properties on each node
+					# animate css properties over a duration
+					# accelerated: scale, translate, rotate, scale3d,
+					# ... translateX, translateY, translateZ, translate3d,
+					# ... rotateX, rotateY, rotateZ, rotate3d
+					# easing values (strings): ease | linear | ease-in | ease-out
+					# | ease-in-out | step-start | step-end | steps(number[, start | end ])
+					# | cubic-bezier(number, number, number, number)
+
+					if Object.IsFunc(speed)
+						callback = speed
+						speed = null
+						easing = null
+					else if Object.IsFunc(easing)
+						callback = easing
+						easing = null
+					if not speed?
+						speed = "normal"
+					easing or= "ease"
+					# duration is always in milliseconds
+					duration = $.duration(speed) + "ms"
+					props = []
+					p = 0 # insert marker for props
+					# what to send to the -webkit-transform
+					trans = ""
+					# real css values to be set (end_css without the transform values)
+					css = {}
+					for i of end_css
+						# pull all the accelerated values out of end_css
+						if accel_props_re.test(i)
+							ii = end_css[i]
+							if ii.join
+								ii = $(ii).px().join(COMMASEP)
+							else if ii.toString
+								ii = ii.toString()
+							trans += " " + i + "(" + ii + ")"
+						else # stick real css values in the css dict
+							css[i] = end_css[i]
+					# make a list of the properties to be modified
+					for i of css
+						props[p++] = i
+					# and include -webkit-transform if we have transform values to set
+					if trans
+						props[p++] = transformProperty
+
+					# sets a list of properties to apply a duration to
+					css[transitionProperty] = props.join(COMMASEP)
+					# apply the same duration to each property
+					css[transitionDuration] =
+						props.map(() -> duration)
+							.join(COMMASEP)
+					# apply an easing function to each property
+					css[transitionTiming] =
+						props.map(() -> easing)
+							.join(COMMASEP)
+
+					# apply the transformation
+					if( trans )
+						css[transformProperty] = trans
+					# apply the css to the actual node
+					@css(css)
+					# queue the callback to be executed at the end of the animation
+					# WARNING: NOT EXACT!
+					@delay(duration, callback)
+
+				hide: (callback) -> # .hide() - each node gets display:none
+					@each () ->
+						if @style
+							@_display = "" # stash the old display
+							if @style.display is not "none"
+								@_display = @syle.display
+							@style.display = "none"
+					.trigger("hide")
+					.delay(updateDelay, callback)
+
+				show: (callback) -> # .show() - show each node
+					@each () ->
+						if @style
+							@style.display = @_display
+							delete @_display
+					.trigger("show")
+					.delay(updateDelay, callback)
+
+				toggle: (callback) -> # .toggle() - show each hidden node, hide each visible one
+					@weave(@css("display"))
+						.fold (display, node) ->
+							if display is "none"
+								node.style.display = node._display or ""
+								delete node._display
+								$(node).trigger("show")
+							else
+								node._display = display
+								node.style.display = "none"
+								$(node).trigger("hide")
+							node
+						.delay(updateDelay, callback)
+
+				fadeIn: (speed, callback) -> # .fadeIn() - fade each node to opacity 1.0
+					@.css('opacity','0.0')
+						.show () ->
+							@transform {
+								opacity:"1.0",
+								translate3d: [0,0,0]
+							}, speed, callback
+				fadeOut: (speed, callback, x = 0.0, y = 0.0) -> # .fadeOut() - fade each node to opacity:0.0
+					@transform {
+						opacity:"0.0",
+						translate3d:[x,y,0.0]
+					}, speed, () -> @hide(callback)
+				fadeLeft: (speed, callback) -> # .fadeLeft() - fadeOut and move offscreen to the left
+					@fadeOut(speed, callback, "-"+@width().first(), 0.0)
+				fadeRight: (speed, callback) -> # .fadeRight() - fadeOut and move offscreen to the right
+					@fadeOut(speed, callback, @width().first(), 0.0)
+				fadeUp: (speed, callback) -> # .fadeUp() - fadeOut and move off the top
+					@fadeOut(speed, callback, 0.0, "-"+@height().first())
+				fadeDown: (speed, callback)  -> # .fadeDown() - fadeOut and move off the bottom
+					@fadeOut(speed, callback, 0.0, @height().first())
+			}
+
+		$.plugin () -> # HTTP Request plugin: provides wrappers for making http requests
+			formencode = (obj) -> # create &foo=bar strings from object properties
+				s = []
+				j = 0 # insert marker into s
+				o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
+				for i of o
+					s[j++] = "#{i}=#{escape o[i]}"
+				s.join("&")
+
+			{
+				name: 'Http'
+				$: { # globals
+					http: (url, opts = {}) -> # $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
+						xhr = new XMLHttpRequest()
+						if Object.IsFunc(opts)
+							opts = {success: Function.Bound(opts, xhr)}
+						opts = Object.Extend {
+							method: "GET"
+							data: null
+							state: Function.Empty # onreadystatechange
+							success: Function.Empty # onload
+							error: Function.Empty # onerror
+							async: true
+							timeout: 0 # milliseconds, 0 is forever
+							withCredentials: false
+							followRedirects: false
+							asBlob: false
+						}, opts
+						opts.state = Function.Bound(opts.state, xhr)
+						opts.success = Function.Bound(opts.success, xhr)
+						opts.error = Function.Bound(opts.error, xhr)
+						if opts.data and opts.method is "GET"
+							url += "?" + formencode(opts.data)
+						else if opts.data and opts.method is "POST"
+							opts.data = formencode(opts.data)
+						xhr.open(opts.method, url, opts.async)
+						xhr.withCredentials = opts.withCredentials
+						xhr.asBlob = opts.asBlob
+						xhr.timeout = opts.timeout
+						xhr.followRedirects = opts.followRedirects
+						xhr.onreadystatechange = () ->
+							if opts.state
+								opts.state()
+							if xhr.readyState is 4
+								if xhr.status is 200
+									opts.success xhr.responseText
+								else
+									opts.error xhr.status, xhr.statusText
+						xhr.send opts.data
+						return $([xhr])
+
+					post: (url, opts = {}) -> # $.post(/url/, [/opts/]) - fetch /url/ with a POST request
+						if Object.IsFunc(opts)
+							opts = {success: opts}
+						opts.method = "POST"
+						$.http(url, opts)
+
+					get: (url, opts = {}) -> # $.get(/url/, [/opts/]) - fetch /url/ with a GET request
+						if( Object.IsFunc(opts) )
+							opts = {success: opts}
+						opts.method = "GET"
+						$.http(url, opts)
+				}
+			}
+
+		$.plugin () -> # Events plugin
+			events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
+				'load','unload','reset','submit','keyup','keydown','change',
+				'abort','cut','copy','paste','selection','drag','drop','orientationchange',
+				'touchstart','touchmove','touchend','touchcancel',
+				'gesturestart','gestureend','gesturecancel',
+				'hashchange'
+			] # 'click' is handled specially
+
+			binder = (e) ->
+				(f = {}) ->
+					return @bind(e, f) if Object.IsFunc f
+					return @trigger(e, f)
+
+			register_live = (selector, context, e, f, h) ->
+				$(context)
+					.bind(e, h) # bind the proxy handler
+					.each () ->
+						a = (@__alive__ or= {})
+						b = (a[selector] or= {})
+						c = (b[e] or= {})
+						# make a record using the fake handler as key
+						c[f] = h
+
+			unregister_live = (selector, context, e, f) ->
+				$c = $(context)
+				$c.each () ->
+					a = (@__alive__ or= {})
+					b = (a[selector] or= {})
+					c = (b[e] or= {})
+					$c.unbind(e, c[f])
+					delete c[f]
+
+			# detect and fire the document.ready event
+			readyTriggered = 0
+			readyBound = 0
+			triggerReady = () ->
+				if not readyTriggered++
+					$(document).trigger("ready").unbind("ready")
+					document.removeEventListener?("DOMContentLoaded", triggerReady, false)
+					window.removeEventListener?("load", triggerReady, false)
+			bindReady = () ->
+				if not readyBound++
+					document.addEventListener?("DOMContentLoaded", triggerReady, false)
+					window.addEventListener?("load", triggerReady, false)
+			bindReady()
+
+			ret = {
+				name: 'Events'
+				bind: (e, f) ->
+					# .bind(e, f) - adds handler f for event type e
+					# e is a string like 'click', 'mouseover', etc.
+					# e can be comma-separated to bind multiple events at once
+					c = (e or "").split(EVENTSEP_RE)
+					h = (evt) ->
+						ret = f.apply @, arguments
+						if ret is false
+							Event.Prevent evt
+						ret
+					@each () ->
+						for i in c
+							@addEventListener i, h, false
+
+				unbind: (e, f) ->
+					# .unbind(e, [f]) - removes handler f from event e
+					# if f is not present, removes all handlers from e
+					c = (e or "").split(EVENTSEP_RE)
+					@each () ->
+						for i in c
+							@removeEventListener(i, f, null)
+
+				once: (e, f) ->
+					# .once(e, f) - adds a handler f that will be called only once
+					c = (e or "").split(EVENTSEP_RE)
+					for i in c
+						@bind i, (evt) ->
+							f.call(@, evt)
+							@removeEventListener(evt.type, arguments.callee, null)
+
+				cycle: (e, funcs...) ->
+					# .cycle(e, ...) - bind handlers for e that trigger in a cycle
+					# one call per trigger. when the last handler is executed
+					# the next trigger will call the first handler again
+					c = (e or "").split(EVENTSEP_RE)
+					nf = funcs.length
+					cycler = () ->
+						i = 0
+						(evt) ->
+							funcs[i].call(@, evt)
+							i = ++i % nf
+					for j in c
+						@bind j, cycler()
+					@
+
+				trigger: (evt, args = {}) ->
+					# .trigger(e, a) - initiates a fake event
+					# evt is the type, 'click'
+					# args is an optional mapping of properties to set,
+					#		{screenX: 10, screenY: 10}
+					# note: not all browsers support manually creating all event types
+					evts = (evt or "").split(EVENTSEP_RE)
+					args = Object.Extend {
+						bubbles: true
+						cancelable: true
+					}, args
+
+					for evt_i in evts
+						if evt_i in ["click", "mousemove", "mousedown", "mouseup", "mouseover", "mouseout"] # mouse events
+							e = document.createEvent "MouseEvents"
+							args = Object.Extend {
+								detail: 1,
+								screenX: 0,
+								screenY: 0,
+								clientX: 0,
+								clientY: 0,
+								ctrlKey: false,
+								altKey: false,
+								shiftKey: false,
+								metaKey: false,
+								button: 0,
+								relatedTarget: null
+							}, args
+							e.initMouseEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+								args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+								args.button, args.relatedTarget
+
+						else if evt_i in ["blur", "focus", "reset", "submit", "abort", "change", "load", "unload"] # UI events
+							e = document.createEvent "UIEvents"
+							e.initUIEvent evt_i, args.bubbles, args.cancelable, window, 1
+
+						else if evt_i in ["touchstart", "touchmove", "touchend", "touchcancel"] # touch events
+							e = document.createEvent "TouchEvents"
+							args = Object.Extend {
+								detail: 1,
+								screenX: 0,
+								screenY: 0,
+								clientX: 0,
+								clientY: 0,
+								ctrlKey: false,
+								altKey: false,
+								shiftKey: false,
+								metaKey: false,
+								# touch values:
+								touches: [],
+								targetTouches: [],
+								changedTouches: [],
+								scale: 1.0,
+								rotation: 0.0
+							}, args
+							e.initTouchEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+								args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+								args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
+
+						else if evt_i in ["gesturestart", "gestureend", "gesturecancel"] # gesture events
+							e = document.createEvent "GestureEvents"
+							args = Object.Extend {
+								detail: 1,
+								screenX: 0,
+								screenY: 0,
+								clientX: 0,
+								clientY: 0,
+								ctrlKey: false,
+								altKey: false,
+								shiftKey: false,
+								metaKey: false,
+								# gesture values:
+								target: null,
+								scale: 1.0,
+								rotation: 0.0
+							}, args
+							e.initGestureEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+								args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+								args.target, args.scale, args.rotation
+
+						# iphone events that are not supported yet (dont know how to create yet, needs research)
+						# iphone events that we cant properly emulate (because we cant create our own Clipboard objects)
+						# iphone events that are just plain events
+						# and general events
+						# else if evt_i in ["drag", "drop", "selection", "cut", "copy", "paste", "orientationchange"]
+						else
+							e = document.createEvent "Events"
+							e.initEvent evt_i, args.bubbles, args.cancelable
+							try
+								e = Object.Extend e, args
+							catch err
+
+						if not e
+							continue
+						else
+							try
+								@each () ->
+									@dispatchEvent e
+							catch err
+								log("dispatchEvent error:",err)
+					@
+
+				live: (e, f) ->
+					# .live(e, f) - handle events for nodes that will exist in the future
+					selector = @selector
+					context = @context
+					# wrap f
+					handler = (evt) ->
+						# when event 'e' is fired
+						# re-execute the selector in the original context
+						$(selector, context)
+							# then see if the event would bubble into a match
+							.intersect($(evt.target).parents().first().union($(evt.target)))
+							# then fire the real handler 'f' on the matched nodes
+							.each () ->
+								evt.target = @
+								f.call(@, evt)
+					# bind the handler to the context
+					# record f so we can 'die' it if needed
+					register_live selector, context, e, f, handler
+					@
+
+				die: (e, f) ->
+					# die(e, [f]) - stop f [or all] from living for event e
+					selector = @selector
+					context = @context
+					h = unregister_live selector, context, e, f
+					$(context).unbind e, h
+					@
+
+				liveCycle: (e, funcs...) ->
+					# .liveCycle(e, ...) - bind each /f/ in /funcs/ to handle /e/
+					# one call per trigger. when the last handler is executed
+					# the next trigger will call the first handler again
+					i = 0
+					@live e, (evt) ->
+						funcs[i].call @, evt
+						i = ++i % funcs.length
+
+				click: (f = {}) ->
+					# .click([f]) - trigger [or bind] the 'click' event
+					# if the cursor is just default then make it look clickable
+					if @css("cursor").intersect(["auto",""]).len() > 0
+						@css "cursor", "pointer"
+					if Object.IsFunc f
+						@bind 'click', f
+					else
+						@trigger 'click', f
+
+				ready: (f = {}) ->
+					if Object.IsFunc f
+						if readyTriggered
+							f.call @
+						else
+							@bind "ready", f
+					else
+						@trigger "ready", f
+			}
+
+			# add event binding/triggering shortcuts for the generic events
+			events.forEach (x) ->
+				ret[x] = binder(x)
+			return ret
+
+		$.plugin () -> # LazyLoader plugin, depends on PubSub
+			create = (elementName, props) ->
+				Object.Extend document.createElement(elementName), props
+
+			lazy_load = (elementName, props) ->
+				depends = provides = null
+				n = create elementName, Object.Extend(props, {
+					"onload!": () ->
+						if provides?
+							$.publish(provides)
+				})
+				$("head").delay 10, () ->
+					if depends?
+						$.subscribe depends, () => @append(n)
+					else
+						@append(n)
+				n = $(n)
+				Object.Extend n, {
+					depends: (tag) -> depends = elementName+"-"+tag; n
+					provides: (tag) -> provides = elementName+"-"+tag; n
+				}
+
+			return {
+				name: "LazyLoader"
+				$:
+					script: (src) ->
+						lazy_load "script", { "src!": src }
+					style: (src) ->
+						lazy_load "link", { "href!": src, "rel!": "stylesheet" }
+			}
 
 )(Bling)
 # vim: ft=coffee

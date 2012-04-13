@@ -1883,4 +1883,4 @@ Object.Extend Number,
 			}
 
 )(Bling)
-# vim: ft=coffee
+# vim: ft=coffee sw=2 ts=2

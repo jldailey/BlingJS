@@ -226,6 +226,9 @@ Object.Extend Function,
 	UpperLimit: (x) -> (y) -> Math.min(x, y)
 	LowerLimit: (x) -> (y) -> Math.max(x, y)
 	Px: (d) -> () -> Number.Px(@,d)
+	Memoize: (f) ->
+		cache = {} # a new cache for this function only
+		(a...) -> cache[Object.Hash(a)] ?= f.apply @, a
 
 Object.Extend String,
 	PadLeft: (s, n, c = " ") -> # String.PadLeft(string, width, fill=" ")

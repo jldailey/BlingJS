@@ -8,15 +8,15 @@ PLUGINS=../plugins
 DIST_PLUGINS=$(DIST)/plugins
 # TEMP:=$(shell mktemp /tmp/blingjs.XXXXXX)
 
-all: dist report
+all: clean dist report
 
-minify: $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
+bling: $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
 clean:
 	rm -f $(DIST)/*.js
 	rm -f $(DIST_PLUGINS)/*.js
 
-dist: $(DIST)/bling.js minify plugin
+dist: $(DIST)/bling.js bling plugin
 
 site: dist
 	cd .. \
@@ -40,8 +40,18 @@ publish:
 	&& git checkout master \
 	&& git stash pop || true
 
-plugin:
+plugin: plugin_compile plugin_minify plugin_compress
+
+plugin_minify: $(DIST_PLUGINS)/min.synth.js $(DIST_PLUGINS)/min.pprint.js $(DIST_PLUGINS)/min.template.js $(DIST_PLUGINS)/min.tnet.js $(DIST_PLUGINS)/min.ui.js $(DIST_PLUGINS)/min.all.js
+
+plugin_compress: $(DIST_PLUGINS)/min.synth.js.gz $(DIST_PLUGINS)/min.pprint.js.gz $(DIST_PLUGINS)/min.template.js.gz $(DIST_PLUGINS)/min.tnet.js.gz $(DIST_PLUGINS)/min.ui.js.gz $(DIST_PLUGINS)/min.all.js.gz
+
+$(DIST_PLUGINS)/min.%.js: $(DIST_PLUGINS)/%.js compiler.jar
+	$(JAVA) -jar compiler.jar --js=$< --js_output_file=$@ --compilation_level=$(LEVEL) --externs externs
+	
+plugin_compile:
 	coffee -o $(DIST_PLUGINS) -c $(PLUGINS)/*.coffee
+	cat $(DIST_PLUGINS)/*.js > $(DIST_PLUGINS)/all.js
 
 $(DIST)/bling.js: ../bling.coffee
 	cd .. && coffee -o dist -c bling.coffee
@@ -56,10 +66,11 @@ compiler.jar: compiler-latest.zip
 $(DIST)/min.%.js: $(DIST)/%.js compiler.jar
 	$(JAVA) -jar compiler.jar --js=$< --js_output_file=$@ --compilation_level=$(LEVEL) --externs externs
 
+
 %.gz: %
 	gzip -vf9c $< > $@
 
 report:
 	@cd $(DIST) && wc -c `ls *.js *.gz | sort` | grep -v total | grep -v externs.js
 
-.PHONY: all minify clean dist site publish plugin
+.PHONY: all bling clean dist site publish plugin

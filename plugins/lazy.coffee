@@ -7,7 +7,7 @@
 		lazy_load = (elementName, props) ->
 			depends = provides = null
 			n = create elementName, Object.Extend(props, {
-				onload: () ->
+				"onload!": () ->
 					if provides?
 						$.publish(provides)
 			})
@@ -26,9 +26,9 @@
 			name: "LazyLoader"
 			$:
 				script: (src) ->
-					lazy_load "script", { src: src }
+					lazy_load "script", { "src!": src }
 				style: (src) ->
-					lazy_load "link", { href: src, rel: "stylesheet" }
+					lazy_load "link", { "href!": src, "rel!": "stylesheet" }
 		}
 
 )(Bling)

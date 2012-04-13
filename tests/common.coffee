@@ -16,6 +16,7 @@ dom.registerGlobals(global)
 global.document = dom.createDocument()
 global.window = global
 require("../bling.coffee")
+require("../plugins/synth.coffee")
 
 UI =
 	dumb: # a dumb terminal

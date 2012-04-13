@@ -487,6 +487,7 @@ Object.Extend Event,
 
 			$:
 				log: log
+				assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 				delay: (n, f) ->
 					if f
 						timeoutQueue.schedule(f, n)

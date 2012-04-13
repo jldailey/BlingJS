@@ -10,13 +10,13 @@ DIST_PLUGINS=$(DIST)/plugins
 
 all: clean dist report
 
-minify: $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
+bling: $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
 clean:
 	rm -f $(DIST)/*.js
 	rm -f $(DIST_PLUGINS)/*.js
 
-dist: $(DIST)/bling.js minify plugin
+dist: $(DIST)/bling.js bling plugin
 
 site: dist
 	cd .. \
@@ -42,9 +42,9 @@ publish:
 
 plugin: plugin_compile plugin_minify plugin_compress
 
-plugin_minify: $(DIST_PLUGINS)/min.lazy.js $(DIST_PLUGINS)/min.pprint.js $(DIST_PLUGINS)/min.template.js $(DIST_PLUGINS)/min.tnet.js $(DIST_PLUGINS)/min.ui.js $(DIST_PLUGINS)/min.all.js
+plugin_minify: $(DIST_PLUGINS)/min.synth.js $(DIST_PLUGINS)/min.pprint.js $(DIST_PLUGINS)/min.template.js $(DIST_PLUGINS)/min.tnet.js $(DIST_PLUGINS)/min.ui.js $(DIST_PLUGINS)/min.all.js
 
-plugin_compress: $(DIST_PLUGINS)/min.lazy.js.gz $(DIST_PLUGINS)/min.pprint.js.gz $(DIST_PLUGINS)/min.template.js.gz $(DIST_PLUGINS)/min.tnet.js.gz $(DIST_PLUGINS)/min.ui.js.gz $(DIST_PLUGINS)/min.all.js.gz
+plugin_compress: $(DIST_PLUGINS)/min.synth.js.gz $(DIST_PLUGINS)/min.pprint.js.gz $(DIST_PLUGINS)/min.template.js.gz $(DIST_PLUGINS)/min.tnet.js.gz $(DIST_PLUGINS)/min.ui.js.gz $(DIST_PLUGINS)/min.all.js.gz
 
 $(DIST_PLUGINS)/min.%.js: $(DIST_PLUGINS)/%.js compiler.jar
 	$(JAVA) -jar compiler.jar --js=$< --js_output_file=$@ --compilation_level=$(LEVEL) --externs externs
@@ -73,4 +73,4 @@ $(DIST)/min.%.js: $(DIST)/%.js compiler.jar
 report:
 	@cd $(DIST) && wc -c `ls *.js *.gz | sort` | grep -v total | grep -v externs.js
 
-.PHONY: all minify clean dist site publish plugin
+.PHONY: all bling clean dist site publish plugin

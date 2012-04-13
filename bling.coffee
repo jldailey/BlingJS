@@ -1,9 +1,6 @@
 ###
 
-bling.js
---------
 Named after the bling symbol ($) to which it is bound by default.
-This is a jQuery-like framework, written in CoffeeScript.
 Blame: Jesse Dailey <jesse.dailey@gmail.com>
 (Copyright) 2011
 (License) released under the MIT License
@@ -13,22 +10,17 @@ http://creativecommons.org/licenses/MIT/
 
 # local shortcuts
 if console?.log
-	log = (a...) ->
-		console.log.apply(console, a)
+	log = (a...) -> console.log.apply(console, a)
 else
-	log = (a...) ->
-		alert a.join(", ")
+	log = (a...) -> alert a.join(", ")
 
 if not document?.querySelectorAll
 	log "Warning: This environment has limited supported"
+	default_context = {}
+else
+	default_content = document
 
-# constants
-COMMASEP = ", "
-EVENTSEP_RE = /,* +/
-FORCE_RE = /!$/ # tells Object.Extend to overwrite existing properties
-OBJECT_RE = /\[object (\w+)\]/
-
-Bling = (selector, context = document) ->
+Bling = (selector, context = default_context) ->
 	type = Object.Type selector
 	if type in ["undefined", "null"]
 		set = []
@@ -49,7 +41,7 @@ Bling = (selector, context = document) ->
 	else
 		throw Error "invalid selector: #{selector} (type: #{Object.Type selector})"
 
-	# hijack the prototype of the input object
+	# hijack the prototype of the input set
 	set.constructor = Bling
 	set.__proto__ = Bling.fn
 	set.selector = selector
@@ -57,21 +49,24 @@ Bling = (selector, context = document) ->
 	# firefox doesn't set the .length properly when we hijack the prototype
 	set.length = set.len()
 	return set
+# Blings are sets that extend from arrays
+Bling.fn = new Array # use a shallow copy (!) of the Array prototype
+Bling.toString = () -> "function Bling(selector, context) { ... }"
 
-# Blings extend from arrays
-Bling.fn = new Array # a (shallow) copy (!) of the Array prototype
-Bling.toString = () -> "function Bling(selector, context) { [...] }"
+# constants
+COMMASEP = ", "
+EVENTSEP_RE = /,* +/
+FORCE_RE = /!$/ # tells Object.Extend to overwrite existing properties
+OBJECT_RE = /\[object (\w+)\]/
 
 Object.Keys ?= (o, inherited = false) -> # Object.Keys(/o/, [/inherited/]) - get a list of key names
-	# by default, does not include properties inherited from a prototype
 	keys = []; j = 0
 	for i of o
 		if inherited or o.hasOwnProperty(i)
 			keys[j++] = i
 	keys
 
-Object.Extend ?= (a, b, k) -> # Object.Extend(a, b, [k]) - merge values from b into a
-	# if k is present, it should be an array of property names
+Object.Extend ?= (a, b, k) -> # Object.Extend(a, b, [whitelist]) - merge values from b into a
 	if Object::toString.apply(k) is "[object Array]" # cant use Object.IsArray yet
 		for key in k
 			if FORCE_RE.test(key)

@@ -46,31 +46,35 @@ capital = (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring
 Object.Type = (() ->
 	Object.Interface 'Type',
 		name: ''
-		check: (o) -> true # is o an instance of this type
-		asArray: (o,c) -> [o] # how to convert an instance into an array
-		hash: (o) -> String.Checksum(o.toString?() ? String(o))
+		test: (o) -> true # is o an instance of this type
+		asHash: (o) -> String.Checksum @asString(o)
+		asArray: (o) -> [o] # how to convert an instance into an array
+		asString: (o) -> o.toString?() ? String(o)
+
 	order = []
 	cache = {}
 	register = (name, data) ->
 		data[name] = name
 		cache[name] = Object.Mixin('Type', data)
-		Object["Is"+capital(name)] = data.check
+		Object["Is"+capital(name)] = data.test
 		if not name in order
 			order.unshift name
+
 	classify = (obj) ->
 		for name in order
-			if data[name]?.check.call obj, obj # this should alway eventually match
+			if data[name]?.test.call obj, obj # this should alway eventually match
 				return data[name] # because of the "unknown" type being the last check
 
 	register "unknown", {}
 	register "object",
-		check: (o) -> o? and typeof o is "object"
+		test: (o) -> o? and typeof o is "object"
+		asHash: (o) -> (Object.Hash(o[k]) for k of o) + Object.Hash(Object.Keys(o))
 	register "error",
-		check: (o) -> o? and Object.IsType o, "Error"
+		test: (o) -> o? and Object.IsType 'Error', o
 	register "regexp",
-		check: (o) -> o? and Object.IsType o, "RegExp"
+		test: (o) -> o? and Object.IsType 'RegExp', o
 	register "string",
-		check: (o) -> o? and (typeof o is "string" or Object.IsType(o, String))
+		test: (o) -> o? and (typeof o is "string" or Object.IsType(String, o))
 		asArray: (s,c) ->
 			s = s.trimLeft()
 			if s[0] is "<"
@@ -80,20 +84,26 @@ Object.Type = (() ->
 			else
 				throw Error "invalid context: #{c} (type: #{Object.Type c})"
 	register "array",
-		check: (o) -> o? and Array.isArray?(o) or Object.IsType(o, Array)
+		test: (o) -> o? and (Array.isArray?(o) or Object.IsType Array, o)
+		asHash: (o) -> (Object.Hash(i) for i in x).sum()
 		asArray: (o) -> o
+		asString: (o) -> "[" + (Object.ToString(x) for x in o).join(",") + "]"
 	register "number",
-		check: (o) -> o? and Object.IsType o, Number
+		test: (o) -> o? and Object.IsType Number, o
 		asArray: (o) -> new Array(o)
+		asString: (o) -> switch true
+			when o.precision? then o.toPrecision(o.precision)
+			when o.fixed? then o.toFixed(o.fixed)
+			else String(o)
 	register "boolean",
-		check: (o) -> typeof o is "boolean" or String(o) in ["true","false"]
+		test: (o) -> typeof o is "boolean" or String(o) in ["true","false"]
+		asHash: (o) -> 1 if o
 	register "undefined",
-		check: (x) -> x is undefined
+		test: (x) -> x is undefined
 	register "null",
-		check: (x) -> x is null
+		test: (x) -> x is null
 	
-	ret = (o) ->
-		classify(o).name
+	ret = (o) -> classify(o).name
 	
 	return Object.Extend ret,
 		register: register
@@ -106,21 +116,23 @@ Bling = (selector, context = default_context) ->
 	set = (Object.Type.classify selector)?.asArray(selector, context)
 	if not set?
 		throw Error "invalid selector: #{selector} (type: #{Object.Type selector})"
-
 	# hijack the prototype of the input set
 	Object.Extend set,
 		constructor: Bling
-		__proto__: Bling.fn
+		__proto__: Bling.prototype
 		selector: selector
 		context: context
 	# firefox doesn't set the .length properly when we hijack the prototype
 	set.length = set.len()
-	set
-# Blings are sets that extend from arrays, doesnt use .prototype so we dont need 'new'
-Bling.fn = new Array # use a shallow copy (!) of the Array prototype, plugins will extend this
+	return set
+# Blings are sets that extend from arrays
+Bling.prototype = new Array # start with a shallow copy (!) of the Array prototype, plugins will extend
 Bling.toString = () -> "function Bling(selector, context) { ... }" # dont waste a bunch of space in logs
-Types.register "bling", (o) -> o? and Object.IsType(o, Bling)
-
+Types.register "bling",
+	test: (o) -> o? and Object.IsType Bling, o
+	asHash: (o) -> Object.Hash(o.selector) + o.map(Object.Hash).sum()
+	asArray: (o) -> o
+	asString: (o) -> Bling.symbol + "([" + o.map(Object.ToString).join "," + "])"
 
 Object.Keys ?= (o, inherited = false) -> # Object.Keys(/o/, [/inherited/]) - get a list of key names
 	keys = []; j = 0
@@ -150,13 +162,13 @@ Object.Extend ?= (a, b, k) -> # Object.Extend(a, b, [whitelist]) - merge values 
 interfaces = {} # a private cache of defined interfaces
 
 Object.Extend Object,
-	IsType: (o,T) -> # Object.IsType(o,T) - true if object o is of type T (directly or inherits)
+	IsType: (T, o) -> # Object.IsType(o,T) - true if object o is of type T (directly or inherits)
 		if o == null then o is T
 		else if o.constructor is T then true
 		else if typeof T is "string"
 			o.constructor.name is T or Object::toString.apply(o).replace(OBJECT_RE, "$1") is T
 		else # recurse through sub-classes
-			Object.IsType o.__proto__, T
+			Object.IsType T, o.__proto__
 	Enhance: (c, o) -> (o.__proto__ = c; o) # similar to Extend, but hot-wires prototypes to the instance
 	Interface: (name, fields) -> interfaces[name] = fields # a simple interface system for duck-typing
 	Mixin: (name, o) -> Object.Enhance interfaces[name], o
@@ -175,27 +187,15 @@ Object.Extend Object,
 		return true # successfully passed all checks
 	IsSimple: (o) -> Object.Type(o) in ["string", "number", "boolean"]
 	IsDefined: (o) -> o?
-	Unbox: (a) -> # Object.Unbox(o) - primitive types can be 'boxed' in an object
-		if a? and Object.IsObject(a)
-			return a.toString() if Object.IsString a
-			return Number(a) if Object.IsNumber a
-		a
 	Get: (o, key, def) ->
 		dot = key.indexOf '.'
 		return switch true
 			when dot isnt -1 then Object.Get(Object.Get(o, key.substring(0,dot)), key.substring(dot+1), def)
 			when key of o then o[key]
 			else def
-	Hash: (x) -> # Object.Hash(o) - return a (not super safe, signed integer) hash-code for the set
-		# TODO: Object.Type.classify(x).hash(x)
+	ToString: (x) -> Object.Type.classify(x).asString(x)
+	Hash: (x) -> Object.Type.classify(x).asHash(x)
 		return switch Object.Type(x)
-			when "string" then String.Checksum(x)
-			when "number" then String.Checksum(String(x))
-			when "node" then String.Checksum(x.nodeName) + Object.Hash(x.attributes) + String.Checksum(x.innerHTML)
-			when "nodelist" then (Object.Hash(i) for i in x).reduce (a,x) -> a+x
-			when "bling" then Object.Hash(x.selector) + Object.Hash(x.context) + Object.Hash(x.toArray())
-			when "array" then (Object.Hash(i) for i in x).reduce (a,x) -> a+x
-			when "object" then (Object.Hash(x[k]) for k of x) + Object.Hash(Object.Keys(x))
 			when "undefined" then 3
 			when "null" then 2
 			else 1
@@ -217,19 +217,19 @@ Object.Interface 'Iterator',
 		@
 	readAll: (n) -> (@next() while @hasNext() and ((not n?) or (n-- >= 0)) )
 Types.register "iterator",
-	check: (o) -> o? and Object.Implements(o, "Iterator")
+	test: (o) -> o? and Object.Implements(o, "Iterator")
 
 Object.Interface 'Function',
 	name: ''
 	apply: (c, a) -> interfaceError('apply')
 	call: (a...) -> @apply a[0], a.slice(1)
 Types.register "function",
-	check: (o) -> o? and (typeof o is "function" or Object.Implements(o, "Function"))
+	test: (o) -> o? and (typeof o is "function" or Object.Implements(o, "Function"))
 
 Object.Interface 'Global',
 	setInterval: () -> # the same way jQuery detects the window object
 Types.register "global",
-	check: (o) -> o? and Object.Implements(o, "Global")
+	test: (o) -> o? and Object.Implements(o, "Global")
 
 for k in Object.Keys(interfaces)
 	if not Object.Implements(interfaces[k], k) # assert the invariant of the interfaces system
@@ -317,29 +317,25 @@ Object.Extend Array,
 		if Object.IsArray(a[0]) then return Array.Coalesce a[0]...
 		for i in a
 			return i if i?
-	Extend: (a, b) -> # Array.Extend - pushes each item from b into a (in-place)
-		j = a.length
-		for i in b
-			a[j++] = i
-		a
-	Compact: (a, buffer = new String.Builder(), into = [], topLevel = true) -> # Array.Compact reduces /a/ by joining adjacent stringy items
+	Extend: (a, b) -> (a.push(i) for i in b); a
+	Compact: (a, buffer = new String.Builder(), array = [], topLevel = true) -> # Array.Compact reduces /a/ by joining adjacent stringy items
 		if not Object.IsArray(a)
 			return a
 		for i in a
 			switch true
 				when not i? then continue
+				when Object.IsArray(i) then Array.Compact(i, buffer, array, false)
 				when Object.IsSimple(i) then buffer.append(i)
-				when Object.IsArray(i) then Array.Compact(i, buffer, into, false)
 				else
-					into.push buffer.toString() if buffer.length > 0
-					into.push i
+					array.push buffer.toString() if buffer.length > 0
+					array.push i
 					buffer.clear()
-		if into.length is 0
+		if array.length is 0
 			return buffer.toString()
 		if buffer.length > 0 and topLevel
-			into.push buffer.toString()
+			array.push buffer.toString()
 			buffer.clear()
-		return into
+		return array
 	Iter: (a) ->
 		i = 0
 		Object.Mixin 'Iterator',
@@ -387,7 +383,7 @@ Object.Extend Number,
 				# clear off the globals
 				delete plugin[Bling.symbol]
 			# everything else about the plugin extends the prototype
-			Object.Extend(Bling.fn, plugin)
+			Object.Extend(Bling.prototype, plugin)
 		catch error
 			log "failed to load plugin #{name}"
 			log error.message
@@ -395,19 +391,16 @@ Object.Extend Number,
 
 	$.plugin () -> # Symbol - allow to safely use something other than $ by assigning to Bling.symbol
 		symbol = null
-		preserve = {}
+		cache = {}
 		g = Object.global
+		g.Bling = Bling
 		Object.defineProperty $, "symbol",
 			set: (v) ->
-				if symbol of preserve
-					g[symbol] = preserve[symbol]
-				if v of g
-					preserve[v] = g[v]
-				symbol = v
-				g[v] = Bling
+				g[symbol] = cache[symbol]
+				cache[v] = g[v]
+				g[symbol = v] = Bling
 			get: () -> symbol
 		$.symbol = "$"
-		g["Bling"] = Bling
 
 		return {
 			name: "Symbol"
@@ -484,7 +477,7 @@ Object.Extend Number,
 					q.shift()() # shift AND call
 			@schedule = (f, n) => # schedule(f, n) sets f to run after n or more milliseconds
 				if not Object.IsFunc(f)
-					throw Error "function expected, got: #{typeof f}"
+					throw Error "function expected, got: #{Object.Type f}"
 				nq = q.length
 				f.order = n + new Date().getTime()
 				if nq is 0 or f.order > q[nq-1].order # short-cut the common-case: f belongs after the end
@@ -532,30 +525,16 @@ Object.Extend Number,
 					# return an actor that can cancel
 					return { cancel: () -> timeoutQueue.cancel(f) }
 
-			eq: (i) -> # .eq(/i/) - a new set containing only the /i/th item
-				a = $([@[i]])
-				a
-
-			each: (f) -> # .each(/f/) - apply function /f/ to every item /x/ in _this_.
-				for i in @
-					f.call(i, i)
-				@
-
-			"map!": (f) -> # .map(/f/) - collect /f/.call(/x/, /x/) for every item /x/ in _this_.
-				$( (f.call(t,t) for t in @) )
-
+			eq: (i) -> $(@[i])
+			each: (f) -> (f.call(i, i) for i in @); @
+			"map!": (f) -> $(f.call(t,t) for t in @)
 			"reduce!": (f, init) ->
-				# .reduce(/f/, [/init/]) - accumulate a = /f/(a, /x/) for /x/ in _this_.
-				# along with respecting the context, we pass only the accumulation and one argument
-				# so you can use functions like Math.min directly $([1,2,3]).reduce(Math.min)
-				# this fails with the ECMA reduce, since Math.min(a,x,i,items) is NaN
 				a = init
 				t = @
 				if not init?
 					a = @[0]
 					t = @skip(1)
-				t.each () ->
-					a = f.call(@, a, @)
+				t.each () -> a = f.call(@, a, @)
 				a
 
 			union: (other, strict = true) ->
@@ -589,14 +568,9 @@ Object.Extend Number,
 							break
 				ret
 
-			distinct: (strict = true) ->
-				# .distinct() - a copy of _this_ without duplicates.
-				# 'strict' forces === comparison
-				@union(@, strict)
+			distinct: (strict = true) -> @union(@, strict)
 
 			contains: (item, strict = true) ->
-				# .contains(/x/) - true if /x/ is in _this_, false otherwise.
-				# 'strict' forces === comparison
 				for t in @
 					if (strict and t is item) or (not strict and t == item)
 						return true
@@ -718,24 +692,18 @@ Object.Extend Number,
 					b[j++] = @[i]
 				b
 
-			concat: (b) ->
-				# .concat(/b/) - insert all items from /b/ into _this_
-				# note: unlike union, concat allows duplicates
+			extend: (b) ->
+				# .extend(/b/) - insert all items from /b/ into _this_
+				# note: unlike union, allows duplicates
 				# note: also, does not create a new array, uses _this_ in-place
 				i = @len() - 1
 				j = -1
-				if Object.IsFunc b.len
-					n = b.len()
-				else
-					n = b.length
+				n = b.len?() ? b.length
 				while j < n-1
 					@[++i] = b[++j]
 				@
 
-			"push!": (b) ->
-				# .push(/b/) - override Array.push to return _this_
-				Array::push.call(@, b)
-				@
+			"push!": (b) -> Array::push.call(@, b); @
 
 			"filter!": (f) ->
 				# .filter(/f/) - collect all /x/ from _this_ where /x/./f/(/x/) is true
@@ -754,14 +722,9 @@ Object.Extend Number,
 						b[j++] = it
 				b
 
-			test: (regex) ->
-				# .test(/regex/) - collects regex.test(/x/) for /x/ in _this_
-				@map () ->
-					regex.test(@)
+			test: (regex) -> @map () -> regex.test(@)
 
-			matches: (expr) ->
-				# .matches(/css/) - collects /x/.matchesSelector(/css/)
-				@zip('matchesSelector').call(expr)
+			matches: (expr) -> @zip('matchesSelector').call(expr)
 
 			querySelectorAll: (s) ->
 				@filter("*") # limit to only nodes
@@ -811,16 +774,12 @@ Object.Extend Number,
 				k = 0 # insert marker
 				for i in [0...n]
 					c = @[i]
-					if Object.IsFunc c.len
-						d = c.len()
-					else
-						d = c.length
+					d = c.len?() ? c.length
 					for j in [0...d]
 						b[k++] = c[j]
 				b
 
-			call: () -> # .call([/args/]) - collect /f/([/args/]) for /f/ in _this_
-				@apply(null, arguments)
+			call: () -> @apply(null, arguments)
 
 			apply: (context, args) -> # .apply(/context/, [/args/]) - collect /f/.apply(/context/,/args/) for /f/ in _this_
 				@map () ->
@@ -829,14 +788,7 @@ Object.Extend Number,
 					else
 						@
 
-			"toString!": () -> # .toString() - maps toString across @
-				$.symbol + "([" + @map () ->
-					t = Object.Type(@)
-					if t in ["undefined","null","window"]
-						t
-					else
-						@toString().replace(OBJECT_RE,"$1")
-				.join(COMMASEP) + "])"
+			"toString!": () -> Object.ToString(@)
 
 			delay: (n, f) -> # .delay(/n/, /f/) -  continue with /f/ on _this_ after /n/ milliseconds
 				if Object.Type(f) is "function"
@@ -863,9 +815,7 @@ Object.Extend Number,
 					i--
 				return i+1
 
-			toArray: () ->
-				@.__proto__ = Array.prototype
-				@
+			toArray: () -> (@.__proto__ = Array.prototype); @
 		}
 
 	$.plugin () -> # Math plugin
@@ -877,39 +827,17 @@ Object.Extend Number,
 				(start + (i*step) for i in [0...steps])
 			zeros: (n) -> 0 for i in [0...n]
 			ones: (n) -> 1 for i in [0...n]
-
-		floats: () -> # .floats() - parseFloat(/x/) for /x/ in _this_
-			@map parseFloat
-
-		ints: () -> # .ints() - parseInt(/x/) for /x/ in _this_
-			@map () -> parseInt @, 10
-
-		px: (delta=0) -> # .px([delta]) - collect "NNpx" strings
-			@ints().map Function.Px(delta)
-
-		min: () -> # .min() - select the smallest /x/ in _this_
-			@reduce (a) -> Math.min @, a
-
-		max: () -> # .max() - select the largest /x/ in _this_
-			@reduce (a) -> Math.max @, a
-
-		average: () -> # .average() - compute the average of all /x/ in _this_
-			@sum() / @len()
-
-		sum: () -> # .sum() - add all /x/ in _this_
-			@reduce (a) -> a + @
-
-		squares: ()  -> # .squares() - collect /x*x/ for each /x/ in _this_
-			@map () -> @ * @
-
-		magnitude: () -> # .magnitude() - compute the vector length of _this_
-			Math.sqrt @floats().squares().sum()
-
-		scale: (r) -> # .scale(/r/) - /x/ *= /r/ for /x/ in _this_
-			@map () -> r * @
-
-		normalize: () -> # .normalize() - scale _this_ so that .magnitude() == 1
-			@scale(1/@magnitude())
+		floats: () -> @map parseFloat
+		ints: () -> @map () -> parseInt @, 10
+		px: (delta=0) -> @ints().map Function.Px(delta)
+		min: () -> @reduce (a) -> Math.min @, a
+		max: () -> @reduce (a) -> Math.max @, a
+		average: () -> @sum() / @len()
+		sum: () -> @reduce (a) -> a + @
+		squares: ()  -> @map () -> @ * @
+		magnitude: () -> Math.sqrt @floats().squares().sum()
+		scale: (r) -> @map () -> r * @
+		normalize: () -> @scale(1/@magnitude())
 
 	$.plugin () -> # Pub/Sub plugin
 		subscribers = {} # a mapping of channel name to a list of subscribers
@@ -968,9 +896,19 @@ Object.Extend Number,
 		}
 
 	if Object.global.document?
-		Types.register "nodelist", (o) -> o? and Object.IsType(o,"NodeList")
-		Types.register "fragment", (o) -> o?.nodeType is 11
-		Types.register "node", (o) -> o?.nodeType > 0
+		Types.register "nodelist",
+			test: (o) -> o? and Object.IsType "NodeList", o
+			asHash: (o) -> $(Object.Hash(i) for i in x).sum()
+			asArray: (o) -> o
+			asString: (o) -> "{NodeList:["+$(o).zip('nodeName').join(",")+"]}"
+		Types.register "fragment",
+			test: (o) -> o?.nodeType is 11
+			asHash: (o) -> $(Object.Hash(x) for x in o.childNodes).sum()
+			asString: (o) -> "{Fragment:["+$(o.childNodes).zip('nodeName').join(",")+"]}"
+		Types.register "node",
+			test: (o) -> o?.nodeType > 0
+			asHash: (o) -> String.Checksum(o.nodeName) + Object.Hash(o.attributes) + String.Checksum(o.innerHTML)
+			asString: (o) -> "{Node:"+o.nodeName+" "+ (k+"="+o.getAttribute(k) for k in Object.Keys(o.attributes))+"}"
 
 		$.plugin () -> # Html plugin
 			before = (a,b) -> # insert b before a

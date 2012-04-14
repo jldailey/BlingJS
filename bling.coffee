@@ -43,84 +43,14 @@ camel = (name) ->
 	name
 capital = (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
 
-Object.Type = (() ->
-	Object.Interface 'Type',
-		name: ''
-		test: (o) -> true # is o an instance of this type
-		asHash: (o) -> String.Checksum @asString(o)
-		asArray: (o) -> [o] # how to convert an instance into an array
-		asString: (o) -> o.toString?() ? String(o)
-
-	order = []
-	cache = {}
-	register = (name, data) ->
-		data[name] = name
-		cache[name] = Object.Mixin('Type', data)
-		Object["Is"+capital(name)] = data.test
-		if not name in order
-			order.unshift name
-
-	classify = (obj) ->
-		for name in order
-			if data[name]?.test.call obj, obj # this should alway eventually match
-				return data[name] # because of the "unknown" type being the last check
-
-	register "unknown", {}
-	register "object",
-		test: (o) -> o? and typeof o is "object"
-		asHash: (o) -> (Object.Hash(o[k]) for k of o) + Object.Hash(Object.Keys(o))
-	register "error",
-		test: (o) -> o? and Object.IsType 'Error', o
-	register "regexp",
-		test: (o) -> o? and Object.IsType 'RegExp', o
-	register "string",
-		test: (o) -> o? and (typeof o is "string" or Object.IsType(String, o))
-		asArray: (s,c) ->
-			s = s.trimLeft()
-			if s[0] is "<"
-				set = [Bling.HTML.parse(s)]
-			else if c.querySelectorAll
-				set = c.querySelectorAll(s)
-			else
-				throw Error "invalid context: #{c} (type: #{Object.Type c})"
-	register "array",
-		test: (o) -> o? and (Array.isArray?(o) or Object.IsType Array, o)
-		asHash: (o) -> (Object.Hash(i) for i in x).sum()
-		asArray: (o) -> o
-		asString: (o) -> "[" + (Object.ToString(x) for x in o).join(",") + "]"
-	register "number",
-		test: (o) -> o? and Object.IsType Number, o
-		asArray: (o) -> new Array(o)
-		asString: (o) -> switch true
-			when o.precision? then o.toPrecision(o.precision)
-			when o.fixed? then o.toFixed(o.fixed)
-			else String(o)
-	register "boolean",
-		test: (o) -> typeof o is "boolean" or String(o) in ["true","false"]
-		asHash: (o) -> 1 if o
-	register "undefined",
-		test: (x) -> x is undefined
-	register "null",
-		test: (x) -> x is null
-	
-	ret = (o) -> classify(o).name
-	
-	return Object.Extend ret,
-		register: register
-		classify: classify
-)()
 
 default_context = document ? {}
 
 Bling = (selector, context = default_context) ->
-	set = (Object.Type.classify selector)?.asArray(selector, context)
-	if not set?
-		throw Error "invalid selector: #{selector} (type: #{Object.Type selector})"
-	# hijack the prototype of the input set
-	Object.Enhance Bling, Object.Extend(set,
-		selector: selector
-		context: context
-	)
+	
+	Object.Enhance Bling, Object.Extend (Object.Type.classify selector)?.asArray(selector, context),
+			selector: selector
+			context: context
 	# firefox doesn't set the .length properly when we hijack the prototype
 	set.length = set.len()
 	return set
@@ -161,6 +91,12 @@ Object.Extend ?= (a, b, k) -> # Object.Extend(a, b, [whitelist]) - merge values 
 interfaces = {} # a private cache of defined interfaces
 
 Object.Extend Object,
+	Get: (o, key, def) ->
+		dot = key.indexOf '.'
+		return switch true
+			when dot isnt -1 then Object.Get(Object.Get(o, key.substring(0,dot)), key.substring(dot+1), def)
+			when key of o then o[key]
+			else def
 	IsType: (T, o) -> # Object.IsType(o,T) - true if object o is of type T (directly or inherits)
 		if o == null then o is T
 		else if o.constructor is T then true
@@ -168,7 +104,12 @@ Object.Extend Object,
 			o.constructor.name is T or Object::toString.apply(o).replace(OBJECT_RE, "$1") is T
 		else # recurse through sub-classes
 			Object.IsType T, o.__proto__
-	Enhance: (c, o) -> (o.__proto__ = c; o) # similar to Extend, but hot-wires prototypes to the instance
+	Enhance: (c, o) -> # similar to Extend, but hot-wires prototypes to the instance
+		if Object.IsFunc(c)
+			o.constructor = c
+			c = c.prototype
+		o.__proto__ = c
+		o
 	Interface: (name, fields) -> interfaces[name] = fields # a simple interface system for duck-typing
 	Mixin: (name, o) -> Object.Enhance interfaces[name], o
 	Implements: (o, name) -> # check if o has all the correct fields for the named interface
@@ -184,18 +125,80 @@ Object.Extend Object,
 			if type is "function" and o[field].length < value.length
 				return false # not enough parameters to function
 		return true # successfully passed all checks
+
+Object.Extend Object,
+	Type: (()->
+		Object.Interface 'Type',
+			name: 'unknown'
+			test: (o) -> true # is o an instance of this type
+			asHash: (o) -> String.Checksum Object.String(o)
+			asArray: (o) -> [o] # how to convert an instance into an array
+			asString: (o) -> o.toString?() ? String(o)
+
+		order = [] # the order to issue type-checks in
+		cache = {} # cache of data about registered types
+
+		register = (name, data) ->
+			cache[data.name = name] = Object.Mixin('Type', data)
+			Object["Is"+capital(name)] = data.test
+			order.unshift name if not name in order
+
+		classify = (obj) -> (return data[name]) for name in order when data[name]?.test.call obj, obj
+
+		register "unknown", {}
+		register "object",
+			test: (o) -> o? and typeof o is "object"
+			asHash: (o) -> (Object.Hash(o[k]) for k of o) + Object.Hash(Object.Keys(o))
+		register "error", { test: (o) -> o? and Object.IsType 'Error', o }
+		register "regexp", { test: (o) -> o? and Object.IsType 'RegExp', o }
+		register "string",
+			test: (o) -> o? and (typeof o is "string" or Object.IsType(String, o))
+			asArray: (s,c) ->
+				s = s.trimLeft()
+				try
+					if s[0] is "<"
+						set = [Bling.HTML.parse(s)]
+					else if c.querySelectorAll
+						set = c.querySelectorAll(s)
+					else
+						throw Error "invalid context: #{c} (type: #{Object.Type c})"
+				catch e
+					throw Error "invalid selector: #{s} (error: #{e})"
+		register "array",
+			test: (o) -> o? and (Array.isArray?(o) or Object.IsType Array, o)
+			asHash: (o) -> (Object.Hash(i) for i in x).reduce (a,x) -> a+x
+			asArray: (o) -> o
+			asString: (o) -> "[" + (Object.ToString(x) for x in o).join(",") + "]"
+		register "number",
+			test: (o) -> o? and Object.IsType Number, o
+			asArray: (o) -> new Array(o)
+			asString: (o) -> switch true
+				when o.precision? then o.toPrecision(o.precision)
+				when o.fixed? then o.toFixed(o.fixed)
+				else String(o)
+		register "boolean",
+			test: (o) -> typeof o is "boolean" or String(o) in ["true","false"]
+			asHash: (o) -> parseInt(1 if o)
+		register "undefined",
+			test: (x) -> x is undefined
+			asHash: (o) -> 1
+			asArray: (o) -> []
+		register "null",
+			test: (x) -> x is null
+			asHash: (o) -> 2
+			asArray: (o) -> []
+		
+		ret = (o) -> classify(o).name
+		
+		return Object.Extend ret,
+			register: register
+			classify: classify
+	)()
+
 	IsSimple: (o) -> Object.Type(o) in ["string", "number", "boolean"]
-	Get: (o, key, def) ->
-		dot = key.indexOf '.'
-		return switch true
-			when dot isnt -1 then Object.Get(Object.Get(o, key.substring(0,dot)), key.substring(dot+1), def)
-			when key of o then o[key]
-			else def
 	ToString: (x) -> Object.Type.classify(x).asString(x)
 	Hash: (x) -> Object.Type.classify(x).asHash(x)
 
-
-interfaceError = (name) -> throw new Error("Interface was never given an implementation for: #{name}")
 
 Object.Interface 'Iterator',
 	next: () -> null
@@ -212,10 +215,11 @@ Object.Interface 'Iterator',
 	readAll: (n) -> (@next() while @hasNext() and ((not n?) or (n-- >= 0)) )
 Types.register "iterator",
 	test: (o) -> o? and Object.Implements(o, "Iterator")
+	asArray: (o) -> o.readAll()
 
 Object.Interface 'Function',
 	name: ''
-	apply: (c, a) -> interfaceError('apply')
+	apply: (c, a) ->
 	call: (a...) -> @apply a[0], a.slice(1)
 Types.register "function",
 	test: (o) -> o? and (typeof o is "function" or Object.Implements(o, "Function"))
@@ -518,70 +522,32 @@ Object.Extend Number,
 						timeoutQueue.schedule(f, n)
 					# return an actor that can cancel
 					return { cancel: () -> timeoutQueue.cancel(f) }
-
+			"toString!": () -> Object.ToString(@)
 			eq: (i) -> $(@[i])
 			each: (f) -> (f.call(i, i) for i in @); @
 			"map!": (f) -> $(f.call(t,t) for t in @)
-			"reduce!": (f, init) ->
-				a = init
+			"reduce!": (f, a) ->
 				t = @
-				if not init?
+				if not a?
 					a = @[0]
 					t = @skip(1)
-				t.each () -> a = f.call(@, a, @)
+				(a = f.call x, a, x) for x in t
 				a
 
 			union: (other, strict = true) ->
-				# .union(/other/) - collect all /x/ from _this_ and /y/ from _other_.
-				# no duplicates, use .concat() if you want to preserve dupes
-				# 'strict' forces === comparison
 				ret = $()
-				x = i = j = 0
-				while x = @[j++]
-					if not ret.contains(x, strict) # TODO: could speed this up by inlining contains
-						ret[i++] = x
-				j = 0
-				while x = other[j++]
-					if not ret.contains(x, strict)
-						ret[i++] = x
+				ret.push(x) for x in @ when not ret.contains(x, strict)
+				ret.push(x) for x in other when not ret.contains(x, strict)
 				ret
-
-			intersect: (other) ->
-				# .intersect(/other/) - collect all /x/ that are in _this_ and _other_.
-				ret = $()
-				m = 0 # insert marker into ret
-				n = @len()
-				if Object.IsFunc other.len
-					nn = other.len()
-				else
-					nn = other.length
-				for i in [0...n]
-					for j in [0...nn]
-						if @[i] is other[j]
-							ret[m++] = @[i]
-							break
-				ret
-
 			distinct: (strict = true) -> @union(@, strict)
 
+			intersect: (other) -> $(x for x in @ when x in other) # another very beatiful expression
+
 			contains: (item, strict = true) ->
-				for t in @
-					if (strict and t is item) or (not strict and t == item)
-						return true
-				return false
+				((strict and t is item) or (not strict and t == item) for t in @).reduce (a,x) -> a or x
 
 			count: (item, strict = true) ->
-				# .count(/x/) - returns how many times /x/ occurs in _this_.
-				# since we want to be able to search for null values with .count(null)
-				# but if you just call .count(), it returns the total length
-				# 'strict' forces === comparison
-				if item is undefined
-					return @len()
-				ret = 0
-				@each (t) ->
-					if (strict and t is item) or (not strict and t == item)
-						ret++
-				ret
+				$(1 for t in @ when (item is undefined) or (strict and t is item) or (not strict and t == item)).sum()
 
 			zip: (a...) ->
 				# .zip([/p/, ...]) - collects /x/./p/ for all /x/ in _this_.
@@ -774,15 +740,12 @@ Object.Extend Number,
 				b
 
 			call: () -> @apply(null, arguments)
-
 			apply: (context, args) -> # .apply(/context/, [/args/]) - collect /f/.apply(/context/,/args/) for /f/ in _this_
 				@map () ->
 					if Object.IsFunc @
 						@apply(context, args)
 					else
 						@
-
-			"toString!": () -> Object.ToString(@)
 
 			delay: (n, f) -> # .delay(/n/, /f/) -  continue with /f/ on _this_ after /n/ milliseconds
 				if Object.Type(f) is "function"

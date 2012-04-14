@@ -117,11 +117,10 @@ Bling = (selector, context = default_context) ->
 	if not set?
 		throw Error "invalid selector: #{selector} (type: #{Object.Type selector})"
 	# hijack the prototype of the input set
-	Object.Extend set,
-		constructor: Bling
-		__proto__: Bling.prototype
+	Object.Enhance Bling, Object.Extend(set,
 		selector: selector
 		context: context
+	)
 	# firefox doesn't set the .length properly when we hijack the prototype
 	set.length = set.len()
 	return set
@@ -186,7 +185,6 @@ Object.Extend Object,
 				return false # not enough parameters to function
 		return true # successfully passed all checks
 	IsSimple: (o) -> Object.Type(o) in ["string", "number", "boolean"]
-	IsDefined: (o) -> o?
 	Get: (o, key, def) ->
 		dot = key.indexOf '.'
 		return switch true
@@ -195,10 +193,6 @@ Object.Extend Object,
 			else def
 	ToString: (x) -> Object.Type.classify(x).asString(x)
 	Hash: (x) -> Object.Type.classify(x).asHash(x)
-		return switch Object.Type(x)
-			when "undefined" then 3
-			when "null" then 2
-			else 1
 
 
 interfaceError = (name) -> throw new Error("Interface was never given an implementation for: #{name}")

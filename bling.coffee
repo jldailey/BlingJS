@@ -63,14 +63,14 @@ Object.Extend Object,
 			o.constructor.name is T or Object::toString.apply(o).replace(OBJECT_RE, "$1") is T
 		else # recurse through sub-classes
 			Object.IsType T, o.__proto__
-	Enhance: (c, o) -> # similar to Extend, but hot-wires prototypes instead of looping assigment
-		if Object.IsFunc(c)
+	Inherit: (c, o) -> # similar to Extend, but hot-wires prototypes instead of looping assigment
+		if Object.IsFunction(c)
 			o.constructor = c
 			c = c.prototype
 		o.__proto__ = c
 		o
 	Interface: (name, fields) -> interfaces[name] = fields # a simple interface system for duck-typing
-	Mixin: (name, o) -> Object.Enhance interfaces[name], o
+	Mixin: (name, o) -> Object.Inherit interfaces[name], o
 	Implements: (o, name) -> # check if o has all the correct fields for the named interface
 		fields = interfaces[name]
 		if not o? or not fields?
@@ -88,8 +88,6 @@ Object.Extend Object,
 Object.Interface 'Type',
 	name: 'unknown'
 	match: (o) -> true # is o an instance of this type
-	asHash: (o) -> String.Checksum Object.String(o)
-	asArray: (o) -> [o]
 	asString: (o) -> o.toString?() ? String(o)
 
 Object.Type = (()->
@@ -102,20 +100,17 @@ Object.Type = (()->
 		order.unshift name if not name in order
 	extend = (name, data) -> cache[name] = Object.Extend cache[name], data
 
-	classify = (obj) ->
+	lookup = (obj) ->
 		for name in order
 			if data[name]?.match.call obj, obj
 				return data[name]
 
 	register "unknown", {}
-	register "object",
-		match: (o) -> o? and typeof o is "object"
-		asHash: (o) -> (Object.Hash(o[k]) for k of o) + Object.Hash(Object.Keys(o))
-	register "error", { match: (o) -> o? and Object.IsType 'Error', o }
-	register "regexp", { match: (o) -> o? and Object.IsType 'RegExp', o }
-	register "string",
-		match: (o) -> o? and (typeof o is "string" or Object.IsType(String, o))
-		asArray: (s,c) ->
+	register "object", match: (o) -> o? and typeof o is "object"
+	register "error", match: (o) -> o? and Object.IsType 'Error', o
+	register "regexp", match: (o) -> o? and Object.IsType 'RegExp', o
+	register "string", match: (o) -> o? and (typeof o is "string" or Object.IsType(String, o))
+		asSet: (s,c) ->
 			s = s.trimLeft()
 			try
 				if s[0] is "<"
@@ -128,41 +123,44 @@ Object.Type = (()->
 				throw Error "invalid selector: #{s} (error: #{e})"
 	register "array",
 		match: (o) -> o? and (Array.isArray?(o) or Object.IsType Array, o)
-		asHash: (o) -> (Object.Hash(i) for i in x).reduce (a,x) -> a+x
-		asArray: (o) -> o
+		asSet: (o) -> o
 		asString: (o) -> "[" + (Object.ToString(x) for x in o).join(",") + "]"
 	register "number",
 		match: (o) -> o? and Object.IsType Number, o
-		asArray: (o) -> new Array(o)
+		asSet: (o) -> new Array(o)
 		asString: (o) -> switch true
 			when o.precision? then o.toPrecision(o.precision)
 			when o.fixed? then o.toFixed(o.fixed)
 			else String(o)
 	register "boolean",
 		match: (o) -> typeof o is "boolean" or String(o) in ["true","false"]
-		asHash: (o) -> parseInt(1 if o)
 	register "undefined",
 		match: (x) -> x is undefined
-		asHash: (o) -> -1
-		asArray: (o) -> []
+		asSet: (o) -> []
 	register "null",
 		match: (x) -> x is null
-		asHash: (o) -> -2
-		asArray: (o) -> []
+		asSet: (o) -> []
 
-	ret = (o) -> classify(o).name
+	ret = (o) -> lookup(o).name
 
 	Object.Extend ret,
 		register: register
-		classify: classify
+		lookup: lookup
 		extend: extend
 )()
 
 Object.Extend Object,
 	IsEmpty: (o) -> o in ["", null, undefined]
 	IsSimple: (o) -> Object.Type(o) in ["string", "number", "boolean"]
-	ToString: (x) -> Object.Type.classify(x).asString(x)
-	Hash: (x) -> Object.Type.classify(x).asHash(x)
+	ToString: (x) -> Object.Type.lookup(x).asString(x)
+
+Object.Type.extend "unknown", asHash: (o) -> String.Checksum Object.String(o)
+Object.Type.extend "object", asHash: (o) -> (Object.Hash(o[k]) for k of o) + Object.Hash(Object.Keys(o))
+Object.Type.extend "array", asHash: (o) -> (Object.Hash(i) for i in x).reduce (a,x) -> a+x
+Object.Type.extend "boolean", asHash: (o) -> parseInt(1 if o)
+Object.Type.extend "undefined", asHash: (o) -> -1
+Object.Type.extend "null", asHash: (o) -> -2
+Object.Hash = (x) -> Object.Type.lookup(x).asHash(x)
 
 Object.Interface 'Iterator',
 	next: () -> null
@@ -170,7 +168,7 @@ Object.Interface 'Iterator',
 	reset: () -> @
 	# if you implement the top three, and use Mixin() you get these default implementations
 	skip: (n=1) -> (@next() for _ in [0...n])
-	map: (f) -> Object.Enhance @, { next: () => f @next() } # a beautiful little expression
+	map: (f) -> Object.Inherit @, { next: () => f @next() } # a beautiful little expression
 	each: (f) ->
 		while @hasNext()
 			t = @next()
@@ -180,7 +178,7 @@ Object.Interface 'Iterator',
 
 Object.Type.register "iterator",
 	match: (o) -> o? and Object.Implements(o, "Iterator")
-	asArray: (o) -> o.readAll()
+	asSet: (o) -> o.readAll()
 
 Object.Interface 'Function',
 	name: ''
@@ -201,7 +199,7 @@ for k in Object.Keys(interfaces)
 Object.Extend Function,
 	Empty: () -> # the empty function
 	Bound: (f, t, args = []) -> # Function.Bound(/f/, /t/) - whenever /f/ is called, _this_ is /t/
-		if Object.IsFunc f.bind
+		if Object.IsFunction f.bind
 			args.splice 0, 0, t
 			r = f.bind.apply f, args
 		else
@@ -232,7 +230,7 @@ Object.Extend Function,
 				for i in [0...o.length]
 					o[i] = Function.TraceAll(o[i], "#{label}[#{i}]", tracer)
 				o
-		return Object.Type.classify(o).traceAll(o, label, tracer)
+		return Object.Type.lookup(o).traceAll(o, label, tracer)
 	)()
 	Not: (f) -> (x) -> not f(x)
 	UpperLimit: (x) -> (y) -> Math.min(x, y)
@@ -241,7 +239,6 @@ Object.Extend Function,
 	Memoize: (f) ->
 		cache = {} # a new cache for this function only
 		(a...) -> cache[Object.Hash(a)] ?= f.apply @, a
-
 
 Object.Extend String,
 	Capitalize: capital
@@ -326,7 +323,7 @@ Object.Extend Number,
 
 default_context = document ? {}
 Bling = (selector, context = default_context) ->
-	set = Object.Enhance Bling, Object.Extend (Object.Type.classify selector)?.asArray(selector, context),
+	set = Object.Inherit Bling, Object.Extend (Object.Type.lookup selector)?.asSet(selector, context),
 			selector: selector
 			context: context
 	set.length = set.len()
@@ -337,7 +334,7 @@ Bling.toString = () -> "function Bling(selector, context) { ... }" # dont waste 
 Object.Type.register "bling",
 	match: (o) -> o? and Object.IsType Bling, o
 	asHash: (o) -> Object.Hash(o.selector) + o.map(Object.Hash).sum()
-	asArray: (o) -> o
+	asSet: (o) -> o
 	asString: (o) -> Bling.symbol + "([" + o.map(Object.ToString).join "," + "])"
 
 (($) -> # protected name space
@@ -450,7 +447,7 @@ Object.Type.register "bling",
 				if q.length > 0
 					q.shift()() # shift AND call
 			@schedule = (f, n) => # schedule(f, n) sets f to run after n or more milliseconds
-				if not Object.IsFunc(f)
+				if not Object.IsFunction(f)
 					throw Error "function expected, got: #{Object.Type f}"
 				nq = q.length
 				f.order = n + new Date().getTime()
@@ -464,7 +461,7 @@ Object.Type.register "bling",
 				setTimeout next, n
 				return @
 			@cancel = (f) =>
-				if not Object.IsFunc(f)
+				if not Object.IsFunction(f)
 					throw Error "function expected, got #{Object.Type(f)}"
 				for i in [0...q.length]
 					if q[i] == f
@@ -476,7 +473,7 @@ Object.Type.register "bling",
 		getter = (prop) -> # used in .zip()
 			() ->
 				v = @[prop]
-				if Object.IsFunc v
+				if Object.IsFunction v
 					return Function.Bound(v, @)
 				return v
 		zipper = (prop) -> # used in .zip()
@@ -564,7 +561,7 @@ Object.Type.register "bling",
 				else if Object.IsArray(v) # accept /v/ as an array of values
 					@each () ->
 						@[p] = v[++i % v.length] # i starts at -1 because of the failed indexOf
-				else if Object.IsFunc(v)
+				else if Object.IsFunction(v)
 					@zap(p, @zip(p).map(v))
 				else # accept a scalar /v/, even if v is undefined
 					@each () ->
@@ -716,7 +713,7 @@ Object.Type.register "bling",
 			call: () -> @apply(null, arguments)
 			apply: (context, args) -> # .apply(/context/, [/args/]) - collect /f/.apply(/context/,/args/) for /f/ in _this_
 				@map () ->
-					if Object.IsFunc @
+					if Object.IsFunction @
 						@apply(context, args)
 					else
 						@
@@ -828,9 +825,9 @@ Object.Type.register "bling",
 
 	if Object.global.document?
 		Object.Type.register "nodelist",
-			match: (o) -> o? and Object.IsType "NodeList", o
+			match: (o) -> o? and Object.IsType NodeList, o
 			asHash: (o) -> $(Object.Hash(i) for i in x).sum()
-			asArray: (o) -> o
+			asSet: (o) -> o
 			asString: (o) -> "{NodeList:["+$(o).zip('nodeName').join(",")+"]}"
 		Object.Type.register "fragment",
 			match: (o) -> o?.nodeType is 11
@@ -1306,11 +1303,11 @@ Object.Type.register "bling",
 					# | ease-in-out | step-start | step-end | steps(number[, start | end ])
 					# | cubic-bezier(number, number, number, number)
 
-					if Object.IsFunc(speed)
+					if Object.IsFunction(speed)
 						callback = speed
 						speed = null
 						easing = null
-					else if Object.IsFunc(easing)
+					else if Object.IsFunction(easing)
 						callback = easing
 						easing = null
 					if not speed?
@@ -1430,7 +1427,7 @@ Object.Type.register "bling",
 				$: { # globals
 					http: (url, opts = {}) -> # $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
 						xhr = new XMLHttpRequest()
-						if Object.IsFunc(opts)
+						if Object.IsFunction(opts)
 							opts = {success: Function.Bound(opts, xhr)}
 						opts = Object.Extend {
 							method: "GET"
@@ -1468,13 +1465,13 @@ Object.Type.register "bling",
 						return $([xhr])
 
 					post: (url, opts = {}) -> # $.post(/url/, [/opts/]) - fetch /url/ with a POST request
-						if Object.IsFunc(opts)
+						if Object.IsFunction(opts)
 							opts = {success: opts}
 						opts.method = "POST"
 						$.http(url, opts)
 
 					get: (url, opts = {}) -> # $.get(/url/, [/opts/]) - fetch /url/ with a GET request
-						if( Object.IsFunc(opts) )
+						if( Object.IsFunction(opts) )
 							opts = {success: opts}
 						opts.method = "GET"
 						$.http(url, opts)
@@ -1492,7 +1489,7 @@ Object.Type.register "bling",
 
 			binder = (e) ->
 				(f = {}) ->
-					return @bind(e, f) if Object.IsFunc f
+					return @bind(e, f) if Object.IsFunction f
 					return @trigger(e, f)
 
 			register_live = (selector, context, e, f, h) ->
@@ -1717,13 +1714,13 @@ Object.Type.register "bling",
 					# if the cursor is just default then make it look clickable
 					if @css("cursor").intersect(["auto",""]).len() > 0
 						@css "cursor", "pointer"
-					if Object.IsFunc f
+					if Object.IsFunction f
 						@bind 'click', f
 					else
 						@trigger 'click', f
 
 				ready: (f = {}) ->
-					if Object.IsFunc f
+					if Object.IsFunction f
 						if readyTriggered
 							f.call @
 						else
@@ -1776,15 +1773,15 @@ Object.Type.register "bling",
 
 		pruners = {}
 		register = (type, obj) -> (pruners[type] = obj) if Object.Implements 'Pruner', obj
-		classify = (obj) -> pruners[obj.TYPE]
+		lookup = (obj) -> pruners[obj.TYPE]
 
 		Object.Type.extend "unknown", { compact: (o) -> Object.ToString(o) }
 		Object.Type.extend "array", { compact: (o) -> (Object.Compact(x) for x in o).join("") }
 		Object.Type.extend "bling", { compact: (o) -> o.map(Object.Compact).join("") }
 		Object.Type.extend "undefined", { compact: (o) -> "" }
 		Object.Type.extend "null", { compact: (o) -> "" }
-		Object.Type.extend "object", { compact: (o) -> Object.Compact(classify(obj)?.prune.apply o, o) }
-		Object.Compact = (o) -> Object.Type.classify(o).compact(o)
+		Object.Type.extend "object", { compact: (o) -> Object.Compact(lookup(obj)?.prune.apply o, o) }
+		Object.Compact = (o) -> Object.Type.lookup(o).compact(o)
 
 		register 'text', (node) -> node.EN
 		register 'link', (node) ->

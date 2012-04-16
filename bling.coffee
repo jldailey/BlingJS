@@ -28,64 +28,23 @@ ORD_A = "A".charCodeAt(0)
 ORD_Z = "Z".charCodeAt(0)
 ORD_a = "a".charCodeAt(0)
 
-dash = (name) ->
-	ret = ""
-	for i in [0...(name?.length|0)]
-		c = name.charCodeAt i
-		if ORD_Z >= c >= ORD_A # is upper case
-			c = (c - ORD_A) + ORD_a # shift to lower
-			ret += '-'
-		ret += String.fromCharCode(c)
-	return ret
-camel = (name) ->
-	while (i = name?.indexOf('-')) > -1
-		name = String.Splice(name, i, i+2, name[i+1].toUpperCase())
-	name
 capital = (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
 
 
-default_context = document ? {}
-
-Bling = (selector, context = default_context) ->
-	
-	Object.Enhance Bling, Object.Extend (Object.Type.classify selector)?.asArray(selector, context),
-			selector: selector
-			context: context
-	# firefox doesn't set the .length properly when we hijack the prototype
-	set.length = set.len()
-	return set
-# Blings are sets that extend from arrays
-Bling.prototype = new Array # start with a shallow copy (!) of the Array prototype, plugins will extend
-Bling.toString = () -> "function Bling(selector, context) { ... }" # dont waste a bunch of space in logs
-Types.register "bling",
-	test: (o) -> o? and Object.IsType Bling, o
-	asHash: (o) -> Object.Hash(o.selector) + o.map(Object.Hash).sum()
-	asArray: (o) -> o
-	asString: (o) -> Bling.symbol + "([" + o.map(Object.ToString).join "," + "])"
-
 Object.Keys ?= (o, inherited = false) -> # Object.Keys(/o/, [/inherited/]) - get a list of key names
-	keys = []; j = 0
-	for i of o
-		if inherited or o.hasOwnProperty(i)
-			keys[j++] = i
-	keys
+	(k for k of o when (inherited or o.hasOwnProperty(k)))
 
 Object.Extend ?= (a, b, k) -> # Object.Extend(a, b, [whitelist]) - merge values from b into a
-	if Array.isArray(k)
-		for key in k
-			if FORCE_RE.test(key)
-				key = key.replace(FORCE_RE,"")
-				a[key] = b[key] unless b[key] is undefined
-			else
-				a[key] ?= b[key] unless b[key] is undefined
-	else
-		for key in Object.Keys(b)
-			if FORCE_RE.test(key)
-				v = b[key]
-				key = key.replace(FORCE_RE,"")
-				a[key] = v
-			else
-				a[key] ?= b[key]
+	if not Array.isArray(k)
+		k = Object.Keys(b)
+	for key in k
+		v = b[key]
+		if not v? then continue
+		if FORCE_RE.test(key)
+			key = key.replace(FORCE_RE,"")
+			a[key] = v
+		else
+			a[key] ?= v
 	a
 
 interfaces = {} # a private cache of defined interfaces
@@ -93,18 +52,18 @@ interfaces = {} # a private cache of defined interfaces
 Object.Extend Object,
 	Get: (o, key, def) ->
 		dot = key.indexOf '.'
-		return switch true
+		switch true
 			when dot isnt -1 then Object.Get(Object.Get(o, key.substring(0,dot)), key.substring(dot+1), def)
 			when key of o then o[key]
 			else def
 	IsType: (T, o) -> # Object.IsType(o,T) - true if object o is of type T (directly or inherits)
-		if o == null then o is T
+		if o == null then T in [o,"null","undefined"]
 		else if o.constructor is T then true
 		else if typeof T is "string"
 			o.constructor.name is T or Object::toString.apply(o).replace(OBJECT_RE, "$1") is T
 		else # recurse through sub-classes
 			Object.IsType T, o.__proto__
-	Enhance: (c, o) -> # similar to Extend, but hot-wires prototypes to the instance
+	Enhance: (c, o) -> # similar to Extend, but hot-wires prototypes instead of looping assigment
 		if Object.IsFunc(c)
 			o.constructor = c
 			c = c.prototype
@@ -126,79 +85,84 @@ Object.Extend Object,
 				return false # not enough parameters to function
 		return true # successfully passed all checks
 
+Object.Interface 'Type',
+	name: 'unknown'
+	match: (o) -> true # is o an instance of this type
+	asHash: (o) -> String.Checksum Object.String(o)
+	asArray: (o) -> [o]
+	asString: (o) -> o.toString?() ? String(o)
+
+Object.Type = (()->
+	order = [] # the order to check for matches
+	cache = {} # data about registered types
+
+	register = (name, data) ->
+		cache[data.name = name] = Object.Mixin('Type', data)
+		Object["Is"+capital(name)] = data.match
+		order.unshift name if not name in order
+	extend = (name, data) -> cache[name] = Object.Extend cache[name], data
+
+	classify = (obj) ->
+		for name in order
+			if data[name]?.match.call obj, obj
+				return data[name]
+
+	register "unknown", {}
+	register "object",
+		match: (o) -> o? and typeof o is "object"
+		asHash: (o) -> (Object.Hash(o[k]) for k of o) + Object.Hash(Object.Keys(o))
+	register "error", { match: (o) -> o? and Object.IsType 'Error', o }
+	register "regexp", { match: (o) -> o? and Object.IsType 'RegExp', o }
+	register "string",
+		match: (o) -> o? and (typeof o is "string" or Object.IsType(String, o))
+		asArray: (s,c) ->
+			s = s.trimLeft()
+			try
+				if s[0] is "<"
+					set = [Bling.HTML.parse(s)]
+				else if c.querySelectorAll
+					set = c.querySelectorAll(s)
+				else
+					throw Error "invalid context: #{c} (type: #{Object.Type c})"
+			catch e
+				throw Error "invalid selector: #{s} (error: #{e})"
+	register "array",
+		match: (o) -> o? and (Array.isArray?(o) or Object.IsType Array, o)
+		asHash: (o) -> (Object.Hash(i) for i in x).reduce (a,x) -> a+x
+		asArray: (o) -> o
+		asString: (o) -> "[" + (Object.ToString(x) for x in o).join(",") + "]"
+	register "number",
+		match: (o) -> o? and Object.IsType Number, o
+		asArray: (o) -> new Array(o)
+		asString: (o) -> switch true
+			when o.precision? then o.toPrecision(o.precision)
+			when o.fixed? then o.toFixed(o.fixed)
+			else String(o)
+	register "boolean",
+		match: (o) -> typeof o is "boolean" or String(o) in ["true","false"]
+		asHash: (o) -> parseInt(1 if o)
+	register "undefined",
+		match: (x) -> x is undefined
+		asHash: (o) -> -1
+		asArray: (o) -> []
+	register "null",
+		match: (x) -> x is null
+		asHash: (o) -> -2
+		asArray: (o) -> []
+
+	ret = (o) -> classify(o).name
+
+	Object.Extend ret,
+		register: register
+		classify: classify
+		extend: extend
+)()
+
 Object.Extend Object,
-	Type: (()->
-		Object.Interface 'Type',
-			name: 'unknown'
-			test: (o) -> true # is o an instance of this type
-			asHash: (o) -> String.Checksum Object.String(o)
-			asArray: (o) -> [o] # how to convert an instance into an array
-			asString: (o) -> o.toString?() ? String(o)
-
-		order = [] # the order to issue type-checks in
-		cache = {} # cache of data about registered types
-
-		register = (name, data) ->
-			cache[data.name = name] = Object.Mixin('Type', data)
-			Object["Is"+capital(name)] = data.test
-			order.unshift name if not name in order
-
-		classify = (obj) -> (return data[name]) for name in order when data[name]?.test.call obj, obj
-
-		register "unknown", {}
-		register "object",
-			test: (o) -> o? and typeof o is "object"
-			asHash: (o) -> (Object.Hash(o[k]) for k of o) + Object.Hash(Object.Keys(o))
-		register "error", { test: (o) -> o? and Object.IsType 'Error', o }
-		register "regexp", { test: (o) -> o? and Object.IsType 'RegExp', o }
-		register "string",
-			test: (o) -> o? and (typeof o is "string" or Object.IsType(String, o))
-			asArray: (s,c) ->
-				s = s.trimLeft()
-				try
-					if s[0] is "<"
-						set = [Bling.HTML.parse(s)]
-					else if c.querySelectorAll
-						set = c.querySelectorAll(s)
-					else
-						throw Error "invalid context: #{c} (type: #{Object.Type c})"
-				catch e
-					throw Error "invalid selector: #{s} (error: #{e})"
-		register "array",
-			test: (o) -> o? and (Array.isArray?(o) or Object.IsType Array, o)
-			asHash: (o) -> (Object.Hash(i) for i in x).reduce (a,x) -> a+x
-			asArray: (o) -> o
-			asString: (o) -> "[" + (Object.ToString(x) for x in o).join(",") + "]"
-		register "number",
-			test: (o) -> o? and Object.IsType Number, o
-			asArray: (o) -> new Array(o)
-			asString: (o) -> switch true
-				when o.precision? then o.toPrecision(o.precision)
-				when o.fixed? then o.toFixed(o.fixed)
-				else String(o)
-		register "boolean",
-			test: (o) -> typeof o is "boolean" or String(o) in ["true","false"]
-			asHash: (o) -> parseInt(1 if o)
-		register "undefined",
-			test: (x) -> x is undefined
-			asHash: (o) -> 1
-			asArray: (o) -> []
-		register "null",
-			test: (x) -> x is null
-			asHash: (o) -> 2
-			asArray: (o) -> []
-		
-		ret = (o) -> classify(o).name
-		
-		return Object.Extend ret,
-			register: register
-			classify: classify
-	)()
-
+	IsEmpty: (o) -> o in ["", null, undefined]
 	IsSimple: (o) -> Object.Type(o) in ["string", "number", "boolean"]
 	ToString: (x) -> Object.Type.classify(x).asString(x)
 	Hash: (x) -> Object.Type.classify(x).asHash(x)
-
 
 Object.Interface 'Iterator',
 	next: () -> null
@@ -213,21 +177,22 @@ Object.Interface 'Iterator',
 			f.call t, t
 		@
 	readAll: (n) -> (@next() while @hasNext() and ((not n?) or (n-- >= 0)) )
-Types.register "iterator",
-	test: (o) -> o? and Object.Implements(o, "Iterator")
+
+Object.Type.register "iterator",
+	match: (o) -> o? and Object.Implements(o, "Iterator")
 	asArray: (o) -> o.readAll()
 
 Object.Interface 'Function',
 	name: ''
 	apply: (c, a) ->
 	call: (a...) -> @apply a[0], a.slice(1)
-Types.register "function",
-	test: (o) -> o? and (typeof o is "function" or Object.Implements(o, "Function"))
+Object.Type.register "function",
+	match: (o) -> o? and (typeof o is "function" or Object.Implements(o, "Function"))
 
 Object.Interface 'Global',
 	setInterval: () -> # the same way jQuery detects the window object
-Types.register "global",
-	test: (o) -> o? and Object.Implements(o, "Global")
+Object.Type.register "global",
+	match: (o) -> o? and Object.Implements(o, "Global")
 
 for k in Object.Keys(interfaces)
 	if not Object.Implements(interfaces[k], k) # assert the invariant of the interfaces system
@@ -254,18 +219,22 @@ Object.Extend Function,
 		tracer "Function.Trace: #{label or f.name} created."
 		r.toString = f.toString
 		r
-	TraceAll: (o, tracer = log) ->
-		return switch Object.Type(o)
-			when "function" then Function.Trace(o, null, tracer)
-			when "object"
+	TraceAll: (o, label = "", tracer = log) -> (() ->
+		Object.Type.extend "unknown", { traceAll: (o) -> o }
+		Object.Type.extend "function", { traceAll: (f, label, tracer) -> Function.Trace(f, label, tracer) }
+		Object.Type.extend "object",
+			traceAll: (f, label, tracer) ->
 				for k in Object.Keys(o)
-					o[k] = Function.TraceAll(o[k], tracer)
+					o[k] = Function.TraceAll(o[k], "#{label}.#{k}", tracer)
 				o
-			else o
-	NotNull: (x) -> x != null
-	NotEmpty: (x) -> x not in ["", null]
-	IndexFound: (x) -> x > -1
-	ReduceAnd: (x) -> x and @
+		Object.Type.extend "array",
+			traceAll: (f, label, tracer) ->
+				for i in [0...o.length]
+					o[i] = Function.TraceAll(o[i], "#{label}[#{i}]", tracer)
+				o
+		return Object.Type.classify(o).traceAll(o, label, tracer)
+	)()
+	Not: (f) -> (x) -> not f(x)
 	UpperLimit: (x) -> (y) -> Math.min(x, y)
 	LowerLimit: (x) -> (y) -> Math.max(x, y)
 	Px: (d) -> () -> Number.Px(@,d)
@@ -273,10 +242,22 @@ Object.Extend Function,
 		cache = {} # a new cache for this function only
 		(a...) -> cache[Object.Hash(a)] ?= f.apply @, a
 
+
 Object.Extend String,
-	Dashize: dash
-	Camelize: camel
 	Capitalize: capital
+	Dashize: (name) ->
+		ret = ""
+		for i in [0...(name?.length|0)]
+			c = name.charCodeAt i
+			if ORD_Z >= c >= ORD_A # is upper case
+				c = (c - ORD_A) + ORD_a # shift to lower
+				ret += '-'
+			ret += String.fromCharCode(c)
+		return ret
+	Camelize: (name) ->
+		while (i = name?.indexOf('-')) > -1
+			name = String.Splice(name, i, i+2, name[i+1].toUpperCase())
+		name
 	PadLeft: (s, n, c = " ") -> # String.PadLeft(string, width, fill=" ")
 		while s.length < n
 			s = c + s
@@ -306,7 +287,7 @@ Object.Extend String,
 		@length   = 0
 		@append   = (s) => items.push s; @length += s?.toString().length|0
 		@prepend  = (s) => items.splice 0,0,s; @length += s?.toString().length|0
-		@clear    = ( ) => items = []; @length = 0
+		@clear    = ( ) => ret = @toString(); items = []; @length = 0; ret
 		@toString = ( ) => items.join("")
 		@
 
@@ -316,24 +297,6 @@ Object.Extend Array,
 		for i in a
 			return i if i?
 	Extend: (a, b) -> (a.push(i) for i in b); a
-	Compact: (a, buffer = new String.Builder(), array = [], topLevel = true) -> # Array.Compact reduces /a/ by joining adjacent stringy items
-		if not Object.IsArray(a)
-			return a
-		for i in a
-			switch true
-				when not i? then continue
-				when Object.IsArray(i) then Array.Compact(i, buffer, array, false)
-				when Object.IsSimple(i) then buffer.append(i)
-				else
-					array.push buffer.toString() if buffer.length > 0
-					array.push i
-					buffer.clear()
-		if array.length is 0
-			return buffer.toString()
-		if buffer.length > 0 and topLevel
-			array.push buffer.toString()
-			buffer.clear()
-		return array
 	Iter: (a) ->
 		i = 0
 		Object.Mixin 'Iterator',
@@ -361,6 +324,22 @@ Object.Extend Number,
 	AtMost: (x) -> # mappable version of min()
 		(y) -> Math.min parseFloat(y or 0), x
 
+default_context = document ? {}
+Bling = (selector, context = default_context) ->
+	set = Object.Enhance Bling, Object.Extend (Object.Type.classify selector)?.asArray(selector, context),
+			selector: selector
+			context: context
+	set.length = set.len()
+	return set
+# Blings are sets that extend from arrays
+Bling.prototype = new Array # start with a shallow copy (!) of the Array prototype, plugins will extend
+Bling.toString = () -> "function Bling(selector, context) { ... }" # dont waste a bunch of space in logs
+Object.Type.register "bling",
+	match: (o) -> o? and Object.IsType Bling, o
+	asHash: (o) -> Object.Hash(o.selector) + o.map(Object.Hash).sum()
+	asArray: (o) -> o
+	asString: (o) -> Bling.symbol + "([" + o.map(Object.ToString).join "," + "])"
+
 (($) -> # protected name space
 
 	$.plugins = []
@@ -375,10 +354,10 @@ Object.Extend Number,
 			$.plugins.push(name)
 			$.plugins[name] = plugin
 			delete plugin.name
-			# if a plugin defines globals, extend Bling
+			# if a plugin defines root items, extend Bling
 			if plugin[Bling.symbol]
+				# apply the root extensions
 				Object.Extend(Bling, plugin[Bling.symbol])
-				# clear off the globals
 				delete plugin[Bling.symbol]
 			# everything else about the plugin extends the prototype
 			Object.Extend(Bling.prototype, plugin)
@@ -465,10 +444,7 @@ Object.Extend Number,
 		}
 
 	$.plugin () -> # Core - the functional basis for all other modules
-		TimeoutQueue = () -> # new TimeoutQueue().schedule(f, 10);
-			# TimeoutQueue works like setTimeout but enforces strictness on the order
-			# (still has the same basic timing inaccuracy, but will always fire
-			# callbacks in the order they were originally scheduled.)
+		TimeoutQueue = () -> # works like setTimeout but always fire callbacks in the order they were originally scheduled.
 			q = []
 			next = () => # next() consumes the next handler on the queue
 				if q.length > 0
@@ -539,10 +515,8 @@ Object.Extend Number,
 				ret.push(x) for x in @ when not ret.contains(x, strict)
 				ret.push(x) for x in other when not ret.contains(x, strict)
 				ret
-			distinct: (strict = true) -> @union(@, strict)
-
+			distinct: (strict = true) -> @union @, strict
 			intersect: (other) -> $(x for x in @ when x in other) # another very beatiful expression
-
 			contains: (item, strict = true) ->
 				((strict and t is item) or (not strict and t == item) for t in @).reduce (a,x) -> a or x
 
@@ -853,17 +827,17 @@ Object.Extend Number,
 		}
 
 	if Object.global.document?
-		Types.register "nodelist",
-			test: (o) -> o? and Object.IsType "NodeList", o
+		Object.Type.register "nodelist",
+			match: (o) -> o? and Object.IsType "NodeList", o
 			asHash: (o) -> $(Object.Hash(i) for i in x).sum()
 			asArray: (o) -> o
 			asString: (o) -> "{NodeList:["+$(o).zip('nodeName').join(",")+"]}"
-		Types.register "fragment",
-			test: (o) -> o?.nodeType is 11
+		Object.Type.register "fragment",
+			match: (o) -> o?.nodeType is 11
 			asHash: (o) -> $(Object.Hash(x) for x in o.childNodes).sum()
 			asString: (o) -> "{Fragment:["+$(o.childNodes).zip('nodeName').join(",")+"]}"
-		Types.register "node",
-			test: (o) -> o?.nodeType > 0
+		Object.Type.register "node",
+			match: (o) -> o?.nodeType > 0
 			asHash: (o) -> String.Checksum(o.nodeName) + Object.Hash(o.attributes) + String.Checksum(o.innerHTML)
 			asString: (o) -> "{Node:"+o.nodeName+" "+ (k+"="+o.getAttribute(k) for k in Object.Keys(o.attributes))+"}"
 
@@ -883,8 +857,8 @@ Object.Extend Number,
 
 			toNode = (x) -> # convert nearly anything to something node-like for use in the DOM
 				switch Object.Type x
-					when "fragment" then x
-					when "node" then x
+					when "fragment","node" then x
+					# when "node" then x
 					when "bling" then x.toFragment()
 					when "string" then $(x).toFragment()
 					when "function" then $(x.toString()).toFragment()
@@ -899,7 +873,6 @@ Object.Extend Number,
 				# so define something that does work properly for use in .css
 				() ->
 					window.getComputedStyle(@, null).getPropertyValue(k)
-
 
 			return {
 				name: 'Html'
@@ -1066,21 +1039,20 @@ Object.Extend Number,
 							@removeAttribute('class')
 
 				toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
-					notx = (y) -> y != x
 					@each () ->
 						cls = @className.split(" ")
 						if( cls.indexOf(x) > -1 )
-							c = cls.filter(notx).join(" ")
+							c = cls.filter((y) -> y != x).join(" ")
 						else
 							cls.push(x)
-							c = cls.filter(Function.NotEmpty).join(" ")
+						c = cls.filter(Function.Not Object.IsEmpty).join(" ")
 						if c.length > 0
 							@className = c
 						else
 							@removeAttribute('class')
 
 				hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x
-					@zip('className.split').call(" ").zip('indexOf').call(x).map Function.IndexFound
+					@zip('className.split').call(" ").zip('indexOf').call(x).map (x) -> x > -1
 
 				text: (t) -> # .text([t]) - get [or set] each node's .textContent
 					return @zap('textContent', t) if t?
@@ -1795,6 +1767,34 @@ Object.Extend Number,
 					style: (src) ->
 						lazy_load "link", { "href!": src, "rel!": "stylesheet" }
 			}
+	
+	# scratch working space for now
+	$.plugin () -> # Damson plugin
+
+		Object.Interface 'Pruner',
+			prune: (obj) -> ""
+
+		pruners = {}
+		register = (type, obj) -> (pruners[type] = obj) if Object.Implements 'Pruner', obj
+		classify = (obj) -> pruners[obj.TYPE]
+
+		Object.Type.extend "unknown", { compact: (o) -> Object.ToString(o) }
+		Object.Type.extend "array", { compact: (o) -> (Object.Compact(x) for x in o).join("") }
+		Object.Type.extend "bling", { compact: (o) -> o.map(Object.Compact).join("") }
+		Object.Type.extend "undefined", { compact: (o) -> "" }
+		Object.Type.extend "null", { compact: (o) -> "" }
+		Object.Type.extend "object", { compact: (o) -> Object.Compact(classify(obj)?.prune.apply o, o) }
+		Object.Compact = (o) -> Object.Type.classify(o).compact(o)
+
+		register 'text', (node) -> node.EN
+		register 'link', (node) ->
+			a = ["<a"]
+			for k in ["href","name","target"]
+				if k of node
+					Array.Extend(a, [" ",k,"='",node[k],"'"])
+			Array.Extend(a, [">",node.CONTENT,"</a>"])
+			return a
+
 
 )(Bling)
 # vim: ft=coffee sw=2 ts=2

@@ -199,7 +199,9 @@ for k in Object.Keys(interfaces)
 		throw new Error("assertion failure: interfaces invariant doesnt hold")
 
 Object.Extend Function,
+	Not: (f) -> (x) -> not f(x)
 	Empty: () -> # the empty function
+	Compose: (f,g) -> (x) -> f(g(x))
 	Bound: (f, t, args = []) -> # Function.Bound(/f/, /t/) - whenever /f/ is called, _this_ is /t/
 		if Object.IsFunc f.bind
 			args.splice 0, 0, t
@@ -208,33 +210,32 @@ Object.Extend Function,
 			r = (a...) ->
 				if args.length > 0
 					a = args
-				f.apply t, args
+				f.apply t, a
 		r.toString = () ->
 			"bound-method of #{t}.#{f.name}"
 		r
-	Trace: (f, label, tracer = log) -> # Function.Trace(/f/, /label/) - log calls to /f/
-		r = (a...) ->
-			tracer "#{@name or Object.Type(@)}.#{label or f.name}(", a, ")"
-			f.apply @, a
-		tracer "Function.Trace: #{label or f.name} created."
-		r.toString = f.toString
-		r
-	TraceAll: (o, label = "", tracer = log) -> (() ->
-		Object.Type.extend "unknown", { traceAll: (o) -> o }
-		Object.Type.extend "function", { traceAll: (f, label, tracer) -> Function.Trace(f, label, tracer) }
+	Trace: (() ->
+		Object.Type.extend "unknown", { trace: (o) -> o }
+		Object.Type.extend "function",
+			trace: (f, label, tracer) ->
+				r = (a...) ->
+					tracer "#{@name or Object.Type(@)}.#{label or f.name}(", a, ")"
+					f.apply @, a
+				tracer "Trace: #{label or f.name} created."
+				r.toString = f.toString
+				r
 		Object.Type.extend "object",
-			traceAll: (f, label, tracer) ->
+			trace: (f, label, tracer) ->
 				for k in Object.Keys(o)
-					o[k] = Function.TraceAll(o[k], "#{label}.#{k}", tracer)
+					o[k] = Function.Trace(o[k], "#{label}.#{k}", tracer)
 				o
 		Object.Type.extend "array",
-			traceAll: (f, label, tracer) ->
+			trace: (f, label, tracer) ->
 				for i in [0...o.length]
-					o[i] = Function.TraceAll(o[i], "#{label}[#{i}]", tracer)
+					o[i] = Function.Trace(o[i], "#{label}[#{i}]", tracer)
 				o
 		return Object.Type.classify(o).traceAll(o, label, tracer)
 	)()
-	Not: (f) -> (x) -> not f(x)
 	UpperLimit: (x) -> (y) -> Math.min(x, y)
 	LowerLimit: (x) -> (y) -> Math.max(x, y)
 	Px: (d) -> () -> Number.Px(@,d)

@@ -12,7 +12,7 @@
 						@_mode = m
 						if @_mode isnt @_lastMode and @modeline? and 'enter' of @modeline
 							ret = @modeline['enter'].call @
-							while Object.IsFunc(ret)
+							while Object.IsFunction(ret)
 								ret = ret.call @
 						m
 					get: () -> @_mode
@@ -35,11 +35,11 @@
 						ret = row[c]
 					else if 'def' of row
 						ret = row['def']
-					while Object.IsFunc(ret)
+					while Object.IsFunction(ret)
 						ret = ret.call @, c
-				if Object.IsFunc(@modeline?.eof)
+				if Object.IsFunction(@modeline?.eof)
 					ret = @modeline.eof.call @
-				while Object.IsFunc(ret)
+				while Object.IsFunction(ret)
 					ret = ret.call @
 				@reset()
 				return @

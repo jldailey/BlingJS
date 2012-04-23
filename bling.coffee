@@ -159,7 +159,8 @@ Object.Extend Object,
 Object.Extend Function,
 	Identity: (o) -> o # the empty function
 	Not: (f) -> (x) -> not f(x)
-	Compose: (f,g) -> (x) -> f(g(x))
+	Compose: (f,g) -> (x) -> f.call(y, (y = g.call(x,x)))
+	And: (f,g) -> (x) -> g.call(x,x) and f.call(x,x)
 	Bound: (f, t, args = []) -> # Function.Bound(/f/, /t/) - whenever /f/ is called, _this_ is /t/
 		if Object.IsFunction f.bind
 			args.splice 0, 0, t

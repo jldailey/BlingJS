@@ -60,6 +60,9 @@ global.testGroup = (name, tests) ->
 			test = tests[test_name]
 			total[0] += 1
 			try
+				if test_to_run isnt "*"
+					console.log "Running test:"
+					console.log test.toString()
 				test()
 				passed += 1
 				total[1] += 1

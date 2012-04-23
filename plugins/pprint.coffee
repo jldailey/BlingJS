@@ -38,7 +38,7 @@
 			n = s.length
 			ret = []
 			if not Object.IsString(s)
-				if not Object.IsFunc(s.toString)
+				if not Object.IsFunction(s.toString)
 					throw TypeError("invalid string argument to split_quoted")
 				else
 					s = s.toString()
@@ -93,7 +93,7 @@
 			name: "PrettyPrint"
 			$:
 				prettyPrint: (js, colors) ->
-					js = js.toString() if Object.IsFunc(js)
+					js = js.toString() if Object.IsFunction(js)
 					if not Object.IsString(js)
 						throw TypeError("prettyPrint requires a function or string to format, not '"+Object.Type(js)+"'")
 					if $("style#prettyPrint").length is 0

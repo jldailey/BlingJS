@@ -23,6 +23,7 @@ ORD_Z = "Z".charCodeAt(0)
 ORD_a = "a".charCodeAt(0)
 
 capital = (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
+interfaces = {} # a private cache of defined interfaces
 
 Object.Keys ?= (o, inherited = false) -> (k for k of o when (inherited or o.hasOwnProperty(k)))
 
@@ -34,8 +35,6 @@ Object.Extend ?= (a, b, k) -> # Object.Extend(a, b, [whitelist]) - merge values 
 		if not v? then continue
 		a[key] = v
 	a
-
-interfaces = {} # a private cache of defined interfaces
 
 Object.Extend Object,
 	Get: (o, key, def) ->
@@ -61,20 +60,20 @@ Object.Extend Object,
 		o
 	Interface: (name, fields) -> interfaces[name] = fields # a simple interface system for duck-typing
 
-Object.Interface 'Type',
-	name: 'unknown'
-	match: (o) -> true # is o an instance of this type
-
 Object.Type = (()-> # this is a type classifier, and a way to group functionality around a type without stepping on any built-in prototypes
 	order = [] # the order to check for matches
 	cache = {} # data about registered types
 
+	Object.Interface 'Type', # all registered types inherit from this base
+		name: 'unknown'
+		match: (o) -> true # is o an instance of this type
+
 	register = (name, data) ->
 		Object["Is"+capital(name)] = (o) -> data.match.call o,o
-		order.unshift name if not (name in order)
+		order.unshift name if not (name of cache)
 		cache[data.name = name] = Object.Inherit('Type', data)
 
-	extend = (name, data) ->
+	extend = (name, data) -> # add functionality to a type or types
 		if not name?
 			Object.Extend interfaces['Type'], data
 		else if typeof name is "string"
@@ -87,14 +86,15 @@ Object.Type = (()-> # this is a type classifier, and a way to group functionalit
 			if cache[name]?.match.call obj, obj
 				return cache[name]
 
-	register "unknown",   match: -> true
+	# these type checks are executed in reverse order, so the first listed here is tested last
+	register "unknown",   match: -> true # even though this is just the default check, we need to register this here to control the order
 	register "object",    match: -> typeof @ is "object"
 	register "error",     match: -> Object.IsType 'Error', @
 	register "regexp",    match: -> Object.IsType 'RegExp', @
 	register "string",    match: -> typeof @ is "string" or Object.IsType String, @
-	register "array",     match: -> Array.isArray?(@) or Object.IsType Array, @
 	register "number",    match: -> Object.IsType Number, @
-	register "bool",   match: -> typeof @ is "boolean" or String(@) in ["true","false"]
+	register "bool",      match: -> typeof @ is "boolean" or String(@) in ["true","false"]
+	register "array",     match: -> Array.isArray?(@) or Object.IsType Array, @
 	register "function",  match: -> typeof @ is "function"
 	register "global",    match: -> typeof @ is "object" and 'setInterval' of @
 	register "undefined", match: (x) -> x is undefined
@@ -836,7 +836,7 @@ Object.Type.register "bling",
 
 				html: (h) -> # .html([h]) - get [or set] /x/.innerHTML for each node
 					return switch Object.Type h
-						when "undefined" then @zip 'innerHTML'
+						when "undefined","null" then @zip 'innerHTML'
 						when "string" then @zap 'innerHTML', h
 						when "bling" then @html h.toFragment()
 						when "node"

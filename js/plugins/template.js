@@ -21,7 +21,7 @@
       };
       template.__defineSetter__('engine', function(v) {
         if (!v in engines) {
-          throw new Error("invalid template engine: " + v + " not one of " + Object.Keys[engines]);
+          throw new Error("invalid template engine: " + v + " not one of " + (Object.Keys(engines)));
         } else {
           return current_engine = v;
         }

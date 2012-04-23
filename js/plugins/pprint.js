@@ -52,7 +52,7 @@
         n = s.length;
         ret = [];
         if (!Object.IsString(s)) {
-          if (!Object.IsFunc(s.toString)) {
+          if (!Object.IsFunction(s.toString)) {
             throw TypeError("invalid string argument to split_quoted");
           } else {
             s = s.toString();
@@ -117,7 +117,7 @@
         $: {
           prettyPrint: function(js, colors) {
             var cls, css, ret;
-            if (Object.IsFunc(js)) js = js.toString();
+            if (Object.IsFunction(js)) js = js.toString();
             if (!Object.IsString(js)) {
               throw TypeError("prettyPrint requires a function or string to format, not '" + Object.Type(js) + "'");
             }

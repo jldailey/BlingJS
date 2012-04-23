@@ -958,16 +958,17 @@ Object.Type.register "bling",
 							@removeAttribute('class')
 
 				toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
+					notx = (y) -> y isnt x
 					@each () ->
 						cls = @className.split(" ")
+						filter = Function.Not Object.IsEmpty
 						if( cls.indexOf(x) > -1 )
-							c = cls.filter((y) -> y != x).join(" ")
+							filter = Function.And notx, filter
 						else
 							cls.push(x)
-						c = cls.filter(Function.Not Object.IsEmpty).join(" ")
-						if c.length > 0
-							@className = c
-						else
+						c = cls.filter(filter).join(" ")
+						@className = c
+						if c.length is 0
 							@removeAttribute('class')
 
 				hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x

@@ -35,6 +35,7 @@ p {
 	margin-left:auto;
 	margin-right:auto;
 }
+.center { text-align: center; }
 .bold { font-weight: bold; }
 .right { text-align: right; }
 .center { text-align: center; }
@@ -123,5 +124,17 @@ a[href] {
 
 a[href^=mailto] {
 	text-decoration: none;
+}
+
+ol.outline {
+	list-style-type: decimal;
+	ol {
+		list-style-type: lower-alpha;
+		padding-left: 1em;
+		ol {
+			list-style-type: lower-roman;
+			padding-left: 1.5em;
+		}
+	}
 }
 // vim: ft=less

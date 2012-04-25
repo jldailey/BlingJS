@@ -18,8 +18,7 @@
 		var initial_tab = /(^|\n)\t/g,
 			all_tabs = /\t/g
 		$("pre").zap('innerHTML', function(html) {
-			return $.prettyPrint($.HTML.escape(html)
-				.replace(all_tabs, "  "));
+			return $.prettyPrint(html.replace(all_tabs, "  "));
 		})
 		// clean up textarea's also
 		$("textarea").zap('value', function (value) {

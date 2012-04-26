@@ -161,18 +161,15 @@ Object.Extend Function,
 	Not: (f) -> (x) -> not f(x)
 	Compose: (f,g) -> (x) -> f.call(y, (y = g.call(x,x)))
 	And: (f,g) -> (x) -> g.call(x,x) and f.call(x,x)
+	Once: (f,n=1) -> (a...) -> (f.apply @,a) if n-- > 0
 	Bound: (f, t, args = []) -> # Function.Bound(/f/, /t/) - whenever /f/ is called, _this_ is /t/
 		if Object.IsFunction f.bind
 			args.splice 0, 0, t
 			r = f.bind.apply f, args
 		else
-			r = (a...) ->
-				if args.length > 0
-					a = args
-				f.apply t, a
-		r.toString = () ->
-			"bound-method of #{t}.#{f.name}"
-		r
+			r = (a...) -> f.apply t, (args if args.length else a)
+		Object.Extend r,
+			toString: () -> "bound-method of #{t}.#{f.name}"
 	UpperLimit: (x) -> (y) -> Math.min(x, y)
 	LowerLimit: (x) -> (y) -> Math.max(x, y)
 	Px: (d) -> () -> Number.Px(@,d)
@@ -283,7 +280,6 @@ Bling = (selector, context = default_context) ->
 	set.length = set.len()
 	set
 Bling.prototype = new Array # start with a shallow copy (!) of the Array prototype, plugins will extend
-Bling.toString = () -> "function Bling(selector, context) { ... }" # dont waste a bunch of space in logs
 Bling.plugins = []
 Bling.plugin = (constructor) ->
 	try
@@ -398,6 +394,7 @@ Object.Type.register "bling",
 			@
 		timeoutQueue = new TimeoutQueue()
 
+
 		getter = (prop) -> # used in .zip()
 			() ->
 				v = @[prop]
@@ -419,9 +416,7 @@ Object.Type.register "bling",
 				log: log
 				assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 				delay: (n, f) ->
-					if f
-						timeoutQueue.schedule(f, n)
-					# return an actor that can cancel
+					if Object.IsFunction(f) then timeoutQueue.schedule(f, n)
 					return { cancel: () -> timeoutQueue.cancel(f) }
 			toString: () -> Object.String(@)
 			eq: (i) -> $([@[i]])
@@ -747,6 +742,26 @@ Object.Type.register "bling",
 				subscribe: subscribe
 				unsubscribe: unsubscribe
 		}
+	
+	$.plugin () -> # Throttle/Debounce plugin
+		now = new Date().getTime()
+		return {
+			name: 'Throttle'
+			$:
+				throttle: (f,n=250,last=0) ->
+					(a...) ->
+						gap = now() - last
+						if gap > n
+							last += gap
+							f.apply @,a
+						null
+				debounce: (f,n=250,last=0) -> # must be a silence of n ms before f is called again
+					(a...) ->
+						last += (delta = now() - last)
+						if delta > n
+							f.apply @,a
+						null
+		}
 
 	if Object.global.document?
 		Object.Type.register "nodelist",
@@ -774,27 +789,20 @@ Object.Type.register "bling",
 				toNode: -> $(@toString()).toFragment()
 
 		$.plugin () -> # Html plugin
-			before = (a,b) -> # insert b before a
-				if not a.parentNode?  # create a fragment if parent node is null
-					df = document.createDocumentFragment()
-					df.appendChild(a)
-				a.parentNode.insertBefore b, a
-
-			after = (a,b) -> # insert b after a
+			frag = (a) ->
 				if not a.parentNode?
 					df = document.createDocumentFragment()
 					df.appendChild(a)
-				a.parentNode.insertBefore b, a.nextSibling
-
+				a
+			before = (a,b) -> frag(a).parentNode.insertBefore b, a
+			after = (a,b) -> frag(a).parentNode.insertBefore b, a.nextSibling
 			toNode = (x) -> Object.Type.lookup(x).toNode.call x,x
-
 			escaper = null
 
-			getCSSProperty = (k) ->
-				# window.getComputedStyle is not a normal function
-				# (it doesnt support .call() so we can't use it with .map())
-				# so define something that does work properly for use in .css
-				() -> window.getComputedStyle(@, null).getPropertyValue(k)
+			# window.getComputedStyle is not a normal function
+			# (it doesnt support .call() so we can't use it with .map())
+			# so define something that does work properly for use in .css
+			getCSSProperty = (k) -> -> window.getComputedStyle(@, null).getPropertyValue(k)
 
 			return {
 				name: 'Html'
@@ -1333,16 +1341,16 @@ Object.Type.register "bling",
 
 		$.plugin () -> # HTTP Request plugin: provides wrappers for making http requests
 			formencode = (obj) -> # create &foo=bar strings from object properties
-				s = []
-				j = 0 # insert marker into s
 				o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
-				for i of o
-					s[j++] = "#{i}=#{escape o[i]}"
-				s.join("&")
+				("#{i}=#{escape o[i]}" for i of o).join("&")
 
-			{
+			Object.Type.register "http",
+				match: (o) -> Object.IsType 'XMLHttpRequest', o
+				asArray: (o) -> [o]
+
+			return {
 				name: 'Http'
-				$: { # globals
+				$: # globals
 					http: (url, opts = {}) -> # $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
 						xhr = new XMLHttpRequest()
 						if Object.IsFunction(opts)
@@ -1354,10 +1362,10 @@ Object.Type.register "bling",
 							success: Function.Identity # onload
 							error: Function.Identity # onerror
 							async: true
-							timeout: 0 # milliseconds, 0 is forever
-							withCredentials: false
-							followRedirects: false
 							asBlob: false
+							timeout: 0 # milliseconds, 0 is forever
+							followRedirects: false
+							withCredentials: false
 						}, opts
 						opts.state = Function.Bound(opts.state, xhr)
 						opts.success = Function.Bound(opts.success, xhr)
@@ -1367,20 +1375,20 @@ Object.Type.register "bling",
 						else if opts.data and opts.method is "POST"
 							opts.data = formencode(opts.data)
 						xhr.open(opts.method, url, opts.async)
-						xhr.withCredentials = opts.withCredentials
-						xhr.asBlob = opts.asBlob
-						xhr.timeout = opts.timeout
-						xhr.followRedirects = opts.followRedirects
-						xhr.onreadystatechange = () ->
-							if opts.state
-								opts.state()
-							if xhr.readyState is 4
-								if xhr.status is 200
-									opts.success xhr.responseText
-								else
-									opts.error xhr.status, xhr.statusText
+						xhr = Object.Extend xhr,
+							asBlob: opts.asBlob
+							timeout: opts.timeout
+							followRedirects: opts.followRedirects
+							withCredentials: opts.withCredentials
+							onreadystatechange: () ->
+								opts.state?()
+								if xhr.readyState is 4
+									if xhr.status is 200
+										opts.success xhr.responseText
+									else
+										opts.error xhr.status, xhr.statusText
 						xhr.send opts.data
-						return $([xhr])
+						return $(xhr)
 
 					post: (url, opts = {}) -> # $.post(/url/, [/opts/]) - fetch /url/ with a POST request
 						if Object.IsFunction(opts)
@@ -1393,7 +1401,6 @@ Object.Type.register "bling",
 							opts = {success: opts}
 						opts.method = "GET"
 						$.http(url, opts)
-				}
 			}
 
 		$.plugin () -> # Events plugin
@@ -1588,36 +1595,25 @@ Object.Type.register "bling",
 					selector = @selector
 					context = @context
 					# wrap f
-					handler = (evt) ->
-						# when event 'e' is fired
-						# re-execute the selector in the original context
-						$(selector, context)
-							# then see if the event would bubble into a match
-							.intersect($(evt.target).parents().first().union($(evt.target)))
-							# then fire the real handler 'f' on the matched nodes
-							.each () ->
-								evt.target = @
-								f.call(@, evt)
-					# bind the handler to the context
+					handler = (evt) -> # later, when event 'e' is fired
+						$(selector, context) # re-execute the selector in the original context
+							.intersect($(evt.target).parents().first().union($(evt.target))) # see if the event would bubble into a match
+							.each () -> f.call(evt.target = @, evt) # then fire the real handler 'f' on the matched nodes
 					# record f so we can 'die' it if needed
 					register_live selector, context, e, f, handler
 					@
 
-				die: (e, f) ->
-					# die(e, [f]) - stop f [or all] from living for event e
-					h = unregister_live @selector, @context, e, f
-					$(@context).unbind e, h
+				die: (e, f) -> # die(e, [f]) - stop f [or all] from living for event e
+					$(@context).unbind e, unregister_live(@selector, @context, e, f)
 					@
 
 				liveCycle: (e, funcs...) -> # .liveCycle(e, ...) - bind each /f/ in /funcs/ to handle /e/
-					i = -1
-					nf = funcs.length
-					@live e, (evt) ->
-						funcs[i = ++i % nf].call @, evt
+					i = -1; nf = funcs.length
+					@live e, (evt) -> funcs[i = ++i % nf].call @, evt
 
 				click: (f = {}) -> # .click([f]) - trigger [or bind] the 'click' event
-					if @css("cursor").intersect(["auto",""]).len() > 0
-						@css "cursor", "pointer" # if the cursor is just default then make it look clickable
+					if @css("cursor") in ["auto",""] # if the cursor is default
+						@css "cursor", "pointer" # then make it look clickable
 					if Object.IsFunction f
 						@bind 'click', f
 					else

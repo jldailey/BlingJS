@@ -272,35 +272,27 @@ Object.Type.extend
 			catch e
 				throw Error "invalid selector: #{s} (error: #{e})"
 
-default_context = document ? {}
-Bling = (selector, context = default_context) ->
-	set = Object.Inherit Bling, Object.Extend Object.Type.lookup(selector).toArray(selector, context),
-			selector: selector
-			context: context
-	set.length = set.len()
-	set
-Bling.prototype = new Array # start with a shallow copy (!) of the Array prototype, plugins will extend
-Bling.plugins = []
-Bling.plugin = (constructor) ->
-	try
-		name = constructor.name
-		plugin = constructor.call Bling,Bling
-		name = name or plugin.name
-		if not name
-			throw Error "plugin requires a 'name'"
-		Bling.plugins.push(name)
-		Bling.plugins[name] = plugin
-		delete plugin.name
-		# if a plugin defines root items, extend Bling directly
-		if '$' of plugin
-			# apply the root extensions
-			Object.Extend(Bling, plugin['$'])
-			delete plugin['$']
-		# everything else about the plugin extends the prototype
-		Object.Extend(Bling.prototype, plugin)
-	catch error
-		log "failed to load plugin: '#{name}', message: '#{error.message}'"
-		throw error
+class Bling extends (new Array)
+	constructor: (selector, context = document ? {}) ->
+		# convert the selector to an array-like (often a noop), and make the set instance inherit from Bling
+		set = Object.Inherit Bling, Object.Extend Object.Type.lookup(selector).toArray(selector, context),
+				selector: selector
+				context: context
+		set.length = set.len()
+		return set
+	@plugin: (constructor) ->
+		try
+			if (plugin = constructor.call @,@)?
+				if '$' of plugin # if a plugin defines root items
+					Object.Extend @, plugin.$ # apply the root extensions
+					delete plugin.$ # clear out of the way to not clobber the prototype
+				delete plugin.name # ignore old plugins that still set this
+				Object.Extend @.prototype, plugin # everything else extends the prototype
+		catch error
+			name = plugin?.name or constructor.name
+			log "failed to load plugin: '#{name}', message: '#{error.message}'"
+			throw error
+
 Object.Type.register "bling",
 	match: (o) -> Object.IsType Bling, o
 	hash: (o) -> Object.Hash(o.selector) + o.map(Object.Hash).sum()
@@ -312,19 +304,15 @@ Object.Type.register "bling",
 	$.plugin () -> # Symbol - allow to safely use something other than $ by assigning to Bling.symbol
 		symbol = null
 		cache = {}
-		g = Object.global
-		g.Bling = Bling
+		(g = Object.global).Bling = Bling
 		Object.defineProperty $, "symbol",
 			set: (v) ->
 				g[symbol] = cache[symbol]
-				cache[v] = g[v]
-				g[symbol = v] = Bling
-			get: () -> symbol
-		$.symbol = "$"
+				cache[symbol = v] = g[v]
+				g[v] = Bling
+			get: -> symbol
 
-		return {
-			name: "Symbol"
-		}
+		return $: symbol: "$"
 
 	$.plugin () -> # Compat - compatibility patches
 		leftSpaces_re = /^\s+/
@@ -360,9 +348,7 @@ Object.Type.register "bling",
 							n.appendChild i.cloneNode true
 					return n
 
-		return {
-			name: "Compat"
-		}
+		return { }
 
 	$.plugin () -> # Core - the functional basis for all other modules
 		TimeoutQueue = () -> # works like setTimeout but always fire callbacks in the order they were originally scheduled.
@@ -394,7 +380,6 @@ Object.Type.register "bling",
 			@
 		timeoutQueue = new TimeoutQueue()
 
-
 		getter = (prop) -> # used in .zip()
 			() ->
 				v = @[prop]
@@ -410,8 +395,6 @@ Object.Type.register "bling",
 			return ret
 
 		return {
-			name: 'Core'
-
 			$:
 				log: log
 				assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
@@ -457,7 +440,7 @@ Object.Type.register "bling",
 						# if more than one argument is passed, new objects
 						# with only those properties, will be returned
 						set = {}
-						nn = @len()
+						nn = @length
 						list = $()
 						j = 0 # insert marker into list
 						# first collect a set of lists
@@ -490,7 +473,7 @@ Object.Type.register "bling",
 			take: (n) ->
 				# .take([/n/]) - collect the first /n/ elements of _this_.
 				# if n >= @length, returns a shallow copy of the whole bling
-				nn = @len()
+				nn = @length
 				start = 0
 				end = Math.min n|0, nn
 				if n < 0
@@ -506,7 +489,7 @@ Object.Type.register "bling",
 				# .skip([/n/]) - collect all but the first /n/ elements of _this_.
 				# if n == 0, returns a shallow copy of the whole bling
 				start = Math.max 0, n|0
-				end = @len()
+				end = @length
 				a = $()
 				j = 0
 				for i in [start...end]
@@ -525,17 +508,17 @@ Object.Type.register "bling",
 				# .last([/n/]) - collect the last [/n/] elements from _this_.
 				# if n is not passed, returns just the last item (no bling)
 				if n is 1
-					@[@len() - 1]
+					@[@length - 1]
 				else
-					@skip(@len() - n)
+					@skip(@length - n)
 
-			slice: (start=0, end=@len()) ->
+			slice: (start=0, end=@length) ->
 				# .slice(/i/, [/j/]) - get a subset of _this_ including [/i/../j/-1]
 				# the j-th item will not be included - slice(0,2) will contain items 0, and 1.
 				# negative indices work like in python: -1 is the last item, -2 is second-to-last
 				# undefined start or end become 0, or @length, respectively
 				j = 0
-				n = @len()
+				n = @length
 				start += n if start < 0
 				end += n if end < 0
 				b = $()
@@ -547,7 +530,7 @@ Object.Type.register "bling",
 				# .extend(/b/) - insert all items from /b/ into _this_
 				# note: unlike union, allows duplicates
 				# note: also, does not create a new array, uses _this_ in-place
-				i = @len() - 1
+				i = @length - 1
 				j = -1
 				n = b.len?() ? b.length
 				while j < n-1
@@ -590,7 +573,7 @@ Object.Type.register "bling",
 				# note: if b and this are different lengths, the shorter
 				# will yield undefineds into the result
 				# the result always has 2 * max(length) items
-				nn = @len()
+				nn = @length
 				n = b.length
 				i = nn - 1
 				c = $()
@@ -608,7 +591,7 @@ Object.Type.register "bling",
 				# .fold() will always a set with half as many items
 				# tip: use as a companion to weave.  weave two blings together,
 				# then fold them to a bling the original size
-				n = @len()
+				n = @length
 				j = 0
 				# at least 2 items are required in the set
 				b = $()
@@ -621,7 +604,7 @@ Object.Type.register "bling",
 
 			flatten: () -> # .flatten() - collect the union of all sets in _this_
 				b = $()
-				n = @len()
+				n = @length
 				k = 0 # insert marker
 				for i in [0...n]
 					c = @[i]
@@ -646,11 +629,10 @@ Object.Type.register "bling",
 				@
 
 			log: (label) -> # .log([label]) - console.log([/label/] + /x/) for /x/ in _this_
-				n = @len()
 				if label
-					log(label, @, n + " items")
+					log(label, @, @length + " items")
 				else
-					log(@, n + " items")
+					log(@, @length + " items")
 				@
 
 			len: () -> # .len() - returns the max defined index + 1
@@ -667,7 +649,6 @@ Object.Type.register "bling",
 		}
 
 	$.plugin () -> # Math plugin
-		name: 'Maths'
 		$:
 			range: (start, end, step = 1) -> # $.range generates an array of numbers
 				step *= -1 if end < start and step > 0 # force step to have the same direction as start->end
@@ -680,7 +661,7 @@ Object.Type.register "bling",
 		px: (delta=0) -> @ints().map Function.Px(delta)
 		min: () -> @reduce (a) -> Math.min @, a
 		max: () -> @reduce (a) -> Math.max @, a
-		average: () -> @sum() / @len()
+		average: () -> @sum() / @length
 		sum: () -> @reduce (a) -> a + @
 		squares: ()  -> @map () -> @ * @
 		magnitude: () -> Math.sqrt @floats().squares().sum()
@@ -704,8 +685,7 @@ Object.Type.register "bling",
 			@
 
 		subscribe = (e, func, replay = true) ->
-			subscribers[e] ?= []
-			subscribers[e].push(func)
+			(subscribers[e] ?= []).push func
 			if replay # replay the publish archive
 				archive[e] ?= []
 				for args in archive[e]
@@ -736,7 +716,6 @@ Object.Type.register "bling",
 			get: () -> archive_trim
 
 		return {
-			name: "PubSub"
 			$:
 				publish: publish
 				subscribe: subscribe
@@ -744,23 +723,20 @@ Object.Type.register "bling",
 		}
 	
 	$.plugin () -> # Throttle/Debounce plugin
-		now = new Date().getTime()
+		now = -> +new Date()
 		return {
-			name: 'Throttle'
 			$:
 				throttle: (f,n=250,last=0) ->
 					(a...) ->
 						gap = now() - last
 						if gap > n
 							last += gap
-							f.apply @,a
+							return f.apply @,a
 						null
 				debounce: (f,n=250,last=0) -> # must be a silence of n ms before f is called again
 					(a...) ->
-						last += (delta = now() - last)
-						if delta > n
-							f.apply @,a
-						null
+						last += (gap = now() - last)
+						return f.apply @,a if gap > n else null
 		}
 
 	if Object.global.document?
@@ -805,8 +781,6 @@ Object.Type.register "bling",
 			getCSSProperty = (k) -> -> window.getComputedStyle(@, null).getPropertyValue(k)
 
 			return {
-				name: 'Html'
-
 				$:
 					HTML: # $.HTML.* - HTML methods similar to the global JSON object
 						parse: (h) -> # $.HTML.parse(/h/) - parse the html in string h, a Node.
@@ -1169,7 +1143,7 @@ Object.Type.register "bling",
 							null
 
 				toFragment: () ->
-					if @len() > 1
+					if @length > 1
 						df = document.createDocumentFragment()
 						adder = Function.Bound(df.appendChild, df)
 						@map(toNode).map adder
@@ -1214,13 +1188,11 @@ Object.Type.register "bling",
 				transitionTiming = "-o-transition-timing-function"
 
 			return {
-				name: 'Transform'
-				$: {
+				$:
 					duration: (speed) -> # $.duration(/s/) - given a speed description (string|number), return a number in milliseconds
 						d = speeds[speed]
 						return d if d?
 						return parseFloat speed
-				}
 
 				# like jquery's animate(), but using only webkit-transition/transform
 				transform: (end_css, speed, easing, callback) ->
@@ -1349,7 +1321,6 @@ Object.Type.register "bling",
 				asArray: (o) -> [o]
 
 			return {
-				name: 'Http'
 				$: # globals
 					http: (url, opts = {}) -> # $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
 						xhr = new XMLHttpRequest()
@@ -1452,7 +1423,6 @@ Object.Type.register "bling",
 			bindReady()
 
 			ret = {
-				name: 'Events'
 				bind: (e, f) -> # .bind(e, f) - adds handler f for event type e
 					# e is a string like 'click', 'mouseover', etc.
 					# e can be comma-separated to bind multiple events at once
@@ -1630,8 +1600,7 @@ Object.Type.register "bling",
 			}
 
 			# add event binding/triggering shortcuts for the generic events
-			events.forEach (x) ->
-				ret[x] = binder(x)
+			events.forEach (x) -> ret[x] = binder(x)
 			return ret
 
 		$.plugin () -> # LazyLoader plugin, depends on PubSub
@@ -1657,7 +1626,6 @@ Object.Type.register "bling",
 				}
 
 			return {
-				name: "LazyLoader"
 				$:
 					script: (src) ->
 						lazy_load "script", { src: src }

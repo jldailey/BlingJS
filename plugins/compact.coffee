@@ -1,41 +1,41 @@
 (($) ->
 	$.plugin () ->
 		pruners = {}
-		register = (type, obj) -> (pruners[type] = obj)
-		lookup = (obj) -> pruners[obj.TYPE]
+		register = (type, f) -> (pruners[type] = f)
+		lookup = (f) -> pruners[obj.t]
+		stack = []
 
-		Object.Type.extend "unknown", { compact: (o) -> Object.String(o) }
-		Object.Type.extend "string", { compact: (o) -> o }
-		Object.Type.extend "number", { compact: (o) -> Object.String(o) }
-		Object.Type.extend "array", { compact: (o) -> (Object.Compact(x) for x in o).join("") }
-		Object.Type.extend "bling", { compact: (o) -> o.map(Object.Compact).join("") }
+		Object.Type.extend null,        { compact: (o) -> Object.String(o) }
 		Object.Type.extend "undefined", { compact: (o) -> "" }
-		Object.Type.extend "null", { compact: (o) -> "" }
-		Object.Type.extend "object", { compact: (o) -> Object.Compact(lookup(o)?.prune.call o, o) }
+		Object.Type.extend "null",      { compact: (o) -> "" }
+		Object.Type.extend "string",    { compact: Function.Identity }
+		Object.Type.extend "array",     { compact: (o) -> (Object.Compact(x) for x in o).join("") }
+		Object.Type.extend "bling",     { compact: (o) -> o.map(Object.Compact).join("") }
+		Object.Type.extend "object",    { compact: (o) -> Object.Compact(lookup(o)?.call o, o) }
 
-		Object.Compact = (o) -> Object.Type.lookup(o)?.compact(o)
+		Object.Compact = (o) ->
+			stack.push(o)
+			Object.Type.lookup(o)?.compact(o)
+			stack.pop()
 		Object.Extend Object.Compact,
 			register: register
 			lookup: lookup
 
-		register 'page', prune: (node) -> [
+		register 'page', -> [
 			"<!DOCTYPE html><html><head>",
-					node.HEAD,
-				"</head><body>",
-					node.BODY,
-				"</body></html>"
+				@head,
+			"</head><body>",
+				@body,
+			"</body></html>"
 		]
-		register 'text', prune: (node) -> node.EN
-		register 'link', prune: (node) ->
-			a = ["<a"]
-			for k in ["href","name","target"]
-				if k of node
-					Array.Extend(a, [" ",k,"='",node[k],"'"])
-			Array.Extend(a, [">",node.CONTENT,"</a>"])
-			return a
+		register 'text', -> @EN
+		register 'link', ->
+			a = $(["<a"])
+			a.extend(" ",k,"='",@[k],"'") for k in ["href","name","target"] when k of @
+			a.extend(">",node.content,"</a>")
 
-		Object.Compact({ TYPE: "page", HEAD: [], BODY: {TYPE: "text", EN: "Hello World"} }) is
-			"<!DOCTYPE html><html><head></head><body>Hello World</body></html>"
+		$.assert(Object.Compact({ t: "page", head: [], body: {type: "text", EN: "Hello World"} }) is
+			"<!DOCTYPE html><html><head></head><body>Hello World</body></html>")
 
 		return { name: "Compact" }
 )(Bling)

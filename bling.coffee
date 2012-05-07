@@ -1,146 +1,279 @@
-###
+# Why not add some "bling" to that plain old list of things?
 
-Named after the bling symbol ($) to which it is bound by default.
-Blame: Jesse Dailey <jesse.dailey@gmail.com>
-(Copyright) 2011
-(License) released under the MIT License
-http://creativecommons.org/licenses/MIT/
+# Once a list has been tricked out, it is blessed with many new features,
+# many of which will be familiar from jQuery; like `each`, and `html`.
+# Other features are wholly new and powerful (e.g. `select`, and `zap`).
 
-###
+# Named after the bling symbol `$` to which it is bound by default.
 
-# local shortcuts
+# Philoshopy
+# ----------
+# 1. Always work on _sets_ of stuff, scalars are annoying.
+#    If you always write code to handle sets, you usually handle the scalar case for free.
+# 2. Don't alter global _prototypes_; global _types_ are OK.
+# 3. Have fun and learn; about the DOM, about jQuery, about JavaScript and CoffeeScript.
+# 4. Never be afraid to delete code you don't like.
+
+# Author
+# ------
+# Jesse Dailey <jesse.dailey@gmail.com>, Copyright: 2011, License: MIT.
+
+# Warming Up
+# ---------
+
+# We need a few things to get started:
+
+# A safe reference to `console.log()`:
 log = (a...) ->
 	try return console.log?.apply console, a
 	alert a.join(", ")
 
-Object.defineProperty Object, 'global',
-	get: () -> window ? global
+# A safe reference to the `global` object:
+Object.defineProperty Object, 'global', get: -> window ? global
 
-# constants
-OBJECT_RE = /\[object (\w+)\]/
-ORD_A = "A".charCodeAt(0)
-ORD_Z = "Z".charCodeAt(0)
-ORD_a = "a".charCodeAt(0)
+# A safe replacement for `Object.keys`:
+keys = (o, inherited = false) -> (k for k of o when (inherited or o.hasOwnProperty(k)))
 
-capital = (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
-interfaces = {} # a private cache of defined interfaces
-
-Object.Keys ?= (o, inherited = false) -> (k for k of o when (inherited or o.hasOwnProperty(k)))
-
-Object.Extend ?= (a, b, k) -> # Object.Extend(a, b, [whitelist]) - merge values from b into a
-	if not Array.isArray(k)
-		k = Object.Keys(b)
+# A way to assign values from `b` to `a`, with optional whitelist:
+extend = (a, b, k) ->
+	return a if not b?
+	if not Array.isArray?(k)
+		k = keys(b)
 	for key in k
 		v = b[key]
 		if not v? then continue
 		a[key] = v
 	a
 
-Object.Extend Object,
-	Get: (o, key, def) ->
-		dot = key.indexOf '.'
-		switch true
-			when dot isnt -1 then Object.Get(Object.Get(o, key.substring(0,dot)), key.substring(dot+1), def)
-			when key of o then o[key]
-			else def
-	IsType: (T, o) -> # Object.IsType(o,T) - true if object o is of type T (directly or inherits)
-		if not o? then T in [o,"null","undefined"]
-		else if o.constructor is T then true
-		else if typeof T is "string"
-			o.constructor.name is T or Object::toString.apply(o).replace(OBJECT_RE, "$1") is T
-		else # recurse through sub-classes
+# A way to proper case a string:
+capital = (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
+
+# Basic Globals
+# -------------
+
+# This section starts with the basic things we want to do with objects.
+# All of these extensions are attached to the global `Object` value, not the
+# _prototype_. So you use them like: `Object.Keys(foo)`.
+extend Object,
+	# Keys and Extend are made public here for plugins.
+	Keys: keys,
+	Extend: extend,
+
+	# Type System
+	# -----------
+
+	# JavaScript's type system is beautiful, but arcane and problematic.
+
+	# The idea of the prototype chain is very powerful and can be used
+	# to model a class-based system (like Java's, as CoffeeScript does),
+	# but can also easily emulate other systems; like Traits from Scala,
+	# and Mixins from Ruby.
+
+	# Prototypes allow for an object to transform itself in new ways that
+	# you can't do in other languages, like the ability to splice a new object
+	# anywhere in a prototype chain for a single object instance.
+
+	# But, the power of prototypes is hidden behind lots of bad implementation
+	# choices; one of the first everyone finds is how difficult it is to ask:
+	# > What kind of type is this?
+
+	# `typeof` is famously unhelpful here; e.g. `typeof [] == typeof {}`.
+
+	# Many attempts have been made to improve the type system, but they
+	# do not address the `typeof` problem; even CoffeeScript's own
+	# `class` and `extends` syntax.  Also, along the way, they forget
+	# they are in a prototype-based system, and they throw away it's
+	# flexibility.
+
+	# To fix this, we will create a _type classifier_ for the core of
+	# our type system.
+
+	# Later, we will extend the classifier so that we can define operations on
+	# the type-instances, rather than attaching them to any
+	# instances or prototypes directly.
+
+	# Before we build a full classifier, we need a few things.
+	
+	# Object.IsType(T, obj) is a simple boolean test to see if any
+	# object `o` is of type `T`; respecting prototype chains,
+	# constructors, and anything else we can think of that matters.
+	IsType: (T, o) ->
+		return T in [o,"null","undefined"] if not o?
+			o.constructor is T or
+			o.constructor.name is T or
+			Object::toString.apply(o) is "[object #{T}]" or
 			Object.IsType T, o.__proto__
-	Inherit: (c, o) -> # Object.Inherit(T, o) - similar to Extend, but hot-wires prototypes
-		if typeof c is "string" and interfaces[c]?
-			return Object.Inherit interfaces[c], o
-		if typeof c is "function"
-			o.constructor = c
-			c = c.prototype
-		o.__proto__ = c
-		o
-	Interface: (name, fields) -> interfaces[name] = fields # a simple interface system for duck-typing
 
-Object.Type = (()-> # this is a type classifier, and a way to group functionality around a type without stepping on any built-in prototypes
-	order = [] # the order to check for matches
-	cache = {} # data about registered types
+	# Object.Inherit(parent, child) is similar to Extend, except it works by
+	# inserting the parent as the proto of the child instance. This is unlike
+	# coffee's `class X extends Y`, because it works on _instances_, not constructors.
+	Inherit: (parent, obj) ->
+		if typeof parent is "function"
+			obj.constructor = parent
+			parent = parent::
+		obj.__proto__ = parent
+		obj
 
-	Object.Interface 'Type', # all registered types inherit from this base
-		name: 'unknown'
-		match: (o) -> true # is o an instance of this type
+	# Now, let's begin to build the classifier: `Object.Type(obj)`.
+	Type: (->
 
-	register = (name, data) ->
-		Object["Is"+capital(name)] = (o) -> data.match.call o,o
-		order.unshift name if not (name of cache)
-		cache[data.name = name] = Object.Inherit('Type', data)
+		# Internally, Object.Type maintains a registry of known types.
+		cache = {}
 
-	extend = (name, data) -> # add functionality to a type or types
-		if not name?
-			Object.Extend interfaces['Type'], data
-		else if typeof name is "string"
-			cache[name] = Object.Extend cache[name] ? register(name,{}), data
-		else for k of name
-			Object.Type.extend k, name[k]
+		# Each type in the registry is an instance that inherits from a
+		# base object.  Later, when we want to do more than `match` with
+		# each type, we will extend this baseType to provide default
+		# implementations.
+		baseType =
+			name: 'unknown'
+			match: (o) -> true # is o an instance of this type
 
-	lookup = (obj) ->
-		for name in order
-			if cache[name]?.match.call obj, obj
-				return cache[name]
+		# When checking for matches, this array of names will control
+		# the precedence of the checks.
+		order = []
 
-	# these type checks are executed in reverse order, so the first listed here is tested last
-	register "unknown",   match: -> true # even though this is just the default check, we need to register this here to control the order
-	register "object",    match: -> typeof @ is "object"
-	register "error",     match: -> Object.IsType 'Error', @
-	register "regexp",    match: -> Object.IsType 'RegExp', @
-	register "string",    match: -> typeof @ is "string" or Object.IsType String, @
-	register "number",    match: -> Object.IsType Number, @
-	register "bool",      match: -> typeof @ is "boolean" or String(@) in ["true","false"]
-	register "array",     match: -> Array.isArray?(@) or Object.IsType Array, @
-	register "function",  match: -> typeof @ is "function"
-	register "global",    match: -> typeof @ is "object" and 'setInterval' of @
-	register "undefined", match: (x) -> x is undefined
-	register "null",      match: (x) -> x is null
+		# When adding a new type to the regisry:
+		register = (name, data) ->
+			# * Create a global `Object.IsFoo` boolean check for the type.
+			Object["Is"+capital(name)] = (o) -> data.match.call o,o
+			# * Put the type check in order (if it isn't already).
+			order.unshift name if not (name of cache)
+			# * Inherit from the baseType and store in the cache.
+			cache[data.name = name] = Object.Inherit baseType, data
 
-	Object.Extend ((o) -> lookup(o).name),
-		register: register
-		lookup: lookup
-		extend: extend
-)()
+		# Later, you can extend previously registered types with new
+		# functionality.
+		extend = (name, data) ->
+			# If explicitly passed a null for the name, extend baseType
+			if data? and not name?
+				Object.Extend baseType, data
+			# The `name` should be of a registered type (a key into the cache)
+			else if typeof name is "string"
+				# But, if you attempt to extend a type that was not registered yet,
+				# it will be automatically registered (shh, don't tell anyone).
+				cache[name] = Object.Extend cache[name] ? register(name,{}), data
+			# But you can also extend a bunch of types at once, by passing a
+			# 2-level deep object, where the first level of keys are type
+			# names and the second level of keys are objects full of
+			# extensions.
+			else Object.Type.extend k, name[k] for k of name
 
-Object.Extend Object,
-	IsEmpty: (o) -> o in ["", null, undefined]
+		# To classify an object, simply check every match in order.
+		# Returns all matching type-instances, so you can access any extensions.
+		lookup = (obj) -> cache[name] for name in order when cache[name]?.match.call obj, obj
+
+		# Now, register all the built-in types. These checks are
+		# executed in _reverse order_, so the first listed here, `"unknown"`,
+		# is always checked last.
+		register "unknown",   match: -> true
+		# This means that the 'simplest' checks should be registered
+		# first, and conceptually more specialized checks would get added
+		# as time goes on (so specialized type matches are preferred).
+		register "object",    match: -> typeof @ is "object"
+		register "error",     match: -> Object.IsType 'Error', @
+		register "regexp",    match: -> Object.IsType 'RegExp', @
+		register "string",    match: -> typeof @ is "string" or Object.IsType String, @
+		register "number",    match: -> Object.IsType Number, @
+		register "bool",      match: -> typeof @ is "boolean" or String(@) in ["true","false"]
+		register "array",     match: -> Array.isArray?(@) or Object.IsType Array, @
+		register "function",  match: -> typeof @ is "function"
+		register "global",    match: -> typeof @ is "object" and 'setInterval' of @
+		# These checks for null and undefined are small exceptions to the
+		# simple-first idea, since they are precise and getting them out
+		# of the way early lets later checks omit a safety check.
+		register "undefined", match: (x) -> x is undefined
+		register "null",      match: (x) -> x is null
+
+		# Now, we finally have all the pieces to make the real classifier.
+		Object.Extend ((o) -> lookup(o)[0].name),
+			register: register
+			lookup: lookup
+			extend: extend
+		# Example: Calling Object.Type directly will get you the simple name of the
+		# best match.
+		# > `Object.Type([]) == "array"`
+
+		# If you want to know everything, you can use lookup
+		# directly.
+		# > `Object.Type.lookup([]).select("name") == ["array"]`
+
+		# You can also tell when things are made of more than one type.
+		# > `Object.Type.lookup("<a>").select("name") == ["html","string"]`
+
+		# Later, once other systems have extended the baseType, the
+		# type-instance returned from Object.Type.lookup will do more.
+
+		# If an object is of multiple types, for instance "html" is a
+		# "string" with special formatting.  To disambiguate these:
+
+		# > `Object.Type.lookup(a="<a>")\n
+		# >  .filter(-> @name is "string")
+		# >  .select("hash")
+		# >  .call(a)`
+
+	)()
+
+# Using the Type System
+# =====================
+extend Object,
+	# Two helpers, self-explanatory.
 	IsSimple: (o) -> Object.Type(o) in ["string", "number", "bool"]
-	String: (() ->
-		Object.Type.extend null, toString: (o) -> o.toString?() ? String(o)
+	IsEmpty: (o) -> o in ["", null, undefined]
+
+	# Object.String
+	# -------------
+	# The Object.String system extends the Base Type to allow for
+	# converting things to strings.  This is a separate system from the
+	# native Object.prototype.toString chain of methods.  Partially,
+	# this is a straight-forward way to prove out the design of type
+	# extensions, but it also gives us a way to control the string
+	# output in ways that won't impact other code that relies on the
+	# behavior of toString.
+	String: (->
+		# First, extend the Base Type with a default `string` function
+		Object.Type.extend null, string: (o) -> o.toString?() ? String(o)
+		# Now, for each type where we currently know how, extend
+		# that type to have a meaningful override of `string`.
 		Object.Type.extend
-			null:
-				toString: (o) -> "null"
-			undefined:
-				toString: (o) -> "undefined"
-			string:
-				toString: (o) -> o
-			array:
-				toString: (o) -> "[" + (Object.String(x) for x in o).join(",") + "]"
-			number:
-				toString: (o) -> switch true
+			null:      { string: (o) -> "null" }
+			undefined: { string: (o) -> "undefined" }
+			string:    { string: Function.Identity }
+			array:     { string: (o) -> "[" + (Object.String(x) for x in o).join(",") + "]" }
+			number:    { string: (o) ->
+				switch true
 					when o.precision? then o.toPrecision(o.precision)
 					when o.fixed? then o.toFixed(o.fixed)
 					else String(o)
-		(x) -> Object.Type.lookup(x).toString(x)
+			}
+
+		# With all the pieces registered, the actual implementation of
+		# `Object.String` is trivial:
+		(x) -> Object.Type.lookup(x)[0].string(x)
 	)()
-	Hash: (() ->
+
+	# Object.Hash
+	# -----------
+	# Reduces any thing to an integer hash code (not secure).
+	Hash: (->
 		Object.Type.extend null, hash: (o) -> String.Checksum Object.String(o)
 		Object.Type.extend
-			object:
-				hash: (o) -> (Object.Hash(o[k]) for k of o) + Object.Hash(Object.Keys(o))
-			array:
-				hash: (o) -> (Object.Hash(i) for i in x).reduce (a,x) -> a+x
-			bool:
-				hash: (o) -> parseInt(1 if o)
-		(x) -> Object.Type.lookup(x).hash(x)
+			object: { hash: (o) -> (Object.Hash(o[k]) for k of o) + Object.Hash(Object.Keys(o)) }
+			array:  { hash: (o) -> (Object.Hash(i) for i in x).reduce (a,x) -> a+x }
+			bool:   { hash: (o) -> parseInt(1 if o) }
+		(x) -> Object.Type.lookup(x)[0].hash(x)
 	)()
-	Trace: (() ->
+
+	# Object.Trace
+	# ------------
+	# A very useful debugging tool, `Object.Trace` will deep-walk all
+	# properties and wrap all functions with new functions that call the
+	# originals but log the calls (and use the property names from the
+	# deep walk as labels).
+	Trace: (->
 		Object.Type.extend null, trace: Function.Identity
 		Object.Type.extend
+			object: { trace: (o, label, tracer) -> (o[k] = Object.Trace(o[k], "#{label}.#{k}", tracer) for k in Object.Keys(o)); o }
+			array:  { trace: (o, label, tracer) -> (o[i] = Object.Trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length]); o }
 			function:
 				trace: (f, label, tracer) ->
 					r = (a...) ->
@@ -149,58 +282,87 @@ Object.Extend Object,
 					tracer "Trace: #{label or f.name} created."
 					r.toString = f.toString
 					r
-			object:
-				trace: (o, label, tracer) -> (o[k] = Object.Trace(o[k], "#{label}.#{k}", tracer) for k in Object.Keys(o)); o
-			array:
-				trace: (o, label, tracer) -> (o[i] = Object.Trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length]); o
-		return (o, label, tracer) -> Object.Type.lookup(o).trace(o, label, tracer)
+		(o, label, tracer) -> Object.Type.lookup(o)[0].trace(o, label, tracer)
 	)()
 
-Object.Extend Function,
-	Identity: (o) -> o # the empty function
-	Not: (f) -> (x) -> not f(x)
+# Function Globals
+# ----------------
+# These are little function factories, for mixing and composing other functions.
+extend Function,
+	# Function.Identity(x) returns x.
+	Identity: (o) -> o
+	# Function.Not(f) returns a new function that returns the inverse of f.
+	Not: (f) -> (a...) -> not f.apply @, a
+	# Function.Compose(f,g) returns a new function that returns f(g(x)).
 	Compose: (f,g) -> (x) -> f.call(y, (y = g.call(x,x)))
+	# Function.And(f,g) returns a new function that returns f(x) && g(x).
 	And: (f,g) -> (x) -> g.call(x,x) and f.call(x,x)
-	Once: (f,n=1) -> (a...) -> (f.apply @,a) if n-- > 0
-	Bound: (f, t, args = []) -> # Function.Bound(/f/, /t/) - whenever /f/ is called, _this_ is /t/
+	# Function.Once(f) returns a new function that will only call f() once.
+	Once: (f,n=1) -> f.n = n; (a...) -> (f.apply @,a) if f.n-- > 0
+	# Function.Bound(context, f, [args]) returns a new function that forces this === context when called.
+	Bound: (t, f, args = []) ->
 		if Object.IsFunction f.bind
 			args.splice 0, 0, t
 			r = f.bind.apply f, args
 		else
 			r = (a...) -> f.apply t, (args if args.length else a)
-		Object.Extend r,
-			toString: () -> "bound-method of #{t}.#{f.name}"
-	UpperLimit: (x) -> (y) -> Math.min(x, y)
-	LowerLimit: (x) -> (y) -> Math.max(x, y)
-	Px: (d) -> () -> Number.Px(@,d)
-	Memoize: (f) ->
-		cache = {} # a new cache for this function only
-		(a...) -> cache[Object.Hash(a)] ?= f.apply @, a
+		extend r, { toString: -> "bound-method of #{t}.#{f.name}" }
+	# Function.Px([delta]) returns a function (for mapping) that converts its argument (plus a delta) to a "px" string
+	Px: (d) -> -> String.Px(@,d)
+	# Function.Memoize(f) returns a new function that caches function calls to f, based on hashing the arguments.
+	Memoize: (f) -> cache = {}; (a...) -> cache[Object.Hash(a)] ?= f.apply @, a # BUG: does not cache if f returns null on purpose
 
-Object.Extend String,
+
+# String Globals
+# --------------
+extend String,
+
+	# Make a "px" string:
+	# Accepts anything parseInt-able (including an existing "px"
+	# string), adjusts by delta if you give it.
+	Px: (x, delta=0) -> x? and (parseInt(x,10)+(delta|0))+"px"
+	# Example: Add 100px of width to an element.
+	# > `node.css("width",String.Px(node.css("width"), + 100))`
+
+	# To proper caps a string:
 	Capitalize: capital
+
+	# To convert a camelCase name to a dash-name:
 	Dashize: (name) ->
 		ret = ""
 		for i in [0...(name?.length|0)]
 			c = name.charCodeAt i
-			if ORD_Z >= c >= ORD_A # is upper case
-				c = (c - ORD_A) + ORD_a # shift to lower
+			# For each uppercase character,
+			if 91 > c > 64
+				# Shift it to lower case and insert a '-'.
+				c += 32
 				ret += '-'
 			ret += String.fromCharCode(c)
 		return ret
+
+	# To Convert a dash-name to a camelName.
 	Camelize: (name) ->
 		while (i = name?.indexOf('-')) > -1
 			name = String.Splice(name, i, i+2, name[i+1].toUpperCase())
 		name
+
+	# Fill the left side of a string to make it a fixed width.
 	PadLeft: (s, n, c = " ") -> # String.PadLeft(string, width, fill=" ")
 		while s.length < n
 			s = c + s
 		s
+
+	# Fill the right side of a string to make it a fixed width.
 	PadRight: (s, n, c = " ") -> # String.PadRight(string, width, fill=" ")
 		while s.length < n
 			s = s + c
 		s
-	Splice: (s, i, j, n) -> # String.Splice(string, start, end, n) - replace a substring with n
+
+	# Counts the number of occurences of `x` in `s`.
+	Count: (s, x, i = 0, n = 0) -> String.Count(s,x,j+1,n+1) if (j=s.indexOf(x,i)) > i-1 else n
+
+	# Slices the substring `n` into the string `s', replacing indices between `i` and `j`.
+	Splice: (s, i, j, n) ->
 		nn = s.length
 		end = j
 		if end < 0
@@ -209,13 +371,17 @@ Object.Extend String,
 		if start < 0
 			start += nn
 		s.substring(0,start) + n + s.substring(end)
-	Checksum: (s) -> # String.Checksum(string) - Adler32 checksum of a string
+	
+	# Compute the Adler32 checksum of a string.
+	Checksum: (s) ->
 		a = 1; b = 0
 		for i in [0...s.length]
 			a = (a + s.charCodeAt(i)) % 65521
 			b = (b + a) % 65521
 		return (b << 16) | a
-	Builder: () -> # String.Builder - builds a string
+	
+	# Build a string, using arrays to defer all string concatenation until you call `builder.toString()`.
+	Builder: ->
 		if Object.IsWindow(@) then return new String.Builder()
 		items = []
 		@length   = 0
@@ -225,83 +391,142 @@ Object.Extend String,
 		@toString = ( ) => items.join("")
 		@
 
-Object.Extend Array,
-	Coalesce: (a...) -> # Array.Coalesce - returns the first non-null argument
-		for i in a
-			if Object.IsArray(i) then i = Array.Coalesce i...
-			if i? then return i
-		null
-	Extend: (a, b) -> (a.push(i) for i in b); a # works in-place; unlike concat
-	Swap: (a, i,j) ->
-		if i isnt j
-			[a[i],a[j]] = [a[j],a[i]]
-		a
-	Shuffle: (a) ->
-		i = a.length-1
-		while i >= 0
-			j = Math.floor(Math.random() * i)
-			Array.Swap(a, i,j)
-			i--
-		a
+# The Bling Constructor
+# =====================
+# This is using coffee's class syntax, but only as a hack really.
 
-Object.Extend Number,
-	Px: (x, d=0) -> x? and (parseInt(x,10)+(d|0))+"px"
-	AtLeast: (x) -> (y) -> Math.max parseFloat(y or 0), x
-	AtMost: (x) -> (y) -> Math.min parseFloat(y or 0), x
+# First, we want the Bling function to have a name so that
+# `$().constructor.name == "Bling"`, for sanity, and for easily
+# detecting a mixed-jQuery environment (we do try to play nice).
 
-Object.Type.extend null, toArray: (o) -> [o]
-Object.Type.extend
-	array:
-		toArray: Function.Identity
-	number:
-		toArray: (o) -> new Array(o)
-	undefined:
-		toArray: (o) -> []
-	null:
-		toArray: (o) -> []
-	string:
-		toArray: (s,c) ->
-			s = s.trimLeft()
-			try
-				if s[0] is "<"
-					set = [Bling.HTML.parse(s)]
-				else if c.querySelectorAll
-					set = c.querySelectorAll(s)
-				else
-					throw Error "invalid context: #{c} (type: #{Object.Type c})"
-			catch e
-				throw Error "invalid selector: #{s} (error: #{e})"
+# Second, the `new` operator is not good.  What it does normally is
+# make a shallow copy of the prototype to use as context _and_ return
+# value for the constructor.
 
-class Bling extends (new Array)
+# In that simple statement is basically the core of the JS type
+# system, and even in that one sentence there are three problems:
+
+# 1. The copy is shallow; creating ambiguously-shared state between
+# instances.
+# 2. There is a copy at all; most systems should seek to avoid copies
+# whenever possible, and certainly when designing a central mechanic.
+# When prototypes get large, like a full jQuery with lots of plugins,
+# this can make the `new` operation very expensive. Which may be why
+# it uses `jQuery.fn` instead.
+# You get the feeling that both of these first two issues are the
+# result of design-by-committee: one side fights for copying, they
+# compromise on being half-wrong in two ways and only do the shallow
+# copy.
+# 3. It replaces the return value of the constructor, reducing your
+# flexibility in implemenations; patterns like Singletons can't use
+# `new`, for example. 
+
+# So, the Bling constructor should _never_ be called as `new Bling`,
+# and this means our binding to `$` is just simple assignment.
+class Bling extends Array
 	constructor: (selector, context = document ? {}) ->
-		# convert the selector to an array-like (often a noop), and make the set instance inherit from Bling
-		set = Object.Inherit Bling, Object.Extend Object.Type.lookup(selector).toArray(selector, context),
+		# Since we have this powerful Type system, our constructor is very
+		# succinct:
+		# 1. Classify the type.
+		# 2. Convert the selector to a set.
+		# 3. Use Object.Inherit to _hijack_ the set's prototype in-place.
+		set = Object.Inherit Bling, Object.Extend Object.Type.lookup(selector).array(selector, context),
 				selector: selector
 				context: context
+		# The `.length` property for arrays is more like `.capacity` in
+		# Java, which isn't as useful as knowing how many things are
+		# actually in the array, so we correct the length here.
 		set.length = set.len()
 		return set
+	
+	# The Plugin System
+	# -----------------
+	# Each plugin is a function that returns an object full of stuff to
+	# extend the Bling prototype with.
+
+	# Example: the simplest possible plugin.
+	# > $.plugin () -> echo: -> @
+
+	# After this, `$(...).echo()` will work.  Also, this will also
+	# create a default global version: `$.echo`.
+	
+	# You can explicitly define the globals by nesting things under a `$` key:
+	# > $.plugin () -> $: hello: -> "Hello!"
+
+	# This will create `$.hello`, but not `$().hello`.
 	@plugin: (constructor) ->
 		try
+			# We call the plugin constructor and expect that it returns an
+			# object full of things to be publicly exposed.
 			if (plugin = constructor.call @,@)?
-				if '$' of plugin # if a plugin defines root items
-					Object.Extend @, plugin.$ # apply the root extensions
-					delete plugin.$ # clear out of the way to not clobber the prototype
-				delete plugin.name # ignore old plugins that still set this
-				Object.Extend @.prototype, plugin # everything else extends the prototype
+				# If the plugin has a `$` key, apply those to Bling directly
+				extend @, plugin?.$
+				# Clean off keys we don't care about: `$` and `name`. (An
+				# older version of plugin() used to require names,
+				# but we ignore them now in case we are loading an out-dated
+				# plugin).
+				@(['$','name']).each (k) -> delete plugin[k]
+				# Now put everything else on the Bling prototype
+				extend @::, plugin
+				# Finally, add default global versions of anything that
+				# doesn't have one already.
+				( @[key] ?= (a...) => (@::[key].apply $(a[0]), a[1...]) ) for key of plugin # and gets a default global implementation
 		catch error
-			name = plugin?.name or constructor.name
-			log "failed to load plugin: '#{name}', message: '#{error.message}'"
-			throw error
+			log "failed to load plugin: '#{error.message}'"
+		@
 
-Object.Type.register "bling",
-	match: (o) -> Object.IsType Bling, o
-	hash: (o) -> Object.Hash(o.selector) + o.map(Object.Hash).sum()
-	toArray: Function.Identity
-	toString: (o) -> Bling.symbol + "([" + o.map(Object.String).join(", ")+ "])"
+	# Adding "bling" to the Type System
+	# ---------------------------------
+	# First, we give the basic types the ability to turn into something
+	# array-like, for use in the constructor.
 
+	# By default, if we don't know any better way, we just stick the
+	# thing inside a real array.
+	Object.Type.extend null, array: (o) -> [o]
+	# But where we do know better, we can provide more meaningful
+	# conversions. Later, in the DOM section, we will extend
+	# this further to know how to convert "html", "node", etc.
+	Object.Type.extend
+		# Null and undefined values convert to an empty array
+		null:      { array: (o) -> [] }
+		undefined: { array: (o) -> [] }
+		# Arrays just convert to themselves
+		array:     { array: Function.Identity }
+		# Numbers create a new array of that capacity:
+		# > `$(10) == $(new Array(10))`
+		number:    { array: (o) -> new Array(o) }
+	
+	# Second, we register "bling", and all the things we know how to do
+	# with it:
+	Object.Type.register "bling",
+		match:  (o) -> Object.IsType Bling, o
+		array:  Function.Identity
+		hash:   (o) -> o.map(Object.Hash).sum()
+		string: (o) -> Bling.symbol + "([" + o.map(Object.String).join(", ")+ "])"
+
+
+# Plugins
+# ==============
+# Quickly set up a namespace that protects `$`, so we can safely use
+# short-hand in all of our plugins.
 (($) ->
 
-	$.plugin () -> # Symbol - allow to safely use something other than $ by assigning to Bling.symbol
+	# Symbol Plugin
+	# -------------
+	# Symbol adds a dynamic property: Bling.symbol, which contains the
+	# current global binding where you can find Bling (default: `$`).
+
+	# When you assign a symbol, it carefully tracks the previous values
+	# and restores them later if you change.  This is all so we can
+	# play nice with jQuery and underscore.  For instance, if you load
+	# jQuery, then load Bling, you set `Bling.symbol = "_"` and `$` will
+	# go back to pointing at jQuery, and you can do `_(...)` to create a
+	# Bling set.
+
+	# There is no restriction on the length or nature of the symbol
+	# except that it must be a valid JavaScript identifier:
+	# > `Bling.symbol = 'foo'; Object.IsBling(foo()) == true`
+	$.plugin ->
 		symbol = null
 		cache = {}
 		(g = Object.global).Bling = Bling
@@ -311,19 +536,24 @@ Object.Type.register "bling",
 				cache[symbol = v] = g[v]
 				g[v] = Bling
 			get: -> symbol
-
 		return $: symbol: "$"
 
-	$.plugin () -> # Compat - compatibility patches
-		leftSpaces_re = /^\s+/
-		String::trimLeft ?= () -> @replace(leftSpaces_re, "")
-		String::split ?= (sep) ->
+	# Compat Plugin
+	# -------------
+	# This keeps getting smaller over time, but we just try to bundle
+	# 'shim-like' stuff here; adding or replacing basic ES5 stuff that
+	# we need to use.
+	$.plugin ->
+		# Make sure we have String functions: `trimLeft`, and `split`.
+		String::trimLeft or= -> @replace(/^\s+/, "")
+		String::split or= (sep) ->
 			a = []; i = 0
 			while (j = @indexOf sep,i) > -1
 				a.push @substring(i,j)
 				i = j + 1
 			a
-		Array::join ?= (sep = '') ->
+		# Make sure we have Array functions: `join`.
+		Array::join or= (sep = '') ->
 			n = @length
 			return "" if n is 0
 			s = @[n-1]
@@ -331,15 +561,23 @@ Object.Type.register "bling",
 				s = @[n-1] + sep + s
 			s
 
+		# Add a handy nuke function to events: `preventAll`.
+		if Event?
+			Event::preventAll = () ->
+				@preventDefault()
+				@stopPropagation()
+				@cancelBubble = true
+
+		# Make sure we have Element functions: `matchesSelector`, and
+		# `cloneNode`.
 		if Element?
-			Element::matchesSelector = Array.Coalesce(
+			Element::matchesSelector = $.coalesce(
 				Element::webkitMatchesSelector,
 				Element::mozMatchesSelector,
 				Element::matchesSelector
 			)
 
-			# if cloneNode does not take a 'deep' argument, add support
-			if Element::cloneNode.length is 0
+			if Element::cloneNode.length is 0 # if cloneNode does not take a 'deep' argument, add support
 				oldClone = Element::cloneNode
 				Element::cloneNode = (deep = false) ->
 					n = oldClone.call(@)
@@ -350,58 +588,67 @@ Object.Type.register "bling",
 
 		return { }
 
-	$.plugin () -> # Core - the functional basis for all other modules
-		TimeoutQueue = () -> # works like setTimeout but always fire callbacks in the order they were originally scheduled.
+	# Core Plugin
+	# -----------
+	# The functional basis for all other modules.  Provides all the
+	# basic stuff that you are familiar with from jQuery: 'each', 'map',
+	# etc.
+	$.plugin ->
+		# The TimeoutQueue is a wrapper around setTimeout the preserves
+		# the order of the deferred functions.
+
+		# Since JS uses a single event loop, what happens if several
+		# timeouts were scheduled at a time when the event loop is busy?
+		
+		# All the due functions are called in no particular order; even if
+		# they were clearly scheduled in a sequence like:
+		# `setTimeout(f,1); setTimeout(g,2)`.  These will execute in
+		# random order when using setTimeout directly.  This isn't about
+		# timer (in)accuracy, it's about how it stores and dequeues handlers.
+		TimeoutQueue = ->
 			q = []
 			next = () => # next() consumes the next handler on the queue
-				if q.length > 0
-					q.shift()() # shift AND call
+					q.shift()() if q.length # shift AND call
 			@schedule = (f, n) => # schedule(f, n) sets f to run after n or more milliseconds
 				if not Object.IsFunction(f)
 					throw Error "function expected, got: #{Object.Type f}"
 				nq = q.length
-				f.order = n + new Date().getTime()
+				f.order = n + $.now()
 				if nq is 0 or f.order > q[nq-1].order # short-cut the common-case: f belongs after the end
-					q.push(f)
+					q.push f
 				else
 					for i in [0...nq]
 						if q[i].order > f.order
-							q.splice(i, 0, f)
+							q.splice i, 0, f
 							break
 				setTimeout next, n
 				return @
 			@cancel = (f) =>
-				if not Object.IsFunction(f)
-					throw Error "function expected, got #{Object.Type(f)}"
 				for i in [0...q.length]
 					if q[i] == f
-						q.splice(i, 1)
+						q.splice i, 1
 						break
 			@
+
+		# We really only need one instance of the timeoutQueue.
 		timeoutQueue = new TimeoutQueue()
 
-		getter = (prop) -> # used in .zip()
-			() ->
-				v = @[prop]
-				if Object.IsFunction v
-					return Function.Bound(v, @)
-				return v
-		zipper = (prop) -> # used in .zip()
-			i = prop.indexOf(".")
-			if i > -1
-				return @zip(prop.substr(0, i)).zip(prop.substr(i+1))
-			g = getter(prop)
-			ret = @map(g)
-			return ret
+		# A functor that will read property `p` from some object later.
+		gettor = (prop) -> -> Function.Bound(@,v) if Object.IsFunction(v = @[prop]) else v
+		# A helper that will recursively split `p` on `.` and map a gettor
+		# to read a set of complex `p` values from an object. Used in
+		# `$.select`. Also, basically the same as Object.Get
+		selector = (p) -> @select(p.substr 0,i).select(p.substr i+1) if (i = p.indexOf '.') > -1 else @map(gettor p)
 
 		return {
 			$:
 				log: log
 				assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
+				now: -> +new Date()
 				delay: (n, f) ->
 					if Object.IsFunction(f) then timeoutQueue.schedule(f, n)
-					return { cancel: () -> timeoutQueue.cancel(f) }
-			toString: () -> Object.String(@)
+					return { cancel: -> timeoutQueue.cancel(f) }
+			toString: -> Object.String(@)
 			eq: (i) -> $([@[i]])
 			each: (f) -> (f.call(t,t) for t in @); @
 			map: (f) -> $(f.call(t,t) for t in @)
@@ -412,7 +659,6 @@ Object.Type.register "bling",
 					t = @skip(1)
 				(a = f.call x, a, x) for x in t
 				a
-
 			union: (other, strict = true) ->
 				ret = $()
 				ret.push(x) for x in @ when not ret.contains(x, strict)
@@ -420,150 +666,111 @@ Object.Type.register "bling",
 				ret
 			distinct: (strict = true) -> @union @, strict
 			intersect: (other) -> $(x for x in @ when x in other) # another very beatiful expression
-			contains: (item, strict = true) -> ((strict and t is item) or (not strict and t == item) for t in @).reduce(((a,x) -> a or x),false)
+			contains: (item, strict = true) -> ((strict and t is item) or (not strict and t == item) for t in @).reduce ((a,x) -> a or x), false
 			count: (item, strict = true) -> $(1 for t in @ when (item is undefined) or (strict and t is item) or (not strict and t == item)).sum()
+			coalesce: ->
+				for i in @
+					if Object.Type(i) in ["array","bling"] then i = $(i).coalesce()
+					if i? then return i
+				null
+			swap: (i,j) ->
+				if i isnt j
+					[@[i],@[j]] = [@[j],@[i]]
+				@
+			shuffle: ->
+				i = @length-1
+				while i >= 0
+					@swap --i, Math.floor(Math.random() * i)
+				@
 
-			zip: (a...) ->
-				# .zip([/p/, ...]) - collects /x/./p/ for all /x/ in _this_.
-				# recursively split names like "foo.bar"
-				# zip("foo.bar") == zip("foo").zip("bar")
-				# you can pass multiple properties, e.g.
-				# zip("foo", "bar") == [ {foo: x.foo, bar: x.bar}, ... ]
-				n = a.length
-				switch n
-					when 0
-						return $()
-					when 1
-						ret = zipper.call(@, a[0])
-						return ret
+			select: (a...) -> # .select([/p/, ...]) - collects /x/./p/ for all /x/ in _this_.
+				# you can pass multiple properties, e.g. select("foo", "bar") == [ {foo: x.foo, bar: x.bar}, ... ]
+				return switch (n = a.length)
+					when 0 then $()
+					when 1 then selector.call @, a[0]
 					else # > 1
 						# if more than one argument is passed, new objects
 						# with only those properties, will be returned
 						set = {}
-						nn = @length
 						list = $()
-						j = 0 # insert marker into list
 						# first collect a set of lists
 						for i in [0...n]
-							set[a[i]] = zipper.call(@, a[i])
+							set[a[i]] = selector.call @, a[i]
 						# then convert to a list of sets
-						for i in [0...nn]
+						for i in [0...@length]
 							o = {}
 							for k of set
 								o[k] = set[k].shift() # the first property from each list
-							list[j++] = o # as a new object in the results
+							list.push(o)
 						list
 
-			zap: (p, v) ->
-				# .zap(p, v) - set /x/./p/ = /v/ for all /x/ in _this_.
-				# just like zip, zap("a.b") == zip("a").zap("b")
-				# but unlike zip, you cannot assign to different /p/ at once
+			or: (x) -> @[i] or= x for i in [0...@length]; @ # e.g., @select('parentNode').or(document)
+
+
+			zap: (p, v) -> # .zap(p, v) - multiple assignment
 				i = p.indexOf(".")
 				if i > -1 # recurse compound names
-					@zip(p.substr(0, i)).zap(p.substr(i+1), v)
-				else if Object.IsArray(v) # accept /v/ as an array of values
-					@each () ->
-						@[p] = v[++i % v.length] # i starts at -1 because of the failed indexOf
-				else if Object.IsFunction(v)
-					@zap(p, @zip(p).map(v))
+					@select(p.substr(0, i)).zap(p.substr(i+1), v)
+				else if Object.IsArray v # accept /v/ as an array of values
+					@each -> @[p] = v[++i % v.length] # i starts at -1 because of the failed indexOf
+				else if Object.IsFunction v
+					@zap p, @select(p).map v
 				else # accept a scalar /v/, even if v is undefined
-					@each () ->
-						@[p] = v
+					@each -> @[p] = v
 
-			take: (n) ->
-				# .take([/n/]) - collect the first /n/ elements of _this_.
-				# if n >= @length, returns a shallow copy of the whole bling
+
+			take: (n = 1) -> # .take([/n/]) - collect the first /n/ elements of _this_.
 				nn = @length
 				start = 0
 				end = Math.min n|0, nn
 				if n < 0
 					start = Math.max 0, nn+n
 					end = nn
-				a = $()
-				j = 0
-				for i in [start...end]
-					a[j++] = @[i]
-				a
+				$( @[i] for i in [start...end] )
 
-			skip: (n = 0) ->
-				# .skip([/n/]) - collect all but the first /n/ elements of _this_.
-				# if n == 0, returns a shallow copy of the whole bling
+			skip: (n = 0) -> # .skip([/n/]) - collect all but the first /n/ elements of _this_.
 				start = Math.max 0, n|0
-				end = @length
-				a = $()
-				j = 0
-				for i in [start...end]
-					a[j++] = @[i]
-				a
+				$( @[i] for i in [start...@length] )
 
-			first: (n = 1) ->
-				# .first([/n/]) - collect the first [/n/] element[s] from _this_.
-				# if n is not passed, returns just the item (no bling)
+			first: (n = 1) -> # .first([/n/]) - collect the first [/n/] element[s] from _this_.
 				if n is 1
 					@[0]
 				else
 					@take(n)
 
-			last: (n = 1) ->
-				# .last([/n/]) - collect the last [/n/] elements from _this_.
-				# if n is not passed, returns just the last item (no bling)
+			last: (n = 1) -> # .last([/n/]) - collect the last [/n/] elements from _this_.
 				if n is 1
 					@[@length - 1]
 				else
 					@skip(@length - n)
 
-			slice: (start=0, end=@length) ->
-				# .slice(/i/, [/j/]) - get a subset of _this_ including [/i/../j/-1]
-				# the j-th item will not be included - slice(0,2) will contain items 0, and 1.
-				# negative indices work like in python: -1 is the last item, -2 is second-to-last
-				# undefined start or end become 0, or @length, respectively
-				j = 0
+			slice: (start=0, end=@length) -> # .slice(/i/, [/j/]) - get a subset of _this_ including [/i/../j/-1]
+				# negative indices work like in python: -1 is the last item, -2 is second-to-last, null means inclusive
 				n = @length
 				start += n if start < 0
 				end += n if end < 0
-				b = $()
-				for i in [start...end]
-					b[j++] = @[i]
-				b
+				$( @[i] for i in [start...end] )
 
-			extend: (b) ->
-				# .extend(/b/) - insert all items from /b/ into _this_
-				# note: unlike union, allows duplicates
-				# note: also, does not create a new array, uses _this_ in-place
-				i = @length - 1
-				j = -1
-				n = b.len?() ? b.length
-				while j < n-1
-					@[++i] = b[++j]
-				@
-
+			extend: (b) -> @.push(i) for i in b; @
 			push: (b) -> Array::push.call(@, b); @
 
-			filter: (f) ->
-				# .filter(/f/) - collect all /x/ from _this_ where /x/./f/(/x/) is true
-				# or if f is a selector string, collects nodes that match the selector
-				# or if f is a RegExp, collect nodes where f.test(x) is true
-				b = $()
+			filter: (f) -> # .filter(/f/) - select all /x/ from _this_ where /x/./f/(/x/) is true
+				# or if f is a selector string, selects nodes that match the selector
+				# or if f is a RegExp, select nodes where f.test(x) is true
 				g = switch Object.Type f
 					when "string" then (x) -> x.matchesSelector(f)
 					when "regexp" then (x) -> f.test(x)
 					when "function" then f
 					else
 						throw new Error("unsupported type passed to filter: #{Object.Type(f)}")
-				j = 0
-				for it in @
-					if g.call it, it
-						b[j++] = it
-				b
+				$( it for it in @ when g.call(it,it) )
 
-			test: (regex) -> @map () -> regex.test(@)
-
-			matches: (expr) -> @zip('matchesSelector').call(expr)
+			test: (regex) -> @map -> regex.test(@)
+			matches: (expr) -> @select('matchesSelector').call(expr)
 
 			querySelectorAll: (s) ->
-				@filter("*") # limit to only nodes
-				.reduce (a, i) ->
-					Array.Extend a, i.querySelectorAll(s)
+				@filter("*").reduce (a, i) ->
+					a.extend(i.querySelectorAll(s))
 				, $()
 
 			weave: (b) ->
@@ -592,50 +799,38 @@ Object.Type.register "bling",
 				# tip: use as a companion to weave.  weave two blings together,
 				# then fold them to a bling the original size
 				n = @length
-				j = 0
-				# at least 2 items are required in the set
-				b = $()
-				for i in [0...n-1] by 2
-					b[j++] = f.call @, @[i], @[i+1]
+				b = $( f.call @, @[i], @[i+1] for i in [0...n-1] by 2 )
 				# if there is an odd man out, make one last call
 				if (n%2) is 1
-					b[j++] = f.call @, @[n-1], undefined
+					b.push( f.call @, @[n-1], undefined )
 				b
 
-			flatten: () -> # .flatten() - collect the union of all sets in _this_
-				b = $()
-				n = @length
-				k = 0 # insert marker
-				for i in [0...n]
-					c = @[i]
-					d = c.len?() ? c.length
-					for j in [0...d]
-						b[k++] = c[j]
+			flatten: -> # .flatten() - collect the union of all sets in _this_
+				b = $([])
+				(b.push(j) for j in i) for i in @
 				b
 
-			call: () -> @apply(null, arguments)
+			call: -> @apply(null, arguments)
 			apply: (context, args) -> # .apply(/context/, [/args/]) - collect /f/.apply(/context/,/args/) for /f/ in _this_
-				@map () ->
+				@map ->
 					if Object.IsFunction @
 						@apply(context, args)
 					else
 						@
 
 			delay: (n, f) -> # .delay(/n/, /f/) -  continue with /f/ on _this_ after /n/ milliseconds
-				if Object.Type(f) is "function"
-					g = Function.Bound(f, @)
-					timeoutQueue.schedule(g, n)
-					@.cancel = () -> timeoutQueue.cancel(g)
+				if Object.IsFunction(f)
+					$.delay n, Function.Bound(@, f)
 				@
 
 			log: (label) -> # .log([label]) - console.log([/label/] + /x/) for /x/ in _this_
 				if label
-					log(label, @, @length + " items")
+					$.log(label, @, @length + " items")
 				else
-					log(@, @length + " items")
+					$.log(@, @length + " items")
 				@
 
-			len: () -> # .len() - returns the max defined index + 1
+			len: -> # .len() - returns the max defined index + 1
 				i = @length
 				# scan forward to the end
 				while @[i] isnt undefined
@@ -645,75 +840,47 @@ Object.Type.register "bling",
 					i--
 				return i+1
 
-			toArray: () -> (@.__proto__ = Array.prototype); @
+			array: -> (@.__proto__ = Array::); @ # no copies, yay!
 		}
 
-	$.plugin () -> # Math plugin
+	$.plugin -> # Math plugin
 		$:
 			range: (start, end, step = 1) -> # $.range generates an array of numbers
-				step *= -1 if end < start and step > 0 # force step to have the same direction as start->end
-				steps = Math.ceil( (end - start) / step )
-				(start + (i*step) for i in [0...steps])
-			zeros: (n) -> 0 for i in [0...n]
-			ones: (n) -> 1 for i in [0...n]
-		floats: () -> @map parseFloat
-		ints: () -> @map () -> parseInt @, 10
+				step *= -1 if end < start and step > 0 # force step to have the same sign as start->end
+				$( (start + (i*step)) for i in [0...Math.ceil( (end - start) / step )] )
+			zeros: (n) -> $( 0 for i in [0...n] )
+			ones: (n) -> $( 1 for i in [0...n] )
+		floats: -> @map parseFloat
+		ints: -> @map -> parseInt @, 10
 		px: (delta=0) -> @ints().map Function.Px(delta)
-		min: () -> @reduce (a) -> Math.min @, a
-		max: () -> @reduce (a) -> Math.max @, a
-		average: () -> @sum() / @length
-		sum: () -> @reduce (a) -> a + @
-		squares: ()  -> @map () -> @ * @
-		magnitude: () -> Math.sqrt @floats().squares().sum()
-		scale: (r) -> @map () -> r * @
-		normalize: () -> @scale(1/@magnitude())
+		min: -> @reduce (a) -> Math.min @, a
+		max: -> @reduce (a) -> Math.max @, a
+		average: -> @sum() / @length
+		sum: -> @reduce (a) -> a + @
+		squares: -> @map -> @ * @
+		magnitude: -> Math.sqrt @floats().squares().sum()
+		scale: (r) -> @map -> r * @
+		normalize: -> @scale(1/@magnitude())
 
-	$.plugin () -> # Pub/Sub plugin
+	$.plugin -> # Pub/Sub plugin
 		subscribers = {} # a mapping of channel name to a list of subscribers
-		archive = {} # archive published events here, so they can be replayed if necessary
-		archive_limit = 1000 # maximum number of events (per type) to archive
-		archive_trim = 100 # how much to trim all at once if we go over the maximum
 
-		publish = (e, args = []) ->
-			archive[e] ?= []
-			archive[e].push(args)
-			if archive[e].length > archive_limit
-				archive[e].splice(0, archive_trim)
-			subscribers[e] ?= []
-			for func in subscribers[e]
-				func.apply null, args
+		publish = (e, args...) ->
+			f.apply null, args for f in (subscribers[e] or= [])
 			@
 
-		subscribe = (e, func, replay = true) ->
-			(subscribers[e] ?= []).push func
-			if replay # replay the publish archive
-				archive[e] ?= []
-				for args in archive[e]
-					func.apply null, args
+		subscribe = (e, func) ->
+			(subscribers[e] or= []).push func
 			func
 
 		unsubscribe = (e, func) ->
 			if not func?
 				subscribers[e] = []
 			else
-				subscribers[e] ?= []
+				subscribers[e] or= []
 				i = subscribers[e].indexOf(func)
 				if i > -1
 					subscribers[e].splice(i,i)
-
-		# expose 'limit' and 'trim' for advanced users
-		Object.defineProperty publish, 'limit',
-			set: (n) ->
-				archive_limit = n
-				# enforce the new limit immediately
-				for e of archive
-					if archive[e].length > archive_limit
-						archive[e].splice(0, archive_trim)
-			get: () -> archive_limit
-
-		Object.defineProperty publish, 'trim',
-			set: (n) -> archive_trim = Math.min(n, archive_limit)
-			get: () -> archive_trim
 
 		return {
 			$:
@@ -721,21 +888,20 @@ Object.Type.register "bling",
 				subscribe: subscribe
 				unsubscribe: unsubscribe
 		}
-	
-	$.plugin () -> # Throttle/Debounce plugin
-		now = -> +new Date()
+
+	$.plugin -> # Throttle/Debounce plugin
 		return {
 			$:
 				throttle: (f,n=250,last=0) ->
 					(a...) ->
-						gap = now() - last
+						gap = $.now() - last
 						if gap > n
 							last += gap
 							return f.apply @,a
 						null
 				debounce: (f,n=250,last=0) -> # must be a silence of n ms before f is called again
 					(a...) ->
-						last += (gap = now() - last)
+						last += (gap = $.now() - last)
 						return f.apply @,a if gap > n else null
 		}
 
@@ -743,28 +909,32 @@ Object.Type.register "bling",
 		Object.Type.register "nodelist",
 			match: (o) -> o? and Object.IsType "NodeList", o
 			hash: (o) -> $(Object.Hash(i) for i in x).sum()
-			toArray: Function.Identity
-			toString: (o) -> "{nodelist:"+$(o).zip('nodeName').join(",")+"}"
-			toNode: -> $(@).toFragment()
+			array: Function.Identity
+			string: (o) -> "{nodelist:"+$(o).select('nodeName').join(",")+"}"
+			node: -> $(@).toFragment()
 		Object.Type.register "node",
 			match: (o) -> o?.nodeType > 0
 			hash: (o) -> String.Checksum(o.nodeName) + Object.Hash(o.attributes) + String.Checksum(o.innerHTML)
-			toString: (o) -> o.toString()
-			toNode: Function.Identity
+			string: (o) -> o.toString()
+			node: Function.Identity
 		Object.Type.register "fragment",
 			match: (o) -> o?.nodeType is 11
 			hash: (o) -> $(Object.Hash(x) for x in o.childNodes).sum()
-			toString: (o) -> o.toString()
-			toNode: Function.Identity
+			string: (o) -> o.toString()
+			node: Function.Identity
+		Object.Type.register "html",
+			match: (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
+			node: (o) -> Object.Type.lookup(h = Bling.HTML.parse(o)).node(h)
+			array: (o,c) -> Object.Type.lookup(h = Bling.HTML.parse(o)).array(h,c)
+		Object.Type.extend null, node: -> null
 		Object.Type.extend
-			bling:
-				toNode: -> @toFragment()
+			bling:    { node: -> @toFragment() }
 			string:
-				toNode: -> $(@).toFragment()
-			function:
-				toNode: -> $(@toString()).toFragment()
+				node: -> $(@).toFragment()
+				array: (o,c) -> c.querySelectorAll?(o)
+			function: { node: -> $(@toString()).toFragment() }
 
-		$.plugin () -> # Html plugin
+		$.plugin -> # Html plugin
 			frag = (a) ->
 				if not a.parentNode?
 					df = document.createDocumentFragment()
@@ -772,8 +942,8 @@ Object.Type.register "bling",
 				a
 			before = (a,b) -> frag(a).parentNode.insertBefore b, a
 			after = (a,b) -> frag(a).parentNode.insertBefore b, a.nextSibling
-			toNode = (x) -> Object.Type.lookup(x).toNode.call x,x
-			escaper = null
+			node = (x) -> Object.Type.lookup(x).node(x)
+			escaper = 0
 
 			# window.getComputedStyle is not a normal function
 			# (it doesnt support .call() so we can't use it with .map())
@@ -796,40 +966,37 @@ Object.Type.register "bling",
 							return df
 						stringify: (n) -> # $.HTML.stringify(/n/) - the _Node_ /n/ in it's html-string form
 							switch Object.Type n
-								when "string" then n
+								when "string","html" then n
 								when "node"
-									n = n.cloneNode(true)
-									d = document.createElement("div")
-									d.appendChild(n)
+									d = document.createElement "div"
+									d.appendChild (n = n.cloneNode true)
 									ret = d.innerHTML # serialize to a string
-									d.removeChild(n) # clean up to prevent leaks
+									d.removeChild n # clean up to prevent leaks
 									ret
-								else "unknown type: " + Object.Type(n)
+								else "HTML.stringify of unknown type: " + Object.Type(n)
 						escape: (h) -> # $.HTML.escape(/h/) - accept html string /h/, a string with html-escapes like &amp;
 							escaper or= $("<div>&nbsp;</div>").child(0)
 							# insert html using the text node's .data property
 							# then get escaped html from the parent's .innerHTML
-							ret = escaper.zap('data', h).zip("parentNode.innerHTML").first()
+							ret = escaper.zap('data', h).select("parentNode.innerHTML").first()
 							# clean up so escaped content isn't leaked into the DOM
 							escaper.zap('data', '')
 							ret
-					camelName: String.Camelize
-					dashName: String.Dashize
 
 				html: (h) -> # .html([h]) - get [or set] /x/.innerHTML for each node
 					return switch Object.Type h
-						when "undefined","null" then @zip 'innerHTML'
+						when "undefined","null" then @select 'innerHTML'
 						when "string" then @zap 'innerHTML', h
 						when "bling" then @html h.toFragment()
 						when "node"
-							@each () -> # replace all our children with the new child
+							@each -> # replace all our children with the new child
 								@replaceChild @childNodes[0], h
 								while @childNodes.length > 1
 									@removeChild @childNodes[1]
 
 				append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
-					x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
-					a = @zip('appendChild')
+					x = node(x) # parse, cast, do whatever it takes to get a Node or Fragment
+					a = @select('appendChild')
 					a.take(1).call(x)
 					a.skip(1).each (f) ->
 						f(x.cloneNode(true)) # f is already bound to @
@@ -841,10 +1008,10 @@ Object.Type.register "bling",
 
 				prepend: (x) -> # .prepend(/n/) - insert n [or a clone] as the first child of each node
 					if x?
-						x = toNode(x)
-						@take(1).each () ->
+						x = node(x)
+						@take(1).each ->
 							before @childNodes[0], x
-						@skip(1).each () ->
+						@skip(1).each ->
 							before @childNodes[0], x.cloneNode(true)
 					@
 
@@ -855,22 +1022,22 @@ Object.Type.register "bling",
 
 				before: (x) -> # .before(/x/) - insert content x before each node
 					if x?
-						x = toNode(x)
-						@take(1).each () -> before @, x
-						@skip(1).each () -> before @, x.cloneNode(true)
+						x = node(x)
+						@take(1).each -> before @, x
+						@skip(1).each -> before @, x.cloneNode(true)
 					@
 
 				after: (x) -> # .after(/n/) - insert content n after each node
 					if x?
-						x = toNode(x)
-						@take(1).each () -> after @, x
-						@skip(1).each () -> after @, x.cloneNode(true)
+						x = node(x)
+						@take(1).each -> after @, x
+						@skip(1).each -> after @, x.cloneNode(true)
 					@
 
 				wrap: (parent) -> # .wrap(/p/) - p becomes the new .parentNode of each node
 					# all items of @ will become children of parent
 					# parent will take each child's position in the DOM
-					parent = toNode(parent)
+					parent = node(parent)
 					if Object.IsFragment(parent)
 						throw new Error("cannot wrap with a fragment")
 					@each (child) ->
@@ -888,23 +1055,23 @@ Object.Type.register "bling",
 									# replace marker with new parent
 									p.replaceChild(parent, marker)
 
-				unwrap: () -> # .unwrap() - replace each node's parent with itself
-					@each () ->
+				unwrap: -> # .unwrap() - replace each node's parent with itself
+					@each ->
 						if @parentNode and @parentNode.parentNode
 							@parentNode.parentNode.replaceChild(@, @parentNode)
 						else if @parentNode
 							@parentNode.removeChild(@)
 
 				replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
-					n = toNode(n)
+					n = node(n)
 					b = $()
 					j = 0
 					# first node gets the real n
-					@take(1).each () ->
+					@take(1).each ->
 						@parentNode?.replaceChild(n, @)
 						b[j++] = n
 					# the rest get clones of n
-					@skip(1).each () ->
+					@skip(1).each ->
 						c = n.cloneNode(true)
 						@parentNode?.replaceChild(c, @)
 						b[j++] = c
@@ -914,11 +1081,11 @@ Object.Type.register "bling",
 				attr: (a,v) -> # .attr(a, [v]) - get [or set] an /a/ttribute [/v/alue]
 					switch v
 						when undefined
-							return @zip("getAttribute").call(a, v)
+							return @select("getAttribute").call(a, v)
 						when null
-							return @zip("removeAttribute").call(a, v)
+							return @select("removeAttribute").call(a, v)
 						else
-							@zip("setAttribute").call(a, v)
+							@select("setAttribute").call(a, v)
 							return @
 
 				data: (k, v) ->
@@ -926,7 +1093,7 @@ Object.Type.register "bling",
 					@attr(k, v)
 
 				addClass: (x) -> # .addClass(/x/) - add x to each node's .className
-					@removeClass(x).each () ->
+					@removeClass(x).each ->
 						c = @className.split(" ").filter (y) ->
 							y isnt ""
 						c.push(x) # since we dont know the len, its still faster to push, rather than insert at len()
@@ -934,14 +1101,14 @@ Object.Type.register "bling",
 
 				removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
 					notx = (y)-> y != x
-					@each () ->
+					@each ->
 						c = @className?.split(" ").filter(notx).join(" ")
 						if c.length is 0
 							@removeAttribute('class')
 
 				toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
 					notx = (y) -> y isnt x
-					@each () ->
+					@each ->
 						cls = @className.split(" ")
 						filter = Function.Not Object.IsEmpty
 						if( cls.indexOf(x) > -1 )
@@ -954,15 +1121,15 @@ Object.Type.register "bling",
 							@removeAttribute('class')
 
 				hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x
-					@zip('className.split').call(" ").zip('indexOf').call(x).map (x) -> x > -1
+					@select('className.split').call(" ").select('indexOf').call(x).map (x) -> x > -1
 
 				text: (t) -> # .text([t]) - get [or set] each node's .textContent
 					return @zap('textContent', t) if t?
-					return @zip('textContent')
+					return @select('textContent')
 
 				val: (v) -> # .val([v]) - get [or set] each node's .value
 					return @zap('value', v) if v?
-					return @zip('value')
+					return @select('value')
 
 				css: (k,v) ->
 					# .css(k, [v]) - get/set css properties for each node
@@ -970,7 +1137,7 @@ Object.Type.register "bling",
 					# called with string k and string v -> set property k = v
 					# called with object k and undefd v -> set css(x, k[x]) for x in k
 					if v? or Object.IsObject k
-						setter = @zip 'style.setProperty'
+						setter = @select 'style.setProperty'
 						nn = setter.len()
 						if Object.IsObject k
 							for i of k
@@ -986,7 +1153,7 @@ Object.Type.register "bling",
 						# collect the computed values
 						cv = @map getCSSProperty(k)
 						# collect the values specified directly on the node
-						ov = @zip('style').zip k
+						ov = @select('style').select k
 						# weave and fold them so that object values override computed values
 						ov.weave(cv).fold (x,y) -> x or y
 
@@ -1010,40 +1177,37 @@ Object.Type.register "bling",
 					$("<style></style>").text(style).appendTo("head")
 					@
 
-				empty: () -> # .empty() - remove all children
-					@html ""
-
-				rect: () -> # .rect() - collect a ClientRect for each node in @
-					@zip('getBoundingClientRect').call()
+				rect: -> # .rect() - collect a ClientRect for each node in @
+					@select('getBoundingClientRect').call()
 
 				width: (w) -> # .width([/w/]) - get [or set] each node's width value
 					if w == null
-						return @rect().zip("width")
+						return @rect().select("width")
 					return @css("width", w)
 
 				height: (h) -> # .height([/h/]) - get [or set] each node's height value
 					if h == null
-						return @rect().zip("height")
+						return @rect().select("height")
 					return @css("height", h)
 
 				top: (y) -> # .top([/y/]) - get [or set] each node's top value
 					if y == null
-						return @rect().zip("top")
+						return @rect().select("top")
 					return @css("top", y)
 
 				left: (x) -> # .left([/x/]) - get [or set] each node's left value
 					if x == null
-						return @rect().zip("left")
+						return @rect().select("left")
 					return @css("left", x)
 
 				bottom: (x) -> # .bottom([/x/]) - get [or set] each node's bottom value
 					if x == null
-						return @rect().zip("bottom")
+						return @rect().select("bottom")
 					return @css("bottom", x)
 
 				right: (x) -> # .right([/x/]) - get [or set] each node's right value
 					if x == null
-						return @rect().zip("right")
+						return @rect().select("right")
 					return @css("right", x)
 
 				position: (x, y) -> # .position([/x/, [/y/]]) - get [or set] each node's top and left values
@@ -1051,9 +1215,9 @@ Object.Type.register "bling",
 						return @rect()
 					# with just x, just set style.left
 					if y == null
-						return @css("left", Number.Px(x))
+						return @css("left", String.Px(x))
 					# with x and y, set style.top and style.left
-					return @css({top: Number.Px(y), left: Number.Px(x)})
+					return @css({top: String.Px(y), left: String.Px(x)})
 
 				center: (mode ="viewport") -> # .center([mode]) - move the elements to the center of the screen
 					# mode is one of: "viewport" (default), "horizontal" or "vertical"
@@ -1062,7 +1226,7 @@ Object.Type.register "bling",
 					body = document.body
 					vh = body.scrollTop  + (body.clientHeight/2)
 					vw = body.scrollLeft + (body.clientWidth/2)
-					@each () ->
+					@each ->
 						t = $(@)
 						h = t.height().floats().first()
 						w = t.width().floats().first()
@@ -1076,82 +1240,50 @@ Object.Type.register "bling",
 							y = NaN
 						t.css {
 							position: "absolute",
-							left: Number.Px(x),
-							top: Number.Px(y)
+							left: String.Px(x),
+							top: String.Px(y)
 						}
 
-				scrollToCenter: () -> # .scrollToCenter() - scroll first node to center of viewport
-					document.body.scrollTop = @zip('offsetTop')[0] - (window.innerHeight / 2)
+				scrollToCenter: -> # .scrollToCenter() - scroll first node to center of viewport
+					document.body.scrollTop = @[0].offsetTop - (window.innerHeight / 2)
 					@
 
 				child: (n) -> # .child(/n/) - returns the /n/th childNode for each in _this_
-					@zip('childNodes').map () ->
+					@select('childNodes').map ->
 						i = n
 						if i < 0
 							i += @length
 						@[i]
 
-				children: () -> # .children() - collect all children of each node
-					@map () ->
-						$(@childNodes, @)
+				children: -> @map -> $(@childNodes) # .children() - collect all children of each node
 
-				parent: () -> # .parent() - collect .parentNode from each of _this_
-					@zip('parentNode')
+				parent: -> @select('parentNode') # .parent() - collect .parentNode from each of _this_
 
-				parents: () -> # .parents() - collects the full ancestry up to the owner
-					@map () ->
-						b = $()
-						j = 0
-						p = @
-						while p = p.parentNode
-							b[j++] = p
-						b
+				parents: -> @map -> p = @; $( p while p = p?.parentNode ) # .parents() - collects the full ancestry up to the owner
 
-				prev: () -> # .prev() - collects the chain of .previousSibling nodes
-					@map () ->
-						b = $()
-						j = 0
-						p = @
-						while p = p.previousSibling
-							b[j++] = p
-						b
+				prev: -> @map -> p = @; $( p while p = p?.previousSibling ) # .prev() - collects the chain of .previousSibling nodes
 
-				next: () -> # .next() - collect the chain of .nextSibling nodes
-					@map () ->
-						b = $()
-						j = 0
-						p = @
-						while p = p.nextSibling
-							b[j++] = p
-						b
+				next: -> @map -> p = @; $( p while p = p?.nextSibling ) # .next() - collect the chain of .nextSibling nodes
 
-				remove: () -> # .remove() - removes each node in _this_ from the DOM
-					@each ()->
-						if @parentNode
-							@parentNode.removeChild(@)
+				remove: -> @each -> @parentNode?.removeChild(@) # .remove() - removes each node in _this_ from the DOM
 
 				find: (css) -> # .find(/css/) - collect nodes matching /css/
-					@filter("*") # limit to only nodes
-						.map( () -> $(css, @) )
+					@filter("*") # limit to only DOM nodes
+						.map( -> $(css, @) )
 						.flatten()
 
-				clone: (deep=true) -> # .clone(deep=true) - copies a set of DOM nodes
-					@map () ->
-						if Object.IsNode @
-							@cloneNode deep
-						else
-							null
+				clone: (deep=true) -> @map -> (@cloneNode deep) if Object.IsNode @ # .clone(deep=true) - copies a set of DOM nodes
 
-				toFragment: () ->
+				toFragment: ->
 					if @length > 1
 						df = document.createDocumentFragment()
-						adder = Function.Bound(df.appendChild, df)
-						@map(toNode).map adder
+						adder = Function.Bound(df, df.appendChild)
+						@map(node).map adder
 						return df
-					return toNode(@[0])
+					return node(@[0])
 			}
 
-		$.plugin () -> # Transform plugin, for accelerated animations
+		$.plugin -> # Transform plugin, for accelerated animations
 			COMMASEP = ", "
 			speeds = # constant speed names
 				"slow": 700
@@ -1245,11 +1377,11 @@ Object.Type.register "bling",
 					css[transitionProperty] = props.join(COMMASEP)
 					# apply the same duration to each property
 					css[transitionDuration] =
-						props.map(() -> duration)
+						props.map( -> duration)
 							.join(COMMASEP)
 					# apply an easing function to each property
 					css[transitionTiming] =
-						props.map(() -> easing)
+						props.map( -> easing)
 							.join(COMMASEP)
 
 					# apply the transformation
@@ -1262,7 +1394,7 @@ Object.Type.register "bling",
 					@delay(duration, callback)
 
 				hide: (callback) -> # .hide() - each node gets display:none
-					@each () ->
+					@each ->
 						if @style
 							@_display = "" # stash the old display
 							if @style.display is not "none"
@@ -1272,7 +1404,7 @@ Object.Type.register "bling",
 					.delay(updateDelay, callback)
 
 				show: (callback) -> # .show() - show each node
-					@each () ->
+					@each ->
 						if @style
 							@style.display = @_display
 							delete @_display
@@ -1295,7 +1427,7 @@ Object.Type.register "bling",
 
 				fadeIn: (speed, callback) -> # .fadeIn() - fade each node to opacity 1.0
 					@.css('opacity','0.0')
-						.show () ->
+						.show ->
 							@transform {
 								opacity:"1.0",
 								translate3d: [0,0,0]
@@ -1304,14 +1436,14 @@ Object.Type.register "bling",
 					@transform {
 						opacity:"0.0",
 						translate3d:[x,y,0.0]
-					}, speed, () -> @hide(callback)
+					}, speed, -> @hide(callback)
 				fadeLeft: (speed, callback) -> @fadeOut(speed, callback, "-"+@width().first(), 0.0)
 				fadeRight: (speed, callback) -> @fadeOut(speed, callback, @width().first(), 0.0)
 				fadeUp: (speed, callback) -> @fadeOut(speed, callback, 0.0, "-"+@height().first())
 				fadeDown: (speed, callback)  -> @fadeOut(speed, callback, 0.0, @height().first())
 			}
 
-		$.plugin () -> # HTTP Request plugin: provides wrappers for making http requests
+		$.plugin -> # HTTP Request plugin: provides wrappers for making http requests
 			formencode = (obj) -> # create &foo=bar strings from object properties
 				o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
 				("#{i}=#{escape o[i]}" for i of o).join("&")
@@ -1325,8 +1457,8 @@ Object.Type.register "bling",
 					http: (url, opts = {}) -> # $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
 						xhr = new XMLHttpRequest()
 						if Object.IsFunction(opts)
-							opts = {success: Function.Bound(opts, xhr)}
-						opts = Object.Extend {
+							opts = {success: Function.Bound(xhr, opts)}
+						opts = extend {
 							method: "GET"
 							data: null
 							state: Function.Identity # onreadystatechange
@@ -1338,20 +1470,20 @@ Object.Type.register "bling",
 							followRedirects: false
 							withCredentials: false
 						}, opts
-						opts.state = Function.Bound(opts.state, xhr)
-						opts.success = Function.Bound(opts.success, xhr)
-						opts.error = Function.Bound(opts.error, xhr)
+						opts.state = Function.Bound(xhr, opts.state)
+						opts.success = Function.Bound(xhr, opts.success)
+						opts.error = Function.Bound(xhr, opts.error)
 						if opts.data and opts.method is "GET"
 							url += "?" + formencode(opts.data)
 						else if opts.data and opts.method is "POST"
 							opts.data = formencode(opts.data)
 						xhr.open(opts.method, url, opts.async)
-						xhr = Object.Extend xhr,
+						xhr = extend xhr,
 							asBlob: opts.asBlob
 							timeout: opts.timeout
 							followRedirects: opts.followRedirects
 							withCredentials: opts.withCredentials
-							onreadystatechange: () ->
+							onreadystatechange: ->
 								opts.state?()
 								if xhr.readyState is 4
 									if xhr.status is 200
@@ -1374,7 +1506,7 @@ Object.Type.register "bling",
 						$.http(url, opts)
 			}
 
-		$.plugin () -> # Events plugin
+		$.plugin -> # Events plugin
 			EVENTSEP_RE = /,* +/
 			events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
 				'load','unload','reset','submit','keyup','keydown','change',
@@ -1384,24 +1516,16 @@ Object.Type.register "bling",
 				'hashchange'
 			] # 'click' is handled specially
 
-			binder = (e) ->
-				(f = {}) ->
-					return @bind(e, f) if Object.IsFunction f
-					return @trigger(e, f)
+			binder = (e) -> (f) -> @bind(e, f) if Object.IsFunction f else @trigger(e, f)
 
-			register_live = (selector, context, e, f, h) ->
-				$(context)
-					.bind(e, h) # bind the proxy handler
-					.each () ->
-						a = (@__alive__ or= {})
-						b = (a[selector] or= {})
-						c = (b[e] or= {})
-						# make a record using the fake handler as key
-						c[f] = h
+			register_live = (selector, context, evt, f, h) ->
+				$(context).bind(evt, h)
+					# set/create all of @__alive__[selector][evt][f]
+					.each -> (((@__alive__ or= {})[selector] or= {})[evt] or= {})[f] = h
 
 			unregister_live = (selector, context, e, f) ->
 				$c = $(context)
-				$c.each () ->
+				$c.each ->
 					a = (@__alive__ or= {})
 					b = (a[selector] or= {})
 					c = (b[e] or= {})
@@ -1409,41 +1533,30 @@ Object.Type.register "bling",
 					delete c[f]
 
 			# detect and fire the document.ready event
-			readyTriggered = 0
-			readyBound = 0
-			triggerReady = () ->
-				if not readyTriggered++
-					$(document).trigger("ready").unbind("ready")
-					document.removeEventListener?("DOMContentLoaded", triggerReady, false)
-					window.removeEventListener?("load", triggerReady, false)
-			bindReady = () ->
-				if not readyBound++
-					document.addEventListener?("DOMContentLoaded", triggerReady, false)
-					window.addEventListener?("load", triggerReady, false)
+			triggerReady = Function.Once ->
+				$(document).trigger("ready").unbind("ready")
+				document.removeEventListener?("DOMContentLoaded", triggerReady, false)
+				window.removeEventListener?("load", triggerReady, false)
+			bindReady = Function.Once ->
+				document.addEventListener?("DOMContentLoaded", triggerReady, false)
+				window.addEventListener?("load", triggerReady, false)
 			bindReady()
 
 			ret = {
 				bind: (e, f) -> # .bind(e, f) - adds handler f for event type e
-					# e is a string like 'click', 'mouseover', etc.
-					# e can be comma-separated to bind multiple events at once
 					c = (e or "").split(EVENTSEP_RE)
 					h = (evt) ->
 						ret = f.apply @, arguments
 						if ret is false
-							Event.Prevent evt
+							evt.preventAll()
 						ret
-					@each () ->
-						for i in c
-							@addEventListener i, h, false
+					@each -> (@addEventListener i, h, false) for i in c
 
 				unbind: (e, f) -> # .unbind(e, [f]) - removes handler f from event e
-					# if f is not present, removes all handlers from e
 					c = (e or "").split(EVENTSEP_RE)
-					@each () ->
-						for i in c
-							@removeEventListener(i, f, null)
+					@each -> (@removeEventListener i, f, null) for i in c
 
-				once: (e, f) -> # .once(e, f) - adds a handler f that will be called only once
+				once: (e, f) -> # .once(e, f) - adds a handler f that will only fire once (per node)
 					c = (e or "").split(EVENTSEP_RE)
 					for i in c
 						@bind i, (evt) ->
@@ -1451,31 +1564,23 @@ Object.Type.register "bling",
 							@removeEventListener(evt.type, arguments.callee, null)
 
 				cycle: (e, funcs...) -> # .cycle(e, ...) - bind handlers for e that trigger in a cycle
-					# one call per trigger. when the last handler is executed
-					# the next trigger will call the first handler again
 					c = (e or "").split(EVENTSEP_RE)
 					nf = funcs.length
-					cycler = () ->
-						i = -1
+					cycler = (i = -1) ->
 						(evt) -> funcs[i = ++i % nf].call(@, evt)
 					@bind j, cycler() for j in c
 					@
 
 				trigger: (evt, args = {}) -> # .trigger(e, a) - initiates a fake event
-					# evt is the type, 'click'
-					# args is an optional mapping of properties to set,
-					#		{screenX: 10, screenY: 10}
-					# note: not all browsers support manually creating all event types
-					evts = (evt or "").split(EVENTSEP_RE)
-					args = Object.Extend {
+					args = extend {
 						bubbles: true
 						cancelable: true
 					}, args
 
-					for evt_i in evts
+					for evt_i in (evt or "").split(EVENTSEP_RE)
 						if evt_i in ["click", "mousemove", "mousedown", "mouseup", "mouseover", "mouseout"] # mouse events
 							e = document.createEvent "MouseEvents"
-							args = Object.Extend {
+							args = extend {
 								detail: 1,
 								screenX: 0,
 								screenY: 0,
@@ -1498,7 +1603,7 @@ Object.Type.register "bling",
 
 						else if evt_i in ["touchstart", "touchmove", "touchend", "touchcancel"] # touch events
 							e = document.createEvent "TouchEvents"
-							args = Object.Extend {
+							args = extend {
 								detail: 1,
 								screenX: 0,
 								screenY: 0,
@@ -1521,7 +1626,7 @@ Object.Type.register "bling",
 
 						else if evt_i in ["gesturestart", "gestureend", "gesturecancel"] # gesture events
 							e = document.createEvent "GestureEvents"
-							args = Object.Extend {
+							args = extend {
 								detail: 1,
 								screenX: 0,
 								screenY: 0,
@@ -1549,14 +1654,14 @@ Object.Type.register "bling",
 							e = document.createEvent "Events"
 							e.initEvent evt_i, args.bubbles, args.cancelable
 							try
-								e = Object.Extend e, args
+								e = extend e, args
 							catch err
 
 						if not e
 							continue
 						else
 							try
-								@each () -> @dispatchEvent e
+								@each -> @dispatchEvent e
 							catch err
 								log("dispatchEvent error:",err)
 					@
@@ -1568,7 +1673,7 @@ Object.Type.register "bling",
 					handler = (evt) -> # later, when event 'e' is fired
 						$(selector, context) # re-execute the selector in the original context
 							.intersect($(evt.target).parents().first().union($(evt.target))) # see if the event would bubble into a match
-							.each () -> f.call(evt.target = @, evt) # then fire the real handler 'f' on the matched nodes
+							.each -> f.call(evt.target = @, evt) # then fire the real handler 'f' on the matched nodes
 					# record f so we can 'die' it if needed
 					register_live selector, context, e, f, handler
 					@
@@ -1589,41 +1694,33 @@ Object.Type.register "bling",
 					else
 						@trigger 'click', f
 
-				ready: (f = {}) ->
-					if Object.IsFunction f
-						if readyTriggered
-							f.call @
-						else
-							@bind "ready", f
-					else
-						@trigger "ready", f
+				ready: (f) ->
+					return (f.call @) if triggerReady.n <= 0
+					@bind "ready", f
 			}
 
 			# add event binding/triggering shortcuts for the generic events
 			events.forEach (x) -> ret[x] = binder(x)
 			return ret
 
-		$.plugin () -> # LazyLoader plugin, depends on PubSub
+		$.plugin -> # LazyLoader plugin, depends on PubSub
 			create = (elementName, props) ->
-				Object.Extend document.createElement(elementName), props
+				extend document.createElement(elementName), props
 
 			lazy_load = (elementName, props) ->
 				depends = provides = null
-				n = create elementName, Object.Extend(props, {
-					onload: () ->
+				n = create elementName, extend(props, {
+					onload: ->
 						if provides?
 							$.publish(provides)
 				})
-				$("head").delay 10, () ->
+				$("head").delay 10, ->
 					if depends?
-						$.subscribe depends, () => @append(n)
-					else
-						@append(n)
-				n = $(n)
-				Object.Extend n, {
-					depends: (tag) -> depends = elementName+"-"+tag; n
-					provides: (tag) -> provides = elementName+"-"+tag; n
-				}
+						$.subscribe depends, => @append(n)
+					else @append(n)
+				extend $(n),
+					depends: (tag) -> depends = elementName+"-"+tag; @
+					provides: (tag) -> provides = elementName+"-"+tag; @
 
 			return {
 				$:
@@ -1632,6 +1729,56 @@ Object.Type.register "bling",
 					style: (src) ->
 						lazy_load "link", { href: src, "rel!": "stylesheet" }
 			}
+
+	
+	$.plugin -> # EventEmitter
+		class EventEmitter
+			constructor:        -> @_eh = {}
+			addListener:        (e, h) -> (@_eh[e] or= []).push(h); @emit('newListener', e, h)
+			on:                 (e, h) -> @addListener e, h
+			once:               (e,h) -> @addListener e, (f = (a...) -> @removeListener(f); h(a...))
+			removeListener:     (e, h) -> @_eh[e].splice i, 1 if (i = (@_eh[e] or= []).indexOf(h)) > -1
+			removeAllListeners: (e) -> @_eh[e] = []
+			setMaxListeners:    (n) -> # nop for now... who really needs this in the core API?
+			listeners:          (e) -> @_eh[e]
+			emit:               (e, a...) -> (f.apply(@, a) for f in (@_eh[e] or= [])); null
+
+		Object.global.EventEmitter or= EventEmitter
+
+		return $: EventEmitter: EventEmitter
+
+
+	$.plugin -> # Background workers... just noodling for now
+
+		EOF = -> "EOF" # a magic function object used as an identifier token (instead of an object/guid so it has safer comparison semantics)
+
+		BackgroundQueue = (opts) ->
+			opts = extend {
+				item: -> EOF
+				action: Function.Identity
+				latency: 1
+			}, opts
+
+			return extend new $.EventEmitter(), {
+				run: ->
+					r = () =>
+						if (item = opts.action(opts.item())) isnt EOF
+							@emit("data", item)
+							setTimeout r, opts.latency
+					setTimeout r, opts.latency
+			}
+
+		data = x for x in [0...1000]
+		i = 0
+		BackgroundQueue
+			item: ->
+				return data[i++] if i < data.length
+				throw new Error("eof")
+			action: (item) -> (item*item) - 1
+			latency: 10
+		.on "data", (x) -> console.log "data:", x
+		.on "error", (x) -> console.log "error:", x
+		.run() # this should output 1 to 1000 over about 10 seconds, while other events keep working
 
 )(Bling)
 # vim: ft=coffee sw=2 ts=2

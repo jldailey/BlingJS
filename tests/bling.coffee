@@ -71,13 +71,11 @@ testGroup("String",
 testGroup("Plugins",
 	new_plugin: () ->
 		$.plugin () ->
-			name: "Test Plugin"
 			$:
 				testGlobal: () -> 9
 			testOp: () -> 42
-		assert $.plugins.join(",").indexOf("Test Plugin") > -1
-		assertEqual $?.testGlobal(), 9
-		assertEqual $()?.testOp(), 42
+		assertEqual $.testGlobal?(), 9
+		assertEqual $().testOp?(), 42
 )
 
 testGroup("Symbol",
@@ -166,7 +164,7 @@ testGroup("Core",
 	slice6: () -> assertArrayEqual($([1,2,3,4,5]).slice(1,-2), [2,3])
 	slice7: () -> assertArrayEqual($([1,2,3,4,5]).slice(-1,-3), [5,4])
 	slice8: () -> assertArrayEqual($([1,2,3,4,5]).slice(-1,-4), [5,4,3])
-	concat: () -> assertArrayEqual($([1,2,3]).concat([3,4,4]), [1,2,3,3,4,4])
+	# concat: () -> assertArrayEqual($([1,2,3]).concat([3,4,4]), [1,2,3,3,4,4])
 	push: () -> assertArrayEqual($([1,2,3]).push(4), [1,2,3,4])
 	filter1: () -> assertArrayEqual($([1,2,3,4,5]).filter((x) -> x % 2), [1,3,5])
 	filter2: () -> assertArrayEqual($(["foo","bar","baz"]).filter(/^ba/), ["bar","baz"])

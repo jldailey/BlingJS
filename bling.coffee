@@ -295,17 +295,19 @@ extend Object,
 # ----------------
 # These are little function factories, for mixing and composing other functions.
 extend Function,
-	# Function.Identity(x) returns x.
+	# __Function.Identity(x)__ returns x.
 	Identity: (o) -> o
-	# Function.Not(f) returns a new function that returns the inverse of f.
+	# __Function.Not(f)__ returns a new function that returns `not
+	# f(...)`.
 	Not: (f) -> (a...) -> not f.apply @, a
-	# Function.Compose(f,g) returns a new function that returns f(g(x)).
+	# __Function.Compose(f,g)__ composes _f_ and _g_ to `f(g(...))`.
 	Compose: (f,g) -> (x) -> f.call(y, (y = g.call(x,x)))
-	# Function.And(f,g) returns a new function that returns f(x) && g(x).
+	# __Function.And(f,g)__ returns a new function that returns f(x) && g(x).
 	And: (f,g) -> (x) -> g.call(x,x) and f.call(x,x)
-	# Function.Once(f) returns a new function that will only call f() once.
+	# __Function.Once(f)__ returns a new function that will only call
+	# _f_ **once**, or _n_ times if you pass the optional argument.
 	Once: (f,n=1) -> f.n = n; (a...) -> (f.apply @,a) if f.n-- > 0
-	# Function.Bound(context, f, [args]) returns a new function that forces this === context when called.
+	# __Function.Bound(context,f,[args])__ returns a new function that forces this === context when called.
 	Bound: (t, f, args = []) ->
 		if Object.IsFunction f.bind
 			args.splice 0, 0, t
@@ -313,7 +315,7 @@ extend Function,
 		else
 			r = (a...) -> f.apply t, (args if args.length else a)
 		extend r, { toString: -> "bound-method of #{t}.#{f.name}" }
-	# Function.Memoize(f) returns a new function that caches function calls to f, based on hashing the arguments.
+	# __Function.Memoize(f)__ returns a new function that caches function calls to f, based on hashing the arguments.
 	Memoize: (f) -> cache = {}; (a...) -> cache[Object.Hash(a)] ?= f.apply @, a # BUG: does not cache if f returns null on purpose
 
 
@@ -327,12 +329,14 @@ extend String,
 	# string), adjusts by optional delta.
 	Px: (x, delta=0) -> x? and (parseInt(x,10)+(delta|0))+"px"
 	# Example: Add 100px of width to an element.
+
 	# jQuery style:
 	# > `node.css("width",String.Px(node.css("width"), + 100))`
+
 	# Bling style:
 	# > `node.zap 'style.width', -> String.Px(@, + 100)
 
-	# Properly capitalize each word in a string.
+	# Properly **Capitalize** Each Word In A String.
 	Capitalize: capital
 
 	# Convert a camelCase name to a dash-name.
@@ -350,6 +354,7 @@ extend String,
 
 	# Convert a dash-name to a camelName.
 	Camelize: (name) ->
+		name.split('-')
 		while (i = name?.indexOf('-')) > -1
 			name = String.Splice(name, i, i+2, name[i+1].toUpperCase())
 		name
@@ -874,14 +879,15 @@ class Bling extends Array
 			ones: (n) -> $( 1 for i in [0...n] )
 		floats: -> @map parseFloat
 		ints: -> @map -> parseInt @, 10
-		px: (delta) -> @ints().map (x) -> String.Px x,delta
-		min: -> @reduce (a,x) -> Math.min x, a
-		max: -> @reduce (a,x) -> Math.max x, a
+		px: (delta) -> @ints().map -> String.Px @,delta
+		min: -> @reduce (a) -> Math.min @, a
+		max: -> @reduce (a) -> Math.max @, a
 		mean: -> @sum() / @length
-		sum: -> @reduce (a,x) -> a + x
+		sum: -> @reduce (a) -> a + @
 		squares: -> @map -> @ * @
 		magnitude: -> Math.sqrt @floats().squares().sum()
 		scale: (r) -> @map -> r * @
+		add: (d) -> @map -> d + @
 		normalize: -> @scale(1/@magnitude())
 
 	$.plugin -> # Pub/Sub plugin
@@ -1770,6 +1776,87 @@ class Bling extends Array
 		.on "data", (x) -> console.log "data:", x
 		.on "error", (x) -> console.log "error:", x
 		.run() # this should output 1 to 1000 over about 10 seconds, while other events keep working
+	
+	$.plugin -> # Units... just noodling
+		# Units are strings with numbers followed by a unit suffix, like
+		# "100px", "10pt", etc.
+		# The purpose of handling them separately is to provide shorthand
+		# to unit-aware math, so we override much of the Math plugin (not
+		# the global Math object, though that might be fun...).
+
+		# Define a RegEx to match a unit string.
+		units = ["px","pt","pc","em","%","in","cm","mm","ex",""]
+		UNIT_RE = /(\d+\.*\d*)(px|pt|pc|em|%|in|cm|mm|ex)/
+
+		# Split a unit string into [number, unit]
+		parseUnits = (s) -> UNIT_RE.exec(s)[2] if UNIT_RE.test(s) else ""
+
+		# Conversion rates between units, for better comparisons.
+		conv = (a,b) -> conv[a][b]()
+		trick = (x) -> -> x # this trick forces x to evaluate at creation
+		for a in units
+			for b in units
+				(conv[a] or= {})[b] = trick +(a is b or a is "" or b is "")
+		conv.in.pt = -> 72
+		conv.in.px = -> 96
+		conv.in.cm = -> 2.54
+		conv.pc.pt = -> 12
+		conv.cm.mm = -> 10
+		conv.em.px = ->
+			x = $("<span style='font-size:1em;visibility:hidden'>x</span>").appendTo("body")
+			w = x.width().first()
+			x.remove()
+			w
+		conv.ex.px = ->
+			x = $("<span style='font-size:1ex;visibility:hidden'>x</span>").appendTo("body")
+			w = x.width().first()
+			x.remove()
+			w
+		conv.ex.em = -> 2
+		fillIn = ->
+			for a in units
+				for b in units
+					if not conv(a,b) and conv(b,a)
+						console.log "found inverse: #{a}.#{b}"
+						conv[a][b] = trick 1.0/conv(b,a)
+					for c in units
+						if not conv(a,c) and conv(a,b) and conv(b,c)
+							console.log "found induction: #{a}.#{c}"
+							conv[a][c] = trick conv(a,b) * conv(b,c)
+		fillIn(); fillIn()
+		
+		convertUnits = (number, unit) -> parseFloat(number) * conv[parseUnits(number)][unit]() + unit
+
+		$.assert(convertUnits("300px", "cm") == "10cm")
+
+		convertAll = (to, a) ->
+			for i in [0...a.length]
+				a[i] = convertTo(to, a[i])
+	
+		Object.Type.register "units",
+			match: (x) -> UNIT_RE.test(x)
+
+		unit_scalar = (f) ->
+			(a...) ->
+				convertAll( unit = parseUnits(@[0]), @)
+				(f.apply @, a) + unit
+		unit_vector = (f) ->
+			(a...) ->
+				u = @map parseUnits
+				f.apply(@floats(), a).map ->
+
+		{
+			min: unit_scalar -> @reduce (a) -> Math.min parseFloat(@), a
+			max: unit_scalar -> @reduce (a) -> Math.max parseFloat(@), a
+			sum: unit_scalar -> @reduce (a) -> parseFloat(@) + a
+			mean: unit_scalar -> parseFloat(@sum()) / @length
+			magnitude: unit_scalar -> Math.sqrt @floats().squares().sum()
+			squares: -> @map -> (x=parseFloat(@)) * x
+			scale: (n) -> @map -> n * parseFloat(@)
+			add: (d) -> @map -> d + @
+			normalize: -> @scale(1/@magnitude())
+		}
+
 
 )(Bling)
 # vim: ft=coffee sw=2 ts=2

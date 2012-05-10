@@ -714,23 +714,6 @@ class Bling extends Array
 					when 0 then $()
 					# Select one property, get a list of those values.
 					when 1 then selector.call @, a[0]
-					# Select multiple properties, you get a list of basic
-					# objects, with only those properties:
-					# > `$([x]).select("foo", "bar") == [ {foo: x.foo, bar: x.bar} ]
-					# While again, the keys can be as complex as you like here.
-					else
-						set = {}
-						list = $()
-						# first collect a set of lists
-						for i in [0...n]
-							set[a[i]] = selector.call @, a[i]
-						# then convert to a list of sets
-						for i in [0...@length]
-							o = {}
-							for k of set
-								o[k] = set[k].shift() # the first property from each list
-							list.push(o)
-						list
 
 			# Replace any false-ish items in _this_ with _x_.
 			# > `$("<a>").select('parentNode').or(document)

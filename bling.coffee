@@ -763,10 +763,10 @@ class Bling extends Array
 				$( @[i] for i in [start...@length] )
 
 			# Get the first item(s).
-			first: (n = 1) -> @[0] if n is 1 else @take(n)
+			first: (n = 1) -> if n is 1 then @[0] else @take(n)
 
 			# Get the last item(s).
-			last: (n = 1) -> @[@length - 1] if n is 1 else @skip(@length - n)
+			last: (n = 1) -> if n is 1 then @[@length - 1] else @skip(@length - n)
 
 			slice: (start=0, end=@length) -> # .slice(/i/, [/j/]) - get a subset of _this_ including [/i/../j/-1]
 				# negative indices work like in python: -1 is the last item, -2 is second-to-last, null means inclusive

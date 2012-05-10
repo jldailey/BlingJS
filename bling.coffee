@@ -573,11 +573,9 @@ class Bling extends Array
 		# Make sure we have Element functions: `matchesSelector`, and
 		# `cloneNode`.
 		if Element?
-			Element::matchesSelector = $.coalesce(
-				Element::webkitMatchesSelector,
-				Element::mozMatchesSelector,
+			Element::matchesSelector = Element::webkitMatchesSelector or
+				Element::mozMatchesSelector or
 				Element::matchesSelector
-			)
 
 			if Element::cloneNode.length is 0 # if cloneNode does not take a 'deep' argument, add support
 				oldClone = Element::cloneNode
@@ -656,8 +654,10 @@ class Bling extends Array
 
 			# A fairly verbose string description.
 			toString: -> Object.String(@)
+
 			# Get a new set containing only the i-th element of _this_.
 			eq: (i) -> $([@[i]])
+
 			# Call a function on every item in _this_.
 			each: (f) -> (f.call(t,t) for t in @); @
 			# Get a new set with the results of calling a function of every
@@ -982,7 +982,7 @@ class Bling extends Array
 
 			return {
 				$:
-					
+
 					# `$.HTML` provides methods similar to the global JSON
 					# object, for parsing from and to HTML.
 					HTML:

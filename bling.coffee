@@ -933,6 +933,21 @@ class Bling extends Array
 						return f.apply @,a if gap > n else null
 		}
 
+	$.plugin -> # EventEmitter
+		class EventEmitter
+			constructor:        -> @_eh = {}
+			addListener:        (e, h) -> (@_eh[e] or= []).push(h); @emit('newListener', e, h)
+			on:                 (e, h) -> @addListener e, h
+			once:               (e,h) -> @addListener e, (f = (a...) -> @removeListener(f); h(a...))
+			removeListener:     (e, h) -> @_eh[e].splice i, 1 if (i = (@_eh[e] or= []).indexOf(h)) > -1
+			removeAllListeners: (e) -> @_eh[e] = []
+			setMaxListeners:    (n) -> # nop for now... who really needs this in the core API?
+			listeners:          (e) -> @_eh[e]
+			emit:               (e, a...) -> (f.apply(@, a) for f in (@_eh[e] or= [])); null
+
+		return $: EventEmitter: EventEmitter
+
+
 	if Object.global.document?
 		Object.Type.register "nodelist",
 			match: (o) -> o? and Object.IsType "NodeList", o
@@ -1725,137 +1740,6 @@ class Bling extends Array
 						lazy_load "link", { href: src, "rel!": "stylesheet" }
 			}
 
-	
-	$.plugin -> # EventEmitter
-		class EventEmitter
-			constructor:        -> @_eh = {}
-			addListener:        (e, h) -> (@_eh[e] or= []).push(h); @emit('newListener', e, h)
-			on:                 (e, h) -> @addListener e, h
-			once:               (e,h) -> @addListener e, (f = (a...) -> @removeListener(f); h(a...))
-			removeListener:     (e, h) -> @_eh[e].splice i, 1 if (i = (@_eh[e] or= []).indexOf(h)) > -1
-			removeAllListeners: (e) -> @_eh[e] = []
-			setMaxListeners:    (n) -> # nop for now... who really needs this in the core API?
-			listeners:          (e) -> @_eh[e]
-			emit:               (e, a...) -> (f.apply(@, a) for f in (@_eh[e] or= [])); null
-
-		Object.global.EventEmitter or= EventEmitter
-
-		return $: EventEmitter: EventEmitter
-
-
-	$.plugin -> # Background workers... just noodling for now
-
-		# EOF is a magic function object used as a unique token
-		# (instead of an object/guid so it has safer comparisons)
-		EOF = -> "EOF"
-
-		BackgroundQueue = (opts) ->
-			opts = extend {
-				item: -> EOF
-				action: Function.Identity
-				latency: 10
-			}, opts
-
-			return extend new $.EventEmitter(), {
-				run: ->
-					r = () =>
-						if (item = opts.action(opts.item())) isnt EOF
-							@emit("data", item)
-							setTimeout r, opts.latency
-					setTimeout r, opts.latency
-			}
-
-		data = x for x in [0...1000]
-		i = 0
-		BackgroundQueue
-			item: ->
-				return data[i++] if i < data.length
-				throw new Error("eof")
-			action: (item) -> (item*item) - 1
-			latency: 10
-		.on "data", (x) -> console.log "data:", x
-		.on "error", (x) -> console.log "error:", x
-		.run() # this should output 1 to 1000 over about 10 seconds, while other events keep working
-	
-	$.plugin -> # Units... just noodling
-		# Units are strings with numbers followed by a unit suffix, like
-		# "100px", "10pt", etc.
-		# The purpose of handling them separately is to provide shorthand
-		# to unit-aware math, so we override much of the Math plugin (not
-		# the global Math object, though that might be fun...).
-
-		# Define a RegEx to match a unit string.
-		units = ["px","pt","pc","em","%","in","cm","mm","ex",""]
-		UNIT_RE = /(\d+\.*\d*)(px|pt|pc|em|%|in|cm|mm|ex)/
-
-		# Split a unit string into [number, unit]
-		parseUnits = (s) -> UNIT_RE.exec(s)[2] if UNIT_RE.test(s) else ""
-
-		# Conversion rates between units, for better comparisons.
-		conv = (a,b) -> conv[a][b]()
-		trick = (x) -> -> x # this trick forces x to evaluate at creation
-		for a in units
-			for b in units
-				(conv[a] or= {})[b] = trick +(a is b or a is "" or b is "")
-		conv.in.pt = -> 72
-		conv.in.px = -> 96
-		conv.in.cm = -> 2.54
-		conv.pc.pt = -> 12
-		conv.cm.mm = -> 10
-		conv.em.px = ->
-			x = $("<span style='font-size:1em;visibility:hidden'>x</span>").appendTo("body")
-			w = x.width().first()
-			x.remove()
-			w
-		conv.ex.px = ->
-			x = $("<span style='font-size:1ex;visibility:hidden'>x</span>").appendTo("body")
-			w = x.width().first()
-			x.remove()
-			w
-		conv.ex.em = -> 2
-		fillIn = ->
-			for a in units
-				for b in units
-					if not conv(a,b) and conv(b,a)
-						console.log "found inverse: #{a}.#{b}"
-						conv[a][b] = trick 1.0/conv(b,a)
-					for c in units
-						if not conv(a,c) and conv(a,b) and conv(b,c)
-							console.log "found induction: #{a}.#{c}"
-							conv[a][c] = trick conv(a,b) * conv(b,c)
-		fillIn(); fillIn()
-		
-		convertUnits = (number, unit) -> parseFloat(number) * conv[parseUnits(number)][unit]() + unit
-
-		$.assert(convertUnits("300px", "cm") == "10cm")
-
-		convertAll = (to, a) ->
-			for i in [0...a.length]
-				a[i] = convertTo(to, a[i])
-	
-		Object.Type.register "units",
-			match: (x) -> UNIT_RE.test(x)
-
-		unit_scalar = (f) ->
-			(a...) ->
-				convertAll( unit = parseUnits(@[0]), @)
-				(f.apply @, a) + unit
-		unit_vector = (f) ->
-			(a...) ->
-				u = @map parseUnits
-				f.apply(@floats(), a).map ->
-
-		{
-			min: unit_scalar -> @reduce (a) -> Math.min parseFloat(@), a
-			max: unit_scalar -> @reduce (a) -> Math.max parseFloat(@), a
-			sum: unit_scalar -> @reduce (a) -> parseFloat(@) + a
-			mean: unit_scalar -> parseFloat(@sum()) / @length
-			magnitude: unit_scalar -> Math.sqrt @floats().squares().sum()
-			squares: -> @map -> (x=parseFloat(@)) * x
-			scale: (n) -> @map -> n * parseFloat(@)
-			add: (d) -> @map -> d + @
-			normalize: -> @scale(1/@magnitude())
-		}
 
 
 )(Bling)

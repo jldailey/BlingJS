@@ -598,10 +598,12 @@ class Bling extends Array
 	$.plugin ->
 
 		# A functor that will read property `p` from some object later.
-		gettor = (prop) -> -> Function.Bound(@,v) if Object.IsFunction(v = @[prop]) else v
+		gettor = (prop) -> -> if Object.IsFunction(v = @[prop]) then Function.Bound(@,v) else v
 		# A helper that will recursively split `p` on `.` and map a gettor
 		# to read a set of complex `p` values from an object.
-		selector = (p) -> @select(p.substr 0,i).select(p.substr i+1) if (i = p.indexOf '.') > -1 else @map(gettor p)
+		selector = (p) ->
+			if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
+			else @map(gettor p)
 		# See: `$.select`.
 
 		return {

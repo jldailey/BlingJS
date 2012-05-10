@@ -93,7 +93,7 @@ extend Object,
 	# instances or prototypes directly.
 
 	# Before we build a full classifier, we need a few things.
-	
+
 	# `Object.IsType(T, obj)` is a simple boolean test to see if any
 	# object `o` is of type `T`; respecting prototype chains,
 	# constructors, and anything else we can think of that matters.
@@ -116,6 +116,7 @@ extend Object,
 		obj.__proto__ = parent
 		obj
 
+extend Object,
 	# Now, let's begin to build the classifier: `Object.Type(obj)`.
 	Type: (->
 
@@ -145,24 +146,31 @@ extend Object,
 
 		# Later, you can extend previously registered types with new
 		# functionality.
-		extend = (name, data) ->
+		_xtend = (name, data) ->
 			# If explicitly passed a null for the name, extend base type
 			if data? and not name?
 				Object.Extend base, data
 			# The `name` should be of a registered type (a key into the cache)
 			else if typeof name is "string"
 				# But, if you attempt to extend a type that was not registered yet,
-				# it will be automatically registered (shh, don't tell anyone).
-				cache[name] = Object.Extend cache[name] ? register(name,{}), data
+				# it will be automatically registered.
+				cache[name] ?= register(name, {})
+				cache[name] = Object.Extend cache[name], data
 			# But you can also extend a bunch of types at once, by passing a
 			# 2-level deep object, where the first level of keys are type
 			# names and the second level of keys are objects full of
 			# extensions.
-			else Object.Type.extend k, name[k] for k of name
+			else if typeof name is "object"
+				(Object.Type.extend k, name[k]) for k of name
+			else
+				console.log "extend called with unknown arguments"
+				console.log arguments
 
 		# To classify an object, simply check every match in order.
-		# Returns all matching type-instances, so you can access any extensions.
-		lookup = (obj) -> cache[name] for name in order when cache[name]?.match.call obj, obj
+		lookup = (obj) ->
+			for name in order
+				if cache[name]?.match.call obj, obj
+					return cache[name]
 
 		# Now, register all the built-in types. These checks are
 		# executed in _reverse order_, so the first listed here, `"unknown"`,
@@ -187,10 +195,10 @@ extend Object,
 		register "null",      match: (x) -> x is null
 
 		# Now, we finally have all the pieces to make the real classifier.
-		Object.Extend ((o) -> lookup(o)[0].name),
+		return Object.Extend ((o) -> lookup(o).name),
 			register: register
 			lookup: lookup
-			extend: extend
+			extend: _xtend
 		# Example: Calling Object.Type directly will get you the simple name of the
 		# best match.
 		# > `Object.Type([]) == "array"`
@@ -204,14 +212,6 @@ extend Object,
 
 		# Later, once other systems have extended the base type, the
 		# type-instance returned from Object.Type.lookup will do more.
-
-		# If an object is of multiple types, for instance "html" is a
-		# "string" with special formatting.  To disambiguate these:
-
-		# > `Object.Type.lookup(a="<a>")
-		# > .filter(-> @name is "string")
-		# > .select("hash")
-		# > .call(a)`
 
 	)()
 
@@ -252,7 +252,7 @@ extend Object,
 
 		# With `string` known to the type system, the actual implementation of
 		# `Object.String` is trivial:
-		(x) -> Object.Type.lookup(x)[0].string(x)
+		(x) -> Object.Type.lookup(x).string(x)
 	)()
 
 	# Object.Hash
@@ -264,7 +264,7 @@ extend Object,
 			object: { hash: (o) -> (Object.Hash(o[k]) for k of o) + Object.Hash(Object.Keys(o)) }
 			array:  { hash: (o) -> (Object.Hash(i) for i in x).reduce (a,x) -> a+x }
 			bool:   { hash: (o) -> parseInt(1 if o) }
-		(x) -> Object.Type.lookup(x)[0].hash(x)
+		(x) -> Object.Type.lookup(x).hash(x)
 	)()
 
 	# Object.Trace
@@ -286,7 +286,7 @@ extend Object,
 					tracer "Trace: #{label or f.name} created."
 					r.toString = f.toString
 					r
-		(o, label, tracer) -> Object.Type.lookup(o)[0].trace(o, label, tracer)
+		(o, label, tracer) -> Object.Type.lookup(o).trace(o, label, tracer)
 	)()
 	# Trace could probably be improved to support filters on which keys
 	# to trace...
@@ -385,7 +385,7 @@ extend String,
 		if start < 0
 			start += nn
 		s.substring(0,start) + n + s.substring(end)
-	
+
 	# Compute the Adler32 checksum of a string.
 	Checksum: (s) ->
 		a = 1; b = 0
@@ -393,7 +393,7 @@ extend String,
 			a = (a + s.charCodeAt(i)) % 65521
 			b = (b + a) % 65521
 		return (b << 16) | a
-	
+
 	# Return a string-builder, which uses arrays to defer all string
 	# concatenation until you call `builder.toString()`.
 	Builder: ->

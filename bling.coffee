@@ -467,7 +467,7 @@ class Bling extends Array
 				# older version of plugin() used to require names,
 				# but we ignore them now in case we are loading an out-dated
 				# plugin).
-				@(['$','name']).each (k) -> delete plugin[k]
+				['$','name'].forEach (k) -> delete plugin[k]
 				# Now put everything else on the Bling prototype
 				extend @::, plugin
 				# Finally, add default global versions of anything that

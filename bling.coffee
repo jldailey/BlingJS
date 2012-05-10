@@ -431,15 +431,15 @@ extend String,
 # So, the Bling constructor should not be called as `new Bling`,
 # and this means our assignment to a symbol (`$`) remains simple.
 class Bling extends Array
-	constructor: (selector, context = document ? {}) ->
+	constructor: (selector, context = document or {}) ->
 		# Since we have this nice Type system, our constructor is succinct:
 		# 1. Classify the type.
-		# 2. Convert the selector to a set.
+		# 2. Convert the selector to a set using the type-instance.
 		# 3. Use Object.Inherit to _hijack_ the set's prototype in-place.
-		Object.Inherit Bling, Object.Extend Object.Type.lookup(selector).array(selector, context),
-				selector: selector
-				context: context
-	
+		return Object.Inherit Bling, Object.Extend Object.Type.lookup(selector).array(selector, context),
+			selector: selector
+			context: context
+
 	# $.plugin( func )
 	# -----------------
 	# Each plugin is a function that returns an object full of stuff to

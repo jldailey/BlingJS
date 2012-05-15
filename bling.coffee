@@ -12,7 +12,7 @@
 #    If you always write code to handle sets, you usually handle the scalar case for free.
 # 2. Don't alter global _prototypes_; global _types_ are OK.
 # 3. Have fun and learn; about the DOM, about jQuery, about JavaScript and CoffeeScript.
-# 4. Never be afraid to delete code you don't like.
+# 4. Have the courage to refactor; learning requires some chaos.
 
 # Author
 # ------
@@ -25,386 +25,147 @@
 
 # A safe reference to `console.log()`:
 log = (a...) ->
-	try return console.log?.apply console, a
+	try return console.log.apply console, a
 	alert a.join(", ")
 
-# A safe reference to the `global` object:
-Object.defineProperty Object, 'global', get: -> window ? global
-
-# A safe replacement for `Object.keys`:
-keys = (o, inherited = false) -> (k for k of o when (inherited or o.hasOwnProperty(k)))
+# A safe fill-in for `Object.keys`:
+Object.keys ?= (o) -> (k for k of o)
 
 # A way to assign values from `b` to `a`, with optional whitelist:
-extend = (a, b, k) ->
-	return a if not b?
-	if not Array.isArray?(k)
-		k = keys(b)
-	for key in k
-		v = b[key]
-		if not v? then continue
-		a[key] = v
+extend ?= (a, b) ->
+	return a if not b
+	for k in Object.keys(b)
+		v = b[k]
+		if v? then a[k] = v
 	a
 
-# A way to proper case a string:
-capital = (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
-
-# Basic Globals
-# -------------
-
-# This section starts with the basic things we want to do with objects.
-# All of these extensions are attached to the global `Object` value, not the
-# _prototype_. So you use them like: `Object.Keys(foo)`.
-extend Object,
-	# Keys and Extend are made public here for plugins.
-	Keys: keys,
-	Extend: extend,
-
-	# Type System
-	# -----------
-
-	# JavaScript's type system is beautiful, but arcane and problematic.
-
-	# The idea of the prototype chain is very powerful and can be used
-	# to model a class-based system (like Java's, as CoffeeScript does),
-	# but can also easily emulate other systems; like Traits from Scala,
-	# and Mixins from Ruby.
-
-	# Prototypes allow for an object to transform itself in new ways that
-	# you can't do in other languages, like the ability to splice a new object
-	# anywhere in a prototype chain for a single object instance.
-
-	# But, the power of prototypes is hidden behind lots of bad implementation
-	# choices; one of the first everyone finds is how difficult it is to ask:
-	# > What kind of type is this?
-
-	# `typeof` is famously unhelpful here; e.g. `typeof [] == typeof {}`.
-
-	# Many attempts have been made to improve the type system, but they
-	# do not address the `typeof` problem; even CoffeeScript's own
-	# `class` and `extends` syntax.  Also, along the way, they forget
-	# they are in a prototype-based system, and they throw away it's
-	# flexibility.
-
-	# To fix this, we will create a _type classifier_ for the core of
-	# our type system.
-
-	# Later, we will extend the classifier so that we can define operations on
-	# the type-instances, rather than attaching them to any
-	# instances or prototypes directly.
-
-	# Before we build a full classifier, we need a few things.
-
-	# `Object.IsType(T, obj)` is a simple boolean test to see if any
-	# object `o` is of type `T`; respecting prototype chains,
-	# constructors, and anything else we can think of that matters.
-	IsType: (T, o) ->
-		return T in [o,"null","undefined"] if not o?
-		o.constructor is T or
-			o.constructor.name is T or
-			Object::toString.apply(o) is "[object #{T}]" or
-			Object.IsType T, o.__proto__
-
-	# Object.Inherit(parent, child) is similar to Extend, except it works by
-	# inserting the parent as the proto of the child instance. This is unlike
-	# coffee's `class X extends Y`, because it expects the target `obj`
-	# to be an _instance_, and the parent can either be an instance or a
-	# constructor.
-	Inherit: (parent, obj) ->
-		if typeof parent is "function"
-			obj.constructor = parent
-			parent = parent::
-		obj.__proto__ = parent
-		obj
-
-extend Object,
-	# Now, let's begin to build the classifier: `Object.Type(obj)`.
-	Type: (->
-
-		# Internally, Object.Type maintains a registry of known types.
-		cache = {}
-
-		# Each type in the registry is an instance that inherits from a
-		# base object.  Later, when we want to do more than `match` with
-		# each type, we will extend this base type to provide default
-		# implementations.
-		base =
-			name: 'unknown'
-			match: (o) -> true
-
-		# When checking for matches, this array of names will control
-		# the precedence of the checks.
-		order = []
-
-		# When adding a new type to the regisry:
-		register = (name, data) ->
-			# * Create a global `Object.Is___` boolean check for the type.
-			Object["Is"+capital(name)] = (o) -> data.match.call o,o
-			# * Put the type check in order (if it isn't already).
-			order.unshift name if not (name of cache)
-			# * Inherit from the base type and store in the cache.
-			cache[data.name = name] = Object.Inherit base, data
-
-		# Later, you can extend previously registered types with new
-		# functionality.
-		_xtend = (name, data) ->
-			# If explicitly passed a null for the name, extend base type
-			if data? and not name?
-				Object.Extend base, data
-			# The `name` should be of a registered type (a key into the cache)
-			else if typeof name is "string"
-				# But, if you attempt to extend a type that was not registered yet,
-				# it will be automatically registered.
-				cache[name] ?= register(name, {})
-				cache[name] = Object.Extend cache[name], data
-			# But you can also extend a bunch of types at once, by passing a
-			# 2-level deep object, where the first level of keys are type
-			# names and the second level of keys are objects full of
-			# extensions.
-			else if typeof name is "object"
-				(Object.Type.extend k, name[k]) for k of name
-			else
-				console.log "extend called with unknown arguments"
-				console.log arguments
-
-		# To classify an object, simply check every match in order.
-		lookup = (obj) ->
-			for name in order
-				if cache[name]?.match.call obj, obj
-					return cache[name]
-
-		# Now, register all the built-in types. These checks are
-		# executed in _reverse order_, so the first listed here, `"unknown"`,
-		# is always checked last.
-		register "unknown",   match: -> true
-		# This implies that the 'simplest' checks should be registered
-		# first, and conceptually more specialized checks would get added
-		# as time goes on (so specialized type matches are preferred).
-		register "object",    match: -> typeof @ is "object"
-		register "error",     match: -> Object.IsType 'Error', @
-		register "regexp",    match: -> Object.IsType 'RegExp', @
-		register "string",    match: -> typeof @ is "string" or Object.IsType String, @
-		register "number",    match: -> Object.IsType Number, @
-		register "bool",      match: -> typeof @ is "boolean" or String(@) in ["true","false"]
-		register "array",     match: -> Array.isArray?(@) or Object.IsType Array, @
-		register "function",  match: -> typeof @ is "function"
-		register "global",    match: -> typeof @ is "object" and 'setInterval' of @
-		# These checks for null and undefined are small exceptions to the
-		# simple-first idea, since they are precise and getting them out
-		# of the way early lets later checks omit a safety check.
-		register "undefined", match: (x) -> x is undefined
-		register "null",      match: (x) -> x is null
-
-		# Now, we finally have all the pieces to make the real classifier.
-		return Object.Extend ((o) -> lookup(o).name),
-			register: register
-			lookup: lookup
-			extend: _xtend
-		# Example: Calling Object.Type directly will get you the simple name of the
-		# best match.
-		# > `Object.Type([]) == "array"`
-
-		# If you want to know everything, you can use lookup
-		# directly.
-		# > `Object.Type.lookup([]).select("name") == ["array"]`
-
-		# You can also tell when things are made of more than one type.
-		# > `Object.Type.lookup("<a>").select("name") == ["html","string"]`
-
-		# Later, once other systems have extended the base type, the
-		# type-instance returned from Object.Type.lookup will do more.
-
-	)()
-
-# Using the Type System
-# =====================
-extend Object,
-	# Two helpers, self-explanatory.
-	IsSimple: (o) -> Object.Type(o) in ["string", "number", "bool"]
-	IsEmpty: (o) -> o in ["", null, undefined]
-
-	# Object.String
-	# -------------
-	# Object.String extends the base type to allow for converting things
-	# to string based on their type. This is a separate system from the
-	# native Object.prototype.toString chain of methods.
-
-	# This is the first proof-of-concept of modular extensions to the
-	# type system, and also gives us a way to control the string
-	# output in ways that won't impact other code that relies on the
-	# behavior of toString.
-	String: (->
-		# First, extend the base type with a default `string` function
-		Object.Type.extend null, string: (o) -> o.toString?() ? String(o)
-		# Now, for each basic type, provide a basic `string` function.
-		Object.Type.extend
-			null:      { string: -> "null" }
-			undefined: { string: -> "undefined" }
-			string:    { string: Function.Identity }
-			array:     { string: (a) -> "[" + (Object.String(x) for x in a).join(",") + "]" }
-			object:    { string: (o) -> "{" + ("#{k}:#{Object.String(v)}" for k,v in o).join(", ") + "}" }
-			number:    { string: (n) ->
-				switch true
-					when n.precision? then n.toPrecision(n.precision)
-					when n.fixed? then n.toFixed(n.fixed)
-					else String(n)
-			}
-		# Later, more complex types will be added by plugins.
-
-		# With `string` known to the type system, the actual implementation of
-		# `Object.String` is trivial:
-		(x) -> Object.Type.lookup(x).string(x)
-	)()
-
-	# Object.Hash
-	# -----------
-	# Reduces any thing to an integer hash code (not secure).
-	Hash: (->
-		Object.Type.extend null, hash: (o) -> String.Checksum Object.String(o)
-		Object.Type.extend
-			object: { hash: (o) -> (Object.Hash(o[k]) for k of o) + Object.Hash(Object.Keys(o)) }
-			array:  { hash: (o) -> (Object.Hash(i) for i in x).reduce (a,x) -> a+x }
-			bool:   { hash: (o) -> parseInt(1 if o) }
-		(x) -> Object.Type.lookup(x).hash(x)
-	)()
-
-	# Object.Trace
-	# ------------
-	# A very useful debugging tool, `Object.Trace` will deep-walk all
-	# properties and wrap all functions with new functions that call the
-	# originals but log the calls (and use the property names from the
-	# deep walk as labels).
-	Trace: (->
-		Object.Type.extend null, trace: Function.Identity
-		Object.Type.extend
-			object: { trace: (o, label, tracer) -> (o[k] = Object.Trace(o[k], "#{label}.#{k}", tracer) for k in Object.Keys(o)); o }
-			array:  { trace: (o, label, tracer) -> (o[i] = Object.Trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length]); o }
-			function:
-				trace: (f, label, tracer) ->
-					r = (a...) ->
-						tracer "#{@name or Object.Type(@)}.#{label or f.name}(", a, ")"
-						f.apply @, a
-					tracer "Trace: #{label or f.name} created."
-					r.toString = f.toString
-					r
-		(o, label, tracer) -> Object.Type.lookup(o).trace(o, label, tracer)
-	)()
-	# Trace could probably be improved to support filters on which keys
-	# to trace...
-
-# Function Globals
-# ----------------
-# These are little function factories, for mixing and composing other functions.
-extend Function,
-	# __Function.Identity(x)__ returns x.
-	Identity: (o) -> o
-	# __Function.Not(f)__ returns a new function that returns `not
-	# f(...)`.
-	Not: (f) -> (a...) -> not f.apply @, a
-	# __Function.Compose(f,g)__ composes _f_ and _g_ to `f(g(...))`.
-	Compose: (f,g) -> (x) -> f.call(y, (y = g.call(x,x)))
-	# __Function.And(f,g)__ returns a new function that returns f(x) && g(x).
-	And: (f,g) -> (x) -> g.call(x,x) and f.call(x,x)
-	# __Function.Once(f)__ returns a new function that will only call
-	# _f_ **once**, or _n_ times if you pass the optional argument.
-	Once: (f,n=1) -> f.n = n; (a...) -> (f.apply @,a) if f.n-- > 0
-	# __Function.Bound(context,f,[args])__ returns a new function that forces this === context when called.
-	Bound: (t, f, args = []) ->
-		if Object.IsFunction f.bind
-			args.splice 0, 0, t
-			r = f.bind.apply f, args
-		else
-			r = (a...) -> f.apply t, (args if args.length else a)
-		extend r, { toString: -> "bound-method of #{t}.#{f.name}" }
-	# __Function.Memoize(f)__ returns a new function that caches function calls to f, based on hashing the arguments.
-	Memoize: (f) -> cache = {}; (a...) -> cache[Object.Hash(a)] ?= f.apply @, a # BUG: does not cache if f returns null on purpose
 
 
-# String Globals
-# --------------
-# Lots of basic things to do with strings.
-extend String,
+# Type System
+# -----------
 
-	# Make a "px" string:
-	# Accept anything parseInt-able (including an existing "px"
-	# string), adjusts by optional delta.
-	Px: (x, delta=0) -> x? and (parseInt(x,10)+(delta|0))+"px"
-	# Example: Add 100px of width to an element.
+# The type system is built around a _type classifier_. Initially, this
+# will only know how to match types (and the order to check them in).
+# Later, the type-instance that results from classification will be
+# extended to provide more operations, e.g. hashing.
 
-	# jQuery style:
-	# > `node.css("width",String.Px(node.css("width"), + 100))`
+# Before we build a full classifier, we need a few things.
 
-	# Bling style:
-	# > `node.zap 'style.width', -> String.Px(@, + 100)
+# `isType(T, obj)` is a simple boolean test to see if any
+# object `o` is of type `T`; respecting prototype chains,
+# constructors, and anything else we can think of that matters.
+isType = (T, o) ->
+	if not o? then T in [o,"null","undefined"]
+	else o.constructor is T or
+		o.constructor.name is T or
+		Object::toString.apply(o) is "[object #{T}]" or
+		isType T, o.__proto__
 
-	# Properly **Capitalize** Each Word In A String.
-	Capitalize: capital
+# `inherit(parent, child)` is similar to Extend, except it works by
+# inserting the parent as the prototype of the child _instance_. This is unlike
+# coffee's `class X extends Y`, because it expects the target `child`
+# to be an _instance_, and the `parent` can either be an _instance_ or a
+# __constructor__.
+inherit = (parent, obj) ->
+	if typeof parent is "function"
+		obj.constructor = parent
+		parent = parent::
+	obj.__proto__ = parent
+	obj
 
-	# Convert a camelCase name to a dash-name.
-	Dashize: (name) ->
-		ret = ""
-		for i in [0...(name?.length|0)]
-			c = name.charCodeAt i
-			# For each uppercase character,
-			if 91 > c > 64
-				# Shift it to lower case and insert a '-'.
-				c += 32
-				ret += '-'
-			ret += String.fromCharCode(c)
-		return ret
+# Now, let's begin to build the classifier for `$.type(obj)`.
+type = (->
 
-	# Convert a dash-name to a camelName.
-	Camelize: (name) ->
-		name.split('-')
-		while (i = name?.indexOf('-')) > -1
-			name = String.Splice(name, i, i+2, name[i+1].toUpperCase())
-		name
+	# Internally, maintain a registry of known types.
+	cache = {}
 
-	# Fill the left side of a string to make it a fixed width.
-	PadLeft: (s, n, c = " ") -> # String.PadLeft(string, width, fill=" ")
-		while s.length < n
-			s = c + s
-		s
+	# Each type in the registry is an instance that inherits from a
+	# base object.  Later, when we want to do more than `match` with
+	# each type, we will put default implementations on this base.
+	base =
+		name: 'unknown'
+		match: (o) -> true
 
-	# Fill the right side of a string to make it a fixed width.
-	PadRight: (s, n, c = " ") -> # String.PadRight(string, width, fill=" ")
-		while s.length < n
-			s = s + c
-		s
+	# When classifying an object, this array of names will control
+	# the order of the calls to `match` (and thus, the precedence).
+	order = []
 
-	# Count the number of occurences of `x` in `s`.
-	Count: (s, x, i = 0, n = 0) -> String.Count(s,x,j+1,n+1) if (j=s.indexOf(x,i)) > i-1 else n
+	# When adding a new type to the regisry:
+	register = (name, data) ->
+		# * Create a root level `$.is___` boolean check for the type.
+		# Object["is"+capital(name)] = (o) -> data.match.call o,o
+		# * Put the type check in order (if it isn't already).
+		order.unshift name if not (name of cache)
+		# * inherit from the base type and store in the cache.
+		cache[data.name = name] = inherit base, data
 
-	# Splice the substring `n` into the string `s', replacing indices
-	# between `i` and `j`.
-	Splice: (s, i, j, n) ->
-		nn = s.length
-		end = j
-		if end < 0
-			end += nn
-		start = i
-		if start < 0
-			start += nn
-		s.substring(0,start) + n + s.substring(end)
+	# Later, plugins can `extend` previously registered types with new
+	# functionality.
+	_extend = (name, data) ->
+		# If explicitly passed a null for the name, extend base type
+		if data? and not name?
+			extend base, data
+		# The `name` should be of a registered type (a key into the cache)
+		else if typeof name is "string"
+			# But, if you attempt to extend a type that was not registered yet,
+			# it will be automatically registered.
+			cache[name] ?= register(name, {})
+			cache[name] = extend cache[name], data
+		# But you can also extend a bunch of types at once, by passing a
+		# 2-level deep object, where the first level of keys are type
+		# names and the second level of keys are objects full of
+		# extensions.
+		else if typeof name is "object"
+			(_extend k, name[k]) for k of name
 
-	# Compute the Adler32 checksum of a string.
-	Checksum: (s) ->
-		a = 1; b = 0
-		for i in [0...s.length]
-			a = (a + s.charCodeAt(i)) % 65521
-			b = (b + a) % 65521
-		return (b << 16) | a
+	# To classify an object, simply check every match in order.
+	lookup = (obj) ->
+		for name in order
+			if cache[name]?.match.call obj, obj
+				return cache[name]
 
-	# Return a string-builder, which uses arrays to defer all string
-	# concatenation until you call `builder.toString()`.
-	Builder: ->
-		if Object.IsWindow(@) then return new String.Builder()
-		items = []
-		@length   = 0
-		@append   = (s) => items.push s; @length += s?.toString().length|0
-		@prepend  = (s) => items.splice 0,0,s; @length += s?.toString().length|0
-		@clear    = ( ) => ret = @toString(); items = []; @length = 0; ret
-		@toString = ( ) => items.join("")
-		@
+	# Now, register all the built-in types. These checks are
+	# executed in _reverse order_, so the first listed here, `"unknown"`,
+	# is always checked last.
+	register "unknown",   match: -> true
+	# This implies that the 'simplest' checks should be registered
+	# first, and conceptually more specialized checks would get added
+	# as time goes on (so specialized type matches are preferred).
+	register "object",    match: -> typeof @ is "object"
+	register "error",     match: -> isType 'Error', @
+	register "regexp",    match: -> isType 'RegExp', @
+	register "string",    match: -> typeof @ is "string" or isType String, @
+	register "number",    match: -> isType Number, @
+	register "bool",      match: -> typeof @ is "boolean" or String(@) in ["true","false"]
+	register "array",     match: -> Array.isArray?(@) or isType Array, @
+	register "function",  match: -> typeof @ is "function"
+	register "global",    match: -> typeof @ is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
+	# These checks for null and undefined are small exceptions to the
+	# simple-first idea, since they are precise and getting them out
+	# of the way early lets the above checks omit a safety check.
+	register "undefined", match: (x) -> x is undefined
+	register "null",      match: (x) -> x is null
+
+	# Now, we finally have all the pieces to make the real classifier.
+	return extend ((o) -> lookup(o).name),
+		register: register
+		lookup: lookup
+		extend: _extend
+		match: (t, o) -> cache[name]?.match.call o, o
+
+	# Example: Calling $.type directly will get you the simple name of the
+	# best match.
+	# > `type([]) == "array"`
+
+	# If you want to know everything, you can use lookup
+	# directly.
+	# > `type.lookup([]).name == "array"`
+
+	# Later, once other systems have extended the base type, the
+	# type-instance returned from type.lookup will do more.
+
+)()
+
 
 # The Bling Constructor
 # =====================
@@ -421,7 +182,7 @@ extend String,
 # In that simple statement is basically the core of the JS type
 # system, and even in that one sentence there are three problems:
 
-# 1. _The copy is shallow_; creating ambiguously-shared state between
+# 1. _The copy is shallow_; creating partially-shared state between
 # instances.
 # 2. _There is a copy at all_; one should avoid copying in critical
 # sections whenever possible.
@@ -434,13 +195,14 @@ class Bling extends Array
 	constructor: (selector, context = document or {}) ->
 		# Since we have this nice Type system, our constructor is succinct:
 		# 1. Classify the type.
-		# 2. Convert the selector to a set using the type-instance.
-		# 3. Use Object.Inherit to _hijack_ the set's prototype in-place.
-		return Object.Inherit Bling, Object.Extend Object.Type.lookup(selector).array(selector, context),
+		# 2. Convert the selector to a set using the type-instance (which
+		# in the case of anything array-like is a no-op).
+		# 3. Use inherit to _hijack_ the set's prototype in-place.
+		return inherit Bling, extend type.lookup(selector).array(selector, context),
 			selector: selector
 			context: context
 
-	# $.plugin( func )
+	# $.plugin( [ opts ], func )
 	# -----------------
 	# Each plugin is a function that returns an object full of stuff to
 	# extend the Bling prototype with.
@@ -450,31 +212,38 @@ class Bling extends Array
 
 	# After this, `$(...).echo()` will work.  Also, this will also
 	# create a default global version: `$.echo`.
-	
+
 	# You can explicitly define root-level values by nesting things
 	# under a `$` key:
 	# > $.plugin () -> $: hello: -> "Hello!"
 
 	# This will create `$.hello`, but not `$().hello`.
-	@plugin: (constructor) ->
+	@plugin: (opts, constructor) ->
+		if not constructor?
+			constructor = opts; opts = {}
+		
+		if "depends" of opts
+			return $.depends opts.depends, ->
+				$.plugin { provides: opts.provides }, constructor
 		try
 			# We call the plugin constructor and expect that it returns an
-			# object full of things to be publicly exposed.
-			if (plugin = constructor.call @,@)?
+			# object full of things to attach to either Bling or it's prototype.
+			if (plugin = constructor?.call @,@)
 				# If the plugin has a `$` key, apply those to Bling directly
 				extend @, plugin?.$
-				# Clean off keys we don't care about: `$` and `name`. (An
+				# Clean off keys we no longer care about: `$` and `name`. (An
 				# older version of plugin() used to require names,
-				# but we ignore them now in case we are loading an out-dated
-				# plugin).
+				# but we ignore them now in favor of depends/provides.
 				['$','name'].forEach (k) -> delete plugin[k]
 				# Now put everything else on the Bling prototype
 				extend @::, plugin
 				# Finally, add default global versions of anything that
 				# doesn't have one already.
-				( @[key] ?= (a...) => (@::[key].apply $(a[0]), a[1...]) ) for key of plugin # and gets a default global implementation
+				( @[key] or= (a...) => (@::[key].apply $(a[0]), a[1...]) ) for key of plugin # and gets a default global implementation
+				if opts.provides? then $.provide opts.provides
 		catch error
-			log "failed to load plugin: '#{error.message}'"
+			log "failed to load plugin: #{this.name} '#{error.message}'"
+			throw error
 		@
 
 	# Adding "bling" to the Type System
@@ -484,34 +253,83 @@ class Bling extends Array
 
 	# By default, if we don't know any better way, we just stick the
 	# thing inside a real array.
-	Object.Type.extend null, array: (o) -> [o]
+	$.type.extend null, array: (o) -> [o]
 	# But where we do know better, we can provide more meaningful
 	# conversions. Later, in the DOM section, we will extend
 	# this further to know how to convert "html", "node", etc.
-	Object.Type.extend
+	$.type.extend
 		# Null and undefined values convert to an empty array
 		null:      { array: (o) -> [] }
 		undefined: { array: (o) -> [] }
 		# Arrays just convert to themselves
-		array:     { array: Function.Identity }
+		array:     { array: $.identity }
 		# Numbers create a new array of that capacity:
 		# > `$(10) == $(new Array(10))`
-		number:    { array: (o) -> Object.Extend new Array(o), length: 0 }
-	
+		number:    { array: (o) -> $.extend new Array(o), length: 0 }
+
 	# Second, we register "bling", and all the things we know how to do
 	# with it:
-	Object.Type.register "bling",
-		match:  (o) -> Object.IsType Bling, o
-		array:  Function.Identity
-		hash:   (o) -> o.map(Object.Hash).sum()
-		string: (o) -> Bling.symbol + "([" + o.map(Object.String).join(", ")+ "])"
+	$.type.register "bling",
+		match:  (o) -> isType Bling, o
+		array:  $.identity
+		hash:   (o) -> o.map($.hash).sum()
+		string: (o) -> Bling.symbol + "([" + o.map($.toString).join(", ")+ "])"
 
+# Code dependencies
+# -----------------
+# $.depends, $.provide and $.provides, allow for representing
+# dependencies between any functions. Plugins can and should use this
+# to ensure their correct loading order.
+extend Bling, (->
+	qu = []
+	done = {}
+	filt = (n) ->
+		(if (typeof n) is "string" then n.split "," else n)
+		.filter (x) -> not (x of done)
+
+	depends: (needs, f) ->
+		if (needs = filt(needs)).length is 0 then f()
+		else qu.push (need) ->
+			((needs.splice i, 1) if ( i = needs.indexOf need ) > -1) and
+			needs.length is 0 and
+			f
+		f
+
+	provide: (needs) ->
+		for need in filt(needs)
+			done[need] = i = 0
+			while i < qu.length
+				if (f = qu[i](need)) then (qu.splice i,1; f())
+				else i++
+		null
+
+	provides: (needs, f) -> (a...) -> r=f(a...); Bling.provide(needs); r
+)()
 
 # Plugins
 # ==============
 # Quickly set up a namespace that protects `$`, so we can safely use
 # short-hand in all of our plugins.
 (($) ->
+
+	#### Types plugin
+	# Exposes the type system.
+	$.plugin
+		provides: "types"
+	, ->
+		$:
+			inherit: inherit
+			extend: extend
+			# `$.isType(Array, [])` is lower level than the others,
+			# doing simple comparison between constructors.
+			isType: isType
+			# `$.type([])` equals `"array"`.
+			type: type
+			# `$.is("function", ->)` equals true/false.
+			is: type.match
+			isSimple: (o) -> type(o) in ["string", "number", "bool"]
+			isEmpty: (o) -> o in ["", null, undefined]
+	
 
 	# Symbol Plugin
 	# -------------
@@ -527,11 +345,13 @@ class Bling extends Array
 
 	# There is no restriction on the length or nature of the symbol
 	# except that it must be a valid JavaScript identifier:
-	# > `Bling.symbol = 'foo'; Object.IsBling(foo()) == true`
-	$.plugin ->
+	# > `Bling.symbol = 'foo'; $.is("bling", foo()) == true`
+	$.plugin
+		provides: "symbol"
+	, ->
 		symbol = null
 		cache = {}
-		(g = Object.global).Bling = Bling
+		(g = window ? global).Bling = Bling
 		Object.defineProperty $, "symbol",
 			set: (v) ->
 				g[symbol] = cache[symbol]
@@ -539,6 +359,7 @@ class Bling extends Array
 				g[v] = Bling
 			get: -> symbol
 		return $: symbol: "$"
+
 
 	# Compat Plugin
 	# -------------
@@ -588,15 +409,68 @@ class Bling extends Array
 
 		return { }
 
+	# Delay Plugin
+	# ------------
+	# **Q**: Since JS uses a single event loop, what happens if multiple
+	# setTimeout/Intervals are scheduled at a time when the event loop is busy?
+
+	# **A**: All the due functions are called in no particular order; even if
+	# they were clearly scheduled in a sequence like:
+	# `setTimeout(f,1); setTimeout(g,2)`.  These will execute in
+	# random order when using setTimeout directly.  This isn't
+	# necessarily about timer (in)accuracy, it's about how it
+	# stores and dequeues handlers.
+	$.plugin
+		depends: "function"
+		provides: "delay"
+	, ->
+		$:
+			delay: (->
+				# timeoutQueue is a private array that controls the order.
+				timeoutQueue = $.extend [], (->
+					next = -> @shift()() if @length
+					add: (f, n) ->
+						f.order = n + $.now
+						for i in [0...@length]
+							if @[i].order > f.order
+								@splice i,0,f
+								break
+						setTimeout next, n
+						@
+					cancel: (f) ->
+						for i in [0...@length]
+							if @[i] == f
+								@splice i, 1
+								break
+						@
+				)()
+
+				# Note that this reverses the order of _n_ and _f_
+				# intentionally.  Throughout this library, the convention is
+				# to put the simple things first, to improve code flow:
+				# > `$.delay 5, () ->` vs. `$.delay (() -> ), 5`
+				(n, f) ->
+					if $.is("function",f) then timeoutQueue.add(f, n)
+					cancel: -> timeoutQueue.cancel(f)
+
+			)()
+
+		# Continue with _f_ after _n_ milliseconds.
+		delay: (n, f, c=@) ->
+			$.delay n, $.bound(c, f)
+
+
 	# Core Plugin
 	# -----------
 	# The functional basis for all other modules.  Provides all the
 	# basic stuff that you are familiar with from jQuery: 'each', 'map',
 	# etc.
-	$.plugin ->
+	$.plugin
+		provides: "core"
+	, ->
 
 		# A functor that will read property `p` from some object later.
-		gettor = (prop) -> -> if Object.IsFunction(v = @[prop]) then Function.Bound(@,v) else v
+		gettor = (prop) -> -> if $.is("function",v = @[prop]) then $.bound(@,v) else v
 		# A helper that will recursively split `p` on `.` and map a gettor
 		# to read a set of complex `p` values from an object.
 		selector = (p) ->
@@ -604,65 +478,24 @@ class Bling extends Array
 			else @map(gettor p)
 		# See: `$.select`.
 
+		Object.defineProperty $, "now",
+			get: -> +new Date
+
 		return {
 			$:
 				log: log
 				assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
-				now: -> +new Date()
-				delay: (->
-					# `delay` uses a wrapper around setTimeout that preserves
-					# the order of the delayed functions.
-
-					# Since JS uses a single event loop, what happens if several
-					# timeouts were scheduled at a time when the event loop is busy?
-
-					# All the due functions are called in no particular order; even if
-					# they were clearly scheduled in a sequence like:
-					# `setTimeout(f,1); setTimeout(g,2)`.  These will execute in
-					# random order when using setTimeout directly.  This isn't
-					# necessarily about timer (in)accuracy, it's about how it
-					# stores and dequeues handlers.
-
-					# So, timeoutQueue will the control the order.
-					timeoutQueue = Object.Extend [], (->
-						next = -> @shift()() if @length
-						schedule: (f, n) ->
-							f.order = n + $.now()
-							for i in [0...@length]
-								if @[i].order > f.order
-									@splice i,0,f
-									break
-							setTimeout next, n
-							@
-						cancel: (f) ->
-							for i in [0...@length]
-								if @[i] == f
-									@splice i, 1
-									break
-							@
-					)()
-
-					# Note that this reverses the order of _n_ and _f_
-					# intentionally.  Throughout this library, the convention is
-					# to put the simple things first, to improve code flow:
-					# > `$.delay 5, () ->` vs. `$.delay (() -> ), 5`
-					(n, f) ->
-						if Object.IsFunction(f) then timeoutQueue.schedule(f, n)
-						cancel: -> timeoutQueue.cancel(f)
-
-				)()
-
-			# A fairly verbose string description.
-			toString: -> Object.String(@)
 
 			# Get a new set containing only the i-th element of _this_.
 			eq: (i) -> $([@[i]])
 
 			# Call a function on every item in _this_.
 			each: (f) -> (f.call(t,t) for t in @); @
+
 			# Get a new set with the results of calling a function of every
 			# item in _this_.
 			map: (f) -> $(f.call(t,t) for t in @)
+
 			# Reduce _this_ to a single value, accumulating in _a_.
 			# Example: `(a,x) -> a+x` == `(a) -> a+@`.
 			reduce: (f, a) ->
@@ -690,7 +523,7 @@ class Bling extends Array
 			# Get the first non-null item in _this_.
 			coalesce: ->
 				for i in @
-					if Object.Type(i) in ["array","bling"] then i = $(i).coalesce()
+					if $.type(i) in ["array","bling"] then i = $(i).coalesce()
 					if i? then return i
 				null
 			# Swap item i with item j, in-place.
@@ -716,7 +549,7 @@ class Bling extends Array
 					when 1 then selector.call @, a[0]
 
 			# Replace any false-ish items in _this_ with _x_.
-			# > `$("<a>").select('parentNode').or(document)
+			# > `$("<a>").select('parentNode').or(document)`
 			or: (x) -> @[i] or= x for i in [0...@length]; @
 
 			# Assign the value _v_ to property _b_ on every
@@ -735,10 +568,10 @@ class Bling extends Array
 					return @select(p.substr(0, i)).zap(p.substr(i+1), v)
 				# If _v_ is a sequence of values, they are striped across each
 				# item in _this_.
-				if Object.IsArray v then @each -> @[p] = v[++i % v.length] # i starts at -1 because of the failed indexOf
+				if $.is "array", v then @each -> @[p] = v[++i % v.length] # i starts at -1 because of the failed indexOf
 				# If _v_ is a function, map and set each item's property,
 				# akin to: `x[p] = v(x[p])`.
-				else if Object.IsFunction v then @zap p, @select(p).map v
+				else if $.is "function", v then @zap p, @select(p).map v
 				# Anything else, scalars, objects, null, anything, get
 				# assigned directly to each item in this.
 				else @each -> @[p] = v
@@ -781,12 +614,12 @@ class Bling extends Array
 			filter: (f) -> # .filter(/f/) - select all /x/ from _this_ where /x/./f/(/x/) is true
 				# or if f is a selector string, selects nodes that match the selector
 				# or if f is a RegExp, select nodes where f.test(x) is true
-				g = switch Object.Type f
+				g = switch $.type f
 					when "string" then (x) -> x.matchesSelector(f)
 					when "regexp" then (x) -> f.test(x)
 					when "function" then f
 					else
-						throw new Error("unsupported type passed to filter: #{Object.Type(f)}")
+						throw new Error("unsupported type passed to filter: #{$.type(f)}")
 				$( it for it in @ when g.call(it,it) )
 
 			test: (regex) -> @map -> regex.test(@)
@@ -838,11 +671,7 @@ class Bling extends Array
 
 			# Apply every function in _this_ to _context_ with _args_.
 			apply: (context, args) ->
-				@map -> @apply(context, args) if Object.IsFunction @ else @
-
-			# Continue with _f_ after _n_ milliseconds.
-			delay: (n, f) ->
-				$.delay n, Function.Bound(@, f)
+				@map -> if $.is "function", @ then @apply(context, args) else @
 
 			# Log one line for each item.
 			log: (label) -> # .log([label]) - console.log([/label/] + /x/) for /x/ in _this_
@@ -852,40 +681,251 @@ class Bling extends Array
 					$.log(@, @length + " items")
 				@
 
-			array: -> (@.__proto__ = Array::); @ # no copies, yay!
+			# Convert this to an array.
+			toArray: -> (@.__proto__ = Array::); @ # no copies, yay!
 		}
 
-	$.plugin -> # Math plugin
+	# Math Plugin
+	# -----------
+	# All the stuff you need to use blings as vectors in linear algebra.
+	$.plugin
+		provides: "math"
+	, ->
 		$:
-			range: (start, end, step = 1) -> # $.range generates an array of numbers
+			# Get an array of numbers.
+			range: (start, end, step = 1) ->
 				step *= -1 if end < start and step > 0 # force step to have the same sign as start->end
 				$( (start + (i*step)) for i in [0...Math.ceil( (end - start) / step )] )
+			# Get an array of zeros.
 			zeros: (n) -> $( 0 for i in [0...n] )
+			# Get an array of ones.
 			ones: (n) -> $( 1 for i in [0...n] )
+		# Convert everything to a float.
 		floats: -> @map parseFloat
+		# Convert everything to an int.
 		ints: -> @map -> parseInt @, 10
-		px: (delta) -> @ints().map -> String.Px @,delta
+		# Convert everything to a "px" string.
+		px: (delta) -> @ints().map -> $.px @,delta
+		# Get the smallest element (defined by Math.min)
 		min: -> @reduce (a) -> Math.min @, a
+		# Get the largest element (defined by Math.max)
 		max: -> @reduce (a) -> Math.max @, a
+		# Get the mean (average) of the set.
 		mean: -> @sum() / @length
+		# Get the sum of the set.
 		sum: -> @reduce (a) -> a + @
+		# Get a new set with every item squared.
 		squares: -> @map -> @ * @
+		# Get the magnitude (vector length) of this set.
 		magnitude: -> Math.sqrt @floats().squares().sum()
+		# Get a new set, scaled by a real factor.
 		scale: (r) -> @map -> r * @
-		add: (d) -> @map -> d + @
+		# Add this to d, get a new set.
+		add: (d) -> switch $.type(d)
+			when "number" then @map -> d + @
+			when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)-1] )
+		# Get a new set with same direction, but magnitude equal to 1.
 		normalize: -> @scale(1/@magnitude())
+
+	# String Plugin
+	# -------------
+	# Filling out the standard library of string functions.
+	$.plugin
+		depends: "function"
+		provides: "string"
+	, ->
+		#### $.toString
+		# Extends the base type to allow for converting things
+		# to string based on their type. This is a separate system from the
+		# native Object.prototype.toString chain of methods.
+
+		# First, extend the base type with a default `string` function
+		$.type.extend null, string: (o) -> o.toString?() ? String(o)
+		# Now, for each basic type, provide a basic `string` function.
+		# Later, more complex types will be added by plugins.
+		$.type.extend
+			null:      { string: -> "null" }
+			undefined: { string: -> "undefined" }
+			string:    { string: $.identity }
+			array:     { string: (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
+			object:    { string: (o) -> "{" + ("#{k}:#{$.toString(v)}" for k,v in o).join(", ") + "}" }
+			number:    { string: (n) ->
+				switch true
+					when n.precision? then n.toPrecision(n.precision)
+					when n.fixed? then n.toFixed(n.fixed)
+					else String(n)
+			}
+
+		# Return a bunch of root-level string functions.
+		return {
+			$:
+				toString: (x) -> $.type.lookup(x).string(x)
+				# Get a "px" string.
+				# Accepts anything parseInt-able (including an existing "px"
+				# string), adjusts by optional delta.
+				px: (x, delta=0) -> x? and (parseInt(x,10)+(delta|0))+"px"
+				# Example: Add 100px of width to an element.
+
+				# jQuery style:
+				# > `node.css("width",$.px(node.css("width"), + 100))`
+
+				# Bling style:
+				# > `node.zap 'style.width', -> $.px(@, + 100)`
+
+				# Properly **Capitalize** Each Word In A String.
+				capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
+
+				# Convert a _camelCase_ name to a _dash-name_.
+				dashize: (name) ->
+					ret = ""
+					for i in [0...(name?.length|0)]
+						c = name.charCodeAt i
+						# For each uppercase character,
+						if 91 > c > 64
+							# Shift it to lower case and insert a '-'.
+							c += 32
+							ret += '-'
+						ret += String.fromCharCode(c)
+					ret
+
+				# Convert a _dash-name_ to a _camelName_.
+				camelize: (name) ->
+					name.split('-')
+					while (i = name?.indexOf('-')) > -1
+						name = $.stringSplice(name, i, i+2, name[i+1].toUpperCase())
+					name
+
+				# Fill the left side of a string to make it a fixed width.
+				padLeft: (s, n, c = " ") ->
+					while s.length < n
+						s = c + s
+					s
+
+				# Fill the right side of a string to make it a fixed width.
+				padRight: (s, n, c = " ") ->
+					while s.length < n
+						s = s + c
+					s
+
+				# Count the number of occurences of `x` in `s`.
+				stringCount: (s, x, i = 0, n = 0) -> if (j=s.indexOf(x,i)) > i-1 then $.count(s,x,j+1,n+1) else n
+
+				# Splice the substring `n` into the string `s', replacing indices
+				# between `i` and `j`.
+				stringSplice: (s, i, j, n) ->
+					nn = s.length
+					end = j
+					if end < 0
+						end += nn
+					start = i
+					if start < 0
+						start += nn
+					s.substring(0,start) + n + s.substring(end)
+
+				# Compute the Adler32 checksum of a string.
+				checksum: (s) ->
+					a = 1; b = 0
+					for i in [0...s.length]
+						a = (a + s.charCodeAt(i)) % 65521
+						b = (b + a) % 65521
+					(b << 16) | a
+
+				# Return a string-builder, which uses arrays to defer all string
+				# concatenation until you call `builder.toString()`.
+				stringBuilder: ->
+					if $.is("window", @) then return new $.stringBuilder()
+					items = []
+					@length   = 0
+					@append   = (s) => items.push s; @length += s?.toString().length|0
+					@prepend  = (s) => items.splice 0,0,s; @length += s?.toString().length|0
+					@clear    = ( ) => ret = @toString(); items = []; @length = 0; ret
+					@toString = ( ) => items.join("")
+					@
+			toString: -> $.toString @
+		}
+
+	# Function Plugin
+	# ---------------
+	# These are little function factories, for making new functions out of other functions.
+	$.plugin
+		provides: "function"
+	, ->
+		$:
+			# __$.identity(x)__ returns x.
+			identity: (o) -> o
+			# __$.not(f)__ returns a new function that returns `not f(...)`.
+			not: (f) -> (a...) -> not f.apply @, a
+			# __$.compose(f,g)__ composes _f_ and _g_ to `f(g(...))`.
+			compose: (f,g) -> (x) -> f.call(y, (y = g.call(x,x)))
+			# __$.and(f,g)__ returns a new function that returns f(x) && g(x).
+			and: (f,g) -> (x) -> g.call(x,x) and f.call(x,x)
+			# __$.once(f)__ returns a new function that will only call
+			# _f_ **once**, or _n_ times if you pass the optional argument.
+			once: (f,n=1) -> f.n = n; (a...) -> (f.apply @,a) if f.n-- > 0
+			# __$.bound(context,f,[args])__ returns a new function that forces this === context when called.
+			bound: (t, f, args = []) ->
+				if $.is "function", f.bind
+					args.splice 0, 0, t
+					r = f.bind.apply f, args
+				else
+					r = (a...) -> f.apply t, (args if args.length else a)
+				$.extend r, { toString: -> "bound-method of #{t}.#{f.name}" }
+			# __$.memoize(f)__ returns a new function that caches function calls to f, based on hashing the arguments.
+			memoize: (f) -> cache = {}; (a...) -> cache[$.hash(a)] ?= f.apply @, a # BUG: does not cache if f returns null on purpose
+
+
+	# Trace Plugin
+	# ------------
+	# A very useful debugging tool, `$(o).trace() or $.trace(o)` will deep-walk all
+	# properties and wrap all functions with new functions that call the
+	# originals but log the calls (and use the property names from the
+	# deep walk as labels).
+	$.plugin
+		provides: "trace"
+		depends: "function"
+	, ->
+		$.type.extend null, trace: $.identity
+		$.type.extend
+			object: { trace: (o, label, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
+			array:  { trace: (o, label, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length]); o }
+			function:
+				trace: (f, label, tracer) ->
+					r = (a...) ->
+						tracer "#{@name or $.type(@)}.#{label or f.name}(", a, ")"
+						f.apply @, a
+					tracer "Trace: #{label or f.name} created."
+					r.toString = f.toString
+					r
+		return {
+			$:
+				trace: (o, label, tracer) -> $.type.lookup(o).trace(o, label, tracer)
+			trace: (label, tracer) -> @map -> $.trace(@,label,tracer)
+		}
+
+
+	# Hash plugin
+	# -----------
+	# `$.hash(o)` Reduces any thing to an integer hash code (not secure).
+	$.plugin ->
+		$.type.extend null, hash: (o) -> $.checksum $.toString(o)
+		$.type.extend
+			object: { hash: (o) -> ($.hash(o[k]) for k of o) + $.hash(Object.keys(o)) }
+			array:  { hash: (o) -> ($.hash(i) for i in x).reduce (a,x) -> a+x }
+			bool:   { hash: (o) -> parseInt(1 if o) }
+		return {
+			$:
+				hash: (x) -> $.type.lookup(x).hash(x)
+			hash: () -> $.hash(@)
+		}
 
 	$.plugin -> # Pub/Sub plugin
 		subscribers = {} # a mapping of channel name to a list of subscribers
-
 		publish = (e, args...) ->
 			f.apply null, args for f in (subscribers[e] or= [])
 			@
-
 		subscribe = (e, func) ->
 			(subscribers[e] or= []).push func
 			func
-
 		unsubscribe = (e, func) ->
 			if not func?
 				subscribers[e] = []
@@ -894,7 +934,6 @@ class Bling extends Array
 				i = subscribers[e].indexOf(func)
 				if i > -1
 					subscribers[e].splice(i,i)
-
 		return {
 			$:
 				publish: publish
@@ -903,23 +942,25 @@ class Bling extends Array
 		}
 
 	$.plugin -> # Throttle/Debounce plugin
-		return {
-			$:
-				throttle: (f,n=250,last=0) ->
-					(a...) ->
-						gap = $.now() - last
-						if gap > n
-							last += gap
-							return f.apply @,a
-						null
-				debounce: (f,n=250,last=0) -> # must be a silence of n ms before f is called again
-					(a...) ->
-						last += (gap = $.now() - last)
-						return f.apply @,a if gap > n else null
-		}
+		$:
+			throttle: (f,n=250,last=0) ->
+				(a...) ->
+					gap = $.now - last
+					if gap > n
+						last += gap
+						return f.apply @,a
+					null
+			debounce: (f,n=250,last=0) -> # must be a silence of n ms before f is called again
+				(a...) ->
+					last += (gap = $.now - last)
+					return f.apply @,a if gap > n else null
 
+	# EventEmitter Plugin
+	# -------------------
+	# The EventEmitter interface that Node.JS uses is much simpler (and faster) than the DOM event model.
+	# Example: `$.inherit new EventEmitter(), { myCode: () -> "..." }`
 	$.plugin -> # EventEmitter
-		class EventEmitter
+		$: EventEmitter: class EventEmitter
 			constructor:        -> @_eh = {}
 			addListener:        (e, h) -> (@_eh[e] or= []).push(h); @emit('newListener', e, h)
 			on:                 (e, h) -> @addListener e, h
@@ -930,55 +971,53 @@ class Bling extends Array
 			listeners:          (e) -> @_eh[e]
 			emit:               (e, a...) -> (f.apply(@, a) for f in (@_eh[e] or= [])); null
 
-		return $: EventEmitter: EventEmitter
-
-
-	if Object.global.document?
-		Object.Type.register "nodelist",
-			match: (o) -> o? and Object.IsType "NodeList", o
-			hash: (o) -> $(Object.Hash(i) for i in x).sum()
-			array: Function.Identity
+	
+	if (window ? global).document?
+		$.type.register "nodelist",
+			match: (o) -> o? and $.isType "NodeList", o
+			hash: (o) -> $($.hash(i) for i in x).sum()
+			array: $.identity
 			string: (o) -> "{nodelist:"+$(o).select('nodeName').join(",")+"}"
 			node: -> $(@).toFragment()
-		Object.Type.register "node",
+		$.type.register "node",
 			match: (o) -> o?.nodeType > 0
-			hash: (o) -> String.Checksum(o.nodeName) + Object.Hash(o.attributes) + String.Checksum(o.innerHTML)
+			hash: (o) -> $.checksum(o.nodeName) + $.hash(o.attributes) + $.checksum(o.innerHTML)
 			string: (o) -> o.toString()
-			node: Function.Identity
-		Object.Type.register "fragment",
+			node: $.identity
+		$.type.register "fragment",
 			match: (o) -> o?.nodeType is 11
-			hash: (o) -> $(Object.Hash(x) for x in o.childNodes).sum()
+			hash: (o) -> $($.hash(x) for x in o.childNodes).sum()
 			string: (o) -> o.toString()
-			node: Function.Identity
-		Object.Type.register "html",
+			node: $.identity
+		$.type.register "html",
 			match: (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
-			node: (o) -> Object.Type.lookup(h = Bling.HTML.parse(o)).node(h)
-			array: (o,c) -> Object.Type.lookup(h = Bling.HTML.parse(o)).array(h,c)
-		Object.Type.extend null, node: -> null
-		Object.Type.extend
-			bling:    { node: -> @toFragment() }
+			node: (o) -> $.type.lookup(h = Bling.HTML.parse(o)).node(h)
+			array: (o,c) -> $.type.lookup(h = Bling.HTML.parse(o)).array(h,c)
+		$.type.extend null, node: -> null
+		$.type.extend
+			bling:    { node: -> $(@).toFragment() }
 			string:
 				node: -> $(@).toFragment()
 				array: (o,c) -> c.querySelectorAll?(o)
 			function: { node: -> $(@toString()).toFragment() }
 
 		$.plugin -> # Html plugin
-			frag = (a) ->
+			toFrag = (a) ->
 				if not a.parentNode?
 					df = document.createDocumentFragment()
 					df.appendChild(a)
 				a
-			before = (a,b) -> frag(a).parentNode.insertBefore b, a
-			after = (a,b) -> frag(a).parentNode.insertBefore b, a.nextSibling
-			node = (x) -> Object.Type.lookup(x).node(x)
-			escaper = 0
+			before = (a,b) -> toFrag(a).parentNode.insertBefore b, a
+			after = (a,b) -> toFrag(a).parentNode.insertBefore b, a.nextSibling
+			toNode = (x) -> $.type.lookup(x).node(x)
+			escaper = null
 
 			# window.getComputedStyle is not a normal function
 			# (it doesnt support .call() so we can't use it with .map())
 			# so define something that does work properly for use in .css
 			computeCSSProperty = (k) -> -> window.getComputedStyle(@, null).getPropertyValue(k)
 
-			getOrSetRect = (p) -> (x) -> @css(p, x) if x? else @rect().select(p)
+			getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select(p)
 
 			return {
 				$:
@@ -1000,7 +1039,7 @@ class Bling extends Array
 							df
 						# Convert a node or fragment to an HTML string.
 						stringify: (n) ->
-							switch Object.Type n
+							switch $.type n
 								when "string","html" then n
 								when "node","fragment"
 									d = document.createElement "div"
@@ -1009,7 +1048,7 @@ class Bling extends Array
 									ret = d.innerHTML
 									d.removeChild n # break links to prevent leaks
 									ret
-								else "HTML.stringify of unknown type: " + Object.Type(n)
+								else "HTML.stringify of unknown type: " + $.type(n)
 						# Escape html characters in _h_, so "<" becomes "&lt;",
 						# etc.
 						escape: (h) ->
@@ -1024,7 +1063,7 @@ class Bling extends Array
 
 				# Get [or set] innerHTML for each node.
 				html: (h) ->
-					return switch Object.Type h
+					return switch $.type h
 						when "undefined","null" then @select 'innerHTML'
 						when "string" then @zap 'innerHTML', h
 						when "bling" then @html h.toFragment()
@@ -1035,20 +1074,17 @@ class Bling extends Array
 									@removeChild @childNodes[1]
 
 				append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
-					x = node(x) # parse, cast, do whatever it takes to get a Node or Fragment
-					a = @select('appendChild')
-					a.take(1).call(x)
-					a.skip(1).each (f) ->
-						f(x.cloneNode(true)) # f is already bound to @
-					@
+					x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
+					@each -> @appendChild x.cloneNode true
 
 				appendTo: (x) -> # .appendTo(/n/) - each node [or a fragment] will become the last child of n
 					$(x).append(@)
+					try console.log "@.parentNode in appendTo:", @[0].parentNode, "should not be null"
 					@
 
 				prepend: (x) -> # .prepend(/n/) - insert n [or a clone] as the first child of each node
 					if x?
-						x = node(x)
+						x = toNode(x)
 						@take(1).each ->
 							before @childNodes[0], x
 						@skip(1).each ->
@@ -1062,14 +1098,14 @@ class Bling extends Array
 
 				before: (x) -> # .before(/x/) - insert content x before each node
 					if x?
-						x = node(x)
+						x = toNode(x)
 						@take(1).each -> before @, x
 						@skip(1).each -> before @, x.cloneNode(true)
 					@
 
 				after: (x) -> # .after(/n/) - insert content n after each node
 					if x?
-						x = node(x)
+						x = toNode(x)
 						@take(1).each -> after @, x
 						@skip(1).each -> after @, x.cloneNode(true)
 					@
@@ -1077,11 +1113,11 @@ class Bling extends Array
 				wrap: (parent) -> # .wrap(/p/) - p becomes the new .parentNode of each node
 					# all items of @ will become children of parent
 					# parent will take each child's position in the DOM
-					parent = node(parent)
-					if Object.IsFragment(parent)
+					parent = toNode(parent)
+					if $.is("fragment", parent)
 						throw new Error("cannot wrap with a fragment")
 					@each (child) ->
-						switch Object.Type(child)
+						switch $.type(child)
 							when "fragment"
 								parent.appendChild(child)
 							when "node"
@@ -1103,7 +1139,7 @@ class Bling extends Array
 							@parentNode.removeChild(@)
 
 				replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
-					n = node(n)
+					n = toNode(n)
 					b = $()
 					j = 0
 					# first node gets the real n
@@ -1129,7 +1165,7 @@ class Bling extends Array
 							return @
 
 				data: (k, v) ->
-					k = "data-#{String.Dashize(k)}"
+					k = "data-#{$.dashize(k)}"
 					@attr(k, v)
 
 				addClass: (x) -> # .addClass(/x/) - add x to each node's .className
@@ -1150,9 +1186,9 @@ class Bling extends Array
 					notx = (y) -> y isnt x
 					@each ->
 						cls = @className.split(" ")
-						filter = Function.Not Object.IsEmpty
+						filter = $.not $.isEmpty
 						if( cls.indexOf(x) > -1 )
-							filter = Function.And notx, filter
+							filter = $.and notx, filter
 						else
 							cls.push(x)
 						c = cls.filter(filter).join(" ")
@@ -1174,17 +1210,17 @@ class Bling extends Array
 				# Get [or set] css properties.
 				css: (k,v) ->
 					# If we are doing assignment.
-					if v? or Object.IsObject k
+					if v? or $.is "object", k
 						# Use a bound-method to do the assignment for us.
 						setter = @select 'style.setProperty'
 						# If you give an object as a key, then use every k:v pair.
-						if Object.IsObject k then setter.call i, k[i], "" for i of k
+						if $.is "object", k then setter.call i, k[i], "" for i of k
 						# So, the key is simple, and if the value is a string,
 						# just do simple assignment (using setProperty).
-						else if Object.IsString v then setter.call k, v, ""
+						else if $.is "string", v then setter.call k, v, ""
 						# If the value was actually an array of values, then
 						# stripe the values across each item.
-						else if Object.IsArray v
+						else if $.is "array", v
 							setter[i%nn] k, v[i%n], "" for i in [0...n = Math.max v.length, nn = setter.len()]
 						return @
 					# Else, we are reading CSS properties.
@@ -1203,11 +1239,11 @@ class Bling extends Array
 					# @selector need not match any nodes at the time of the call.
 					sel = @selector
 					style = ""
-					if Object.IsString(k)
-						if Object.IsString(v)
+					if $.is "string", k
+						if $.is "string", v
 							style += "#{sel} { #{k}: #{v} } "
 						else throw Error("defaultCss requires a value with a string key")
-					else if Object.IsObject(k)
+					else if $.is "object", k
 						style += "#{sel} { " +
 							"#{i}: #{k[i]}; " for i of k +
 						"} "
@@ -1241,9 +1277,9 @@ class Bling extends Array
 						# If called with no arguments, just return the position.
 						when not left? then @rect()
 						# If called with only one argument, only set "left".
-						when not top? then @css("left", String.Px(left))
+						when not top? then @css("left", $.px(left))
 						# If called with both arguments, set "top" and "left".
-						else @css({top: String.Px(top), left: String.Px(left)})
+						else @css({top: $.px(top), left: $.px(left)})
 
 				# Adjust the document's scroll position so the first node in
 				# _this_ is centered in the viewport.
@@ -1252,7 +1288,7 @@ class Bling extends Array
 					@
 
 				# Get the _n-th_ child from each node in _this_.
-				child: (n) -> @select('childNodes').map -> @[ (n+@length) if n < 0 else n ]
+				child: (n) -> @select('childNodes').map -> @[ if n < 0 then (n+@length) else n ]
 
 				parents: -> @map -> p = @; $( p while p = p?.parentNode ) # .parents() - collects the full ancestry up to the owner
 
@@ -1267,15 +1303,14 @@ class Bling extends Array
 						.map( -> $(css, @) )
 						.flatten()
 
-				clone: (deep=true) -> @map -> (@cloneNode deep) if Object.IsNode @ # .clone(deep=true) - copies a set of DOM nodes
+				clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @ # .clone(deep=true) - copies a set of DOM nodes
 
 				toFragment: ->
 					if @length > 1
 						df = document.createDocumentFragment()
-						adder = Function.Bound(df, df.appendChild)
-						@map(node).map adder
+						@map(toNode).map $.bound df, df.appendChild
 						return df
-					return node(@[0])
+					return toNode(@[0])
 			}
 
 		$.plugin -> # Transform plugin, for accelerated animations
@@ -1332,11 +1367,11 @@ class Bling extends Array
 					# | ease-in-out | step-start | step-end | steps(number[, start | end ])
 					# | cubic-bezier(number, number, number, number)
 
-					if Object.IsFunction(speed)
+					if $.is("function",speed)
 						callback = speed
 						speed = null
 						easing = null
-					else if Object.IsFunction(easing)
+					else if $.is("function",easing)
 						callback = easing
 						easing = null
 					if not speed?
@@ -1443,37 +1478,37 @@ class Bling extends Array
 				o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
 				("#{i}=#{escape o[i]}" for i of o).join("&")
 
-			Object.Type.register "http",
-				match: (o) -> Object.IsType 'XMLHttpRequest', o
+			$.type.register "http",
+				match: (o) -> $.isType 'XMLHttpRequest', o
 				asArray: (o) -> [o]
 
 			return {
 				$: # globals
 					http: (url, opts = {}) -> # $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
 						xhr = new XMLHttpRequest()
-						if Object.IsFunction(opts)
-							opts = {success: Function.Bound(xhr, opts)}
-						opts = extend {
+						if $.is("function",opts)
+							opts = {success: $.bound(xhr, opts)}
+						opts = $.extend {
 							method: "GET"
 							data: null
-							state: Function.Identity # onreadystatechange
-							success: Function.Identity # onload
-							error: Function.Identity # onerror
+							state: $.identity # onreadystatechange
+							success: $.identity # onload
+							error: $.identity # onerror
 							async: true
 							asBlob: false
 							timeout: 0 # milliseconds, 0 is forever
 							followRedirects: false
 							withCredentials: false
 						}, opts
-						opts.state = Function.Bound(xhr, opts.state)
-						opts.success = Function.Bound(xhr, opts.success)
-						opts.error = Function.Bound(xhr, opts.error)
+						opts.state = $.bound(xhr, opts.state)
+						opts.success = $.bound(xhr, opts.success)
+						opts.error = $.bound(xhr, opts.error)
 						if opts.data and opts.method is "GET"
 							url += "?" + formencode(opts.data)
 						else if opts.data and opts.method is "POST"
 							opts.data = formencode(opts.data)
 						xhr.open(opts.method, url, opts.async)
-						xhr = extend xhr,
+						xhr = $.extend xhr,
 							asBlob: opts.asBlob
 							timeout: opts.timeout
 							followRedirects: opts.followRedirects
@@ -1489,13 +1524,13 @@ class Bling extends Array
 						return $(xhr)
 
 					post: (url, opts = {}) -> # $.post(/url/, [/opts/]) - fetch /url/ with a POST request
-						if Object.IsFunction(opts)
+						if $.is("function",opts)
 							opts = {success: opts}
 						opts.method = "POST"
 						$.http(url, opts)
 
 					get: (url, opts = {}) -> # $.get(/url/, [/opts/]) - fetch /url/ with a GET request
-						if( Object.IsFunction(opts) )
+						if( $.is("function",opts) )
 							opts = {success: opts}
 						opts.method = "GET"
 						$.http(url, opts)
@@ -1511,7 +1546,7 @@ class Bling extends Array
 				'hashchange'
 			] # 'click' is handled specially
 
-			binder = (e) -> (f) -> @bind(e, f) if Object.IsFunction f else @trigger(e, f)
+			binder = (e) -> (f) -> @bind(e, f) if $.is "function", f else @trigger(e, f)
 
 			register_live = (selector, context, evt, f, h) ->
 				$(context).bind(evt, h)
@@ -1567,15 +1602,15 @@ class Bling extends Array
 					@
 
 				trigger: (evt, args = {}) -> # .trigger(e, a) - initiates a fake event
-					args = extend {
+					args = $.extend
 						bubbles: true
 						cancelable: true
-					}, args
+					, args
 
 					for evt_i in (evt or "").split(EVENTSEP_RE)
 						if evt_i in ["click", "mousemove", "mousedown", "mouseup", "mouseover", "mouseout"] # mouse events
 							e = document.createEvent "MouseEvents"
-							args = extend {
+							args = $.extend
 								detail: 1,
 								screenX: 0,
 								screenY: 0,
@@ -1587,7 +1622,7 @@ class Bling extends Array
 								metaKey: false,
 								button: 0,
 								relatedTarget: null
-							}, args
+							, args
 							e.initMouseEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
 								args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
 								args.button, args.relatedTarget
@@ -1598,7 +1633,7 @@ class Bling extends Array
 
 						else if evt_i in ["touchstart", "touchmove", "touchend", "touchcancel"] # touch events
 							e = document.createEvent "TouchEvents"
-							args = extend {
+							args = $.extend
 								detail: 1,
 								screenX: 0,
 								screenY: 0,
@@ -1614,14 +1649,14 @@ class Bling extends Array
 								changedTouches: [],
 								scale: 1.0,
 								rotation: 0.0
-							}, args
+							, args
 							e.initTouchEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
 								args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
 								args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
 
 						else if evt_i in ["gesturestart", "gestureend", "gesturecancel"] # gesture events
 							e = document.createEvent "GestureEvents"
-							args = extend {
+							args = $.extend {
 								detail: 1,
 								screenX: 0,
 								screenY: 0,
@@ -1649,7 +1684,7 @@ class Bling extends Array
 							e = document.createEvent "Events"
 							e.initEvent evt_i, args.bubbles, args.cancelable
 							try
-								e = extend e, args
+								e = $.extend e, args
 							catch err
 
 						if not e
@@ -1684,10 +1719,8 @@ class Bling extends Array
 				click: (f = {}) -> # .click([f]) - trigger [or bind] the 'click' event
 					if @css("cursor") in ["auto",""] # if the cursor is default
 						@css "cursor", "pointer" # then make it look clickable
-					if Object.IsFunction f
-						@bind 'click', f
-					else
-						@trigger 'click', f
+					if $.is "function", f then @bind 'click', f
+					else @trigger 'click', f
 
 				ready: (f) ->
 					return (f.call @) if triggerReady.n <= 0
@@ -1700,20 +1733,19 @@ class Bling extends Array
 
 		$.plugin -> # LazyLoader plugin, depends on PubSub
 			create = (elementName, props) ->
-				extend document.createElement(elementName), props
+				$.extend document.createElement(elementName), props
 
 			lazy_load = (elementName, props) ->
 				depends = provides = null
-				n = create elementName, extend(props, {
+				n = create elementName, $.extend props,
 					onload: ->
 						if provides?
 							$.publish(provides)
-				})
 				$("head").delay 10, ->
 					if depends?
 						$.subscribe depends, => @append(n)
 					else @append(n)
-				extend $(n),
+				$.extend $(n),
 					depends: (tag) -> depends = elementName+"-"+tag; @
 					provides: (tag) -> provides = elementName+"-"+tag; @
 
@@ -1722,7 +1754,7 @@ class Bling extends Array
 					script: (src) ->
 						lazy_load "script", { src: src }
 					style: (src) ->
-						lazy_load "link", { href: src, "rel!": "stylesheet" }
+						lazy_load "link", { href: src, rel: "stylesheet" }
 			}
 
 

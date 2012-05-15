@@ -1,63 +1,56 @@
 common = require('./common')
 
 testGroup("Object",
-	Keys: -> assertArrayEqual Object.Keys({a: 1, b: 2}), ['a','b']
-	Extend: -> assertArrayEqual Object.Keys(Object.Extend({A:1},{B:2})), ['A','B']
-	Type_string: -> assertEqual Object.Type(""), "string"
-	Type_number:-> assertEqual Object.Type(42), "number"
-	Type_undef: -> assertEqual Object.Type(), "undefined"
-	Type_null: -> assertEqual Object.Type(null), "null"
-	Type_array: -> assertEqual Object.Type([]), "array"
-	Type_function: -> assertEqual Object.Type(() -> null), "function"
-	Type_bool: -> assertEqual Object.Type(true), "bool"
-	Type_regexp: -> assertEqual Object.Type(//), "regexp"
-	Type_window: -> assertEqual Object.Type(window), "global"
+	Keys: -> assertArrayEqual Object.keys({a: 1, b: 2}), ['a','b']
+	Extend: -> assertArrayEqual Object.keys($.extend({A:1},{B:2})), ['A','B']
+	Type_string: -> assertEqual $.type(""), "string"
+	Type_number:-> assertEqual $.type(42), "number"
+	Type_undef: -> assertEqual $.type(), "undefined"
+	Type_null: -> assertEqual $.type(null), "null"
+	Type_array: -> assertEqual $.type([]), "array"
+	Type_function: -> assertEqual $.type(() -> null), "function"
+	Type_bool: -> assertEqual $.type(true), "bool"
+	Type_regexp: -> assertEqual $.type(//), "regexp"
+	Type_window: -> assertEqual $.type(window), "global"
 )
 
 testGroup("Function",
-	Identity: -> assertEqual(Object.Type(Function.Identity), "function")
+	Identity: -> assertEqual $.type($.identity), "function"
 	Bound: ->
 		f = -> @value
 		a = { value: 'a' }
 		b = { value: 'b' }
-		g = Function.Bound(a, f)
-		h = Function.Bound(b, f)
+		g = $.bound(a, f)
+		h = $.bound(b, f)
 		assertEqual(g(), 'a')
 		assertEqual(h(), 'b')
 	Trace: ->
 		f = -> 42
 		g = []
-		h = Object.Trace(f, "label", (a...) ->
-			g.push(a.join(''))
-		)
+		h = $.trace f, "label", (a...) ->
+			g.push a.join ''
 		f() # this will not be traced
 		h() # but this will, putting one "window.lable()" in the output
 		assertArrayEqual(g, [ 'Trace: label created.', 'global.label()' ])
 )
 
-testGroup("Array",
-	Coalesce1: -> assertEqual($.coalesce(null, 42, 22), 42)
-	Coalesce2: -> assertEqual($.coalesce([null, 14, 42]), 14)
-	Coalesce3: -> assertEqual($.coalesce([null, [null, 14], 42]), 14)
-)
-
 testGroup("String",
-	Px1: -> assertEqual(String.Px(100), "100px")
-	Px2: -> assertEqual(String.Px(-100.0), "-100px")
-	PadLeft1: -> assertEqual(String.PadLeft("foo", 5), "  foo")
-	PadLeft2: -> assertEqual(String.PadLeft("foo", 3), "foo")
-	PadLeft3: -> assertEqual(String.PadLeft("foo", 2), "foo")
-	PadLeft4: -> assertEqual(String.PadLeft("foo", 5, "X"), "XXfoo")
-	PadRight1: -> assertEqual(String.PadRight("foo", 5), "foo  ")
-	PadRight2: -> assertEqual(String.PadRight("foo", 3), "foo")
-	PadRight3: -> assertEqual(String.PadRight("foo", 2), "foo")
-	PadRight4: -> assertEqual(String.PadRight("foo", 5, "X"), "fooXX")
-	Splice1: -> assertEqual(String.Splice("foobar",3,3,"baz"), "foobazbar")
-	Splice2: -> assertEqual(String.Splice("foobar",1,5,"baz"), "fbazr")
-	Splice3: -> assertEqual(String.Splice("foobar",0,6,"baz"), "baz")
-	Splice4: -> assertEqual(String.Splice("foobar",0,0,"baz"), "bazfoobar")
-	Checksum1: -> assertEqual(String.Checksum("foobar"), 145425018) # test values are from python's adler32 in zlib
-	Checksum2: -> assertEqual(String.Checksum("foobarbaz"), 310051767)
+	Px1: -> assertEqual($.px(100), "100px")
+	Px2: -> assertEqual($.px(-100.0), "-100px")
+	PadLeft1: -> assertEqual($.padLeft("foo", 5), "  foo")
+	PadLeft2: -> assertEqual($.padLeft("foo", 3), "foo")
+	PadLeft3: -> assertEqual($.padLeft("foo", 2), "foo")
+	PadLeft4: -> assertEqual($.padLeft("foo", 5, "X"), "XXfoo")
+	PadRight1: -> assertEqual($.padRight("foo", 5), "foo  ")
+	PadRight2: -> assertEqual($.padRight("foo", 3), "foo")
+	PadRight3: -> assertEqual($.padRight("foo", 2), "foo")
+	PadRight4: -> assertEqual($.padRight("foo", 5, "X"), "fooXX")
+	Splice1: -> assertEqual($.stringSplice("foobar",3,3,"baz"), "foobazbar")
+	Splice2: -> assertEqual($.stringSplice("foobar",1,5,"baz"), "fbazr")
+	Splice3: -> assertEqual($.stringSplice("foobar",0,6,"baz"), "baz")
+	Splice4: -> assertEqual($.stringSplice("foobar",0,0,"baz"), "bazfoobar")
+	Checksum1: -> assertEqual($.checksum("foobar"), 145425018) # test values are from python's adler32 in zlib
+	Checksum2: -> assertEqual($.checksum("foobarbaz"), 310051767)
 )
 
 testGroup("Plugins",
@@ -120,6 +113,9 @@ testGroup("Core",
 		assertArrayEqual($(d).map(-> @ * 2), [2,4,6,8,10])
 		# check that we get the same results when called twice (the original was not modified)
 		assertArrayEqual($(d).map(-> @ * 2), [2,4,6,8,10])
+	coalesce1: -> assertEqual($.coalesce(null, 42, 22), 42)
+	coalesce2: -> assertEqual($.coalesce([null, 14, 42]), 14)
+	coalesce3: -> assertEqual($.coalesce([null, [null, 14], 42]), 14)
 	reduce: -> assertEqual( $([1,2,3,4]).reduce( (a,x) -> a + x ), 10)
 	union: -> assertArrayEqual($([1,2,3,4]).union([2,3,4,5]), [1,2,3,4,5])
 	intersect: -> assertArrayEqual($([1,2,3,4]).intersect([2,3,4,5]), [2,3,4])
@@ -196,12 +192,12 @@ testGroup("Core",
 testGroup("HTML",
 	parse: ->
 		d = $.HTML.parse("<div><a></a><b></b><c></c></div>")
-		assertEqual( Object.Type(d), "node")
+		assertEqual( $.type(d), "node")
 		assertEqual( d.nodeName, "DIV")
 	stringify: ->
 		h = "<div><a/><b/><c/></div>"
 		assertEqual( $.HTML.stringify($.HTML.parse(h)), h)
-	select_childNodes: -> assertEqual( $("<div><a></a><b></b><c></c></div>").select("childNodes").flatten().map(Object.Type).toString(), "$([node, node, node])" )
+	select_childNodes: -> assertEqual( $("<div><a></a><b></b><c></c></div>").select("childNodes").flatten().map($.type).toString(), "$([node, node, node])" )
 	child: -> i = 0; d = $("<div><a></a><b></b><c></c></div>"); assertEqual( d.select('childNodes').flatten().map( () -> d.child(i++) ).toString(), "$([$([<a/>]), $([<b/>]), $([<c/>])])")
 	textData: ->
 		d = $("<div>&nbsp;</div>")
@@ -221,7 +217,10 @@ testGroup("HTML",
 			$("tr td.d span").remove()
 	appendTo:->
 		try
-			assertEqual($("<span>Hi</span>").appendTo("tr td.d").parent().html().first(), "3,2<span>Hi</span>")
+			assertEqual($("<span>Hi</span>").toString(), "$([<span>Hi</span>])")
+			assertEqual($("<span>Hi</span>").appendTo("tr td.d").toString(), "$([<span>Hi</span>])")
+			assertEqual($("<span>Hi</span>").appendTo("tr td.d").select('parentNode').toString(), "$([<td class='d'><span>Hi</span></td>])")
+			assertEqual($("<span>Hi</span>").appendTo("tr td.d").select('parentNode').html().first(), "3,2<span>Hi</span>")
 		finally
 			$("tr td.d span").remove()
 	prepend: ->
@@ -231,15 +230,15 @@ testGroup("HTML",
 			$("tr td.d span").remove()
 	prependTo: ->
 		try
-			assertEqual($("<span>Hi</span>").prependTo("tr td.d").parent().html().first(), "<span>Hi</span>3,2")
+			assertEqual($("<span>Hi</span>").prependTo("tr td.d").select('parentNode').html().first(), "<span>Hi</span>3,2")
 		finally
 			$("tr td.d span").remove()
-	before: -> assertEqual($("<a><b></b></a>").find("b").before("<c></c>").parent().toString(), "$([<a><c/><b/></a>])")
-	after1: -> assertEqual($("<a><b></b></a>").find("b").after("<c></c>").parent().toString(), "$([<a><b/><c/></a>])")
-	after2: -> assertEqual($("<b></b>").after("<c></c>").parent().toString(), "$([<b/><c/>])")
-	wrap: -> assertEqual($("<b></b>").wrap("<a></a>").parent().toString(), "$([<a><b/></a>])")
+	before: -> assertEqual($("<a><b></b></a>").find("b").before("<c></c>").select('parentNode').toString(), "$([<a><c/><b/></a>])")
+	after1: -> assertEqual($("<a><b></b></a>").find("b").after("<c></c>").select('parentNode').toString(), "$([<a><b/><c/></a>])")
+	after2: -> assertEqual($("<b></b>").after("<c></c>").select('parentNode').toString(), "$([<b/><c/>])")
+	wrap: -> assertEqual($("<b></b>").wrap("<a></a>").select('parentNode').toString(), "$([<a><b/></a>])")
 	unwrap: -> assertEqual($("<a><b/></a>").find("b").unwrap().first().parentNode, null)
-	replace: -> assertEqual($("<a><b/><c/><b/></a>").find("b").replace("<p/>").parent().eq(0).toString(), "$([<a><p/><c/><p/></a>])")
+	replace: -> assertEqual($("<a><b/><c/><b/></a>").find("b").replace("<p/>").select('parentNode').eq(0).toString(), "$([<a><p/><c/><p/></a>])")
 	attr: -> assertEqual($("<a href='#'></a>").attr("href").first(), "#")
 	attr2: -> assertEqual($("<a data-lazy-href='#'></a>").attr("data-lazy-href").first(), "#")
 	attr3: -> assertEqual($("<a data-lazy-href='#'></a>").attr("data-lazy-href","poop").attr("data-lazy-href").first(), "poop")

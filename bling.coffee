@@ -23,7 +23,7 @@
 
 # We need a few things to get started:
 
-# A safe reference to `console.log()`:
+# A safe reference to `$.log()`:
 log = (a...) ->
 	try return console.log.apply console, a
 	alert a.join(", ")
@@ -39,11 +39,8 @@ extend ?= (a, b) ->
 		if v? then a[k] = v
 	a
 
-
-
 # Type System
 # -----------
-
 # The type system is built around a _type classifier_. Initially, this
 # will only know how to match types (and the order to check them in).
 # Later, the type-instance that results from classification will be
@@ -61,7 +58,7 @@ isType = (T, o) ->
 		Object::toString.apply(o) is "[object #{T}]" or
 		isType T, o.__proto__
 
-# `inherit(parent, child)` is similar to Extend, except it works by
+# `inherit(parent, child)` is similar to extend, except it works by
 # inserting the parent as the prototype of the child _instance_. This is unlike
 # coffee's `class X extends Y`, because it expects the target `child`
 # to be an _instance_, and the `parent` can either be an _instance_ or a
@@ -97,16 +94,13 @@ type = (->
 		# * Put the type check in order (if it isn't already).
 		order.unshift name if not (name of cache)
 		# * inherit from the base type and store in the cache.
-		cache[data.name = name] = inherit base, data
+		cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
 
 	# Later, plugins can `extend` previously registered types with new
 	# functionality.
 	_extend = (name, data) ->
-		# If explicitly passed a null for the name, extend base type
-		if data? and not name?
-			extend base, data
 		# The `name` should be of a registered type (a key into the cache)
-		else if typeof name is "string"
+		if typeof name is "string"
 			# But, if you attempt to extend a type that was not registered yet,
 			# it will be automatically registered.
 			cache[name] ?= register(name, {})
@@ -127,7 +121,7 @@ type = (->
 	# Now, register all the built-in types. These checks are
 	# executed in _reverse order_, so the first listed here, `"unknown"`,
 	# is always checked last.
-	register "unknown",   match: -> true
+	register "unknown",   base
 	# This implies that the 'simplest' checks should be registered
 	# first, and conceptually more specialized checks would get added
 	# as time goes on (so specialized type matches are preferred).
@@ -151,7 +145,7 @@ type = (->
 		register: register
 		lookup: lookup
 		extend: _extend
-		match: (t, o) -> cache[name]?.match.call o, o
+		is: (t, o) -> cache[t]?.match.call o, o
 
 	# Example: Calling $.type directly will get you the simple name of the
 	# best match.
@@ -223,8 +217,8 @@ class Bling extends Array
 			constructor = opts; opts = {}
 		
 		if "depends" of opts
-			return $.depends opts.depends, ->
-				$.plugin { provides: opts.provides }, constructor
+			return @depends opts.depends, =>
+				@plugin { provides: opts.provides }, constructor
 		try
 			# We call the plugin constructor and expect that it returns an
 			# object full of things to attach to either Bling or it's prototype.
@@ -237,43 +231,45 @@ class Bling extends Array
 				['$','name'].forEach (k) -> delete plugin[k]
 				# Now put everything else on the Bling prototype
 				extend @::, plugin
-				# Finally, add default global versions of anything that
-				# doesn't have one already.
+				# Finally, add root-level wrappers for anything that doesn't
+				# have one already.
 				( @[key] or= (a...) => (@::[key].apply $(a[0]), a[1...]) ) for key of plugin # and gets a default global implementation
-				if opts.provides? then $.provide opts.provides
+				if opts.provides? then @provide opts.provides
 		catch error
 			log "failed to load plugin: #{this.name} '#{error.message}'"
 			throw error
 		@
+	
+	@type: type
 
-	# Adding "bling" to the Type System
-	# ---------------------------------
+	#### Registering the "bling" type.
 	# First, we give the basic types the ability to turn into something
-	# array-like, for use in the constructor.
+	# array-like, for use by the constructor.
 
-	# By default, if we don't know any better way, we just stick the
+	# If we don't know any better way, we just stick the
 	# thing inside a real array.
-	$.type.extend null, array: (o) -> [o]
 	# But where we do know better, we can provide more meaningful
 	# conversions. Later, in the DOM section, we will extend
 	# this further to know how to convert "html", "node", etc.
-	$.type.extend
+	type.extend
+		unknown:   { array: (o) -> [o] }
 		# Null and undefined values convert to an empty array
 		null:      { array: (o) -> [] }
 		undefined: { array: (o) -> [] }
 		# Arrays just convert to themselves
-		array:     { array: $.identity }
+		array:     { array: (o) -> o }
 		# Numbers create a new array of that capacity:
 		# > `$(10) == $(new Array(10))`
-		number:    { array: (o) -> $.extend new Array(o), length: 0 }
+		number:    { array: (o) -> Bling.extend new Array(o), length: 0 }
 
 	# Second, we register "bling", and all the things we know how to do
 	# with it:
-	$.type.register "bling",
+	type.register "bling",
 		match:  (o) -> isType Bling, o
-		array:  $.identity
-		hash:   (o) -> o.map($.hash).sum()
-		string: (o) -> Bling.symbol + "([" + o.map($.toString).join(", ")+ "])"
+		array:  (o) -> o
+		hash:   (o) -> o.map(Bling.hash).sum()
+		string: (o) -> Bling.symbol + "([" + o.map(Bling.toString).join(", ")+ "])"
+
 
 # Code dependencies
 # -----------------
@@ -287,6 +283,17 @@ extend Bling, (->
 		(if (typeof n) is "string" then n.split "," else n)
 		.filter (x) -> not (x of done)
 
+	# `$.depends` wraps a function `f`, waiting for all `needs` to be
+	# satisfied.
+	# `needs` is an array of strings.
+
+	# Example:
+	# `drawTriangles = depends "math", (t...) ->`
+	#
+	# Now, if you call `drawTriangles()`, it will only really call it if
+	# `provide "math"` has been called somewhere.  Otherwise, it will go
+	# on a queue, and be called automatically the first time `provide "math"` is
+	# called.
 	depends: (needs, f) ->
 		if (needs = filt(needs)).length is 0 then f()
 		else qu.push (need) ->
@@ -307,9 +314,12 @@ extend Bling, (->
 )()
 
 # Plugins
-# ==============
-# Quickly set up a namespace that protects `$`, so we can safely use
-# short-hand in all of our plugins.
+# =======
+# Now that we have a way to load plugins and express dependencies
+# between them, all future code will come in a plugin.
+# 
+# For the rest of this file, set up a namespace that protects `$`,
+# so we can safely use short-hand in all of our plugins.
 (($) ->
 
 	#### Types plugin
@@ -326,10 +336,13 @@ extend Bling, (->
 			# `$.type([])` equals `"array"`.
 			type: type
 			# `$.is("function", ->)` equals true/false.
-			is: type.match
+			is: type.is
 			isSimple: (o) -> type(o) in ["string", "number", "bool"]
 			isEmpty: (o) -> o in ["", null, undefined]
 	
+	$.plugin
+		depends: "functions"
+	, ->
 
 	# Symbol Plugin
 	# -------------
@@ -375,6 +388,12 @@ extend Bling, (->
 				a.push @substring(i,j)
 				i = j + 1
 			a
+		# Find the last index of character `c` in the string `s`.
+		String::lastIndexOf or= (s, c, i = -1) ->
+			j = -1
+			j = i while (i = s.indexOf c, i+1) > -1
+			j
+
 		# Make sure we have Array functions: `join`.
 		Array::join or= (sep = '') ->
 			n = @length
@@ -469,25 +488,23 @@ extend Bling, (->
 		provides: "core"
 	, ->
 
-		# A functor that will read property `p` from some object later.
-		gettor = (prop) -> -> if $.is("function",v = @[prop]) then $.bound(@,v) else v
-		# A helper that will recursively split `p` on `.` and map a gettor
-		# to read a set of complex `p` values from an object.
-		selector = (p) ->
-			if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
-			else @map(gettor p)
-		# See: `$.select`.
 
 		Object.defineProperty $, "now",
 			get: -> +new Date
+
+		# Negative indices should work the same everywhere.
+		index = (i, o) ->
+			i += o.length while i < 0
+			Math.min i, o.length
 
 		return {
 			$:
 				log: log
 				assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
+				coalesce: (a...) -> $(a).coalesce()
 
 			# Get a new set containing only the i-th element of _this_.
-			eq: (i) -> $([@[i]])
+			eq: (i) -> $([@[index i, @]])
 
 			# Call a function on every item in _this_.
 			each: (f) -> (f.call(t,t) for t in @); @
@@ -528,6 +545,8 @@ extend Bling, (->
 				null
 			# Swap item i with item j, in-place.
 			swap: (i,j) ->
+				i = index i, @
+				j = index j, @
 				if i isnt j
 					[@[i],@[j]] = [@[j],@[i]]
 				@
@@ -539,14 +558,17 @@ extend Bling, (->
 				@
 
 			# Get a new set of properties from every item in _this_.
-			select: (a...) ->
+			select: (->
+				# A helper that will read property `p` from some object later.
+				getter = (prop) -> -> if $.is("function",v = @[prop]) then $.bound(@,v) else v
+				# Recursively split `p` on `.` and map the getter helper
+				# to read a set of complex `p` values from an object.
 				# > `$([x]).select("name") == [ x.name ]`
 				# > `$([x]).select("childNodes.1.nodeName") == [ x.childNodes[1].nodeName ]`
-				return switch (n = a.length)
-					# Select nothing, get nothing.
-					when 0 then $()
-					# Select one property, get a list of those values.
-					when 1 then selector.call @, a[0]
+				select = (p) ->
+					if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
+					else @map(getter p)
+			)()
 
 			# Replace any false-ish items in _this_ with _x_.
 			# > `$("<a>").select('parentNode').or(document)`
@@ -555,42 +577,41 @@ extend Bling, (->
 			# Assign the value _v_ to property _b_ on every
 			# item in _this_.
 			zap: (p, v) ->
-				# `zap` supports the name dot-delimited property name scheme
+				# `zap` supports the same dot-delimited property name scheme
 				# that `select` uses. It does this by using `select`
 				# internally.
-				i = 0
-				# If there is a dot in the name, zoom to the _last_ dot.
-				i = p.indexOf(".",i) while i > -1
-				if i > -1
-					# Use `select` to find the head portion, the tail should be
+
+				# Find the last "." in `p` so we can split into a head (to
+				# send to `select`) and a tail (a simple value to assign to).
+				i = p.lastIndexOf "."
+
+				if i > 0
+					# Use `select` to fetch the head portion, the tail will be
 					# a single property with no dots, which we recurse on (into
 					# a lower branch next time).
-					return @select(p.substr(0, i)).zap(p.substr(i+1), v)
-				# If _v_ is a sequence of values, they are striped across each
-				# item in _this_.
-				if $.is "array", v then @each -> @[p] = v[++i % v.length] # i starts at -1 because of the failed indexOf
-				# If _v_ is a function, map and set each item's property,
-				# akin to: `x[p] = v(x[p])`.
-				else if $.is "function", v then @zap p, @select(p).map v
-				# Anything else, scalars, objects, null, anything, get
-				# assigned directly to each item in this.
-				else @each -> @[p] = v
+					head = p.substr 0,i
+					tail = p.substr i+1
+					@select(head).zap tail, v
+					return @
 
+				switch $.type(v)
+					# If _v_ is a sequence of values, they are striped across each
+					# item in _this_.
+					when "array","bling" then @each -> @[p] = v[++i % v.length]
+					# If _v_ is a function, map and set each item's property,
+					# akin to: `x[p] = v(x[p])`.
+					when "function" then @zap p, @select(p).map(v)
+					# Anything else, scalars, objects, null, anything, get
+					# assigned directly to each item in this.
+					else @each -> @[p] = v
+				@
 
 			# Get a new set with only the first _n_ items from _this_.
-			# Negative _n_ counts from the end. `take(1)` returns a set with
-			# one item.
 			take: (n = 1) ->
-				nn = @length
-				start = 0
-				end = Math.min n|0, nn
-				if n < 0
-					start = Math.max 0, nn+n
-					end = nn
-				$( @[i] for i in [start...end] )
+				end = Math.min n, @length
+				$( @[i] for i in [0...end] )
 
 			# Get a new set with every item except the first _n_ items.
-			# Negative _n_ counts from the end. Always returns a set.
 			skip: (n = 0) ->
 				start = Math.max 0, n|0
 				$( @[i] for i in [start...@length] )
@@ -603,9 +624,8 @@ extend Bling, (->
 
 			slice: (start=0, end=@length) -> # .slice(/i/, [/j/]) - get a subset of _this_ including [/i/../j/-1]
 				# negative indices work like in python: -1 is the last item, -2 is second-to-last, null means inclusive
-				n = @length
-				start += n if start < 0
-				end += n if end < 0
+				start = index start, @
+				end = index end, @
 				$( @[i] for i in [start...end] )
 
 			extend: (b) -> @.push(i) for i in b; @
@@ -674,7 +694,7 @@ extend Bling, (->
 				@map -> if $.is "function", @ then @apply(context, args) else @
 
 			# Log one line for each item.
-			log: (label) -> # .log([label]) - console.log([/label/] + /x/) for /x/ in _this_
+			log: (label) -> # .log([label]) - $.log([/label/] + /x/) for /x/ in _this_
 				if label
 					$.log(label, @, @length + " items")
 				else
@@ -734,16 +754,16 @@ extend Bling, (->
 		depends: "function"
 		provides: "string"
 	, ->
-		#### $.toString
-		# Extends the base type to allow for converting things
+		#### toString
+		# Extend the base type to allow for converting things
 		# to string based on their type. This is a separate system from the
 		# native Object.prototype.toString chain of methods.
 
-		# First, extend the base type with a default `string` function
-		$.type.extend null, string: (o) -> o.toString?() ? String(o)
-		# Now, for each basic type, provide a basic `string` function.
-		# Later, more complex types will be added by plugins.
 		$.type.extend
+			# First, extend the base type with a default `string` function
+			unknown:   { string: (o) -> o.toString?() ? String(o) }
+			# Now, for each basic type, provide a basic `string` function.
+			# Later, more complex types will be added by plugins.
 			null:      { string: -> "null" }
 			undefined: { string: -> "undefined" }
 			string:    { string: $.identity }
@@ -862,7 +882,8 @@ extend Bling, (->
 			# __$.once(f)__ returns a new function that will only call
 			# _f_ **once**, or _n_ times if you pass the optional argument.
 			once: (f,n=1) -> f.n = n; (a...) -> (f.apply @,a) if f.n-- > 0
-			# __$.bound(context,f,[args])__ returns a new function that forces this === context when called.
+			# __$.bound(context,f,[args])__ returns a new function that
+			# forces `this === context` when called.
 			bound: (t, f, args = []) ->
 				if $.is "function", f.bind
 					args.splice 0, 0, t
@@ -884,8 +905,8 @@ extend Bling, (->
 		provides: "trace"
 		depends: "function"
 	, ->
-		$.type.extend null, trace: $.identity
 		$.type.extend
+			unknown: { trace: $.identity }
 			object: { trace: (o, label, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
 			array:  { trace: (o, label, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length]); o }
 			function:
@@ -907,11 +928,11 @@ extend Bling, (->
 	# -----------
 	# `$.hash(o)` Reduces any thing to an integer hash code (not secure).
 	$.plugin ->
-		$.type.extend null, hash: (o) -> $.checksum $.toString(o)
 		$.type.extend
-			object: { hash: (o) -> ($.hash(o[k]) for k of o) + $.hash(Object.keys(o)) }
-			array:  { hash: (o) -> ($.hash(i) for i in x).reduce (a,x) -> a+x }
-			bool:   { hash: (o) -> parseInt(1 if o) }
+			unknown: { hash: (o) -> $.checksum $.toString(o) }
+			object:  { hash: (o) -> ($.hash(o[k]) for k of o) + $.hash(Object.keys(o)) }
+			array:   { hash: (o) -> ($.hash(i) for i in x).reduce (a,x) -> a+x }
+			bool:    { hash: (o) -> parseInt(1 if o) }
 		return {
 			$:
 				hash: (x) -> $.type.lookup(x).hash(x)
@@ -973,35 +994,41 @@ extend Bling, (->
 
 	
 	if (window ? global).document?
-		$.type.register "nodelist",
-			match: (o) -> o? and $.isType "NodeList", o
-			hash: (o) -> $($.hash(i) for i in x).sum()
-			array: $.identity
-			string: (o) -> "{nodelist:"+$(o).select('nodeName').join(",")+"}"
-			node: -> $(@).toFragment()
-		$.type.register "node",
-			match: (o) -> o?.nodeType > 0
-			hash: (o) -> $.checksum(o.nodeName) + $.hash(o.attributes) + $.checksum(o.innerHTML)
-			string: (o) -> o.toString()
-			node: $.identity
-		$.type.register "fragment",
-			match: (o) -> o?.nodeType is 11
-			hash: (o) -> $($.hash(x) for x in o.childNodes).sum()
-			string: (o) -> o.toString()
-			node: $.identity
-		$.type.register "html",
-			match: (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
-			node: (o) -> $.type.lookup(h = Bling.HTML.parse(o)).node(h)
-			array: (o,c) -> $.type.lookup(h = Bling.HTML.parse(o)).array(h,c)
-		$.type.extend null, node: -> null
-		$.type.extend
-			bling:    { node: -> $(@).toFragment() }
-			string:
-				node: -> $(@).toFragment()
-				array: (o,c) -> c.querySelectorAll?(o)
-			function: { node: -> $(@toString()).toFragment() }
 
-		$.plugin -> # Html plugin
+		# DOM Plugin
+		# ----------
+		# Everything 
+		$.plugin
+			depends: "function"
+		, ->
+			$.type.register "nodelist",
+				match:  (o) -> o? and $.isType "NodeList", o
+				hash:   (o) -> $($.hash(i) for i in x).sum()
+				array:  $.identity
+				string: (o) -> "{nodelist:"+$(o).select('nodeName').join(",")+"}"
+				node:   (o) -> $(o).toFragment()
+			$.type.register "node",
+				match:  (o) -> o?.nodeType > 0
+				hash:   (o) -> $.checksum(o.nodeName) + $.hash(o.attributes) + $.checksum(o.innerHTML)
+				string: (o) -> o.toString()
+				node:   $.identity
+			$.type.register "fragment",
+				match:  (o) -> o?.nodeType is 11
+				hash:   (o) -> $($.hash(x) for x in o.childNodes).sum()
+				string: (o) -> o.toString()
+				node:   $.identity
+			$.type.register "html",
+				match:  (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
+				node:   (o) -> $.type.lookup(h = Bling.HTML.parse(o)).node(h)
+				array:  (o,c) -> $.type.lookup(h = Bling.HTML.parse(o)).array(h,c)
+			$.type.extend
+				unknown:  { node: -> null }
+				bling:    { node: -> $(@).toFragment() }
+				string:
+					node:  -> $(@).toFragment()
+					array: (o,c) -> c.querySelectorAll?(o)
+				function: { node: -> $(@toString()).toFragment() }
+
 			toFrag = (a) ->
 				if not a.parentNode?
 					df = document.createDocumentFragment()
@@ -1079,7 +1106,7 @@ extend Bling, (->
 
 				appendTo: (x) -> # .appendTo(/n/) - each node [or a fragment] will become the last child of n
 					$(x).append(@)
-					try console.log "@.parentNode in appendTo:", @[0].parentNode, "should not be null"
+					try $.log "@.parentNode in appendTo:", @[0].parentNode, "should not be null"
 					@
 
 				prepend: (x) -> # .prepend(/n/) - insert n [or a clone] as the first child of each node
@@ -1313,7 +1340,10 @@ extend Bling, (->
 					return toNode(@[0])
 			}
 
-		$.plugin -> # Transform plugin, for accelerated animations
+		# Transform plugin
+		# ----------------
+		# For accelerated animations.
+		$.plugin ->
 			COMMASEP = ", "
 			speeds = # constant speed names
 				"slow": 700
@@ -1351,14 +1381,14 @@ extend Bling, (->
 
 			return {
 				$:
-					duration: (speed) -> # $.duration(/s/) - given a speed description (string|number), return a number in milliseconds
+					# $.duration(/s/) - given a speed description (string|number), return a number in milliseconds
+					duration: (speed) ->
 						d = speeds[speed]
 						return d if d?
 						return parseFloat speed
 
-				# like jquery's animate(), but using only webkit-transition/transform
+				# .transform(css, [/speed/], [/callback/]) - animate css properties on each node
 				transform: (end_css, speed, easing, callback) ->
-					# .transform(css, [/speed/], [/callback/]) - animate css properties on each node
 					# animate css properties over a duration
 					# accelerated: scale, translate, rotate, scale3d,
 					# ... translateX, translateY, translateZ, translate3d,
@@ -1369,19 +1399,16 @@ extend Bling, (->
 
 					if $.is("function",speed)
 						callback = speed
-						speed = null
-						easing = null
+						speed = easing = null
 					else if $.is("function",easing)
 						callback = easing
 						easing = null
-					if not speed?
-						speed = "normal"
+					speed ?= "normal"
 					easing or= "ease"
 					# duration is always in milliseconds
 					duration = $.duration(speed) + "ms"
 					props = []
-					p = 0 # insert marker for props
-					# what to send to the -webkit-transform
+					# `trans` is what will be assigned to -webkit-transform
 					trans = ""
 					# real css values to be set (end_css without the transform values)
 					css = {}
@@ -1390,38 +1417,33 @@ extend Bling, (->
 						if accel_props_re.test(i)
 							ii = end_css[i]
 							if ii.join
-								ii = $(ii).px().join(COMMASEP)
+								ii = $(ii).px().join COMMASEP
 							else if ii.toString
 								ii = ii.toString()
 							trans += " " + i + "(" + ii + ")"
-						else # stick real css values in the css dict
-							css[i] = end_css[i]
+						# stick real css values in the css dict
+						else css[i] = end_css[i]
 					# make a list of the properties to be modified
-					for i of css
-						props[p++] = i
+					(props.push i) for i of css
 					# and include -webkit-transform if we have transform values to set
 					if trans
-						props[p++] = transformProperty
+						props.push transformProperty
 
 					# sets a list of properties to apply a duration to
-					css[transitionProperty] = props.join(COMMASEP)
+					css[transitionProperty] = props.join COMMASEP
 					# apply the same duration to each property
-					css[transitionDuration] =
-						props.map( -> duration)
-							.join(COMMASEP)
+					css[transitionDuration] = props.map(-> duration).join COMMASEP
 					# apply an easing function to each property
-					css[transitionTiming] =
-						props.map( -> easing)
-							.join(COMMASEP)
+					css[transitionTiming] = props.map(-> easing).join COMMASEP
 
 					# apply the transformation
-					if( trans )
+					if trans
 						css[transformProperty] = trans
 					# apply the css to the actual node
-					@css(css)
+					@css css
 					# queue the callback to be executed at the end of the animation
 					# WARNING: NOT EXACT!
-					@delay(duration, callback)
+					@delay duration, callback
 
 				hide: (callback) -> # .hide() - each node gets display:none
 					@each ->
@@ -1430,16 +1452,16 @@ extend Bling, (->
 							if @style.display is not "none"
 								@_display = @syle.display
 							@style.display = "none"
-					.trigger("hide")
-					.delay(updateDelay, callback)
+					.trigger "hide"
+					.delay updateDelay, callback
 
 				show: (callback) -> # .show() - show each node
 					@each ->
 						if @style
 							@style.display = @_display
 							delete @_display
-					.trigger("show")
-					.delay(updateDelay, callback)
+					.trigger "show"
+					.delay updateDelay, callback
 
 				toggle: (callback) -> # .toggle() - show each hidden node, hide each visible one
 					@weave(@css("display"))
@@ -1447,11 +1469,11 @@ extend Bling, (->
 							if display is "none"
 								node.style.display = node._display or ""
 								delete node._display
-								$(node).trigger("show")
+								$(node).trigger "show"
 							else
 								node._display = display
 								node.style.display = "none"
-								$(node).trigger("hide")
+								$(node).trigger "hide"
 							node
 						.delay(updateDelay, callback)
 
@@ -1467,27 +1489,31 @@ extend Bling, (->
 						opacity:"0.0",
 						translate3d:[x,y,0.0]
 					}, speed, -> @hide(callback)
-				fadeLeft: (speed, callback) -> @fadeOut(speed, callback, "-"+@width().first(), 0.0)
-				fadeRight: (speed, callback) -> @fadeOut(speed, callback, @width().first(), 0.0)
-				fadeUp: (speed, callback) -> @fadeOut(speed, callback, 0.0, "-"+@height().first())
-				fadeDown: (speed, callback)  -> @fadeOut(speed, callback, 0.0, @height().first())
+				fadeLeft: (speed, callback) -> @fadeOut speed, callback, "-"+@width().first(), 0.0
+				fadeRight: (speed, callback) -> @fadeOut speed, callback, @width().first(), 0.0
+				fadeUp: (speed, callback) -> @fadeOut speed, callback, 0.0, "-"+@height().first()
+				fadeDown: (speed, callback)  -> @fadeOut speed, callback, 0.0, @height().first()
 			}
 
-		$.plugin -> # HTTP Request plugin: provides wrappers for making http requests
+		# HTTP Plugin
+		# -----------
+		# Things like `.ajax()`, `.get()`, `$.post()`.
+		$.plugin ->
 			formencode = (obj) -> # create &foo=bar strings from object properties
 				o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
-				("#{i}=#{escape o[i]}" for i of o).join("&")
+				("#{i}=#{escape o[i]}" for i of o).join "&"
 
 			$.type.register "http",
 				match: (o) -> $.isType 'XMLHttpRequest', o
-				asArray: (o) -> [o]
+				array: (o) -> [o]
 
 			return {
-				$: # globals
-					http: (url, opts = {}) -> # $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
+				$:
+					# $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
+					http: (url, opts = {}) ->
 						xhr = new XMLHttpRequest()
 						if $.is("function",opts)
-							opts = {success: $.bound(xhr, opts)}
+							opts = success: $.bound(xhr, opts)
 						opts = $.extend {
 							method: "GET"
 							data: null
@@ -1523,20 +1549,27 @@ extend Bling, (->
 						xhr.send opts.data
 						return $(xhr)
 
-					post: (url, opts = {}) -> # $.post(/url/, [/opts/]) - fetch /url/ with a POST request
+					# $.post(/url/, [/opts/]) - fetch /url/ with a POST request
+					post: (url, opts = {}) ->
 						if $.is("function",opts)
-							opts = {success: opts}
+							opts = success: opts
 						opts.method = "POST"
 						$.http(url, opts)
 
-					get: (url, opts = {}) -> # $.get(/url/, [/opts/]) - fetch /url/ with a GET request
+					# $.get(/url/, [/opts/]) - fetch /url/ with a GET request
+					get: (url, opts = {}) ->
 						if( $.is("function",opts) )
-							opts = {success: opts}
+							opts = success: opts
 						opts.method = "GET"
 						$.http(url, opts)
 			}
 
-		$.plugin -> # Events plugin
+		# Events plugin
+		# -------------
+		# Things like `.bind()`, `.trigger()`, etc.
+		$.plugin
+			depends: "function"
+		, -> # Events plugin
 			EVENTSEP_RE = /,* +/
 			events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
 				'load','unload','reset','submit','keyup','keydown','change',
@@ -1563,11 +1596,11 @@ extend Bling, (->
 					delete c[f]
 
 			# detect and fire the document.ready event
-			triggerReady = Function.Once ->
+			triggerReady = $.once ->
 				$(document).trigger("ready").unbind("ready")
 				document.removeEventListener?("DOMContentLoaded", triggerReady, false)
 				window.removeEventListener?("load", triggerReady, false)
-			bindReady = Function.Once ->
+			bindReady = $.once ->
 				document.addEventListener?("DOMContentLoaded", triggerReady, false)
 				window.addEventListener?("load", triggerReady, false)
 			bindReady()

@@ -23,7 +23,7 @@
 
 # We need a few things to get started:
 
-# A safe reference to `console.log()`:
+# A safe reference to `$.log()`:
 log = (a...) ->
 	try return console.log.apply console, a
 	alert a.join(", ")
@@ -39,11 +39,15 @@ extend ?= (a, b) ->
 		if v? then a[k] = v
 	a
 
-
+# A wrapper for Object.defineProperty that changes the defaults
+defineProperty = (o,name,opts) ->
+	Object.defineProperty o,name, extend({
+		configurable: true
+		enumerable: true
+	}, opts)
 
 # Type System
 # -----------
-
 # The type system is built around a _type classifier_. Initially, this
 # will only know how to match types (and the order to check them in).
 # Later, the type-instance that results from classification will be
@@ -56,12 +60,13 @@ extend ?= (a, b) ->
 # constructors, and anything else we can think of that matters.
 isType = (T, o) ->
 	if not o? then T in [o,"null","undefined"]
-	else o.constructor is T or
+	else o instanceof T or
+		o.constructor is T or
 		o.constructor.name is T or
 		Object::toString.apply(o) is "[object #{T}]" or
 		isType T, o.__proto__
 
-# `inherit(parent, child)` is similar to Extend, except it works by
+# `inherit(parent, child)` is similar to extend, except it works by
 # inserting the parent as the prototype of the child _instance_. This is unlike
 # coffee's `class X extends Y`, because it expects the target `child`
 # to be an _instance_, and the `parent` can either be an _instance_ or a
@@ -95,16 +100,13 @@ type = (->
 		# * Put the type check in order (if it isn't already).
 		order.unshift name if not (name of cache)
 		# * inherit from the base type and store in the cache.
-		cache[data.name = name] = inherit base, data
+		cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
 
 	# Later, plugins can `extend` previously registered types with new
 	# functionality.
 	_extend = (name, data) ->
-		# If explicitly passed a null for the name, extend base type
-		if data? and not name?
-			extend base, data
 		# The `name` should be of a registered type (a key into the cache)
-		else if typeof name is "string"
+		if typeof name is "string"
 			# But, if you attempt to extend a type that was not registered yet,
 			# it will be automatically registered.
 			cache[name] ?= register(name, {})
@@ -125,7 +127,7 @@ type = (->
 	# Now, register all the built-in types. These checks are
 	# executed in _reverse order_, so the first listed here, `"unknown"`,
 	# is always checked last.
-	register "unknown",   match: -> true
+	register "unknown",   base
 	# This implies that the 'simplest' checks should be registered
 	# first, and conceptually more specialized checks would get added
 	# as time goes on (so specialized type matches are preferred).
@@ -149,7 +151,7 @@ type = (->
 		register: register
 		lookup: lookup
 		extend: _extend
-		match: (t, o) -> cache[t]?.match.call o, o
+		is: (t, o) -> cache[t]?.match.call o, o
 
 	# Example: Calling $.type directly will get you the simple name of the
 	# best match.
@@ -182,14 +184,14 @@ type = (->
 
 # 1. _The copy is shallow_; creating partially-shared state between
 # instances.
-# 2. _There is a copy at all_; one should avoid copying in critical
+# 2. _There is a copy at all_; it's nice to avoid copying in critical
 # sections whenever possible.
 # 3. _It replaces the return value of the constructor_; reducing
 # flexibility in implementations.
 
 # So, the Bling constructor should not be called as `new Bling`,
-# and this means our assignment to a symbol (`$`) remains simple.
-class Bling extends Array
+# and as a bonus our assignment to a symbol (`$`) remains simple.
+class Bling
 	constructor: (selector, context = document or {}) ->
 		# Since we have this nice Type system, our constructor is succinct:
 		# 1. Classify the type.
@@ -235,8 +237,8 @@ class Bling extends Array
 				['$','name'].forEach (k) -> delete plugin[k]
 				# Now put everything else on the Bling prototype
 				extend @::, plugin
-				# Finally, add default global versions of anything that
-				# doesn't have one already.
+				# Finally, add root-level wrappers for anything that doesn't
+				# have one already.
 				( @[key] or= (a...) => (@::[key].apply $(a[0]), a[1...]) ) for key of plugin # and gets a default global implementation
 				if opts.provides? then @provide opts.provides
 		catch error
@@ -273,18 +275,17 @@ class Bling extends Array
 
 	@provides: (needs, f) -> (a...) -> r=f(a...); Bling.provide(needs); r
 
-	# Adding "bling" to the Type System
-	# ---------------------------------
+	#### Registering the "bling" type.
 	# First, we give the basic types the ability to turn into something
-	# array-like, for use in the constructor.
+	# array-like, for use by the constructor.
 
-	# By default, if we don't know any better way, we just stick the
+	# If we don't know any better way, we just stick the
 	# thing inside a real array.
-	type.extend null, array: (o) -> [o]
 	# But where we do know better, we can provide more meaningful
 	# conversions. Later, in the DOM section, we will extend
 	# this further to know how to convert "html", "node", etc.
 	type.extend
+		unknown:   { array: (o) -> [o] }
 		# Null and undefined values convert to an empty array
 		null:      { array: (o) -> [] }
 		undefined: { array: (o) -> [] }
@@ -302,16 +303,20 @@ class Bling extends Array
 		hash:   (o) -> o.map(Bling.hash).sum()
 		string: (o) -> Bling.symbol + "([" + o.map(Bling.toString).join(", ")+ "])"
 
+Bling.prototype = []
 
 
 # Plugins
-# ==============
-# Quickly set up a namespace that protects `$`, so we can safely use
-# short-hand in all of our plugins.
+# =======
+# Now that we have a way to load plugins and express dependencies
+# between them, all future code will come in a plugin.
+# 
+# For the rest of this file, set up a namespace that protects `$`,
+# so we can safely use short-hand in all of our plugins.
 (($) ->
 
 	#### Types plugin
-	# Exposes the type system.
+	# Exposes the type system publicly.
 	$.plugin
 		provides: "types"
 	, ->
@@ -324,10 +329,13 @@ class Bling extends Array
 			# `$.type([])` equals `"array"`.
 			type: type
 			# `$.is("function", ->)` equals true/false.
-			is: type.match
+			is: type.is
 			isSimple: (o) -> type(o) in ["string", "number", "bool"]
 			isEmpty: (o) -> o in ["", null, undefined]
 	
+	$.plugin
+		depends: "functions"
+	, ->
 
 	# Symbol Plugin
 	# -------------
@@ -350,7 +358,7 @@ class Bling extends Array
 		symbol = null
 		cache = {}
 		(g = window ? global).Bling = Bling
-		Object.defineProperty $, "symbol",
+		defineProperty $, "symbol",
 			set: (v) ->
 				g[symbol] = cache[symbol]
 				cache[symbol = v] = g[v]
@@ -373,6 +381,12 @@ class Bling extends Array
 				a.push @substring(i,j)
 				i = j + 1
 			a
+		# Find the last index of character `c` in the string `s`.
+		String::lastIndexOf or= (s, c, i = -1) ->
+			j = -1
+			j = i while (i = s.indexOf c, i+1) > -1
+			j
+
 		# Make sure we have Array functions: `join`.
 		Array::join or= (sep = '') ->
 			n = @length
@@ -446,7 +460,7 @@ class Bling extends Array
 				# Note that this reverses the order of _n_ and _f_
 				# intentionally.  Throughout this library, the convention is
 				# to put the simple things first, to improve code flow:
-				# > `$.delay 5, () ->` vs. `$.delay (() -> ), 5`
+				# > `$.delay 5, () ->` is better than `$.delay (() -> ), 5`
 				(n, f) ->
 					if $.is("function",f) then timeoutQueue.add(f, n)
 					cancel: -> timeoutQueue.cancel(f)
@@ -467,25 +481,22 @@ class Bling extends Array
 		provides: "core"
 	, ->
 
-		# A functor that will read property `p` from some object later.
-		gettor = (prop) -> -> if $.is("function",v = @[prop]) then $.bound(@,v) else v
-		# A helper that will recursively split `p` on `.` and map a gettor
-		# to read a set of complex `p` values from an object.
-		selector = (p) ->
-			if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
-			else @map(gettor p)
-		# See: `$.select`.
-
-		Object.defineProperty $, "now",
+		defineProperty $, "now",
 			get: -> +new Date
+
+		# Negative indices should work the same everywhere.
+		index = (i, o) ->
+			i += o.length while i < 0
+			Math.min i, o.length
 
 		return {
 			$:
 				log: log
 				assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
+				coalesce: (a...) -> $(a).coalesce()
 
 			# Get a new set containing only the i-th element of _this_.
-			eq: (i) -> $([@[i]])
+			eq: (i) -> $([@[index i, @]])
 
 			# Call a function on every item in _this_.
 			each: (f) -> (f.call(t,t) for t in @); @
@@ -526,6 +537,8 @@ class Bling extends Array
 				null
 			# Swap item i with item j, in-place.
 			swap: (i,j) ->
+				i = index i, @
+				j = index j, @
 				if i isnt j
 					[@[i],@[j]] = [@[j],@[i]]
 				@
@@ -537,14 +550,17 @@ class Bling extends Array
 				@
 
 			# Get a new set of properties from every item in _this_.
-			select: (a...) ->
+			select: (->
+				# A helper that will read property `p` from some object later.
+				getter = (prop) -> -> if $.is("function",v = @[prop]) then $.bound(@,v) else v
+				# Recursively split `p` on `.` and map the getter helper
+				# to read a set of complex `p` values from an object.
 				# > `$([x]).select("name") == [ x.name ]`
 				# > `$([x]).select("childNodes.1.nodeName") == [ x.childNodes[1].nodeName ]`
-				return switch (n = a.length)
-					# Select nothing, get nothing.
-					when 0 then $()
-					# Select one property, get a list of those values.
-					when 1 then selector.call @, a[0]
+				select = (p) ->
+					if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
+					else @map(getter p)
+			)()
 
 			# Replace any false-ish items in _this_ with _x_.
 			# > `$("<a>").select('parentNode').or(document)`
@@ -553,42 +569,41 @@ class Bling extends Array
 			# Assign the value _v_ to property _b_ on every
 			# item in _this_.
 			zap: (p, v) ->
-				# `zap` supports the name dot-delimited property name scheme
+				# `zap` supports the same dot-delimited property name scheme
 				# that `select` uses. It does this by using `select`
 				# internally.
-				i = 0
-				# If there is a dot in the name, zoom to the _last_ dot.
-				i = p.indexOf(".",i) while i > -1
-				if i > -1
-					# Use `select` to find the head portion, the tail should be
+
+				# Find the last "." in `p` so we can split into a head (to
+				# send to `select`) and a tail (a simple value to assign to).
+				i = p.lastIndexOf "."
+
+				if i > 0
+					# Use `select` to fetch the head portion, the tail will be
 					# a single property with no dots, which we recurse on (into
 					# a lower branch next time).
-					return @select(p.substr(0, i)).zap(p.substr(i+1), v)
-				# If _v_ is a sequence of values, they are striped across each
-				# item in _this_.
-				if $.is "array", v then @each -> @[p] = v[++i % v.length] # i starts at -1 because of the failed indexOf
-				# If _v_ is a function, map and set each item's property,
-				# akin to: `x[p] = v(x[p])`.
-				else if $.is "function", v then @zap p, @select(p).map v
-				# Anything else, scalars, objects, null, anything, get
-				# assigned directly to each item in this.
-				else @each -> @[p] = v
+					head = p.substr 0,i
+					tail = p.substr i+1
+					@select(head).zap tail, v
+					return @
 
+				switch $.type(v)
+					# If _v_ is a sequence of values, they are striped across each
+					# item in _this_.
+					when "array","bling" then @each -> @[p] = v[++i % v.length]
+					# If _v_ is a function, map and set each item's property,
+					# akin to: `x[p] = v(x[p])`.
+					when "function" then @zap p, @select(p).map(v)
+					# Anything else, scalars, objects, null, anything, get
+					# assigned directly to each item in this.
+					else @each -> @[p] = v
+				@
 
 			# Get a new set with only the first _n_ items from _this_.
-			# Negative _n_ counts from the end. `take(1)` returns a set with
-			# one item.
 			take: (n = 1) ->
-				nn = @length
-				start = 0
-				end = Math.min n|0, nn
-				if n < 0
-					start = Math.max 0, nn+n
-					end = nn
-				$( @[i] for i in [start...end] )
+				end = Math.min n, @length
+				$( @[i] for i in [0...end] )
 
 			# Get a new set with every item except the first _n_ items.
-			# Negative _n_ counts from the end. Always returns a set.
 			skip: (n = 0) ->
 				start = Math.max 0, n|0
 				$( @[i] for i in [start...@length] )
@@ -601,9 +616,8 @@ class Bling extends Array
 
 			slice: (start=0, end=@length) -> # .slice(/i/, [/j/]) - get a subset of _this_ including [/i/../j/-1]
 				# negative indices work like in python: -1 is the last item, -2 is second-to-last, null means inclusive
-				n = @length
-				start += n if start < 0
-				end += n if end < 0
+				start = index start, @
+				end = index end, @
 				$( @[i] for i in [start...end] )
 
 			extend: (b) -> @.push(i) for i in b; @
@@ -672,7 +686,7 @@ class Bling extends Array
 				@map -> if $.is "function", @ then @apply(context, args) else @
 
 			# Log one line for each item.
-			log: (label) -> # .log([label]) - console.log([/label/] + /x/) for /x/ in _this_
+			log: (label) -> # .log([label]) - $.log([/label/] + /x/) for /x/ in _this_
 				if label
 					$.log(label, @, @length + " items")
 				else
@@ -732,16 +746,16 @@ class Bling extends Array
 		depends: "function"
 		provides: "string"
 	, ->
-		#### $.toString
-		# Extends the base type to allow for converting things
+		#### toString
+		# Extend the base type to allow for converting things
 		# to string based on their type. This is a separate system from the
 		# native Object.prototype.toString chain of methods.
 
-		# First, extend the base type with a default `string` function
-		$.type.extend null, string: (o) -> o.toString?() ? String(o)
-		# Now, for each basic type, provide a basic `string` function.
-		# Later, more complex types will be added by plugins.
 		$.type.extend
+			# First, extend the base type with a default `string` function
+			unknown:   { string: (o) -> o.toString?() ? String(o) }
+			# Now, for each basic type, provide a basic `string` function.
+			# Later, more complex types will be added by plugins.
 			null:      { string: -> "null" }
 			undefined: { string: -> "undefined" }
 			string:    { string: $.identity }
@@ -861,7 +875,8 @@ class Bling extends Array
 			# __$.once(f)__ returns a new function that will only call
 			# _f_ **once**, or _n_ times if you pass the optional argument.
 			once: (f,n=1) -> f.n = n; (a...) -> (f.apply @,a) if f.n-- > 0
-			# __$.bound(context,f,[args])__ returns a new function that forces this === context when called.
+			# __$.bound(context,f,[args])__ returns a new function that
+			# forces `this === context` when called.
 			bound: (t, f, args = []) ->
 				if $.is "function", f.bind
 					args.splice 0, 0, t
@@ -883,8 +898,8 @@ class Bling extends Array
 		provides: "trace"
 		depends: "function"
 	, ->
-		$.type.extend null, trace: $.identity
 		$.type.extend
+			unknown: { trace: $.identity }
 			object: { trace: (o, label, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
 			array:  { trace: (o, label, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length]); o }
 			function:
@@ -908,11 +923,12 @@ class Bling extends Array
 	$.plugin
 		provides: "hash"
 	, ->
-		$.type.extend null, hash: (o) -> $.checksum $.toString(o)
+	$.plugin ->
 		$.type.extend
-			object: { hash: (o) -> ($.hash(o[k]) for k of o) + $.hash(Object.keys(o)) }
-			array:  { hash: (o) -> ($.hash(i) for i in x).reduce (a,x) -> a+x }
-			bool:   { hash: (o) -> parseInt(1 if o) }
+			unknown: { hash: (o) -> $.checksum $.toString(o) }
+			object:  { hash: (o) -> ($.hash(o[k]) for k of o) + $.hash(Object.keys(o)) }
+			array:   { hash: (o) -> ($.hash(i) for i in x).reduce (a,x) -> a+x }
+			bool:    { hash: (o) -> parseInt(1 if o) }
 		return {
 			$:
 				hash: (x) -> $.type.lookup(x).hash(x)
@@ -986,785 +1002,786 @@ class Bling extends Array
 
 	
 	if (window ? global).document?
-		$.type.register "nodelist",
-			match: (o) -> o? and $.isType "NodeList", o
-			hash: (o) -> $($.hash(i) for i in x).sum()
-			array: $.identity
-			string: (o) -> "{nodelist:"+$(o).select('nodeName').join(",")+"}"
-			node: -> $(@).toFragment()
-		$.type.register "node",
-			match: (o) -> o?.nodeType > 0
-			hash: (o) -> $.checksum(o.nodeName) + $.hash(o.attributes) + $.checksum(o.innerHTML)
-			string: (o) -> o.toString()
-			node: $.identity
-		$.type.register "fragment",
-			match: (o) -> o?.nodeType is 11
-			hash: (o) -> $($.hash(x) for x in o.childNodes).sum()
-			string: (o) -> o.toString()
-			node: $.identity
-		$.type.register "html",
-			match: (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
-			node: (o) -> $.type.lookup(h = Bling.HTML.parse(o)).node(h)
-			array: (o,c) -> $.type.lookup(h = Bling.HTML.parse(o)).array(h,c)
-		$.type.extend null, node: -> null
-		$.type.extend
-			bling:    { node: -> $(@).toFragment() }
-			string:
-				node: -> $(@).toFragment()
-				array: (o,c) -> c.querySelectorAll?(o)
-			function: { node: -> $(@toString()).toFragment() }
-		$.provide "document"
 
-	$.plugin
-		depends: "document,core"
-		provides: "html"
-	, -> # Html plugin
-		toFrag = (a) ->
-			if not a.parentNode?
-				df = document.createDocumentFragment()
-				df.appendChild(a)
-			a
-		before = (a,b) -> toFrag(a).parentNode.insertBefore b, a
-		after = (a,b) -> toFrag(a).parentNode.insertBefore b, a.nextSibling
-		toNode = (x) -> $.type.lookup(x).node(x)
-		escaper = null
+		# DOM Plugin
+		# ----------
+		$.plugin
+			depends: "function"
+		, ->
+			$.type.register "nodelist",
+				match:  (o) -> o? and $.isType "NodeList", o
+				hash:   (o) -> $($.hash(i) for i in x).sum()
+				array:  $.identity
+				string: (o) -> "{nodelist:"+$(o).select('nodeName').join(",")+"}"
+				node:   (o) -> $(o).toFragment()
+			$.type.register "node",
+				match:  (o) -> o?.nodeType > 0
+				hash:   (o) -> $.checksum(o.nodeName) + $.hash(o.attributes) + $.checksum(o.innerHTML)
+				string: (o) -> o.toString()
+				node:   $.identity
+			$.type.register "fragment",
+				match:  (o) -> o?.nodeType is 11
+				hash:   (o) -> $($.hash(x) for x in o.childNodes).sum()
+				string: (o) -> o.toString()
+				node:   $.identity
+			$.type.register "html",
+				match:  (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
+				node:   (o) -> $.type.lookup(h = Bling.HTML.parse(o)).node(h)
+				array:  (o,c) -> $.type.lookup(h = Bling.HTML.parse(o)).array(h,c)
+			$.type.extend
+				unknown:  { node: -> null }
+				bling:    { node: -> $(@).toFragment() }
+				string:
+					node:  -> $(@).toFragment()
+					array: (o,c) -> c.querySelectorAll?(o)
+				function: { node: -> $(@toString()).toFragment() }
 
-		# window.getComputedStyle is not a normal function
-		# (it doesnt support .call() so we can't use it with .map())
-		# so define something that does work properly for use in .css
-		computeCSSProperty = (k) -> -> window.getComputedStyle(@, null).getPropertyValue(k)
-
-		getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select(p)
-
-		return {
-			$:
-
-				# `$.HTML` provides methods similar to the global JSON
-				# object, for parsing from and to HTML.
-				HTML:
-					# Parse the html in string h into a node or fragment.
-					parse: (h) ->
-						# Put the html into a new div.
-						(node = document.createElement("div")).innerHTML = h
-						# If there's only one resulting child, return that Node.
-						if n = (childNodes = node.childNodes).length is 1
-							return node.removeChild(childNodes[0])
-						# Otherwise, copy all the div's children into a new
-						# fragment.
-						df = document.createDocumentFragment()
-						df.appendChild(node.removeChild(childNodes[0])) for i in [0...n]
-						df
-					# Convert a node or fragment to an HTML string.
-					stringify: (n) ->
-						switch $.type n
-							when "string","html" then n
-							when "node","fragment"
-								d = document.createElement "div"
-								d.appendChild (n = n.cloneNode true)
-								# Uses .innerHTML to render the HTML.
-								ret = d.innerHTML
-								d.removeChild n # break links to prevent leaks
-								ret
-							else "HTML.stringify of unknown type: " + $.type(n)
-					# Escape html characters in _h_, so "<" becomes "&lt;",
-					# etc.
-					escape: (h) ->
-						# Create a singleton div with a text node within it.
-						escaper or= $("<div>&nbsp;</div>").child(0)
-						# Insert _h_ using the text node's .data property,
-						# then get escaped html from the _parent's_ innerHTML.
-						ret = escaper.zap('data', h).select("parentNode.innerHTML").first()
-						# Clean up so content doesn't litter.
-						escaper.zap('data', '')
-						ret
-
-			# Get [or set] innerHTML for each node.
-			html: (h) ->
-				return switch $.type h
-					when "undefined","null" then @select 'innerHTML'
-					when "string" then @zap 'innerHTML', h
-					when "bling" then @html h.toFragment()
-					when "node"
-						@each -> # replace all our children with the new child
-							@replaceChild @childNodes[0], h
-							while @childNodes.length > 1
-								@removeChild @childNodes[1]
-
-			append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
-				x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
-				@each -> @appendChild x.cloneNode true
-
-			appendTo: (x) -> # .appendTo(/n/) - each node [or a fragment] will become the last child of n
-				$(x).append(@)
-				try console.log "@.parentNode in appendTo:", @[0].parentNode, "should not be null"
-				@
-
-			prepend: (x) -> # .prepend(/n/) - insert n [or a clone] as the first child of each node
-				if x?
-					x = toNode(x)
-					@take(1).each ->
-						before @childNodes[0], x
-					@skip(1).each ->
-						before @childNodes[0], x.cloneNode(true)
-				@
-
-			prependTo: (x) -> # .prependTo(/n/) - each node [or a fragment] will become the first child of n
-				if x?
-					$(x).prepend(@)
-				@
-
-			before: (x) -> # .before(/x/) - insert content x before each node
-				if x?
-					x = toNode(x)
-					@take(1).each -> before @, x
-					@skip(1).each -> before @, x.cloneNode(true)
-				@
-
-			after: (x) -> # .after(/n/) - insert content n after each node
-				if x?
-					x = toNode(x)
-					@take(1).each -> after @, x
-					@skip(1).each -> after @, x.cloneNode(true)
-				@
-
-			wrap: (parent) -> # .wrap(/p/) - p becomes the new .parentNode of each node
-				# all items of @ will become children of parent
-				# parent will take each child's position in the DOM
-				parent = toNode(parent)
-				if $.is("fragment", parent)
-					throw new Error("cannot wrap with a fragment")
-				@each (child) ->
-					switch $.type(child)
-						when "fragment"
-							parent.appendChild(child)
-						when "node"
-							p = child.parentNode
-							if not p
-								parent.appendChild(child)
-							else # swap out the DOM nodes using a placeholder element
-								marker = document.createElement("dummy")
-								# put a marker in the DOM, put removed node in new parent
-								parent.appendChild( p.replaceChild(marker, child) )
-								# replace marker with new parent
-								p.replaceChild(parent, marker)
-
-			unwrap: -> # .unwrap() - replace each node's parent with itself
-				@each ->
-					if @parentNode and @parentNode.parentNode
-						@parentNode.parentNode.replaceChild(@, @parentNode)
-					else if @parentNode
-						@parentNode.removeChild(@)
-
-			replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
-				n = toNode(n)
-				b = $()
-				j = 0
-				# first node gets the real n
-				@take(1).each ->
-					@parentNode?.replaceChild(n, @)
-					b[j++] = n
-				# the rest get clones of n
-				@skip(1).each ->
-					c = n.cloneNode(true)
-					@parentNode?.replaceChild(c, @)
-					b[j++] = c
-				# the set of inserted nodes
-				b
-
-			attr: (a,v) -> # .attr(a, [v]) - get [or set] an /a/ttribute [/v/alue]
-				switch v
-					when undefined
-						return @select("getAttribute").call(a, v)
-					when null
-						return @select("removeAttribute").call(a, v)
-					else
-						@select("setAttribute").call(a, v)
-						return @
-
-			data: (k, v) ->
-				k = "data-#{$.dashize(k)}"
-				@attr(k, v)
-
-			addClass: (x) -> # .addClass(/x/) - add x to each node's .className
-				@removeClass(x).each ->
-					c = @className.split(" ").filter (y) ->
-						y isnt ""
-					c.push(x) # since we dont know the len, its still faster to push, rather than insert at len()
-					@className = c.join " "
-
-			removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
-				notx = (y)-> y != x
-				@each ->
-					c = @className?.split(" ").filter(notx).join(" ")
-					if c.length is 0
-						@removeAttribute('class')
-
-			toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
-				notx = (y) -> y isnt x
-				@each ->
-					cls = @className.split(" ")
-					filter = $.not $.isEmpty
-					if( cls.indexOf(x) > -1 )
-						filter = $.and notx, filter
-					else
-						cls.push(x)
-					c = cls.filter(filter).join(" ")
-					@className = c
-					if c.length is 0
-						@removeAttribute('class')
-
-			hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x
-				@select('className.split').call(" ").select('indexOf').call(x).map (x) -> x > -1
-
-			text: (t) -> # .text([t]) - get [or set] each node's .textContent
-				return @zap('textContent', t) if t?
-				return @select('textContent')
-
-			val: (v) -> # .val([v]) - get [or set] each node's .value
-				return @zap('value', v) if v?
-				return @select('value')
-
-			# Get [or set] css properties.
-			css: (k,v) ->
-				# If we are doing assignment.
-				if v? or $.is "object", k
-					# Use a bound-method to do the assignment for us.
-					setter = @select 'style.setProperty'
-					# If you give an object as a key, then use every k:v pair.
-					if $.is "object", k then setter.call i, k[i], "" for i of k
-					# So, the key is simple, and if the value is a string,
-					# just do simple assignment (using setProperty).
-					else if $.is "string", v then setter.call k, v, ""
-					# If the value was actually an array of values, then
-					# stripe the values across each item.
-					else if $.is "array", v
-						setter[i%nn] k, v[i%n], "" for i in [0...n = Math.max v.length, nn = setter.len()]
-					return @
-				# Else, we are reading CSS properties.
-				else
-					# So, collect the full computed values.
-					cv = @map computeCSSProperty(k)
-					# Then, collect the values specified directly on the node.
-					ov = @select('style').select k
-					# Weave and fold them so that object values override
-					# computed values.
-					ov.weave(cv).fold (x,y) -> x or y
-
-			# Set css properties by injecting a style element in the the
-			# head. If _k_ is an object of k:v pairs, then no second argument is needed.
-			defaultCss: (k, v) ->
-				# @selector need not match any nodes at the time of the call.
-				sel = @selector
-				style = ""
-				if $.is "string", k
-					if $.is "string", v
-						style += "#{sel} { #{k}: #{v} } "
-					else throw Error("defaultCss requires a value with a string key")
-				else if $.is "object", k
-					style += "#{sel} { " +
-						"#{i}: #{k[i]}; " for i of k +
-					"} "
-				$("<style></style>").text(style).appendTo("head")
-				@
-
-			# Get a bounding-box for each item.
-			rect: -> @select('getBoundingClientRect').call()
-
-			# Get [or set] each item's width.
-			width: getOrSetRect("width")
-
-			# Get [or set] each item's height.
-			height: getOrSetRect("height")
-
-			# Get [or set] each item's top.
-			top: getOrSetRect("top")
-
-			# Get [or set] each item's left.
-			left: getOrSetRect("left")
-
-			# Get [or set] each item's bottom.
-			bottom: getOrSetRect("bottom")
-
-			# Get [or set] each item's right.
-			right: getOrSetRect("right")
-
-			# Get [or set] each item's position.
-			position: (left, top) ->
-				switch true
-					# If called with no arguments, just return the position.
-					when not left? then @rect()
-					# If called with only one argument, only set "left".
-					when not top? then @css("left", $.px(left))
-					# If called with both arguments, set "top" and "left".
-					else @css({top: $.px(top), left: $.px(left)})
-
-			# Adjust the document's scroll position so the first node in
-			# _this_ is centered in the viewport.
-			scrollToCenter: ->
-				document.body.scrollTop = @[0].offsetTop - (window.innerHeight / 2)
-				@
-
-			# Get the _n-th_ child from each node in _this_.
-			child: (n) -> @select('childNodes').map -> @[ if n < 0 then (n+@length) else n ]
-
-			parents: -> @map -> p = @; $( p while p = p?.parentNode ) # .parents() - collects the full ancestry up to the owner
-
-			prev: -> @map -> p = @; $( p while p = p?.previousSibling ) # .prev() - collects the chain of .previousSibling nodes
-
-			next: -> @map -> p = @; $( p while p = p?.nextSibling ) # .next() - collect the chain of .nextSibling nodes
-
-			remove: -> @each -> @parentNode?.removeChild(@) # .remove() - removes each node in _this_ from the DOM
-
-			find: (css) -> # .find(/css/) - collect nodes matching /css/
-				@filter("*") # limit to only DOM nodes
-					.map( -> $(css, @) )
-					.flatten()
-
-			clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @ # .clone(deep=true) - copies a set of DOM nodes
-
-			toFragment: ->
-				if @length > 1
+			toFrag = (a) ->
+				if not a.parentNode?
 					df = document.createDocumentFragment()
-					@map(toNode).map $.bound df, df.appendChild
-					return df
-				return toNode(@[0])
-		}
+					df.appendChild(a)
+				a
+			before = (a,b) -> toFrag(a).parentNode.insertBefore b, a
+			after = (a,b) -> toFrag(a).parentNode.insertBefore b, a.nextSibling
+			toNode = (x) -> $.type.lookup(x).node(x)
+			escaper = null
 
-	$.plugin
-		provides: "transform"
-		depends: "math,html"
-	, -> # Transform plugin, for accelerated animations
-		COMMASEP = ", "
-		speeds = # constant speed names
-			"slow": 700
-			"medium": 500
-			"normal": 300
-			"fast": 100
-			"instant": 0
-			"now": 0
-		# matches all the accelerated css property names
-		accel_props_re = /(?:scale(?:3d)*|translate(?:[XYZ]|3d)*|rotate(?:[XYZ]|3d)*)/
-		updateDelay = 30 # ms to wait for DOM changes to apply
-		testStyle = document.createElement("div").style
+			# window.getComputedStyle is not a normal function
+			# (it doesnt support .call() so we can't use it with .map())
+			# so define something that does work properly for use in .css
+			computeCSSProperty = (k) -> -> window.getComputedStyle(@, null).getPropertyValue(k)
 
-		transformProperty = "transform"
-		transitionProperty = "transition-property"
-		transitionDuration = "transition-duration"
-		transitionTiming = "transition-timing-function"
+			getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select(p)
 
-		# detect which browser's transform properties to use
-		if "WebkitTransform" of testStyle
-			transformProperty = "-webkit-transform"
-			transitionProperty = "-webkit-transition-property"
-			transitionDuration = "-webkit-transition-duration"
-			transitionTiming = "-webkit-transition-timing-function"
-		else if "MozTransform" of testStyle
-			transformProperty = "-moz-transform"
-			transitionProperty = "-moz-transition-property"
-			transitionDuration = "-moz-transition-duration"
-			transitionTiming = "-moz-transition-timing-function"
-		else if "OTransform" of testStyle
-			transformProperty = "-o-transform"
-			transitionProperty = "-o-transition-property"
-			transitionDuration = "-o-transition-duration"
-			transitionTiming = "-o-transition-timing-function"
+			return {
+				$:
 
-		return {
-			$:
-				duration: (speed) -> # $.duration(/s/) - given a speed description (string|number), return a number in milliseconds
-					speeds[speed] ? parseFloat speed
+					# `$.HTML` provides methods similar to the global JSON
+					# object, for parsing from and to HTML.
+					HTML:
+						# Parse the html in string h into a node or fragment.
+						parse: (h) ->
+							# Put the html into a new div.
+							(node = document.createElement("div")).innerHTML = h
+							# If there's only one resulting child, return that Node.
+							if n = (childNodes = node.childNodes).length is 1
+								return node.removeChild(childNodes[0])
+							# Otherwise, copy all the div's children into a new
+							# fragment.
+							df = document.createDocumentFragment()
+							df.appendChild(node.removeChild(childNodes[0])) for i in [0...n]
+							df
+						# Convert a node or fragment to an HTML string.
+						stringify: (n) ->
+							switch $.type n
+								when "string","html" then n
+								when "node","fragment"
+									d = document.createElement "div"
+									d.appendChild (n = n.cloneNode true)
+									# Uses .innerHTML to render the HTML.
+									ret = d.innerHTML
+									d.removeChild n # break links to prevent leaks
+									ret
+								else "HTML.stringify of unknown type: " + $.type(n)
+						# Escape html characters in _h_, so "<" becomes "&lt;",
+						# etc.
+						escape: (h) ->
+							# Create a singleton div with a text node within it.
+							escaper or= $("<div>&nbsp;</div>").child(0)
+							# Insert _h_ using the text node's .data property,
+							# then get escaped html from the _parent's_ innerHTML.
+							ret = escaper.zap('data', h).select("parentNode.innerHTML").first()
+							# Clean up so content doesn't litter.
+							escaper.zap('data', '')
+							ret
 
-			# like jquery's animate(), but using only webkit-transition/transform
-			transform: (end_css, speed, easing, callback) ->
-				# .transform(css, [/speed/], [/callback/]) - animate css properties on each node
-				# animate css properties over a duration
-				# accelerated: scale, translate, rotate, scale3d,
-				# ... translateX, translateY, translateZ, translate3d,
-				# ... rotateX, rotateY, rotateZ, rotate3d
-				# easing values (strings): ease | linear | ease-in | ease-out
-				# | ease-in-out | step-start | step-end | steps(number[, start | end ])
-				# | cubic-bezier(number, number, number, number)
+				# Get [or set] innerHTML for each node.
+				html: (h) ->
+					return switch $.type h
+						when "undefined","null" then @select 'innerHTML'
+						when "string" then @zap 'innerHTML', h
+						when "bling" then @html h.toFragment()
+						when "node"
+							@each -> # replace all our children with the new child
+								@replaceChild @childNodes[0], h
+								while @childNodes.length > 1
+									@removeChild @childNodes[1]
 
-				if $.is("function",speed)
-					callback = speed
-					speed = null
-					easing = null
-				else if $.is("function",easing)
-					callback = easing
-					easing = null
-				if not speed?
-					speed = "normal"
-				easing or= "ease"
-				# duration is always in milliseconds
-				duration = $.duration(speed) + "ms"
-				props = []
-				p = 0 # insert marker for props
-				# what to send to the -webkit-transform
-				trans = ""
-				# real css values to be set (end_css without the transform values)
-				css = {}
-				for i of end_css
-					# pull all the accelerated values out of end_css
-					if accel_props_re.test(i)
-						ii = end_css[i]
-						if ii.join
-							ii = $(ii).px().join(COMMASEP)
-						else if ii.toString
-							ii = ii.toString()
-						trans += " " + i + "(" + ii + ")"
-					else # stick real css values in the css dict
-						css[i] = end_css[i]
-				# make a list of the properties to be modified
-				for i of css
-					props[p++] = i
-				# and include -webkit-transform if we have transform values to set
-				if trans
-					props[p++] = transformProperty
+				append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
+					x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
+					@each -> @appendChild x.cloneNode true
 
-				# sets a list of properties to apply a duration to
-				css[transitionProperty] = props.join(COMMASEP)
-				# apply the same duration to each property
-				css[transitionDuration] =
-					props.map( -> duration)
-						.join(COMMASEP)
-				# apply an easing function to each property
-				css[transitionTiming] =
-					props.map( -> easing)
-						.join(COMMASEP)
+				appendTo: (x) -> # .appendTo(/n/) - each node [or a fragment] will become the last child of n
+					$(x).append(@)
+					try console.log "@.parentNode in appendTo:", @[0].parentNode, "should not be null"
+					@
 
-				# apply the transformation
-				if( trans )
-					css[transformProperty] = trans
-				# apply the css to the actual node
-				@css(css)
-				# queue the callback to be executed at the end of the animation
-				# WARNING: NOT EXACT!
-				@delay(duration, callback)
+				prepend: (x) -> # .prepend(/n/) - insert n [or a clone] as the first child of each node
+					if x?
+						x = toNode(x)
+						@take(1).each ->
+							before @childNodes[0], x
+						@skip(1).each ->
+							before @childNodes[0], x.cloneNode(true)
+					@
 
-			hide: (callback) -> # .hide() - each node gets display:none
-				@each ->
-					if @style
-						@_display = "" # stash the old display
-						if @style.display is not "none"
-							@_display = @syle.display
-						@style.display = "none"
-				.trigger("hide")
-				.delay(updateDelay, callback)
+				prependTo: (x) -> # .prependTo(/n/) - each node [or a fragment] will become the first child of n
+					if x?
+						$(x).prepend(@)
+					@
 
-			show: (callback) -> # .show() - show each node
-				@each ->
-					if @style
-						@style.display = @_display
-						delete @_display
-				.trigger("show")
-				.delay(updateDelay, callback)
+				before: (x) -> # .before(/x/) - insert content x before each node
+					if x?
+						x = toNode(x)
+						@take(1).each -> before @, x
+						@skip(1).each -> before @, x.cloneNode(true)
+					@
 
-			toggle: (callback) -> # .toggle() - show each hidden node, hide each visible one
-				@weave(@css("display"))
-					.fold (display, node) ->
-						if display is "none"
-							node.style.display = node._display or ""
-							delete node._display
-							$(node).trigger("show")
+				after: (x) -> # .after(/n/) - insert content n after each node
+					if x?
+						x = toNode(x)
+						@take(1).each -> after @, x
+						@skip(1).each -> after @, x.cloneNode(true)
+					@
+
+				wrap: (parent) -> # .wrap(/p/) - p becomes the new .parentNode of each node
+					# all items of @ will become children of parent
+					# parent will take each child's position in the DOM
+					parent = toNode(parent)
+					if $.is("fragment", parent)
+						throw new Error("cannot wrap with a fragment")
+					@each (child) ->
+						switch $.type(child)
+							when "fragment"
+								parent.appendChild(child)
+							when "node"
+								p = child.parentNode
+								if not p
+									parent.appendChild(child)
+								else # swap out the DOM nodes using a placeholder element
+									marker = document.createElement("dummy")
+									# put a marker in the DOM, put removed node in new parent
+									parent.appendChild( p.replaceChild(marker, child) )
+									# replace marker with new parent
+									p.replaceChild(parent, marker)
+
+				unwrap: -> # .unwrap() - replace each node's parent with itself
+					@each ->
+						if @parentNode and @parentNode.parentNode
+							@parentNode.parentNode.replaceChild(@, @parentNode)
+						else if @parentNode
+							@parentNode.removeChild(@)
+
+				replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
+					n = toNode(n)
+					b = $()
+					j = 0
+					# first node gets the real n
+					@take(1).each ->
+						@parentNode?.replaceChild(n, @)
+						b[j++] = n
+					# the rest get clones of n
+					@skip(1).each ->
+						c = n.cloneNode(true)
+						@parentNode?.replaceChild(c, @)
+						b[j++] = c
+					# the set of inserted nodes
+					b
+
+				attr: (a,v) -> # .attr(a, [v]) - get [or set] an /a/ttribute [/v/alue]
+					switch v
+						when undefined
+							return @select("getAttribute").call(a, v)
+						when null
+							return @select("removeAttribute").call(a, v)
 						else
-							node._display = display
-							node.style.display = "none"
-							$(node).trigger("hide")
-						node
-					.delay(updateDelay, callback)
+							@select("setAttribute").call(a, v)
+							return @
 
-			fadeIn: (speed, callback) -> # .fadeIn() - fade each node to opacity 1.0
-				@css('opacity','0.0')
-					.show ->
-						@transform
-							opacity:"1.0",
-							translate3d: [0,0,0]
-						, speed, callback
-			fadeOut: (speed, callback, x = 0.0, y = 0.0) -> # .fadeOut() - fade each node to opacity:0.0
-				@transform
-					opacity:"0.0",
-					translate3d:[x,y,0.0]
-				, speed, -> @hide(callback)
-			fadeLeft: (speed, callback) -> @fadeOut(speed, callback, "-"+@width().first(), 0.0)
-			fadeRight: (speed, callback) -> @fadeOut(speed, callback, @width().first(), 0.0)
-			fadeUp: (speed, callback) -> @fadeOut(speed, callback, 0.0, "-"+@height().first())
-			fadeDown: (speed, callback)  -> @fadeOut(speed, callback, 0.0, @height().first())
-		}
+				data: (k, v) ->
+					k = "data-#{$.dashize(k)}"
+					@attr(k, v)
 
-	$.plugin
-		depends: "function"
-		provides: "http"
-	, -> # HTTP Request plugin: provides wrappers for making http requests
-		formencode = (obj) -> # create &foo=bar strings from object properties
-			o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
-			("#{i}=#{escape o[i]}" for i of o).join("&")
+				addClass: (x) -> # .addClass(/x/) - add x to each node's .className
+					@removeClass(x).each ->
+						c = @className.split(" ").filter (y) ->
+							y isnt ""
+						c.push(x) # since we dont know the len, its still faster to push, rather than insert at len()
+						@className = c.join " "
 
-		$.type.register "http",
-			match: (o) -> $.isType 'XMLHttpRequest', o
-			array: (o) -> [o]
+				removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
+					notx = (y)-> y != x
+					@each ->
+						c = @className?.split(" ").filter(notx).join(" ")
+						if c.length is 0
+							@removeAttribute('class')
 
-		return {
-			$: # globals
-				http: (url, opts = {}) -> # $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
-					xhr = new XMLHttpRequest()
-					if $.is("function",opts)
-						opts = {success: $.bound(xhr, opts)}
-					opts = $.extend {
-						method: "GET"
-						data: null
-						state: $.identity # onreadystatechange
-						success: $.identity # onload
-						error: $.identity # onerror
-						async: true
-						asBlob: false
-						timeout: 0 # milliseconds, 0 is forever
-						followRedirects: false
-						withCredentials: false
-					}, opts
-					opts.state = $.bound(xhr, opts.state)
-					opts.success = $.bound(xhr, opts.success)
-					opts.error = $.bound(xhr, opts.error)
-					if opts.data and opts.method is "GET"
-						url += "?" + formencode(opts.data)
-					else if opts.data and opts.method is "POST"
-						opts.data = formencode(opts.data)
-					xhr.open(opts.method, url, opts.async)
-					xhr = $.extend xhr,
-						asBlob: opts.asBlob
-						timeout: opts.timeout
-						followRedirects: opts.followRedirects
-						withCredentials: opts.withCredentials
-						onreadystatechange: ->
-							opts.state?()
-							if xhr.readyState is 4
-								if xhr.status is 200
-									opts.success xhr.responseText
-								else
-									opts.error xhr.status, xhr.statusText
-					xhr.send opts.data
-					return $(xhr)
+				toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
+					notx = (y) -> y isnt x
+					@each ->
+						cls = @className.split(" ")
+						filter = $.not $.isEmpty
+						if( cls.indexOf(x) > -1 )
+							filter = $.and notx, filter
+						else
+							cls.push(x)
+						c = cls.filter(filter).join(" ")
+						@className = c
+						if c.length is 0
+							@removeAttribute('class')
 
-				post: (url, opts = {}) -> # $.post(/url/, [/opts/]) - fetch /url/ with a POST request
-					if $.is "function", opts
-						opts = success: opts
-					opts.method = "POST"
-					$.http(url, opts)
+				hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x
+					@select('className.split').call(" ").select('indexOf').call(x).map (x) -> x > -1
 
-				get: (url, opts = {}) -> # $.get(/url/, [/opts/]) - fetch /url/ with a GET request
-					if $.is "function", opts
-						opts = success: opts
-					opts.method = "GET"
-					$.http(url, opts)
-		}
+				text: (t) -> # .text([t]) - get [or set] each node's .textContent
+					return @zap('textContent', t) if t?
+					return @select('textContent')
 
-	$.plugin
-		depends: "html"
-		provides: "event"
-	, -> # Events plugin
-		EVENTSEP_RE = /,* +/
-		events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
-			'load','unload','reset','submit','keyup','keydown','change',
-			'abort','cut','copy','paste','selection','drag','drop','orientationchange',
-			'touchstart','touchmove','touchend','touchcancel',
-			'gesturestart','gestureend','gesturecancel',
-			'hashchange'
-		] # 'click' is handled specially
+				val: (v) -> # .val([v]) - get [or set] each node's .value
+					return @zap('value', v) if v?
+					return @select('value')
 
-		binder = (e) -> (f) -> @bind(e, f) if $.is "function", f else @trigger(e, f)
-
-		register_live = (selector, context, evt, f, h) ->
-			$(context).bind(evt, h)
-				# set/create all of @__alive__[selector][evt][f]
-				.each -> (((@__alive__ or= {})[selector] or= {})[evt] or= {})[f] = h
-
-		unregister_live = (selector, context, e, f) ->
-			$c = $(context)
-			$c.each ->
-				a = (@__alive__ or= {})
-				b = (a[selector] or= {})
-				c = (b[e] or= {})
-				$c.unbind(e, c[f])
-				delete c[f]
-
-		# detect and fire the document.ready event
-		triggerReady = Function.Once ->
-			$(document).trigger("ready").unbind("ready")
-			document.removeEventListener?("DOMContentLoaded", triggerReady, false)
-			window.removeEventListener?("load", triggerReady, false)
-		bindReady = Function.Once ->
-			document.addEventListener?("DOMContentLoaded", triggerReady, false)
-			window.addEventListener?("load", triggerReady, false)
-		bindReady()
-
-		ret = {
-			bind: (e, f) -> # .bind(e, f) - adds handler f for event type e
-				c = (e or "").split(EVENTSEP_RE)
-				h = (evt) ->
-					ret = f.apply @, arguments
-					if ret is false
-						evt.preventAll()
-					ret
-				@each -> (@addEventListener i, h, false) for i in c
-
-			unbind: (e, f) -> # .unbind(e, [f]) - removes handler f from event e
-				c = (e or "").split(EVENTSEP_RE)
-				@each -> (@removeEventListener i, f, null) for i in c
-
-			once: (e, f) -> # .once(e, f) - adds a handler f that will only fire once (per node)
-				c = (e or "").split(EVENTSEP_RE)
-				for i in c
-					@bind i, (evt) ->
-						f.call(@, evt)
-						@removeEventListener(evt.type, arguments.callee, null)
-
-			cycle: (e, funcs...) -> # .cycle(e, ...) - bind handlers for e that trigger in a cycle
-				c = (e or "").split(EVENTSEP_RE)
-				nf = funcs.length
-				cycler = (i = -1) ->
-					(evt) -> funcs[i = ++i % nf].call(@, evt)
-				@bind j, cycler() for j in c
-				@
-
-			trigger: (evt, args = {}) -> # .trigger(e, a) - initiates a fake event
-				args = $.extend
-					bubbles: true
-					cancelable: true
-				, args
-
-				for evt_i in (evt or "").split(EVENTSEP_RE)
-					if evt_i in ["click", "mousemove", "mousedown", "mouseup", "mouseover", "mouseout"] # mouse events
-						e = document.createEvent "MouseEvents"
-						args = $.extend
-							detail: 1,
-							screenX: 0,
-							screenY: 0,
-							clientX: 0,
-							clientY: 0,
-							ctrlKey: false,
-							altKey: false,
-							shiftKey: false,
-							metaKey: false,
-							button: 0,
-							relatedTarget: null
-						, args
-						e.initMouseEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
-							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-							args.button, args.relatedTarget
-
-					else if evt_i in ["blur", "focus", "reset", "submit", "abort", "change", "load", "unload"] # UI events
-						e = document.createEvent "UIEvents"
-						e.initUIEvent evt_i, args.bubbles, args.cancelable, window, 1
-
-					else if evt_i in ["touchstart", "touchmove", "touchend", "touchcancel"] # touch events
-						e = document.createEvent "TouchEvents"
-						args = $.extend
-							detail: 1,
-							screenX: 0,
-							screenY: 0,
-							clientX: 0,
-							clientY: 0,
-							ctrlKey: false,
-							altKey: false,
-							shiftKey: false,
-							metaKey: false,
-							# touch values:
-							touches: [],
-							targetTouches: [],
-							changedTouches: [],
-							scale: 1.0,
-							rotation: 0.0
-						, args
-						e.initTouchEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
-							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-							args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
-
-					else if evt_i in ["gesturestart", "gestureend", "gesturecancel"] # gesture events
-						e = document.createEvent "GestureEvents"
-						args = $.extend {
-							detail: 1,
-							screenX: 0,
-							screenY: 0,
-							clientX: 0,
-							clientY: 0,
-							ctrlKey: false,
-							altKey: false,
-							shiftKey: false,
-							metaKey: false,
-							# gesture values:
-							target: null,
-							scale: 1.0,
-							rotation: 0.0
-						}, args
-						e.initGestureEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
-							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-							args.target, args.scale, args.rotation
-
-					# iphone events that are not supported yet (dont know how to create yet, needs research)
-					# iphone events that we cant properly emulate (because we cant create our own Clipboard objects)
-					# iphone events that are just plain events
-					# and general events
-					# else if evt_i in ["drag", "drop", "selection", "cut", "copy", "paste", "orientationchange"]
+				# Get [or set] css properties.
+				css: (k,v) ->
+					# If we are doing assignment.
+					if v? or $.is "object", k
+						# Use a bound-method to do the assignment for us.
+						setter = @select 'style.setProperty'
+						# If you give an object as a key, then use every k:v pair.
+						if $.is "object", k then setter.call i, k[i], "" for i of k
+						# So, the key is simple, and if the value is a string,
+						# just do simple assignment (using setProperty).
+						else if $.is "string", v then setter.call k, v, ""
+						# If the value was actually an array of values, then
+						# stripe the values across each item.
+						else if $.is "array", v
+							setter[i%nn] k, v[i%n], "" for i in [0...n = Math.max v.length, nn = setter.len()]
+						return @
+					# Else, we are reading CSS properties.
 					else
-						e = document.createEvent "Events"
-						e.initEvent evt_i, args.bubbles, args.cancelable
-						try
-							e = $.extend e, args
-						catch err
+						# So, collect the full computed values.
+						cv = @map computeCSSProperty(k)
+						# Then, collect the values specified directly on the node.
+						ov = @select('style').select k
+						# Weave and fold them so that object values override
+						# computed values.
+						ov.weave(cv).fold (x,y) -> x or y
 
-					if not e
-						continue
-					else
-						try
-							@each -> @dispatchEvent e
-						catch err
-							log("dispatchEvent error:",err)
-				@
+				# Set css properties by injecting a style element in the the
+				# head. If _k_ is an object of k:v pairs, then no second argument is needed.
+				defaultCss: (k, v) ->
+					# @selector need not match any nodes at the time of the call.
+					sel = @selector
+					style = ""
+					if $.is "string", k
+						if $.is "string", v
+							style += "#{sel} { #{k}: #{v} } "
+						else throw Error("defaultCss requires a value with a string key")
+					else if $.is "object", k
+						style += "#{sel} { " +
+							"#{i}: #{k[i]}; " for i of k +
+						"} "
+					$("<style></style>").text(style).appendTo("head")
+					@
 
-			live: (e, f) -> # .live(e, f) - handle events for nodes that will exist in the future
-				selector = @selector
-				context = @context
-				# wrap f
-				handler = (evt) -> # later, when event 'e' is fired
-					$(selector, context) # re-execute the selector in the original context
-						.intersect($(evt.target).parents().first().union($(evt.target))) # see if the event would bubble into a match
-						.each -> f.call(evt.target = @, evt) # then fire the real handler 'f' on the matched nodes
-				# record f so we can 'die' it if needed
-				register_live selector, context, e, f, handler
-				@
+				# Get a bounding-box for each item.
+				rect: -> @select('getBoundingClientRect').call()
 
-			die: (e, f) -> # die(e, [f]) - stop f [or all] from living for event e
-				$(@context).unbind e, unregister_live(@selector, @context, e, f)
-				@
+				# Get [or set] each item's width.
+				width: getOrSetRect("width")
 
-			liveCycle: (e, funcs...) -> # .liveCycle(e, ...) - bind each /f/ in /funcs/ to handle /e/
-				i = -1; nf = funcs.length
-				@live e, (evt) -> funcs[i = ++i % nf].call @, evt
+				# Get [or set] each item's height.
+				height: getOrSetRect("height")
 
-			click: (f = {}) -> # .click([f]) - trigger [or bind] the 'click' event
-				if @css("cursor") in ["auto",""] # if the cursor is default
-					@css "cursor", "pointer" # then make it look clickable
-				if $.is "function", f then @bind 'click', f
-				else @trigger 'click', f
+				# Get [or set] each item's top.
+				top: getOrSetRect("top")
 
-			ready: (f) ->
-				return (f.call @) if triggerReady.n <= 0
-				@bind "ready", f
-		}
+				# Get [or set] each item's left.
+				left: getOrSetRect("left")
 
-		# add event binding/triggering shortcuts for the generic events
-		events.forEach (x) -> ret[x] = binder(x)
-		return ret
+				# Get [or set] each item's bottom.
+				bottom: getOrSetRect("bottom")
 
-	$.plugin
-		provides: "lazy"
-	, -> # LazyLoader plugin
-		lazy_load = (elementName, props) ->
-			$("head").append $.extend document.createElement(elementName), props
-		$:
-			script: (src) ->
-				lazy_load "script", { src: src }
-			style: (src) ->
-				lazy_load "link", { href: src, rel: "stylesheet" }
+				# Get [or set] each item's right.
+				right: getOrSetRect("right")
+
+				# Get [or set] each item's position.
+				position: (left, top) ->
+					switch true
+						# If called with no arguments, just return the position.
+						when not left? then @rect()
+						# If called with only one argument, only set "left".
+						when not top? then @css("left", $.px(left))
+						# If called with both arguments, set "top" and "left".
+						else @css({top: $.px(top), left: $.px(left)})
+
+				# Adjust the document's scroll position so the first node in
+				# _this_ is centered in the viewport.
+				scrollToCenter: ->
+					document.body.scrollTop = @[0].offsetTop - (window.innerHeight / 2)
+					@
+
+				# Get the _n-th_ child from each node in _this_.
+				child: (n) -> @select('childNodes').map -> @[ if n < 0 then (n+@length) else n ]
+
+				parents: -> @map -> p = @; $( p while p = p?.parentNode ) # .parents() - collects the full ancestry up to the owner
+
+				prev: -> @map -> p = @; $( p while p = p?.previousSibling ) # .prev() - collects the chain of .previousSibling nodes
+
+				next: -> @map -> p = @; $( p while p = p?.nextSibling ) # .next() - collect the chain of .nextSibling nodes
+
+				remove: -> @each -> @parentNode?.removeChild(@) # .remove() - removes each node in _this_ from the DOM
+
+				find: (css) -> # .find(/css/) - collect nodes matching /css/
+					@filter("*") # limit to only DOM nodes
+						.map( -> $(css, @) )
+						.flatten()
+
+				clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @ # .clone(deep=true) - copies a set of DOM nodes
+
+				toFragment: ->
+					if @length > 1
+						df = document.createDocumentFragment()
+						@map(toNode).map $.bound df, df.appendChild
+						return df
+					return toNode(@[0])
+			}
+
+		# Transform plugin
+		# ----------------
+		# For accelerated animations.
+		$.plugin ->
+			COMMASEP = ", "
+			speeds = # constant speed names
+				"slow": 700
+				"medium": 500
+				"normal": 300
+				"fast": 100
+				"instant": 0
+				"now": 0
+			# matches all the accelerated css property names
+			accel_props_re = /(?:scale(?:3d)*|translate(?:[XYZ]|3d)*|rotate(?:[XYZ]|3d)*)/
+			updateDelay = 30 # ms to wait for DOM changes to apply
+			testStyle = document.createElement("div").style
+
+			transformProperty = "transform"
+			transitionProperty = "transition-property"
+			transitionDuration = "transition-duration"
+			transitionTiming = "transition-timing-function"
+
+			# detect which browser's transform properties to use
+			if "WebkitTransform" of testStyle
+				transformProperty = "-webkit-transform"
+				transitionProperty = "-webkit-transition-property"
+				transitionDuration = "-webkit-transition-duration"
+				transitionTiming = "-webkit-transition-timing-function"
+			else if "MozTransform" of testStyle
+				transformProperty = "-moz-transform"
+				transitionProperty = "-moz-transition-property"
+				transitionDuration = "-moz-transition-duration"
+				transitionTiming = "-moz-transition-timing-function"
+			else if "OTransform" of testStyle
+				transformProperty = "-o-transform"
+				transitionProperty = "-o-transition-property"
+				transitionDuration = "-o-transition-duration"
+				transitionTiming = "-o-transition-timing-function"
+
+			return {
+				$:
+					# $.duration(/s/) - given a speed description (string|number), return a number in milliseconds
+					duration: (speed) ->
+						d = speeds[speed]
+						return d if d?
+						return parseFloat speed
+
+				# .transform(css, [/speed/], [/callback/]) - animate css properties on each node
+				transform: (end_css, speed, easing, callback) ->
+					# animate css properties over a duration
+					# accelerated: scale, translate, rotate, scale3d,
+					# ... translateX, translateY, translateZ, translate3d,
+					# ... rotateX, rotateY, rotateZ, rotate3d
+					# easing values (strings): ease | linear | ease-in | ease-out
+					# | ease-in-out | step-start | step-end | steps(number[, start | end ])
+					# | cubic-bezier(number, number, number, number)
+
+					if $.is("function",speed)
+						callback = speed
+						speed = easing = null
+					else if $.is("function",easing)
+						callback = easing
+						easing = null
+					speed ?= "normal"
+					easing or= "ease"
+					# duration is always in milliseconds
+					duration = $.duration(speed) + "ms"
+					props = []
+					# `trans` is what will be assigned to -webkit-transform
+					trans = ""
+					# real css values to be set (end_css without the transform values)
+					css = {}
+					for i of end_css
+						# pull all the accelerated values out of end_css
+						if accel_props_re.test(i)
+							ii = end_css[i]
+							if ii.join
+								ii = $(ii).px().join COMMASEP
+							else if ii.toString
+								ii = ii.toString()
+							trans += " " + i + "(" + ii + ")"
+						# stick real css values in the css dict
+						else css[i] = end_css[i]
+					# make a list of the properties to be modified
+					(props.push i) for i of css
+					# and include -webkit-transform if we have transform values to set
+					if trans
+						props.push transformProperty
+
+					# sets a list of properties to apply a duration to
+					css[transitionProperty] = props.join COMMASEP
+					# apply the same duration to each property
+					css[transitionDuration] = props.map(-> duration).join COMMASEP
+					# apply an easing function to each property
+					css[transitionTiming] = props.map(-> easing).join COMMASEP
+
+					# apply the transformation
+					if trans
+						css[transformProperty] = trans
+					# apply the css to the actual node
+					@css css
+					# queue the callback to be executed at the end of the animation
+					# WARNING: NOT EXACT!
+					@delay duration, callback
+
+				hide: (callback) -> # .hide() - each node gets display:none
+					@each ->
+						if @style
+							@_display = "" # stash the old display
+							if @style.display is not "none"
+								@_display = @syle.display
+							@style.display = "none"
+					.trigger "hide"
+					.delay updateDelay, callback
+
+				show: (callback) -> # .show() - show each node
+					@each ->
+						if @style
+							@style.display = @_display
+							delete @_display
+					.trigger "show"
+					.delay updateDelay, callback
+
+				toggle: (callback) -> # .toggle() - show each hidden node, hide each visible one
+					@weave(@css("display"))
+						.fold (display, node) ->
+							if display is "none"
+								node.style.display = node._display or ""
+								delete node._display
+								$(node).trigger "show"
+							else
+								node._display = display
+								node.style.display = "none"
+								$(node).trigger "hide"
+							node
+						.delay(updateDelay, callback)
+
+				fadeIn: (speed, callback) -> # .fadeIn() - fade each node to opacity 1.0
+					@.css('opacity','0.0')
+						.show ->
+							@transform {
+								opacity:"1.0",
+								translate3d: [0,0,0]
+							}, speed, callback
+				fadeOut: (speed, callback, x = 0.0, y = 0.0) -> # .fadeOut() - fade each node to opacity:0.0
+					@transform {
+						opacity:"0.0",
+						translate3d:[x,y,0.0]
+					}, speed, -> @hide(callback)
+				fadeLeft: (speed, callback) -> @fadeOut speed, callback, "-"+@width().first(), 0.0
+				fadeRight: (speed, callback) -> @fadeOut speed, callback, @width().first(), 0.0
+				fadeUp: (speed, callback) -> @fadeOut speed, callback, 0.0, "-"+@height().first()
+				fadeDown: (speed, callback)  -> @fadeOut speed, callback, 0.0, @height().first()
+			}
+
+		# HTTP Plugin
+		# -----------
+		# Things like `.ajax()`, `.get()`, `$.post()`.
+		$.plugin ->
+			formencode = (obj) -> # create &foo=bar strings from object properties
+				o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
+				("#{i}=#{escape o[i]}" for i of o).join "&"
+
+			$.type.register "http",
+				match: (o) -> $.isType 'XMLHttpRequest', o
+				array: (o) -> [o]
+
+			return {
+				$:
+					# $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
+					http: (url, opts = {}) ->
+						xhr = new XMLHttpRequest()
+						if $.is("function",opts)
+							opts = success: $.bound(xhr, opts)
+						opts = $.extend {
+							method: "GET"
+							data: null
+							state: $.identity # onreadystatechange
+							success: $.identity # onload
+							error: $.identity # onerror
+							async: true
+							asBlob: false
+							timeout: 0 # milliseconds, 0 is forever
+							followRedirects: false
+							withCredentials: false
+						}, opts
+						opts.state = $.bound(xhr, opts.state)
+						opts.success = $.bound(xhr, opts.success)
+						opts.error = $.bound(xhr, opts.error)
+						if opts.data and opts.method is "GET"
+							url += "?" + formencode(opts.data)
+						else if opts.data and opts.method is "POST"
+							opts.data = formencode(opts.data)
+						xhr.open(opts.method, url, opts.async)
+						xhr = $.extend xhr,
+							asBlob: opts.asBlob
+							timeout: opts.timeout
+							followRedirects: opts.followRedirects
+							withCredentials: opts.withCredentials
+							onreadystatechange: ->
+								opts.state?()
+								if xhr.readyState is 4
+									if xhr.status is 200
+										opts.success xhr.responseText
+									else
+										opts.error xhr.status, xhr.statusText
+						xhr.send opts.data
+						return $(xhr)
+
+					# $.post(/url/, [/opts/]) - fetch /url/ with a POST request
+					post: (url, opts = {}) ->
+						if $.is("function",opts)
+							opts = success: opts
+						opts.method = "POST"
+						$.http(url, opts)
+
+					# $.get(/url/, [/opts/]) - fetch /url/ with a GET request
+					get: (url, opts = {}) ->
+						if( $.is("function",opts) )
+							opts = success: opts
+						opts.method = "GET"
+						$.http(url, opts)
+			}
+
+		# Events plugin
+		# -------------
+		# Things like `.bind()`, `.trigger()`, etc.
+		$.plugin
+			depends: "html"
+			provides: "event"
+		, ->
+			EVENTSEP_RE = /,* +/
+			events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
+				'load','unload','reset','submit','keyup','keydown','change',
+				'abort','cut','copy','paste','selection','drag','drop','orientationchange',
+				'touchstart','touchmove','touchend','touchcancel',
+				'gesturestart','gestureend','gesturecancel',
+				'hashchange'
+			] # 'click' is handled specially
+
+			binder = (e) -> (f) -> @bind(e, f) if $.is "function", f else @trigger(e, f)
+
+			register_live = (selector, context, evt, f, h) ->
+				$(context).bind(evt, h)
+					# set/create all of @__alive__[selector][evt][f]
+					.each -> (((@__alive__ or= {})[selector] or= {})[evt] or= {})[f] = h
+
+			unregister_live = (selector, context, e, f) ->
+				$c = $(context)
+				$c.each ->
+					a = (@__alive__ or= {})
+					b = (a[selector] or= {})
+					c = (b[e] or= {})
+					$c.unbind(e, c[f])
+					delete c[f]
+
+			# detect and fire the document.ready event
+			triggerReady = Function.Once ->
+				$(document).trigger("ready").unbind("ready")
+				document.removeEventListener?("DOMContentLoaded", triggerReady, false)
+				window.removeEventListener?("load", triggerReady, false)
+			bindReady = Function.Once ->
+				document.addEventListener?("DOMContentLoaded", triggerReady, false)
+				window.addEventListener?("load", triggerReady, false)
+			bindReady()
+
+			ret = {
+				bind: (e, f) -> # .bind(e, f) - adds handler f for event type e
+					c = (e or "").split(EVENTSEP_RE)
+					h = (evt) ->
+						ret = f.apply @, arguments
+						if ret is false
+							evt.preventAll()
+						ret
+					@each -> (@addEventListener i, h, false) for i in c
+
+				unbind: (e, f) -> # .unbind(e, [f]) - removes handler f from event e
+					c = (e or "").split(EVENTSEP_RE)
+					@each -> (@removeEventListener i, f, null) for i in c
+
+				once: (e, f) -> # .once(e, f) - adds a handler f that will only fire once (per node)
+					c = (e or "").split(EVENTSEP_RE)
+					for i in c
+						@bind i, (evt) ->
+							f.call(@, evt)
+							@removeEventListener(evt.type, arguments.callee, null)
+
+				cycle: (e, funcs...) -> # .cycle(e, ...) - bind handlers for e that trigger in a cycle
+					c = (e or "").split(EVENTSEP_RE)
+					nf = funcs.length
+					cycler = (i = -1) ->
+						(evt) -> funcs[i = ++i % nf].call(@, evt)
+					@bind j, cycler() for j in c
+					@
+
+				trigger: (evt, args = {}) -> # .trigger(e, a) - initiates a fake event
+					args = $.extend
+						bubbles: true
+						cancelable: true
+					, args
+
+					for evt_i in (evt or "").split(EVENTSEP_RE)
+						if evt_i in ["click", "mousemove", "mousedown", "mouseup", "mouseover", "mouseout"] # mouse events
+							e = document.createEvent "MouseEvents"
+							args = $.extend
+								detail: 1,
+								screenX: 0,
+								screenY: 0,
+								clientX: 0,
+								clientY: 0,
+								ctrlKey: false,
+								altKey: false,
+								shiftKey: false,
+								metaKey: false,
+								button: 0,
+								relatedTarget: null
+							, args
+							e.initMouseEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+								args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+								args.button, args.relatedTarget
+
+						else if evt_i in ["blur", "focus", "reset", "submit", "abort", "change", "load", "unload"] # UI events
+							e = document.createEvent "UIEvents"
+							e.initUIEvent evt_i, args.bubbles, args.cancelable, window, 1
+
+						else if evt_i in ["touchstart", "touchmove", "touchend", "touchcancel"] # touch events
+							e = document.createEvent "TouchEvents"
+							args = $.extend
+								detail: 1,
+								screenX: 0,
+								screenY: 0,
+								clientX: 0,
+								clientY: 0,
+								ctrlKey: false,
+								altKey: false,
+								shiftKey: false,
+								metaKey: false,
+								# touch values:
+								touches: [],
+								targetTouches: [],
+								changedTouches: [],
+								scale: 1.0,
+								rotation: 0.0
+							, args
+							e.initTouchEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+								args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+								args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
+
+						else if evt_i in ["gesturestart", "gestureend", "gesturecancel"] # gesture events
+							e = document.createEvent "GestureEvents"
+							args = $.extend {
+								detail: 1,
+								screenX: 0,
+								screenY: 0,
+								clientX: 0,
+								clientY: 0,
+								ctrlKey: false,
+								altKey: false,
+								shiftKey: false,
+								metaKey: false,
+								# gesture values:
+								target: null,
+								scale: 1.0,
+								rotation: 0.0
+							}, args
+							e.initGestureEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+								args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+								args.target, args.scale, args.rotation
+
+						# iphone events that are not supported yet (dont know how to create yet, needs research)
+						# iphone events that we cant properly emulate (because we cant create our own Clipboard objects)
+						# iphone events that are just plain events
+						# and general events
+						# else if evt_i in ["drag", "drop", "selection", "cut", "copy", "paste", "orientationchange"]
+						else
+							e = document.createEvent "Events"
+							e.initEvent evt_i, args.bubbles, args.cancelable
+							try
+								e = $.extend e, args
+							catch err
+
+						if not e
+							continue
+						else
+							try
+								@each -> @dispatchEvent e
+							catch err
+								log("dispatchEvent error:",err)
+					@
+
+				live: (e, f) -> # .live(e, f) - handle events for nodes that will exist in the future
+					selector = @selector
+					context = @context
+					# wrap f
+					handler = (evt) -> # later, when event 'e' is fired
+						$(selector, context) # re-execute the selector in the original context
+							.intersect($(evt.target).parents().first().union($(evt.target))) # see if the event would bubble into a match
+							.each -> f.call(evt.target = @, evt) # then fire the real handler 'f' on the matched nodes
+					# record f so we can 'die' it if needed
+					register_live selector, context, e, f, handler
+					@
+
+				die: (e, f) -> # die(e, [f]) - stop f [or all] from living for event e
+					$(@context).unbind e, unregister_live(@selector, @context, e, f)
+					@
+
+				liveCycle: (e, funcs...) -> # .liveCycle(e, ...) - bind each /f/ in /funcs/ to handle /e/
+					i = -1; nf = funcs.length
+					@live e, (evt) -> funcs[i = ++i % nf].call @, evt
+
+				click: (f = {}) -> # .click([f]) - trigger [or bind] the 'click' event
+					if @css("cursor") in ["auto",""] # if the cursor is default
+						@css "cursor", "pointer" # then make it look clickable
+					if $.is "function", f then @bind 'click', f
+					else @trigger 'click', f
+
+				ready: (f) ->
+					return (f.call @) if triggerReady.n <= 0
+					@bind "ready", f
+			}
+
+			# add event binding/triggering shortcuts for the generic events
+			events.forEach (x) -> ret[x] = binder(x)
+			return ret
+
+		$.plugin
+			provides: "lazy"
+		, -> # LazyLoader plugin
+			lazy_load = (elementName, props) ->
+				$("head").append $.extend document.createElement(elementName), props
+			$:
+				script: (src) ->
+					lazy_load "script", { src: src }
+				style: (src) ->
+					lazy_load "link", { href: src, rel: "stylesheet" }
 
 
 

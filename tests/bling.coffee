@@ -134,18 +134,20 @@ testGroup("Core",
 		{a:[{b:6}]},
 		{a:[{b:9}]}
 	]).select("a.0.b"), [3,6,9])
+	select3: -> assertArrayEqual($([
+		{a:{b:{c:4}}},
+		{a:{b:{c:5}}},
+		{a:{b:{c:6}}}
+	]).select("a.b.c"), [4,5,6])
 	zap: -> assertArrayEqual($([ {id:1}, {id:2}, {id:3} ]).zap('id', 13).select('id'), [13,13,13])
-	#zapf: -> assertArrayEqual($([ {id:1}, {id:2}, {id:3} ]).zap('id', () -> @ * 2).select('id'), [2,4,6])
-	#zapf2: -> assertArrayEqual($([ {sub:{id:1}}, {sub:{id:2}}, {sub:{id:3}} ]).zap('sub.id', () -> @ * 2).select('sub.id'), [2,4,6])
-	take1: -> assertArrayEqual($([1,2,3,4]).take(-2), [3,4])
-	take2: -> assertArrayEqual($([1,2,3,4]).take(-1), [4])
+	zapf: -> assertArrayEqual($([ {id:1}, {id:2}, {id:3} ]).zap('id', () -> @ * 2).select('id'), [2,4,6])
+	zapf2: -> assertArrayEqual( $([ {sub:{id:1}}, {sub:{id:2}}, {sub:{id:3}} ]).zap('sub.id', -> @*2).select('sub.id'), [2,4,6])
 	take3: -> assertArrayEqual($([1,2,3,4]).take(0), [])
 	take4: -> assertArrayEqual($([1,2,3,4]).take(1), [1])
 	take5: -> assertArrayEqual($([1,2,3,4]).take(2), [1,2])
 	take6: -> assertArrayEqual($([1,2,3,4]).take(3), [1,2,3])
 	take7: -> assertArrayEqual($([1,2,3,4]).take(4), [1,2,3,4])
 	take8: -> assertArrayEqual($([1,2,3,4]).take(5), [1,2,3,4])
-	skip1: -> assertArrayEqual($([1,2,3,4]).skip(-1), [1,2,3,4])
 	skip2: -> assertArrayEqual($([1,2,3,4]).skip(0), [1,2,3,4])
 	skip3: -> assertArrayEqual($([1,2,3,4]).skip(1), [2,3,4])
 	skip4: -> assertArrayEqual($([1,2,3,4]).skip(2), [3,4])
@@ -207,8 +209,8 @@ testGroup("HTML",
 		t.zap('data', '<p>')
 		assertEqual( d.select('innerHTML').first(), '&lt;p&gt;' )
 	escape: -> assertEqual($.HTML.escape("<p>"), "&lt;p&gt;")
-	dashName1: -> assertEqual(String.Dashize("fooBar"), "foo-bar")
-	dashName2: -> assertEqual(String.Dashize("FooBar"), "-foo-bar")
+	dashName1: -> assertEqual($.dashize("fooBar"), "foo-bar")
+	dashName2: -> assertEqual($.dashize("FooBar"), "-foo-bar")
 	html: -> assertEqual($("tr").html().first(), "<td>1,1</td><td>1,2</td>")
 	append: ->
 		try

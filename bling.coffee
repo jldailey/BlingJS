@@ -317,7 +317,7 @@ Bling.prototype = []
 	#### Types plugin
 	# Exposes the type system publicly.
 	$.plugin
-		provides: "types"
+		provides: "type"
 	, ->
 		$:
 			inherit: inherit
@@ -332,10 +332,6 @@ Bling.prototype = []
 			isSimple: (o) -> type(o) in ["string", "number", "bool"]
 			isEmpty: (o) -> o in ["", null, undefined]
 	
-	$.plugin
-		depends: "functions"
-	, ->
-
 	# Symbol Plugin
 	# -------------
 	# Symbol adds a dynamic property: Bling.symbol, which contains the
@@ -701,6 +697,7 @@ Bling.prototype = []
 	# All the stuff you need to use blings as vectors in linear algebra.
 	$.plugin
 		provides: "math"
+		depends: "core"
 	, ->
 		$:
 			# Get an array of numbers.
@@ -895,12 +892,12 @@ Bling.prototype = []
 	# deep walk as labels).
 	$.plugin
 		provides: "trace"
-		depends: "function"
+		depends: "function,type"
 	, ->
 		$.type.extend
 			unknown: { trace: $.identity }
-			object: { trace: (o, label, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
-			array:  { trace: (o, label, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length]); o }
+			object:  { trace: (o, label, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
+			array:   { trace: (o, label, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length]); o }
 			function:
 				trace: (f, label, tracer) ->
 					r = (a...) ->
@@ -921,6 +918,7 @@ Bling.prototype = []
 	# `$.hash(o)` Reduces any thing to an integer hash code (not secure).
 	$.plugin
 		provides: "hash"
+		depends: "type"
 	, ->
 		$.type.extend
 			unknown: { hash: (o) -> $.checksum $.toString(o) }
@@ -951,10 +949,9 @@ Bling.prototype = []
 			if not func?
 				subscribers[e] = []
 			else
-				subscribers[e] or= []
-				i = subscribers[e].indexOf(func)
-				if i > -1
-					subscribers[e].splice(i,i)
+				a = (subscribers[e] or= [])
+				if (i = a.indexOf func)  > -1
+					a.splice(i,i)
 		return {
 			$:
 				publish: publish
@@ -968,6 +965,7 @@ Bling.prototype = []
 	# a function.  Both are function decorators.
 	$.plugin
 		provides: "throttle"
+		depends: "core"
 	, ->
 		$:
 			throttle: (f,n=250,last=0) ->
@@ -986,7 +984,9 @@ Bling.prototype = []
 	# -------------------
 	# The EventEmitter interface that Node.JS uses is much simpler (and faster) than the DOM event model.
 	# Example: `$.inherit new EventEmitter(), { myCode: () -> "..." }`
-	$.plugin -> # EventEmitter
+	$.plugin
+		provides: "EventEmitter"
+	, ->
 		$: EventEmitter: class EventEmitter
 			constructor:        -> @__event = {}
 			addListener:        (e, h) -> (@__event[e] or= []).push(h); @emit('newListener', e, h)
@@ -1000,11 +1000,11 @@ Bling.prototype = []
 
 	
 	if (window ? global).document?
-
 		# DOM Plugin
 		# ----------
 		$.plugin
 			depends: "function"
+			provides: "dom"
 		, ->
 			$.type.register "nodelist",
 				match:  (o) -> o? and $.isType "NodeList", o
@@ -1345,442 +1345,446 @@ Bling.prototype = []
 					return toNode(@[0])
 			}
 
-		# Transform plugin
-		# ----------------
-		# For accelerated animations.
-		$.plugin ->
-			COMMASEP = ", "
-			speeds = # constant speed names
-				"slow": 700
-				"medium": 500
-				"normal": 300
-				"fast": 100
-				"instant": 0
-				"now": 0
-			# matches all the accelerated css property names
-			accel_props_re = /(?:scale(?:3d)*|translate(?:[XYZ]|3d)*|rotate(?:[XYZ]|3d)*)/
-			updateDelay = 30 # ms to wait for DOM changes to apply
-			testStyle = document.createElement("div").style
+	# Transform plugin
+	# ----------------
+	# For accelerated animations.
+	$.plugin
+		depends: "dom"
+	, ->
+		COMMASEP = ", "
+		speeds = # constant speed names
+			"slow": 700
+			"medium": 500
+			"normal": 300
+			"fast": 100
+			"instant": 0
+			"now": 0
+		# matches all the accelerated css property names
+		accel_props_re = /(?:scale(?:3d)*|translate(?:[XYZ]|3d)*|rotate(?:[XYZ]|3d)*)/
+		updateDelay = 30 # ms to wait for DOM changes to apply
+		testStyle = document.createElement("div").style
 
-			transformProperty = "transform"
-			transitionProperty = "transition-property"
-			transitionDuration = "transition-duration"
-			transitionTiming = "transition-timing-function"
+		transformProperty = "transform"
+		transitionProperty = "transition-property"
+		transitionDuration = "transition-duration"
+		transitionTiming = "transition-timing-function"
 
-			# detect which browser's transform properties to use
-			if "WebkitTransform" of testStyle
-				transformProperty = "-webkit-transform"
-				transitionProperty = "-webkit-transition-property"
-				transitionDuration = "-webkit-transition-duration"
-				transitionTiming = "-webkit-transition-timing-function"
-			else if "MozTransform" of testStyle
-				transformProperty = "-moz-transform"
-				transitionProperty = "-moz-transition-property"
-				transitionDuration = "-moz-transition-duration"
-				transitionTiming = "-moz-transition-timing-function"
-			else if "OTransform" of testStyle
-				transformProperty = "-o-transform"
-				transitionProperty = "-o-transition-property"
-				transitionDuration = "-o-transition-duration"
-				transitionTiming = "-o-transition-timing-function"
+		# detect which browser's transform properties to use
+		if "WebkitTransform" of testStyle
+			transformProperty = "-webkit-transform"
+			transitionProperty = "-webkit-transition-property"
+			transitionDuration = "-webkit-transition-duration"
+			transitionTiming = "-webkit-transition-timing-function"
+		else if "MozTransform" of testStyle
+			transformProperty = "-moz-transform"
+			transitionProperty = "-moz-transition-property"
+			transitionDuration = "-moz-transition-duration"
+			transitionTiming = "-moz-transition-timing-function"
+		else if "OTransform" of testStyle
+			transformProperty = "-o-transform"
+			transitionProperty = "-o-transition-property"
+			transitionDuration = "-o-transition-duration"
+			transitionTiming = "-o-transition-timing-function"
 
-			return {
-				$:
-					# $.duration(/s/) - given a speed description (string|number), return a number in milliseconds
-					duration: (speed) ->
-						d = speeds[speed]
-						return d if d?
-						return parseFloat speed
-
-				# .transform(css, [/speed/], [/callback/]) - animate css properties on each node
-				transform: (end_css, speed, easing, callback) ->
-					# animate css properties over a duration
-					# accelerated: scale, translate, rotate, scale3d,
-					# ... translateX, translateY, translateZ, translate3d,
-					# ... rotateX, rotateY, rotateZ, rotate3d
-					# easing values (strings): ease | linear | ease-in | ease-out
-					# | ease-in-out | step-start | step-end | steps(number[, start | end ])
-					# | cubic-bezier(number, number, number, number)
-
-					if $.is("function",speed)
-						callback = speed
-						speed = easing = null
-					else if $.is("function",easing)
-						callback = easing
-						easing = null
-					speed ?= "normal"
-					easing or= "ease"
-					# duration is always in milliseconds
-					duration = $.duration(speed) + "ms"
-					props = []
-					# `trans` is what will be assigned to -webkit-transform
-					trans = ""
-					# real css values to be set (end_css without the transform values)
-					css = {}
-					for i of end_css
-						# pull all the accelerated values out of end_css
-						if accel_props_re.test(i)
-							ii = end_css[i]
-							if ii.join
-								ii = $(ii).px().join COMMASEP
-							else if ii.toString
-								ii = ii.toString()
-							trans += " " + i + "(" + ii + ")"
-						# stick real css values in the css dict
-						else css[i] = end_css[i]
-					# make a list of the properties to be modified
-					(props.push i) for i of css
-					# and include -webkit-transform if we have transform values to set
-					if trans
-						props.push transformProperty
-
-					# sets a list of properties to apply a duration to
-					css[transitionProperty] = props.join COMMASEP
-					# apply the same duration to each property
-					css[transitionDuration] = props.map(-> duration).join COMMASEP
-					# apply an easing function to each property
-					css[transitionTiming] = props.map(-> easing).join COMMASEP
-
-					# apply the transformation
-					if trans
-						css[transformProperty] = trans
-					# apply the css to the actual node
-					@css css
-					# queue the callback to be executed at the end of the animation
-					# WARNING: NOT EXACT!
-					@delay duration, callback
-
-				hide: (callback) -> # .hide() - each node gets display:none
-					@each ->
-						if @style
-							@_display = "" # stash the old display
-							if @style.display is not "none"
-								@_display = @syle.display
-							@style.display = "none"
-					.trigger "hide"
-					.delay updateDelay, callback
-
-				show: (callback) -> # .show() - show each node
-					@each ->
-						if @style
-							@style.display = @_display
-							delete @_display
-					.trigger "show"
-					.delay updateDelay, callback
-
-				toggle: (callback) -> # .toggle() - show each hidden node, hide each visible one
-					@weave(@css("display"))
-						.fold (display, node) ->
-							if display is "none"
-								node.style.display = node._display or ""
-								delete node._display
-								$(node).trigger "show"
-							else
-								node._display = display
-								node.style.display = "none"
-								$(node).trigger "hide"
-							node
-						.delay(updateDelay, callback)
-
-				fadeIn: (speed, callback) -> # .fadeIn() - fade each node to opacity 1.0
-					@.css('opacity','0.0')
-						.show ->
-							@transform {
-								opacity:"1.0",
-								translate3d: [0,0,0]
-							}, speed, callback
-				fadeOut: (speed, callback, x = 0.0, y = 0.0) -> # .fadeOut() - fade each node to opacity:0.0
-					@transform {
-						opacity:"0.0",
-						translate3d:[x,y,0.0]
-					}, speed, -> @hide(callback)
-				fadeLeft: (speed, callback) -> @fadeOut speed, callback, "-"+@width().first(), 0.0
-				fadeRight: (speed, callback) -> @fadeOut speed, callback, @width().first(), 0.0
-				fadeUp: (speed, callback) -> @fadeOut speed, callback, 0.0, "-"+@height().first()
-				fadeDown: (speed, callback)  -> @fadeOut speed, callback, 0.0, @height().first()
-			}
-
-		# HTTP Plugin
-		# -----------
-		# Things like `.ajax()`, `.get()`, `$.post()`.
-		$.plugin ->
-			formencode = (obj) -> # create &foo=bar strings from object properties
-				o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
-				("#{i}=#{escape o[i]}" for i of o).join "&"
-
-			$.type.register "http",
-				match: (o) -> $.isType 'XMLHttpRequest', o
-				array: (o) -> [o]
-
-			return {
-				$:
-					# $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
-					http: (url, opts = {}) ->
-						xhr = new XMLHttpRequest()
-						if $.is("function",opts)
-							opts = success: $.bound(xhr, opts)
-						opts = $.extend {
-							method: "GET"
-							data: null
-							state: $.identity # onreadystatechange
-							success: $.identity # onload
-							error: $.identity # onerror
-							async: true
-							asBlob: false
-							timeout: 0 # milliseconds, 0 is forever
-							followRedirects: false
-							withCredentials: false
-						}, opts
-						opts.state = $.bound(xhr, opts.state)
-						opts.success = $.bound(xhr, opts.success)
-						opts.error = $.bound(xhr, opts.error)
-						if opts.data and opts.method is "GET"
-							url += "?" + formencode(opts.data)
-						else if opts.data and opts.method is "POST"
-							opts.data = formencode(opts.data)
-						xhr.open(opts.method, url, opts.async)
-						xhr = $.extend xhr,
-							asBlob: opts.asBlob
-							timeout: opts.timeout
-							followRedirects: opts.followRedirects
-							withCredentials: opts.withCredentials
-							onreadystatechange: ->
-								opts.state?()
-								if xhr.readyState is 4
-									if xhr.status is 200
-										opts.success xhr.responseText
-									else
-										opts.error xhr.status, xhr.statusText
-						xhr.send opts.data
-						return $(xhr)
-
-					# $.post(/url/, [/opts/]) - fetch /url/ with a POST request
-					post: (url, opts = {}) ->
-						if $.is("function",opts)
-							opts = success: opts
-						opts.method = "POST"
-						$.http(url, opts)
-
-					# $.get(/url/, [/opts/]) - fetch /url/ with a GET request
-					get: (url, opts = {}) ->
-						if( $.is("function",opts) )
-							opts = success: opts
-						opts.method = "GET"
-						$.http(url, opts)
-			}
-
-		# Events plugin
-		# -------------
-		# Things like `.bind()`, `.trigger()`, etc.
-		$.plugin
-			depends: "html"
-			provides: "event"
-		, ->
-			EVENTSEP_RE = /,* +/
-			events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
-				'load','unload','reset','submit','keyup','keydown','change',
-				'abort','cut','copy','paste','selection','drag','drop','orientationchange',
-				'touchstart','touchmove','touchend','touchcancel',
-				'gesturestart','gestureend','gesturecancel',
-				'hashchange'
-			] # 'click' is handled specially
-
-			binder = (e) -> (f) -> @bind(e, f) if $.is "function", f else @trigger(e, f)
-
-			register_live = (selector, context, evt, f, h) ->
-				$(context).bind(evt, h)
-					# set/create all of @__alive__[selector][evt][f]
-					.each -> (((@__alive__ or= {})[selector] or= {})[evt] or= {})[f] = h
-
-			unregister_live = (selector, context, e, f) ->
-				$c = $(context)
-				$c.each ->
-					a = (@__alive__ or= {})
-					b = (a[selector] or= {})
-					c = (b[e] or= {})
-					$c.unbind(e, c[f])
-					delete c[f]
-
-			# detect and fire the document.ready event
-			triggerReady = Function.Once ->
-				$(document).trigger("ready").unbind("ready")
-				document.removeEventListener?("DOMContentLoaded", triggerReady, false)
-				window.removeEventListener?("load", triggerReady, false)
-			bindReady = Function.Once ->
-				document.addEventListener?("DOMContentLoaded", triggerReady, false)
-				window.addEventListener?("load", triggerReady, false)
-			bindReady()
-
-			ret = {
-				bind: (e, f) -> # .bind(e, f) - adds handler f for event type e
-					c = (e or "").split(EVENTSEP_RE)
-					h = (evt) ->
-						ret = f.apply @, arguments
-						if ret is false
-							evt.preventAll()
-						ret
-					@each -> (@addEventListener i, h, false) for i in c
-
-				unbind: (e, f) -> # .unbind(e, [f]) - removes handler f from event e
-					c = (e or "").split(EVENTSEP_RE)
-					@each -> (@removeEventListener i, f, null) for i in c
-
-				once: (e, f) -> # .once(e, f) - adds a handler f that will only fire once (per node)
-					c = (e or "").split(EVENTSEP_RE)
-					for i in c
-						@bind i, (evt) ->
-							f.call(@, evt)
-							@removeEventListener(evt.type, arguments.callee, null)
-
-				cycle: (e, funcs...) -> # .cycle(e, ...) - bind handlers for e that trigger in a cycle
-					c = (e or "").split(EVENTSEP_RE)
-					nf = funcs.length
-					cycler = (i = -1) ->
-						(evt) -> funcs[i = ++i % nf].call(@, evt)
-					@bind j, cycler() for j in c
-					@
-
-				trigger: (evt, args = {}) -> # .trigger(e, a) - initiates a fake event
-					args = $.extend
-						bubbles: true
-						cancelable: true
-					, args
-
-					for evt_i in (evt or "").split(EVENTSEP_RE)
-						if evt_i in ["click", "mousemove", "mousedown", "mouseup", "mouseover", "mouseout"] # mouse events
-							e = document.createEvent "MouseEvents"
-							args = $.extend
-								detail: 1,
-								screenX: 0,
-								screenY: 0,
-								clientX: 0,
-								clientY: 0,
-								ctrlKey: false,
-								altKey: false,
-								shiftKey: false,
-								metaKey: false,
-								button: 0,
-								relatedTarget: null
-							, args
-							e.initMouseEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
-								args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-								args.button, args.relatedTarget
-
-						else if evt_i in ["blur", "focus", "reset", "submit", "abort", "change", "load", "unload"] # UI events
-							e = document.createEvent "UIEvents"
-							e.initUIEvent evt_i, args.bubbles, args.cancelable, window, 1
-
-						else if evt_i in ["touchstart", "touchmove", "touchend", "touchcancel"] # touch events
-							e = document.createEvent "TouchEvents"
-							args = $.extend
-								detail: 1,
-								screenX: 0,
-								screenY: 0,
-								clientX: 0,
-								clientY: 0,
-								ctrlKey: false,
-								altKey: false,
-								shiftKey: false,
-								metaKey: false,
-								# touch values:
-								touches: [],
-								targetTouches: [],
-								changedTouches: [],
-								scale: 1.0,
-								rotation: 0.0
-							, args
-							e.initTouchEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
-								args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-								args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
-
-						else if evt_i in ["gesturestart", "gestureend", "gesturecancel"] # gesture events
-							e = document.createEvent "GestureEvents"
-							args = $.extend {
-								detail: 1,
-								screenX: 0,
-								screenY: 0,
-								clientX: 0,
-								clientY: 0,
-								ctrlKey: false,
-								altKey: false,
-								shiftKey: false,
-								metaKey: false,
-								# gesture values:
-								target: null,
-								scale: 1.0,
-								rotation: 0.0
-							}, args
-							e.initGestureEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
-								args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-								args.target, args.scale, args.rotation
-
-						# iphone events that are not supported yet (dont know how to create yet, needs research)
-						# iphone events that we cant properly emulate (because we cant create our own Clipboard objects)
-						# iphone events that are just plain events
-						# and general events
-						# else if evt_i in ["drag", "drop", "selection", "cut", "copy", "paste", "orientationchange"]
-						else
-							e = document.createEvent "Events"
-							e.initEvent evt_i, args.bubbles, args.cancelable
-							try
-								e = $.extend e, args
-							catch err
-
-						if not e
-							continue
-						else
-							try
-								@each -> @dispatchEvent e
-							catch err
-								log("dispatchEvent error:",err)
-					@
-
-				live: (e, f) -> # .live(e, f) - handle events for nodes that will exist in the future
-					selector = @selector
-					context = @context
-					# wrap f
-					handler = (evt) -> # later, when event 'e' is fired
-						$(selector, context) # re-execute the selector in the original context
-							.intersect($(evt.target).parents().first().union($(evt.target))) # see if the event would bubble into a match
-							.each -> f.call(evt.target = @, evt) # then fire the real handler 'f' on the matched nodes
-					# record f so we can 'die' it if needed
-					register_live selector, context, e, f, handler
-					@
-
-				die: (e, f) -> # die(e, [f]) - stop f [or all] from living for event e
-					$(@context).unbind e, unregister_live(@selector, @context, e, f)
-					@
-
-				liveCycle: (e, funcs...) -> # .liveCycle(e, ...) - bind each /f/ in /funcs/ to handle /e/
-					i = -1; nf = funcs.length
-					@live e, (evt) -> funcs[i = ++i % nf].call @, evt
-
-				click: (f = {}) -> # .click([f]) - trigger [or bind] the 'click' event
-					if @css("cursor") in ["auto",""] # if the cursor is default
-						@css "cursor", "pointer" # then make it look clickable
-					if $.is "function", f then @bind 'click', f
-					else @trigger 'click', f
-
-				ready: (f) ->
-					return (f.call @) if triggerReady.n <= 0
-					@bind "ready", f
-			}
-
-			# add event binding/triggering shortcuts for the generic events
-			events.forEach (x) -> ret[x] = binder(x)
-			return ret
-
-		$.plugin
-			provides: "lazy"
-		, -> # LazyLoader plugin
-			lazy_load = (elementName, props) ->
-				$("head").append $.extend document.createElement(elementName), props
+		return {
 			$:
-				script: (src) ->
-					lazy_load "script", { src: src }
-				style: (src) ->
-					lazy_load "link", { href: src, rel: "stylesheet" }
+				# $.duration(/s/) - given a speed description (string|number), return a number in milliseconds
+				duration: (speed) ->
+					d = speeds[speed]
+					return d if d?
+					return parseFloat speed
 
+			# .transform(css, [/speed/], [/callback/]) - animate css properties on each node
+			transform: (end_css, speed, easing, callback) ->
+				# animate css properties over a duration
+				# accelerated: scale, translate, rotate, scale3d,
+				# ... translateX, translateY, translateZ, translate3d,
+				# ... rotateX, rotateY, rotateZ, rotate3d
+				# easing values (strings): ease | linear | ease-in | ease-out
+				# | ease-in-out | step-start | step-end | steps(number[, start | end ])
+				# | cubic-bezier(number, number, number, number)
+
+				if $.is("function",speed)
+					callback = speed
+					speed = easing = null
+				else if $.is("function",easing)
+					callback = easing
+					easing = null
+				speed ?= "normal"
+				easing or= "ease"
+				# duration is always in milliseconds
+				duration = $.duration(speed) + "ms"
+				props = []
+				# `trans` is what will be assigned to -webkit-transform
+				trans = ""
+				# real css values to be set (end_css without the transform values)
+				css = {}
+				for i of end_css
+					# pull all the accelerated values out of end_css
+					if accel_props_re.test(i)
+						ii = end_css[i]
+						if ii.join
+							ii = $(ii).px().join COMMASEP
+						else if ii.toString
+							ii = ii.toString()
+						trans += " " + i + "(" + ii + ")"
+					# stick real css values in the css dict
+					else css[i] = end_css[i]
+				# make a list of the properties to be modified
+				(props.push i) for i of css
+				# and include -webkit-transform if we have transform values to set
+				if trans
+					props.push transformProperty
+
+				# sets a list of properties to apply a duration to
+				css[transitionProperty] = props.join COMMASEP
+				# apply the same duration to each property
+				css[transitionDuration] = props.map(-> duration).join COMMASEP
+				# apply an easing function to each property
+				css[transitionTiming] = props.map(-> easing).join COMMASEP
+
+				# apply the transformation
+				if trans
+					css[transformProperty] = trans
+				# apply the css to the actual node
+				@css css
+				# queue the callback to be executed at the end of the animation
+				# WARNING: NOT EXACT!
+				@delay duration, callback
+
+			hide: (callback) -> # .hide() - each node gets display:none
+				@each ->
+					if @style
+						@_display = "" # stash the old display
+						if @style.display is not "none"
+							@_display = @syle.display
+						@style.display = "none"
+				.trigger "hide"
+				.delay updateDelay, callback
+
+			show: (callback) -> # .show() - show each node
+				@each ->
+					if @style
+						@style.display = @_display
+						delete @_display
+				.trigger "show"
+				.delay updateDelay, callback
+
+			toggle: (callback) -> # .toggle() - show each hidden node, hide each visible one
+				@weave(@css("display"))
+					.fold (display, node) ->
+						if display is "none"
+							node.style.display = node._display or ""
+							delete node._display
+							$(node).trigger "show"
+						else
+							node._display = display
+							node.style.display = "none"
+							$(node).trigger "hide"
+						node
+					.delay(updateDelay, callback)
+
+			fadeIn: (speed, callback) -> # .fadeIn() - fade each node to opacity 1.0
+				@.css('opacity','0.0')
+					.show ->
+						@transform {
+							opacity:"1.0",
+							translate3d: [0,0,0]
+						}, speed, callback
+			fadeOut: (speed, callback, x = 0.0, y = 0.0) -> # .fadeOut() - fade each node to opacity:0.0
+				@transform {
+					opacity:"0.0",
+					translate3d:[x,y,0.0]
+				}, speed, -> @hide(callback)
+			fadeLeft: (speed, callback) -> @fadeOut speed, callback, "-"+@width().first(), 0.0
+			fadeRight: (speed, callback) -> @fadeOut speed, callback, @width().first(), 0.0
+			fadeUp: (speed, callback) -> @fadeOut speed, callback, 0.0, "-"+@height().first()
+			fadeDown: (speed, callback)  -> @fadeOut speed, callback, 0.0, @height().first()
+		}
+
+	# HTTP Plugin
+	# -----------
+	# Things like `.ajax()`, `.get()`, `$.post()`.
+	$.plugin
+		depends: "dom"
+	, ->
+		formencode = (obj) -> # create &foo=bar strings from object properties
+			o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
+			("#{i}=#{escape o[i]}" for i of o).join "&"
+
+		$.type.register "http",
+			match: (o) -> $.isType 'XMLHttpRequest', o
+			array: (o) -> [o]
+
+		return {
+			$:
+				# $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
+				http: (url, opts = {}) ->
+					xhr = new XMLHttpRequest()
+					if $.is("function",opts)
+						opts = success: $.bound(xhr, opts)
+					opts = $.extend {
+						method: "GET"
+						data: null
+						state: $.identity # onreadystatechange
+						success: $.identity # onload
+						error: $.identity # onerror
+						async: true
+						asBlob: false
+						timeout: 0 # milliseconds, 0 is forever
+						followRedirects: false
+						withCredentials: false
+					}, opts
+					opts.state = $.bound(xhr, opts.state)
+					opts.success = $.bound(xhr, opts.success)
+					opts.error = $.bound(xhr, opts.error)
+					if opts.data and opts.method is "GET"
+						url += "?" + formencode(opts.data)
+					else if opts.data and opts.method is "POST"
+						opts.data = formencode(opts.data)
+					xhr.open(opts.method, url, opts.async)
+					xhr = $.extend xhr,
+						asBlob: opts.asBlob
+						timeout: opts.timeout
+						followRedirects: opts.followRedirects
+						withCredentials: opts.withCredentials
+						onreadystatechange: ->
+							opts.state?()
+							if xhr.readyState is 4
+								if xhr.status is 200
+									opts.success xhr.responseText
+								else
+									opts.error xhr.status, xhr.statusText
+					xhr.send opts.data
+					return $(xhr)
+
+				# $.post(/url/, [/opts/]) - fetch /url/ with a POST request
+				post: (url, opts = {}) ->
+					if $.is("function",opts)
+						opts = success: opts
+					opts.method = "POST"
+					$.http(url, opts)
+
+				# $.get(/url/, [/opts/]) - fetch /url/ with a GET request
+				get: (url, opts = {}) ->
+					if( $.is("function",opts) )
+						opts = success: opts
+					opts.method = "GET"
+					$.http(url, opts)
+		}
+
+	# Events plugin
+	# -------------
+	# Things like `.bind()`, `.trigger()`, etc.
+	$.plugin
+		depends: "dom,function,core"
+		provides: "event"
+	, ->
+		EVENTSEP_RE = /,* +/
+		events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
+			'load','unload','reset','submit','keyup','keydown','change',
+			'abort','cut','copy','paste','selection','drag','drop','orientationchange',
+			'touchstart','touchmove','touchend','touchcancel',
+			'gesturestart','gestureend','gesturecancel',
+			'hashchange'
+		] # 'click' is handled specially
+
+		binder = (e) -> (f) -> @bind(e, f) if $.is "function", f else @trigger(e, f)
+
+		register_live = (selector, context, evt, f, h) ->
+			$(context).bind(evt, h)
+				# set/create all of @__alive__[selector][evt][f]
+				.each -> (((@__alive__ or= {})[selector] or= {})[evt] or= {})[f] = h
+
+		unregister_live = (selector, context, e, f) ->
+			$c = $(context)
+			$c.each ->
+				a = (@__alive__ or= {})
+				b = (a[selector] or= {})
+				c = (b[e] or= {})
+				$c.unbind(e, c[f])
+				delete c[f]
+
+		# detect and fire the document.ready event
+		triggerReady = $.once ->
+			$(document).trigger("ready").unbind("ready")
+			document.removeEventListener?("DOMContentLoaded", triggerReady, false)
+			window.removeEventListener?("load", triggerReady, false)
+		bindReady = $.once ->
+			document.addEventListener?("DOMContentLoaded", triggerReady, false)
+			window.addEventListener?("load", triggerReady, false)
+		bindReady()
+
+		ret = {
+			bind: (e, f) -> # .bind(e, f) - adds handler f for event type e
+				c = (e or "").split(EVENTSEP_RE)
+				h = (evt) ->
+					ret = f.apply @, arguments
+					if ret is false
+						evt.preventAll()
+					ret
+				@each -> (@addEventListener i, h, false) for i in c
+
+			unbind: (e, f) -> # .unbind(e, [f]) - removes handler f from event e
+				c = (e or "").split(EVENTSEP_RE)
+				@each -> (@removeEventListener i, f, null) for i in c
+
+			once: (e, f) -> # .once(e, f) - adds a handler f that will only fire once (per node)
+				c = (e or "").split(EVENTSEP_RE)
+				for i in c
+					@bind i, (evt) ->
+						f.call(@, evt)
+						@removeEventListener(evt.type, arguments.callee, null)
+
+			cycle: (e, funcs...) -> # .cycle(e, ...) - bind handlers for e that trigger in a cycle
+				c = (e or "").split(EVENTSEP_RE)
+				nf = funcs.length
+				cycler = (i = -1) ->
+					(evt) -> funcs[i = ++i % nf].call(@, evt)
+				@bind j, cycler() for j in c
+				@
+
+			trigger: (evt, args = {}) -> # .trigger(e, a) - initiates a fake event
+				args = $.extend
+					bubbles: true
+					cancelable: true
+				, args
+
+				for evt_i in (evt or "").split(EVENTSEP_RE)
+					if evt_i in ["click", "mousemove", "mousedown", "mouseup", "mouseover", "mouseout"] # mouse events
+						e = document.createEvent "MouseEvents"
+						args = $.extend
+							detail: 1,
+							screenX: 0,
+							screenY: 0,
+							clientX: 0,
+							clientY: 0,
+							ctrlKey: false,
+							altKey: false,
+							shiftKey: false,
+							metaKey: false,
+							button: 0,
+							relatedTarget: null
+						, args
+						e.initMouseEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+							args.button, args.relatedTarget
+
+					else if evt_i in ["blur", "focus", "reset", "submit", "abort", "change", "load", "unload"] # UI events
+						e = document.createEvent "UIEvents"
+						e.initUIEvent evt_i, args.bubbles, args.cancelable, window, 1
+
+					else if evt_i in ["touchstart", "touchmove", "touchend", "touchcancel"] # touch events
+						e = document.createEvent "TouchEvents"
+						args = $.extend
+							detail: 1,
+							screenX: 0,
+							screenY: 0,
+							clientX: 0,
+							clientY: 0,
+							ctrlKey: false,
+							altKey: false,
+							shiftKey: false,
+							metaKey: false,
+							# touch values:
+							touches: [],
+							targetTouches: [],
+							changedTouches: [],
+							scale: 1.0,
+							rotation: 0.0
+						, args
+						e.initTouchEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+							args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
+
+					else if evt_i in ["gesturestart", "gestureend", "gesturecancel"] # gesture events
+						e = document.createEvent "GestureEvents"
+						args = $.extend {
+							detail: 1,
+							screenX: 0,
+							screenY: 0,
+							clientX: 0,
+							clientY: 0,
+							ctrlKey: false,
+							altKey: false,
+							shiftKey: false,
+							metaKey: false,
+							# gesture values:
+							target: null,
+							scale: 1.0,
+							rotation: 0.0
+						}, args
+						e.initGestureEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+							args.target, args.scale, args.rotation
+
+					# iphone events that are not supported yet (dont know how to create yet, needs research)
+					# iphone events that we cant properly emulate (because we cant create our own Clipboard objects)
+					# iphone events that are just plain events
+					# and general events
+					# else if evt_i in ["drag", "drop", "selection", "cut", "copy", "paste", "orientationchange"]
+					else
+						e = document.createEvent "Events"
+						e.initEvent evt_i, args.bubbles, args.cancelable
+						try
+							e = $.extend e, args
+						catch err
+
+					if not e
+						continue
+					else
+						try
+							@each -> @dispatchEvent e
+						catch err
+							log("dispatchEvent error:",err)
+				@
+
+			live: (e, f) -> # .live(e, f) - handle events for nodes that will exist in the future
+				selector = @selector
+				context = @context
+				# wrap f
+				handler = (evt) -> # later, when event 'e' is fired
+					$(selector, context) # re-execute the selector in the original context
+						.intersect($(evt.target).parents().first().union($(evt.target))) # see if the event would bubble into a match
+						.each -> f.call(evt.target = @, evt) # then fire the real handler 'f' on the matched nodes
+				# record f so we can 'die' it if needed
+				register_live selector, context, e, f, handler
+				@
+
+			die: (e, f) -> # die(e, [f]) - stop f [or all] from living for event e
+				$(@context).unbind e, unregister_live(@selector, @context, e, f)
+				@
+
+			liveCycle: (e, funcs...) -> # .liveCycle(e, ...) - bind each /f/ in /funcs/ to handle /e/
+				i = -1; nf = funcs.length
+				@live e, (evt) -> funcs[i = ++i % nf].call @, evt
+
+			click: (f = {}) -> # .click([f]) - trigger [or bind] the 'click' event
+				if @css("cursor") in ["auto",""] # if the cursor is default
+					@css "cursor", "pointer" # then make it look clickable
+				if $.is "function", f then @bind 'click', f
+				else @trigger 'click', f
+
+			ready: (f) ->
+				return (f.call @) if triggerReady.n <= 0
+				@bind "ready", f
+		}
+
+		# add event binding/triggering shortcuts for the generic events
+		events.forEach (x) -> ret[x] = binder(x)
+		return ret
+
+	$.plugin
+		depends: "dom"
+		provides: "lazy"
+	, ->
+		lazy_load = (elementName, props) ->
+			$("head").append $.extend document.createElement(elementName), props
+		$:
+			script: (src) ->
+				lazy_load "script", { src: src }
+			style: (src) ->
+				lazy_load "link", { href: src, rel: "stylesheet" }
 
 
 )(Bling)

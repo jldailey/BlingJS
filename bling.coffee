@@ -60,8 +60,7 @@ defineProperty = (o,name,opts) ->
 # constructors, and anything else we can think of that matters.
 isType = (T, o) ->
 	if not o? then T in [o,"null","undefined"]
-	else o instanceof T or
-		o.constructor is T or
+	else o.constructor is T or
 		o.constructor.name is T or
 		Object::toString.apply(o) is "[object #{T}]" or
 		isType T, o.__proto__
@@ -923,7 +922,6 @@ Bling.prototype = []
 	$.plugin
 		provides: "hash"
 	, ->
-	$.plugin ->
 		$.type.extend
 			unknown: { hash: (o) -> $.checksum $.toString(o) }
 			object:  { hash: (o) -> ($.hash(o[k]) for k of o) + $.hash(Object.keys(o)) }
@@ -1030,11 +1028,11 @@ Bling.prototype = []
 				array:  (o,c) -> $.type.lookup(h = Bling.HTML.parse(o)).array(h,c)
 			$.type.extend
 				unknown:  { node: -> null }
-				bling:    { node: -> $(@).toFragment() }
+				bling:    { node: (o) -> o.toFragment() }
 				string:
-					node:  -> $(@).toFragment()
+					node:  (o) -> $(o).toFragment()
 					array: (o,c) -> c.querySelectorAll?(o)
-				function: { node: -> $(@toString()).toFragment() }
+				function: { node: (o) -> $(o.toString()).toFragment() }
 
 			toFrag = (a) ->
 				if not a.parentNode?

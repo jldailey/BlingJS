@@ -609,32 +609,44 @@ Bling.prototype = []
 			# Get the last item(s).
 			last: (n = 1) -> if n is 1 then @[@length - 1] else @skip(@length - n)
 
-			slice: (start=0, end=@length) -> # .slice(/i/, [/j/]) - get a subset of _this_ including [/i/../j/-1]
-				# negative indices work like in python: -1 is the last item, -2 is second-to-last, null means inclusive
+			# Get a subset of _this_ including [/i/../j/-1]
+			slice: (start=0, end=@length) ->
 				start = index start, @
 				end = index end, @
 				$( @[i] for i in [start...end] )
 
+			# Append the items in _b_ into _this_. Modifies _this_ in-place.
 			extend: (b) -> @.push(i) for i in b; @
+			# Appends a single item to _this_; unlike a native Array, it
+			# returns a reference to _this_ for chaining.
 			push: (b) -> Array::push.call(@, b); @
 
-			filter: (f) -> # .filter(/f/) - select all /x/ from _this_ where /x/./f/(/x/) is true
-				# or if f is a selector string, selects nodes that match the selector
-				# or if f is a RegExp, select nodes where f.test(x) is true
+			# Get a new set containing only items that match _f_. _f_ can be
+			# any of:
+			filter: (f) ->
+				# The argument _f_ can be any of:
 				g = switch $.type f
+					# * selector string: `.filter("td.selected")`
 					when "string" then (x) -> x.matchesSelector(f)
+					# * RegExp object: `.filter(/^prefix-/)`
 					when "regexp" then (x) -> f.test(x)
+					# * function: `.filter (x) -> (x%2) is 1`
 					when "function" then f
 					else
 						throw new Error("unsupported type passed to filter: #{$.type(f)}")
-				$( it for it in @ when g.call(it,it) )
+				$( Array::filter.call @, g )
+				# $( it for it in @ when g.call(it,it) )
 
-			test: (regex) -> @map -> regex.test(@)
+			# Get a new set of booleans, true if the node from _this_
+			# matched the CSS expression.
 			matches: (expr) -> @select('matchesSelector').call(expr)
 
-			querySelectorAll: (s) ->
-				@filter("*").reduce (a, i) ->
-					a.extend(i.querySelectorAll(s))
+			# Each node in _this_ contributes all children matching the
+			# CSS expression to a new set.
+			querySelectorAll: (expr) ->
+				@filter("*")
+				.reduce (a, i) ->
+					a.extend i.querySelectorAll expr
 				, $()
 
 			# Get a new set with items interleaved from the items in _a_ and
@@ -653,7 +665,7 @@ Bling.prototype = []
 			# * the items of b come first.
 			# * the result always has 2 * max(length) items.
 			# * if b and this are different lengths, the shorter will yield
-			# `undefined`s into the result.
+			# `undefined`(s) into the result.
 
 			# Get a new set with _c_ = `f(a,b)`. Will always return a set
 			# with half as many items as _this_.
@@ -669,7 +681,7 @@ Bling.prototype = []
 
 			# Get a new set with all items from subsets in one set.
 			flatten: ->
-				b = $([])
+				b = $()
 				(b.push(j) for j in i) for i in @
 				b
 
@@ -680,8 +692,8 @@ Bling.prototype = []
 			apply: (context, args) ->
 				@map -> if $.is "function", @ then @apply(context, args) else @
 
-			# Log one line for each item.
-			log: (label) -> # .log([label]) - $.log([/label/] + /x/) for /x/ in _this_
+			# Log one line for each item in _this_.
+			log: (label) ->
 				if label
 					$.log(label, @, @length + " items")
 				else
@@ -689,7 +701,7 @@ Bling.prototype = []
 				@
 
 			# Convert this to an array.
-			toArray: -> (@.__proto__ = Array::); @ # no copies, yay!
+			toArray: -> (@.__proto__ = Array::); @ # no copies, yay?
 		}
 
 	# Math Plugin
@@ -697,7 +709,6 @@ Bling.prototype = []
 	# All the stuff you need to use blings as vectors in linear algebra.
 	$.plugin
 		provides: "math"
-		depends: "core"
 	, ->
 		$:
 			# Get an array of numbers.

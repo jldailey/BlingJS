@@ -217,11 +217,19 @@ testGroup("HTML",
 			assertEqual($("tr td.d").append("<span>Hi</span>").html().first(), "3,2<span>Hi</span>")
 		finally
 			$("tr td.d span").remove()
-	appendTo:->
+	appendTo1:-> assertEqual($("<span>Hi</span>").toString(), "$([<span>Hi</span>])")
+	appendTo2:->
 		try
-			assertEqual($("<span>Hi</span>").toString(), "$([<span>Hi</span>])")
 			assertEqual($("<span>Hi</span>").appendTo("tr td.d").toString(), "$([<span>Hi</span>])")
-			assertEqual($("<span>Hi</span>").appendTo("tr td.d").select('parentNode').toString(), "$([<td class='d'><span>Hi</span></td>])")
+		finally
+			$("tr td.d span").remove()
+	appendTo3:->
+		try
+			assertEqual($("<span>Hi</span>").appendTo("tr td.d").select('parentNode').toString(), '$([<td class="d">3,2<span>Hi</span></td>])')
+		finally
+			$("tr td.d span").remove()
+	appendTo4:->
+		try
 			assertEqual($("<span>Hi</span>").appendTo("tr td.d").select('parentNode').html().first(), "3,2<span>Hi</span>")
 		finally
 			$("tr td.d span").remove()

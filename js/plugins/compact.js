@@ -1,28 +1,32 @@
 
   (function($) {
     return $.plugin(function() {
-      var lookup, pruners, register;
+      var lookup, pruners, register, stack;
       pruners = {};
-      register = function(type, obj) {
-        return pruners[type] = obj;
+      register = function(type, f) {
+        return pruners[type] = f;
       };
-      lookup = function(obj) {
-        return pruners[obj.TYPE];
+      lookup = function(f) {
+        return pruners[obj.t];
       };
-      Object.Type.extend("unknown", {
+      stack = [];
+      Object.Type.extend(null, {
         compact: function(o) {
           return Object.String(o);
+        }
+      });
+      Object.Type.extend("undefined", {
+        compact: function(o) {
+          return "";
+        }
+      });
+      Object.Type.extend("null", {
+        compact: function(o) {
+          return "";
         }
       });
       Object.Type.extend("string", {
-        compact: function(o) {
-          return o;
-        }
-      });
-      Object.Type.extend("number", {
-        compact: function(o) {
-          return Object.String(o);
-        }
+        compact: Function.Identity
       });
       Object.Type.extend("array", {
         compact: function(o) {
@@ -43,61 +47,46 @@
           return o.map(Object.Compact).join("");
         }
       });
-      Object.Type.extend("undefined", {
-        compact: function(o) {
-          return "";
-        }
-      });
-      Object.Type.extend("null", {
-        compact: function(o) {
-          return "";
-        }
-      });
       Object.Type.extend("object", {
         compact: function(o) {
           var _ref;
-          return Object.Compact((_ref = lookup(o)) != null ? _ref.prune.call(o, o) : void 0);
+          return Object.Compact((_ref = lookup(o)) != null ? _ref.call(o, o) : void 0);
         }
       });
       Object.Compact = function(o) {
         var _ref;
-        return (_ref = Object.Type.lookup(o)) != null ? _ref.compact(o) : void 0;
+        stack.push(o);
+        if ((_ref = Object.Type.lookup(o)) != null) _ref.compact(o);
+        return stack.pop();
       };
       Object.Extend(Object.Compact, {
         register: register,
         lookup: lookup
       });
-      register('page', {
-        prune: function(node) {
-          return ["<!DOCTYPE html><html><head>", node.HEAD, "</head><body>", node.BODY, "</body></html>"];
-        }
+      register('page', function() {
+        return ["<!DOCTYPE html><html><head>", this.head, "</head><body>", this.body, "</body></html>"];
       });
-      register('text', {
-        prune: function(node) {
-          return node.EN;
-        }
+      register('text', function() {
+        return this.EN;
       });
-      register('link', {
-        prune: function(node) {
-          var a, k, _i, _len, _ref;
-          a = ["<a"];
-          _ref = ["href", "name", "target"];
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            k = _ref[_i];
-            if (k in node) Array.Extend(a, [" ", k, "='", node[k], "'"]);
-          }
-          Array.Extend(a, [">", node.CONTENT, "</a>"]);
-          return a;
+      register('link', function() {
+        var a, k, _i, _len, _ref;
+        a = $(["<a"]);
+        _ref = ["href", "name", "target"];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          k = _ref[_i];
+          if (k in this) a.extend(" ", k, "='", this[k], "'");
         }
+        return a.extend(">", node.content, "</a>");
       });
-      Object.Compact({
-        TYPE: "page",
-        HEAD: [],
-        BODY: {
-          TYPE: "text",
+      $.assert(Object.Compact({
+        t: "page",
+        head: [],
+        body: {
+          type: "text",
           EN: "Hello World"
         }
-      }) === "<!DOCTYPE html><html><head></head><body>Hello World</body></html>";
+      }) === "<!DOCTYPE html><html><head></head><body>Hello World</body></html>");
       return {
         name: "Compact"
       };

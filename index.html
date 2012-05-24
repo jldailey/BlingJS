@@ -15,16 +15,6 @@
 	-->
 </head>
 <body>
-	<ol class='toc'>
-	</ol>
-	<script type="text/javascript">
-		$(document).ready(function() {
-			var toc = $("body > .toc");
-			$("body .page a[name].toc").attr("name").each(function(name) {
-				$.synth("li a[href=#"+name+"] '"+name+"'").appendTo(toc);
-			})
-		})
-	</script>
 	<div class='page'>
 		<h1><a name="Top" class="toc"><span class='bln'>$</span>(BlingJS)</a></h1>
 		<h2>A JavaScript library</h2>
@@ -47,8 +37,14 @@
 				<td><a href="https://github.com/jldailey/BlingJS">[GitHub]</a><td>&nbsp;<td>[*]
 		</table>
 		<p class='small'>About &frac13;rd the size of jQuery.<br> (compare v1.6.3: 232k, 89k, 32k)</p>
-		
 
+		<h4><a name="Documentation" class='toc'>Documentation</a></h4>
+		<table class='download' cellspacing="0">
+			<tr>
+				<td><li><a href="docs/index.html">Annotated Source</a></td>
+			</tr>
+		</table>
+		
 	</div>
 </body>
 </html>

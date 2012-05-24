@@ -177,7 +177,6 @@ testGroup("Core",
 	filter3: -> assertArrayEqual($("*").filter("td").length, 8)
 	filter4: -> assertEqual($("*").filter("td").filter(".d").length, 1)
 	filter5: -> assertEqual($("*").filter("td").filter(".none").length, 0)
-	test: -> assertArrayEqual($(["foo","bar","baz"]).test(/^ba/), [false, true, true])
 	matches: -> assertArrayEqual($("td").matches(".d"), [false,false,false,false,false,true,false,false])
 	querySelectorAll: -> assertArrayEqual($("tr").querySelectorAll("td.d")[0].className, "d")
 	weave1: -> assertArrayEqual($([1,1,1]).weave([2,2,2]), [2,1,2,1,2,1])

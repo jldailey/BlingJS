@@ -16,12 +16,12 @@ parents up to the document node; intersecting this with some other set of nodes
 (say, a set of <li> elements, will find the exact list-item(s) you are within)
 
 There are also a couple things that are wholly new, and awesome. Like,
-the .zip() and .zap() operations.
+the .select() and .zap() operations.
 
-The .zip() operation will grab a single property from every item in
-a set.  So, html() is defined as zip('innerHTML').  You can also extract
-nested values easily, as in zip('style.color'), arbitrary nesting depth
-is supported [e.g. zip('foo.bar.baz.bok')].
+The .select() operation will grab a single property from every item in
+a set.  So, html() is defined as select('innerHTML').  You can also extract
+nested values easily, as in select('style.color'), arbitrary nesting depth
+is supported [e.g. select('foo.bar.baz.bok')].
 
 The .zap() operation is a way to do assignment and stay in a loosely
 functional context.  So, html("new html") is defined as

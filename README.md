@@ -1,6 +1,5 @@
-BlingJS is meant to be as useful as jQuery, but more consistent.
+BlingJS is meant to be as useful as jQuery, but more consistent.  In particular, it is more consistent about doing set-based operations.
 
-In particular, it is more consistent about doing set-based operations:
 * All operations return sets wherever possible.
 * As much as possible is a plugin, even core operations.
 
@@ -21,6 +20,7 @@ new things, like the `.select()` and `.zap()` operations.
 The `.select()` operation will collect a single property from every item in
 a set.
 > `.html()` is a shortcut for `.select('innerHTML')`.
+
 * You can extract nested values, e.g. `.select('style.color')`.
 * Arbitrary nesting depth, and arrays, e.g. `.select('foo.bar.0.baz')`.
 

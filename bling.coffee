@@ -1120,10 +1120,11 @@ Bling.prototype = []
 					x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
 					@each -> @appendChild x.cloneNode true
 
-				appendTo: (x) -> # .appendTo(/n/) - each node [or a fragment] will become the last child of n
-					$(x).append(@)
-					try console.log "@.parentNode in appendTo:", @[0].parentNode, "should not be null"
-					@
+				appendTo: (x) -> # .appendTo(/n/) - each node [or fragment] will become the last child of x
+					clones = @map( -> @cloneNode true)
+					i = 0
+					$(x).each -> @appendChild clones[i++]
+					clones
 
 				prepend: (x) -> # .prepend(/n/) - insert n [or a clone] as the first child of each node
 					if x?
@@ -1134,7 +1135,7 @@ Bling.prototype = []
 							before @childNodes[0], x.cloneNode(true)
 					@
 
-				prependTo: (x) -> # .prependTo(/n/) - each node [or a fragment] will become the first child of n
+				prependTo: (x) -> # .prependTo(/n/) - each node [or a fragment] will become the first child of x
 					if x?
 						$(x).prepend(@)
 					@

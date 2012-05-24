@@ -752,7 +752,7 @@
           return this;
         },
         filter: function(f) {
-          var g, it;
+          var g;
           g = (function() {
             switch ($.type(f)) {
               case "string":
@@ -769,27 +769,14 @@
                 throw new Error("unsupported type passed to filter: " + ($.type(f)));
             }
           })();
-          return $((function() {
-            var _i, _len, _results;
-            _results = [];
-            for (_i = 0, _len = this.length; _i < _len; _i++) {
-              it = this[_i];
-              if (g.call(it, it)) _results.push(it);
-            }
-            return _results;
-          }).call(this));
-        },
-        test: function(regex) {
-          return this.map(function() {
-            return regex.test(this);
-          });
+          return $(Array.prototype.filter.call(this, g));
         },
         matches: function(expr) {
           return this.select('matchesSelector').call(expr);
         },
-        querySelectorAll: function(s) {
+        querySelectorAll: function(expr) {
           return this.filter("*").reduce(function(a, i) {
-            return a.extend(i.querySelectorAll(s));
+            return a.extend(i.querySelectorAll(expr));
           }, $());
         },
         weave: function(b) {
@@ -819,7 +806,7 @@
         },
         flatten: function() {
           var b, i, j, _i, _j, _len, _len2;
-          b = $([]);
+          b = $();
           for (_i = 0, _len = this.length; _i < _len; _i++) {
             i = this[_i];
             for (_j = 0, _len2 = i.length; _j < _len2; _j++) {
@@ -856,8 +843,7 @@
       };
     });
     $.plugin({
-      provides: "math",
-      depends: "core"
+      provides: "math"
     }, function() {
       return {
         $: {

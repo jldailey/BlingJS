@@ -1085,11 +1085,8 @@
       });
       return {
         $: {
-          toString: function(x) {
-            if (x == null) {
-              x = Bling;
-            }
-            return $.type.lookup(x).string(x);
+          toString: function() {
+            return "function Bling(selector, context) { [ ... ] }";
           },
           px: function(x, delta) {
             if (delta == null) {

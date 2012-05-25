@@ -51,7 +51,7 @@ yuicompressor.jar:
 	rm -r yuicompressor-2.4.7
 
 $(DIST_PLUGINS)/min.%.js: $(DIST_PLUGINS)/%.js yuicompressor.jar
-	$(JAVA) -jar yuicompressor.jar $< -o $@
+	$(JAVA) -jar yuicompressor.jar $< -v -o $@
 
 # $(DIST_PLUGINS)/min.%.js: $(DIST_PLUGINS)/%.js compiler.jar
 #		$(JAVA) -jar compiler.jar --js=$< --js_output_file=$@ --compilation_level=$(LEVEL) --externs externs
@@ -71,7 +71,7 @@ compiler.jar: compiler-latest.zip
 	@touch compiler.jar
 
 $(DIST)/min.%.js: $(DIST)/%.js yuicompressor.jar
-	$(JAVA) -jar yuicompressor.jar $< -o $@
+	$(JAVA) -jar yuicompressor.jar $< -v -o $@
 
 # $(DIST)/min.%.js: $(DIST)/%.js compiler.jar
 # 	$(JAVA) -jar compiler.jar --js=$< --js_output_file=$@ --compilation_level=$(LEVEL) --externs externs

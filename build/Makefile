@@ -44,8 +44,17 @@ plugin_minify: $(DIST_PLUGINS)/min.synth.js $(DIST_PLUGINS)/min.pprint.js $(DIST
 
 plugin_compress: $(DIST_PLUGINS)/min.synth.js.gz $(DIST_PLUGINS)/min.pprint.js.gz $(DIST_PLUGINS)/min.template.js.gz $(DIST_PLUGINS)/min.tnet.js.gz $(DIST_PLUGINS)/min.ui.js.gz $(DIST_PLUGINS)/min.compact.js.gz $(DIST_PLUGINS)/min.all.js.gz
 
-$(DIST_PLUGINS)/min.%.js: $(DIST_PLUGINS)/%.js compiler.jar
-	$(JAVA) -jar compiler.jar --js=$< --js_output_file=$@ --compilation_level=$(LEVEL) --externs externs
+yuicompressor.jar:
+	curl http://yui.zenfs.com/releases/yuicompressor/yuicompressor-2.4.7.zip > yuicompressor.zip
+	unzip yuicompressor.zip
+	cp yuicompressor-2.4.7/build/yuicompressor-2.4.7.jar ./yuicompressor.jar
+	rm -r yuicompressor-2.4.7
+
+$(DIST_PLUGINS)/min.%.js: $(DIST_PLUGINS)/%.js yuicompressor.jar
+	$(JAVA) -jar yuicompressor.jar $< -o $@
+
+# $(DIST_PLUGINS)/min.%.js: $(DIST_PLUGINS)/%.js compiler.jar
+#		$(JAVA) -jar compiler.jar --js=$< --js_output_file=$@ --compilation_level=$(LEVEL) --externs externs
 	
 plugin_compile:
 	coffee -o $(DIST_PLUGINS) -c $(PLUGINS)/*.coffee
@@ -61,8 +70,11 @@ compiler.jar: compiler-latest.zip
 	@unzip -o compiler-latest.zip compiler.jar
 	@touch compiler.jar
 
-$(DIST)/min.%.js: $(DIST)/%.js compiler.jar
-	$(JAVA) -jar compiler.jar --js=$< --js_output_file=$@ --compilation_level=$(LEVEL) --externs externs
+$(DIST)/min.%.js: $(DIST)/%.js yuicompressor.jar
+	$(JAVA) -jar yuicompressor.jar $< -o $@
+
+# $(DIST)/min.%.js: $(DIST)/%.js compiler.jar
+# 	$(JAVA) -jar compiler.jar --js=$< --js_output_file=$@ --compilation_level=$(LEVEL) --externs externs
 
 
 $(DIST)/docs/%.html: ../%.coffee

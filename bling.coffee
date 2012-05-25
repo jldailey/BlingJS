@@ -310,7 +310,7 @@ Bling.prototype = []
 # 
 # For the rest of this file, set up a namespace that protects `$`,
 # so we can safely use short-hand in all of our plugins.
-(($) ->
+(($, glob) ->
 
 	#### Types plugin
 	# Exposes the type system publicly.
@@ -350,12 +350,12 @@ Bling.prototype = []
 	, ->
 		symbol = null
 		cache = {}
-		(g = window ? global).Bling = Bling
+		glob.Bling = $
 		defineProperty $, "symbol",
 			set: (v) ->
-				g[symbol] = cache[symbol]
-				cache[symbol = v] = g[v]
-				g[v] = Bling
+				glob[symbol] = cache[symbol]
+				cache[symbol = v] = glob[v]
+				glob[v] = Bling
 			get: -> symbol
 		return $: symbol: "$"
 
@@ -1797,5 +1797,5 @@ Bling.prototype = []
 				lazy_load "link", { href: src, rel: "stylesheet" }
 
 
-)(Bling)
+)(Bling, @)
 # vim: ft=coffee sw=2 ts=2

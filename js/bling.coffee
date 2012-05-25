@@ -1,11 +1,3 @@
-# Why not add some "bling" to that plain old list of things?
-
-# Once a list has been tricked out, it is blessed with many new features,
-# many of which will be familiar from jQuery; like `each`, and `html`.
-# Other features are wholly new and powerful (e.g. `select`, and `zap`).
-
-# Named after the bling symbol `$` to which it is bound by default.
-
 # Philoshopy
 # ----------
 # 1. Always work on _sets_ of stuff, scalars are annoying.
@@ -265,6 +257,7 @@ class Bling
 		f
 
 	@provide: (needs) ->
+		console.log "provide(#{needs})"
 		for need in filt(needs)
 			done[need] = i = 0
 			while i < qu.length

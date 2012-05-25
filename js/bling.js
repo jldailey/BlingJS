@@ -330,7 +330,7 @@
 
   Bling.prototype = [];
 
-  (function($) {
+  (function($, glob) {
     $.plugin({
       provides: "type"
     }, function() {
@@ -354,15 +354,15 @@
     $.plugin({
       provides: "symbol"
     }, function() {
-      var cache, g, symbol;
+      var cache, symbol;
       symbol = null;
       cache = {};
-      (g = typeof window !== "undefined" && window !== null ? window : global).Bling = Bling;
+      glob.Bling = $;
       defineProperty($, "symbol", {
         set: function(v) {
-          g[symbol] = cache[symbol];
-          cache[symbol = v] = g[v];
-          return g[v] = Bling;
+          glob[symbol] = cache[symbol];
+          cache[symbol = v] = glob[v];
+          return glob[v] = Bling;
         },
         get: function() {
           return symbol;
@@ -2618,6 +2618,6 @@
         }
       };
     });
-  })(Bling);
+  })(Bling, this);
 
 }).call(this);

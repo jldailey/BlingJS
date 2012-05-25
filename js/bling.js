@@ -238,6 +238,7 @@
 
     Bling.provide = function(needs) {
       var f, i, need, _i, _len, _ref2;
+      console.log("provide(" + needs + ")");
       _ref2 = filt(needs);
       for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
         need = _ref2[_i];

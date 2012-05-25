@@ -1086,6 +1086,9 @@
       return {
         $: {
           toString: function(x) {
+            if (x == null) {
+              x = Bling;
+            }
             return $.type.lookup(x).string(x);
           },
           px: function(x, delta) {

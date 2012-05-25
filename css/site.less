@@ -1,21 +1,8 @@
 
 body {
-	font: 16px "Inconsolata", Arial, sans;
+	font: 16px sans;
 	margin: 0px auto;
 	width: 524px;
-	> .toc {
-		float: left;
-		min-width: 80px;
-		margin: 0 0 0 auto;
-		padding: 0;
-		position: fixed;
-		top: 0px;
-		li {
-			margin: 0px;
-			padding: 0px;
-			text-align: justify;
-		}
-	}
 	> .page {
 		float: left;
 		margin-right:auto;
@@ -46,7 +33,7 @@ p {
 h1 .bln {
 	font-size: 34px;
 }
-code.pp, textarea {
+code.pp, pre, textarea {
 	font: 14px/15px "Inconsolata", courier, sans;
 	padding:6px 0px;
 	display: inline-block;
@@ -71,20 +58,9 @@ code.pp, textarea {
 		width: 330px;
 	}
 }
-textarea {
-	margin-left: -26px;
-	margin-top: 1em;
-	padding: 14px 20px;
-	width: 322px;
-	resize: none;
-	&:hover {
-		margin-left: -35px;
-		padding-left: 18px;
-	}
-}
 code, .code {
-	font-family: "Inconsolata", courier, sans;
-	font-size: 16px;
+	font-family: monospace;
+	font-size: 14px;
 }
 
 h3, h4, h5 {
@@ -99,9 +75,6 @@ table.small {
 		font-size: 16px;
 		width: 45%;
 	}
-}
-table.synthops {
-	margin-top: 1em;
 }
 table.download {
 	margin: 0 2em 0 1em;

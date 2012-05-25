@@ -1085,8 +1085,12 @@
       });
       return {
         $: {
-          toString: function() {
-            return "function Bling(selector, context) { [ ... ] }";
+          toString: function(x) {
+            if (!(x != null)) {
+              return "function Bling(selector, context) { [ ... ] }";
+            } else {
+              return $.type.lookup(x).string(x);
+            }
           },
           px: function(x, delta) {
             if (delta == null) {

@@ -776,7 +776,9 @@ Bling.prototype = []
 		# Return a bunch of root-level string functions.
 		return {
 			$:
-				toString: () -> "function Bling(selector, context) { [ ... ] }"
+				toString: (x) ->
+					if not x? then "function Bling(selector, context) { [ ... ] }"
+					else $.type.lookup(x).string(x)
 				# Get a "px" string.
 				# Accepts anything parseInt-able (including an existing "px"
 				# string), adjusts by optional delta.

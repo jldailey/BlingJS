@@ -24,7 +24,7 @@ log = (a...) ->
 Object.keys ?= (o) -> (k for k of o)
 
 # A way to assign values from `b` to `a`, with optional whitelist:
-extend ?= (a, b) ->
+extend = (a, b) ->
 	return a if not b
 	for k in Object.keys(b)
 		v = b[k]
@@ -204,10 +204,10 @@ class Bling
 	# extend the Bling prototype with.
 
 	# Example: the simplest possible plugin.
-	# > $.plugin () -> echo: -> @
+	# > $.plugin -> echo: -> @
 
-	# After this, `$(...).echo()` will work.  Also, this will also
-	# create a default global version: `$.echo`.
+	# After this, `$(...).echo()` will work.  Also, this will
+	# create a default 'root' version: `$.echo`.
 
 	# You can explicitly define root-level values by nesting things
 	# under a `$` key:

@@ -314,7 +314,10 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 # 
 # For the rest of this file, set up a namespace that protects `$`,
 # so we can safely use short-hand in all of our plugins.
-(($, glob) ->
+(($) ->
+
+	# Grab a safe (browser vs. nodejs) reference to the global object
+	glob = if window? then window else global
 
 	#### Types plugin
 	# Exposes the type system publicly.
@@ -1016,7 +1019,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			emit:               (e, a...) -> (f.apply(@, a) for f in (@__event[e] or= [])); null
 
 	
-	if (window ? global).document?
+	if glob.document?
 		# DOM Plugin
 		# ----------
 		$.plugin

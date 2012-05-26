@@ -1002,7 +1002,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 	# EventEmitter Plugin
 	# -------------------
-	# The EventEmitter interface that Node.JS uses is much simpler (and faster) than the DOM event model.
+	# The EventEmitter interface that NodeJS uses is much simpler (and faster) than the DOM event model.
 	# Example: `$.inherit new EventEmitter(), { myCode: () -> "..." }`
 	$.plugin
 		provides: "EventEmitter"
@@ -1012,7 +1012,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			addListener:        (e, h) -> (@__event[e] or= []).push(h); @emit('newListener', e, h)
 			on:                 (e, h) -> @addListener e, h
 			once:               (e,h) -> @addListener e, (f = (a...) -> @removeListener(f); h(a...))
-			removeListener:     (e, h) -> @__event[e].splice i, 1 if (i = (@__event[e] or= []).indexOf(h)) > -1
+			removeListener:     (e, h) -> (@__event[e].splice i, 1) if (i = (@__event[e] or= []).indexOf(h)) > -1
 			removeAllListeners: (e) -> @__event[e] = []
 			setMaxListeners:    (n) -> # nop for now... who really needs this in the core API?
 			listeners:          (e) -> @__event[e]

@@ -433,14 +433,14 @@ Bling.prototype = []
 			delay: (->
 				# timeoutQueue is a private array that controls the order.
 				timeoutQueue = $.extend [], (->
-					next = -> @shift()() if @length
+					next = (a) -> -> a.shift()() if a.length
 					add: (f, n) ->
 						f.order = n + $.now
-						for i in [0...@length]
-							if @[i].order > f.order
+						for i in [0..@length]
+							if i is @length or @[i].order > f.order
 								@splice i,0,f
 								break
-						setTimeout next, n
+						setTimeout next(@), n
 						@
 					cancel: (f) ->
 						for i in [0...@length]

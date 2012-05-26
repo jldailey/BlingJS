@@ -133,7 +133,7 @@ type = (->
 	register "global",    match: -> typeof @ is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
 	# These checks for null and undefined are small exceptions to the
 	# simple-first idea, since they are precise and getting them out
-	# of the way early lets the above checks omit a safety check.
+	# of the way early lets the above tests omit a safety check.
 	register "undefined", match: (x) -> x is undefined
 	register "null",      match: (x) -> x is null
 
@@ -275,32 +275,36 @@ class Bling
 	#### Registering the "bling" type.
 	# First, we give the basic types the ability to turn into something
 	# array-like, for use by the constructor.
-
-	# If we don't know any better way, we just stick the
-	# thing inside a real array.
-	# But where we do know better, we can provide more meaningful
-	# conversions. Later, in the DOM section, we will extend
-	# this further to know how to convert "html", "node", etc.
 	type.extend
+		# If we don't know any better way, we just stick the
+		# thing inside a real array.
 		unknown:   { array: (o) -> [o] }
-		# Null and undefined values convert to an empty array
+		# But where we do know better, we can provide more meaningful
+		# conversions. Later, in the DOM section, we will extend
+		# this further to know how to convert "html", "node", etc.
+
+		# Null and undefined values convert to an empty array.
 		null:      { array: (o) -> [] }
 		undefined: { array: (o) -> [] }
-		# Arrays just convert to themselves
+		# Arrays just convert to themselves.
 		array:     { array: (o) -> o }
-		# Numbers create a new array of that capacity:
-		# > `$(10) == $(new Array(10))`
+		# Numbers create a new array of that capacity.
 		number:    { array: (o) -> Bling.extend new Array(o), length: 0 }
 
-	# Second, we register "bling", and all the things we know how to do
+	# Now, we register "bling", and all the things we know how to do
 	# with it:
 	type.register "bling",
-		match:  (o) -> isType Bling, o
-		array:  (o) -> o
+		# Add the type test so: `$.type($()) == "bling"`.
+		match:  (o) -> o and isType Bling, o
+		# Blings extend arrays so they convert to themselves.
+		array:  (o) -> o.toArray()
+		# Their hash is just the sum of member hashes.
 		hash:   (o) -> o.map(Bling.hash).sum()
+		# They have a very literal string representation.
 		string: (o) -> Bling.symbol + "([" + o.map(Bling.toString).join(", ")+ "])"
 
-Bling.prototype = []
+Bling.prototype = [] # similar to `class Bling extends (new Array)`,
+# if such a thing were supported by the syntax directly.
 
 
 # Plugins
@@ -731,6 +735,8 @@ Bling.prototype = []
 		mean: -> @sum() / @length
 		# Get the sum of the set.
 		sum: -> @reduce (a) -> a + @
+		# Get the product of all items in the set.
+		product: -> @reduce (a) -> a * @
 		# Get a new set with every item squared.
 		squares: -> @map -> @ * @
 		# Get the magnitude (vector length) of this set.

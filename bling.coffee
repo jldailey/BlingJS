@@ -21,7 +21,7 @@ log = (a...) ->
 Object.keys ?= (o) -> (k for k of o)
 
 # A way to assign properties from `b` to `a`.
-extend ?= (a, b) ->
+extend = (a, b) ->
 	return a if not b
 	for k in Object.keys(b)
 		v = b[k]
@@ -131,7 +131,7 @@ type = (->
 	register "global",    match: -> typeof @ is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
 	# These checks for null and undefined are small exceptions to the
 	# simple-first idea, since they are precise and getting them out
-	# of the way early lets the above checks omit a safety check.
+	# of the way early lets the above tests omit a safety check.
 	register "undefined", match: (x) -> x is undefined
 	register "null",      match: (x) -> x is null
 
@@ -181,7 +181,12 @@ type = (->
 # So, the Bling constructor should not be called as `new Bling`,
 # and as a bonus our assignment to a symbol (`$`) remains simple.
 class Bling
-	constructor: (selector, context = document or {}) ->
+	
+	# We compute this only once, privately, so we dont have to check
+	# during every construction.
+	default_context = if document? then document else {}
+
+	constructor: (selector, context = default_context) ->
 		# Since we have this nice Type system, our constructor is succinct:
 		# 1. Classify the type.
 		# 2. Convert the selector to a set using the type-instance (which
@@ -197,10 +202,10 @@ class Bling
 	# extend the Bling prototype with.
 
 	# Example: the simplest possible plugin.
-	# > $.plugin () -> echo: -> @
+	# > $.plugin -> echo: -> @
 
-	# After this, `$(...).echo()` will work.  Also, this will also
-	# create a default global version: `$.echo`.
+	# After this, `$(...).echo()` will work.  Also, this will
+	# create a default 'root' version: `$.echo`.
 
 	# You can explicitly define root-level values by nesting things
 	# under a `$` key:
@@ -255,6 +260,7 @@ class Bling
 		f
 
 	@provide: (needs) ->
+		console.log "provide(#{needs})"
 		for need in filt(needs)
 			done[need] = i = 0
 			while i < qu.length
@@ -267,32 +273,36 @@ class Bling
 	#### Registering the "bling" type.
 	# First, we give the basic types the ability to turn into something
 	# array-like, for use by the constructor.
-
-	# If we don't know any better way, we just stick the
-	# thing inside a real array.
-	# But where we do know better, we can provide more meaningful
-	# conversions. Later, in the DOM section, we will extend
-	# this further to know how to convert "html", "node", etc.
 	type.extend
+		# If we don't know any better way, we just stick the
+		# thing inside a real array.
 		unknown:   { array: (o) -> [o] }
-		# Null and undefined values convert to an empty array
+		# But where we do know better, we can provide more meaningful
+		# conversions. Later, in the DOM section, we will extend
+		# this further to know how to convert "html", "node", etc.
+
+		# Null and undefined values convert to an empty array.
 		null:      { array: (o) -> [] }
 		undefined: { array: (o) -> [] }
-		# Arrays just convert to themselves
+		# Arrays just convert to themselves.
 		array:     { array: (o) -> o }
-		# Numbers create a new array of that capacity:
-		# > `$(10) == $(new Array(10))`
+		# Numbers create a new array of that capacity.
 		number:    { array: (o) -> Bling.extend new Array(o), length: 0 }
 
-	# Second, we register "bling", and all the things we know how to do
+	# Now, we register "bling", and all the things we know how to do
 	# with it:
 	type.register "bling",
-		match:  (o) -> isType Bling, o
-		array:  (o) -> o
+		# Add the type test so: `$.type($()) == "bling"`.
+		match:  (o) -> o and isType Bling, o
+		# Blings extend arrays so they convert to themselves.
+		array:  (o) -> o.toArray()
+		# Their hash is just the sum of member hashes.
 		hash:   (o) -> o.map(Bling.hash).sum()
+		# They have a very literal string representation.
 		string: (o) -> Bling.symbol + "([" + o.map(Bling.toString).join(", ")+ "])"
 
-Bling.prototype = []
+Bling.prototype = [] # similar to `class Bling extends (new Array)`,
+# if such a thing were supported by the syntax directly.
 
 
 # Plugins
@@ -303,6 +313,9 @@ Bling.prototype = []
 # For the rest of this file, set up a namespace that protects `$`,
 # so we can safely use short-hand in all of our plugins.
 (($) ->
+
+	# Grab a safe (browser vs. nodejs) reference to the global object
+	glob = if window? then window else global
 
 	#### Types plugin
 	# Exposes the type system publicly.
@@ -342,12 +355,12 @@ Bling.prototype = []
 	, ->
 		symbol = null
 		cache = {}
-		(g = window ? global).Bling = Bling
+		glob.Bling = $
 		defineProperty $, "symbol",
 			set: (v) ->
-				g[symbol] = cache[symbol]
-				cache[symbol = v] = g[v]
-				g[v] = Bling
+				glob[symbol] = cache[symbol]
+				cache[symbol = v] = glob[v]
+				glob[v] = Bling
 			get: -> symbol
 		return $: symbol: "$"
 
@@ -425,14 +438,14 @@ Bling.prototype = []
 			delay: (->
 				# timeoutQueue is a private array that controls the order.
 				timeoutQueue = $.extend [], (->
-					next = -> @shift()() if @length
+					next = (a) -> -> a.shift()() if a.length
 					add: (f, n) ->
 						f.order = n + $.now
-						for i in [0...@length]
-							if @[i].order > f.order
+						for i in [0..@length]
+							if i is @length or @[i].order > f.order
 								@splice i,0,f
 								break
-						setTimeout next, n
+						setTimeout next(@), n
 						@
 					cancel: (f) ->
 						for i in [0...@length]
@@ -722,6 +735,8 @@ Bling.prototype = []
 		mean: -> @sum() / @length
 		# Get the sum of the set.
 		sum: -> @reduce (a) -> a + @
+		# Get the product of all items in the set.
+		product: -> @reduce (a) -> a * @
 		# Get a new set with every item squared.
 		squares: -> @map -> @ * @
 		# Get the magnitude (vector length) of this set.
@@ -769,7 +784,9 @@ Bling.prototype = []
 			$:
 				# __$.toString(x)__ returns a fairly verbose string, based on
 				# the type system's "string" method.
-				toString: (x) -> $.type.lookup(x).string(x)
+				toString: (x) ->
+					if not x? then "function Bling(selector, context) { [ ... ] }"
+					else $.type.lookup(x).string(x)
 				# __$.px(x,[delta])__ computes a "px"-string ("20px"), `x` can
 				# be a number or a "px"-string; if `delta` is present it will
 				# be added to the number portion.
@@ -987,7 +1004,7 @@ Bling.prototype = []
 
 	# EventEmitter Plugin
 	# -------------------
-	# The EventEmitter interface that Node.JS uses is much simpler (and faster) than the DOM event model.
+	# The EventEmitter interface that NodeJS uses is much simpler (and faster) than the DOM event model.
 	# Example: `$.inherit new EventEmitter(), { myCode: () -> "..." }`
 	$.plugin
 		provides: "EventEmitter"
@@ -997,14 +1014,14 @@ Bling.prototype = []
 			addListener:        (e, h) -> (@__event[e] or= []).push(h); @emit('newListener', e, h)
 			on:                 (e, h) -> @addListener e, h
 			once:               (e,h) -> @addListener e, (f = (a...) -> @removeListener(f); h(a...))
-			removeListener:     (e, h) -> @__event[e].splice i, 1 if (i = (@__event[e] or= []).indexOf(h)) > -1
+			removeListener:     (e, h) -> (@__event[e].splice i, 1) if (i = (@__event[e] or= []).indexOf(h)) > -1
 			removeAllListeners: (e) -> @__event[e] = []
 			setMaxListeners:    (n) -> # nop for now... who really needs this in the core API?
 			listeners:          (e) -> @__event[e]
 			emit:               (e, a...) -> (f.apply(@, a) for f in (@__event[e] or= [])); null
 
 	
-	if (window ? global).document?
+	if glob.document?
 		# DOM Plugin
 		# ----------
 		$.plugin
@@ -1793,5 +1810,5 @@ Bling.prototype = []
 				lazy_load "link", { href: src, rel: "stylesheet" }
 
 
-)(Bling)
+)(Bling, @)
 # vim: ft=coffee sw=2 ts=2

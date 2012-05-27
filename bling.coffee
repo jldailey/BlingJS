@@ -1,37 +1,26 @@
-# Why not add some "bling" to that plain old list of things?
-
-# Once a list has been tricked out, it is blessed with many new features,
-# many of which will be familiar from jQuery; like `each`, and `html`.
-# Other features are wholly new and powerful (e.g. `select`, and `zap`).
-
-# Named after the bling symbol `$` to which it is bound by default.
+# License: MIT. Author: Jesse Dailey <jesse.dailey@gmail.com>
 
 # Philoshopy
 # ----------
-# 1. Always work on _sets_ of stuff, scalars are annoying.
+# 1. Always work on _sets_, scalars are annoying.
 #    If you always write code to handle sets, you usually handle the scalar case for free.
-# 2. Don't alter global _prototypes_; global _types_ are OK.
-# 3. Have fun and learn; about the DOM, about jQuery, about JavaScript and CoffeeScript.
-# 4. Have the courage to refactor; learning requires some chaos.
-
-# Author
-# ------
-# Jesse Dailey <jesse.dailey@gmail.com>, Copyright: 2011, License: MIT.
+# 2. Don't alter global prototypes; play _nice_ with others.
+# 3. Have _fun_ and learn; about the DOM, about jQuery, about JavaScript and CoffeeScript.
+# 4. Have the _courage_ to refactor; learning requires some chaos.
 
 # Warming Up
 # ---------
+# We need a few things to get started.
 
-# We need a few things to get started:
-
-# A safe reference to `$.log()`:
+# A safe logger to use for `$.log()`.
 log = (a...) ->
 	try return console.log.apply console, a
 	alert a.join(", ")
 
-# A safe fill-in for `Object.keys`:
+# A shim for `Object.keys`.
 Object.keys ?= (o) -> (k for k of o)
 
-# A way to assign values from `b` to `a`, with optional whitelist:
+# A way to assign properties from `b` to `a`.
 extend ?= (a, b) ->
 	return a if not b
 	for k in Object.keys(b)
@@ -48,22 +37,23 @@ defineProperty = (o,name,opts) ->
 
 # Type System
 # -----------
-# The type system is built around a _type classifier_. Initially, this
+# The core is built around a _type classifier_. Initially, this
 # will only know how to match types (and the order to check them in).
-# Later, the type-instance that results from classification will be
-# extended to provide more operations, e.g. hashing.
+# Later in this file, the type-instance resulting from classification will be
+# extended to provide more operations, e.g. helping to construct blings.
 
-# Before we build a full classifier, we need a few things.
+# Before we build a full classifier, we need a few type-related
+# helpers.
 
 # `isType(T, obj)` is a simple boolean test to see if any
-# object `o` is of type `T`; respecting prototype chains,
+# object is of type `T`; respecting prototype chains,
 # constructors, and anything else we can think of that matters.
 isType = (T, o) ->
 	if not o? then T in [o,"null","undefined"]
 	else o.constructor is T or
 		o.constructor.name is T or
 		Object::toString.apply(o) is "[object #{T}]" or
-		isType T, o.__proto__
+		isType T, o.__proto__ # recursive
 
 # `inherit(parent, child)` is similar to extend, except it works by
 # inserting the parent as the prototype of the child _instance_. This is unlike
@@ -73,25 +63,25 @@ isType = (T, o) ->
 inherit = (parent, obj) ->
 	if typeof parent is "function"
 		obj.constructor = parent
-		parent = parent::
+		parent = parent:: # so that the obj instance will inherit all of the prototype (but _not a copy_ of it).
 	obj.__proto__ = parent
 	obj
 
 # Now, let's begin to build the classifier for `$.type(obj)`.
 type = (->
 
-	# Internally, maintain a registry of known types.
+	# Privately, maintain a registry of known types.
 	cache = {}
 
 	# Each type in the registry is an instance that inherits from a
-	# base object.  Later, when we want to do more than `match` with
-	# each type, we will put default implementations on this base.
+	# _base_ object.  Later, when we want to do more than `match` with
+	# each type, we will extend this base with default implementations.
 	base =
 		name: 'unknown'
 		match: (o) -> true
 
 	# When classifying an object, this array of names will control
-	# the order of the calls to `match` (and thus, the precedence).
+	# the order of the calls to `match` (and thus, the _type precedence_).
 	order = []
 
 	# When adding a new type to the regisry:
@@ -655,11 +645,10 @@ Bling.prototype = []
 			weave: (b) ->
 				c = $()
 				# First spread out _this_, from back to front.
-				for i in [@length-1..0]
-					c[(i*2)+1] = @[i]
+				n = @length-1
+				(c[(i*2)+1] = @[i]) for i in [n..0]
 				# Then interleave items from _b_, from front to back
-				for i in [0...b.length]
-					c[i*2] = b[i]
+				(c[i*2] = b[i]) for i in [0...b.length]
 				c
 			# Notes about `weave`:
 			# * the items of b come first.
@@ -778,18 +767,20 @@ Bling.prototype = []
 		# Return a bunch of root-level string functions.
 		return {
 			$:
+				# __$.toString(x)__ returns a fairly verbose string, based on
+				# the type system's "string" method.
 				toString: (x) -> $.type.lookup(x).string(x)
-				# Get a "px" string.
-				# Accepts anything parseInt-able (including an existing "px"
-				# string), adjusts by optional delta.
+				# __$.px(x,[delta])__ computes a "px"-string ("20px"), `x` can
+				# be a number or a "px"-string; if `delta` is present it will
+				# be added to the number portion.
 				px: (x, delta=0) -> x? and (parseInt(x,10)+(delta|0))+"px"
 				# Example: Add 100px of width to an element.
 
 				# jQuery style:
-				# > `node.css("width",$.px(node.css("width"), + 100))`
+				# `node.css("width",(node.css("width") + 100) + "px")`
 
 				# Bling style:
-				# > `node.zap 'style.width', -> $.px(@, + 100)`
+				# `node.zap 'style.width', -> $.px @,100`
 
 				# Properly **Capitalize** Each Word In A String.
 				capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
@@ -826,10 +817,13 @@ Bling.prototype = []
 						s = s + c
 					s
 
-				# Count the number of occurences of `x` in `s`.
-				stringCount: (s, x, i = 0, n = 0) -> if (j=s.indexOf(x,i)) > i-1 then $.count(s,x,j+1,n+1) else n
+				# __$.stringCount(s,x)__ counts the number of occurences of `x` in `s`.
+				stringCount: (s, x, i = 0, n = 0) ->
+					if (j=s.indexOf(x,i)) > i-1
+						$.stringCount(s,x,j+1,n+1)
+					else n
 
-				# Splice the substring `n` into the string `s', replacing indices
+				# __$.stringSplice(s,i,j,n)__ splices the substring `n` into the string `s', replacing indices
 				# between `i` and `j`.
 				stringSplice: (s, i, j, n) ->
 					nn = s.length
@@ -841,7 +835,7 @@ Bling.prototype = []
 						start += nn
 					s.substring(0,start) + n + s.substring(end)
 
-				# Compute the Adler32 checksum of a string.
+				# __$.checksum(s)__ computes the Adler32 checksum of a string.
 				checksum: (s) ->
 					a = 1; b = 0
 					for i in [0...s.length]

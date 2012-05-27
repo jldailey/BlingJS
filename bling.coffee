@@ -15,7 +15,7 @@
 
 # We need a few things to get started:
 
-# A safe reference to `$.log()`:
+# A safe logger to use for `$.log()`:
 log = (a...) ->
 	try return console.log.apply console, a
 	alert a.join(", ")
@@ -235,7 +235,7 @@ class Bling
 				extend @::, plugin
 				# Finally, add root-level wrappers for anything that doesn't
 				# have one already.
-				( @[key] or= (a...) => (@::[key].apply $(a[0]), a[1...]) ) for key of plugin # and gets a default global implementation
+				( @[key] or= (a...) => (@::[key].apply $(a[0]), a[1...]) ) for key of plugin
 				if opts.provides? then @provide opts.provides
 		catch error
 			log "failed to load plugin: #{this.name} '#{error.message}'"
@@ -443,14 +443,14 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 					next = (a) -> -> a.shift()() if a.length
 					add: (f, n) ->
 						f.order = n + $.now
-						for i in [0..@length]
+						for i in [0..@length] by 1
 							if i is @length or @[i].order > f.order
 								@splice i,0,f
 								break
 						setTimeout next(@), n
 						@
 					cancel: (f) ->
-						for i in [0...@length]
+						for i in [0...@length] by 1
 							if @[i] == f
 								@splice i, 1
 								break
@@ -464,7 +464,6 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				(n, f) ->
 					if $.is("function",f) then timeoutQueue.add(f, n)
 					cancel: -> timeoutQueue.cancel(f)
-
 			)()
 
 		# Continue with _f_ after _n_ milliseconds.
@@ -564,7 +563,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 			# Replace any false-ish items in _this_ with _x_.
 			# > `$("<a>").select('parentNode').or(document)`
-			or: (x) -> @[i] or= x for i in [0...@length]; @
+			or: (x) -> @[i] or= x for i in [0...@length] by 1; @
 
 			# Assign the value _v_ to property _b_ on every
 			# item in _this_.
@@ -601,12 +600,12 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			# Get a new set with only the first _n_ items from _this_.
 			take: (n = 1) ->
 				end = Math.min n, @length
-				$( @[i] for i in [0...end] )
+				$( @[i] for i in [0...end] by 1 )
 
 			# Get a new set with every item except the first _n_ items.
 			skip: (n = 0) ->
 				start = Math.max 0, n|0
-				$( @[i] for i in [start...@length] )
+				$( @[i] for i in [start...@length] by 1 )
 
 			# Get the first item(s).
 			first: (n = 1) -> if n is 1 then @[0] else @take(n)
@@ -618,7 +617,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			slice: (start=0, end=@length) ->
 				start = index start, @
 				end = index end, @
-				$( @[i] for i in [start...end] )
+				$( @[i] for i in [start...end] by 1 )
 
 			# Append the items in _b_ into _this_. Modifies _this_ in-place.
 			extend: (b) -> @.push(i) for i in b; @
@@ -660,10 +659,10 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			weave: (b) ->
 				c = $()
 				# First spread out _this_, from back to front.
-				for i in [@length-1..0]
+				for i in [@length-1..0] by -1
 					c[(i*2)+1] = @[i]
 				# Then interleave items from _b_, from front to back
-				for i in [0...b.length]
+				for i in [0...b.length] by 1
 					c[i*2] = b[i]
 				c
 			# Notes about `weave`:
@@ -721,9 +720,9 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				step *= -1 if end < start and step > 0 # force step to have the same sign as start->end
 				$( (start + (i*step)) for i in [0...Math.ceil( (end - start) / step )] )
 			# Get an array of zeros.
-			zeros: (n) -> $( 0 for i in [0...n] )
+			zeros: (n) -> $( 0 for i in [0...n] by 1 )
 			# Get an array of ones.
-			ones: (n) -> $( 1 for i in [0...n] )
+			ones: (n) -> $( 1 for i in [0...n] by 1)
 		# Convert everything to a float.
 		floats: -> @map parseFloat
 		# Convert everything to an int.
@@ -749,7 +748,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		# Add this to d, get a new set.
 		add: (d) -> switch $.type(d)
 			when "number" then @map -> d + @
-			when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)-1] )
+			when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)-1] by 1 )
 		# Get a new set with same direction, but magnitude equal to 1.
 		normalize: -> @scale(1/@magnitude())
 
@@ -806,7 +805,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				# Convert a _camelCase_ name to a _dash-name_.
 				dashize: (name) ->
 					ret = ""
-					for i in [0...(name?.length|0)]
+					for i in [0...(name?.length|0)] by 1
 						c = name.charCodeAt i
 						# For each uppercase character,
 						if 91 > c > 64
@@ -917,7 +916,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		$.type.extend
 			unknown: { trace: $.identity }
 			object:  { trace: (o, label, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
-			array:   { trace: (o, label, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length]); o }
+			array:   { trace: (o, label, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length] by 1); o }
 			function:
 				trace: (f, label, tracer) ->
 					r = (a...) ->

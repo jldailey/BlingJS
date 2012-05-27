@@ -797,7 +797,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				# `node.css("width",(node.css("width") + 100) + "px")`
 
 				# Bling style:
-				# `node.zap 'style.width', -> $.px @,100`
+				# `node.zap 'style.width', -> $.px @, + 100`
 
 				# Properly **Capitalize** Each Word In A String.
 				capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
@@ -836,8 +836,8 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 				# __$.stringCount(s,x)__ counts the number of occurences of `x` in `s`.
 				stringCount: (s, x, i = 0, n = 0) ->
-					if (j=s.indexOf(x,i)) > i-1
-						$.stringCount(s,x,j+1,n+1)
+					if (j = s.indexOf x,i) > i-1
+						$.stringCount s, x, j+1, n+1
 					else n
 
 				# __$.stringSplice(s,i,j,n)__ splices the substring `n` into the string `s', replacing indices
@@ -885,14 +885,14 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			# __$.identity(x)__ returns x.
 			identity: (o) -> o
 			# __$.not(f)__ returns a new function that returns `not f(...)`.
-			not: (f) -> (a...) -> not f.apply @, a
+			not: (f) -> -> not f.apply @, arguments
 			# __$.compose(f,g)__ composes _f_ and _g_ to `f(g(...))`.
 			compose: (f,g) -> (x) -> f.call(y, (y = g.call(x,x)))
 			# __$.and(f,g)__ returns a new function that returns f(x) && g(x).
-			and: (f,g) -> (x) -> g.call(x,x) and f.call(x,x)
+			and: (f,g) -> (x) -> g.call(@,x) and f.call(@,x)
 			# __$.once(f)__ returns a new function that will only call
 			# _f_ **once**, or _n_ times if you pass the optional argument.
-			once: (f,n=1) -> f.n = n; (a...) -> (f.apply @,a) if f.n-- > 0
+			once: (f,n=1) -> f._once = n; -> (f.apply @,arguments) if f._once-- > 0
 			# __$.bound(context,f,[args])__ returns a new function that
 			# forces `this === context` when called.
 			bound: (t, f, args = []) ->

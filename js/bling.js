@@ -311,10 +311,10 @@
 
     type.register("bling", {
       match: function(o) {
-        return isType(Bling, o);
+        return o && isType(Bling, o);
       },
       array: function(o) {
-        return o;
+        return o.toArray();
       },
       hash: function(o) {
         return o.map(Bling.hash).sum();
@@ -330,7 +330,9 @@
 
   Bling.prototype = [];
 
-  (function($, glob) {
+  (function($) {
+    var glob;
+    glob = typeof window !== "undefined" && window !== null ? window : global;
     $.plugin({
       provides: "type"
     }, function() {
@@ -455,22 +457,24 @@
             var timeoutQueue;
             timeoutQueue = $.extend([], (function() {
               var next;
-              next = function() {
-                if (this.length) {
-                  return this.shift()();
-                }
+              next = function(a) {
+                return function() {
+                  if (a.length) {
+                    return a.shift()();
+                  }
+                };
               };
               return {
                 add: function(f, n) {
                   var i, _i, _ref1;
                   f.order = n + $.now;
-                  for (i = _i = 0, _ref1 = this.length; 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
-                    if (this[i].order > f.order) {
+                  for (i = _i = 0, _ref1 = this.length; 0 <= _ref1 ? _i <= _ref1 : _i >= _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
+                    if (i === this.length || this[i].order > f.order) {
                       this.splice(i, 0, f);
                       break;
                     }
                   }
-                  setTimeout(next, n);
+                  setTimeout(next(this), n);
                   return this;
                 },
                 cancel: function(f) {
@@ -979,6 +983,11 @@
         sum: function() {
           return this.reduce(function(a) {
             return a + this;
+          });
+        },
+        product: function() {
+          return this.reduce(function(a) {
+            return a * this;
           });
         },
         squares: function() {
@@ -1543,7 +1552,7 @@
         }
       };
     });
-    if ((typeof window !== "undefined" && window !== null ? window : global).document != null) {
+    if (glob.document != null) {
       $.plugin({
         depends: "function",
         provides: "dom"

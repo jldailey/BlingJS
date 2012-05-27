@@ -1480,7 +1480,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 						if @style.display is not "none"
 							@_display = @syle.display
 						@style.display = "none"
-				.trigger "hide"
+				.trigger("hide")
 				.delay updateDelay, callback
 
 			show: (callback) -> # .show() - show each node
@@ -1488,7 +1488,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 					if @style
 						@style.display = @_display
 						delete @_display
-				.trigger "show"
+				.trigger("show")
 				.delay updateDelay, callback
 
 			toggle: (callback) -> # .toggle() - show each hidden node, hide each visible one

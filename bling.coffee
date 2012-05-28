@@ -639,6 +639,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 			# Append the items in _b_ into _this_. Modifies _this_ in-place.
 			extend: (b) -> @.push(i) for i in b; @
+
 			# Appends a single item to _this_; unlike a native Array, it
 			# returns a reference to _this_ for chaining.
 			push: (b) -> Array::push.call(@, b); @
@@ -677,10 +678,11 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			weave: (b) ->
 				c = $()
 				# First spread out _this_, from back to front.
-				n = @length-1
-				(c[(i*2)+1] = @[i]) for i in [n..0]
+				for i in [@length-1..0] by -1
+					c[(i*2)+1] = @[i]
 				# Then interleave items from _b_, from front to back
-				(c[i*2] = b[i]) for i in [0...b.length]
+				for i in [0...b.length] by 1
+					c[i*2] = b[i]
 				c
 			# Notes about `weave`:
 			# * the items of b come first.

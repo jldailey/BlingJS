@@ -53,9 +53,6 @@ yuicompressor.jar:
 $(DIST_PLUGINS)/min.%.js: $(DIST_PLUGINS)/%.js yuicompressor.jar
 	$(JAVA) -jar yuicompressor.jar $< -v -o $@
 
-# $(DIST_PLUGINS)/min.%.js: $(DIST_PLUGINS)/%.js compiler.jar
-#		$(JAVA) -jar compiler.jar --js=$< --js_output_file=$@ --compilation_level=$(LEVEL) --externs externs
-	
 plugin_compile:
 	coffee -o $(DIST_PLUGINS) -c $(PLUGINS)/*.coffee
 	cat $(DIST_PLUGINS)/*.js > $(DIST_PLUGINS)/all.js
@@ -63,19 +60,8 @@ plugin_compile:
 $(DIST)/bling.js: ../bling.coffee
 	cd .. && coffee -o dist -c bling.coffee
 
-compiler-latest.zip:
-	@curl http://closure-compiler.googlecode.com/files/compiler-latest.zip > compiler-latest.zip
-
-compiler.jar: compiler-latest.zip
-	@unzip -o compiler-latest.zip compiler.jar
-	@touch compiler.jar
-
 $(DIST)/min.%.js: $(DIST)/%.js yuicompressor.jar
 	$(JAVA) -jar yuicompressor.jar $< -v -o $@
-
-# $(DIST)/min.%.js: $(DIST)/%.js compiler.jar
-# 	$(JAVA) -jar compiler.jar --js=$< --js_output_file=$@ --compilation_level=$(LEVEL) --externs externs
-
 
 $(DIST)/docs/%.html: ../%.coffee
 	(cd $(DIST) && docco $<)

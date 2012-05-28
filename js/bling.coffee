@@ -1,29 +1,28 @@
+# License: MIT. Author: Jesse Dailey <jesse.dailey@gmail.com>
+
 # Philoshopy
 # ----------
-# 1. Always work on _sets_ of stuff, scalars are annoying.
+# 1. Always work on _sets_, scalars are annoying.
 #    If you always write code to handle sets, you usually handle the scalar case for free.
-# 2. Don't alter global _prototypes_; global _types_ are OK.
-# 3. Have fun and learn; about the DOM, about jQuery, about JavaScript and CoffeeScript.
-# 4. Have the courage to refactor; learning requires some chaos.
-
-# Author
-# ------
-# Jesse Dailey <jesse.dailey@gmail.com>, Copyright: 2011, License: MIT.
+# 2. Don't alter global prototypes; play _nice_ with others.
+# 3. Have _fun_ and learn; about the DOM, about jQuery, about JavaScript and CoffeeScript.
+# 4. Have the _courage_ to refactor; learning requires some chaos.
 
 # Warming Up
 # ---------
+# We need a few things to get started.
 
 # We need a few things to get started:
 
-# A safe reference to `$.log()`:
+# A safe logger to use for `$.log()`.
 log = (a...) ->
 	try return console.log.apply console, a
 	alert a.join(", ")
 
-# A safe fill-in for `Object.keys`:
+# A shim for `Object.keys`.
 Object.keys ?= (o) -> (k for k of o)
 
-# A way to assign values from `b` to `a`, with optional whitelist:
+# A way to assign properties from `b` to `a`.
 extend = (a, b) ->
 	return a if not b
 	for k in Object.keys(b)
@@ -40,22 +39,23 @@ defineProperty = (o,name,opts) ->
 
 # Type System
 # -----------
-# The type system is built around a _type classifier_. Initially, this
+# The core is built around a _type classifier_. Initially, this
 # will only know how to match types (and the order to check them in).
-# Later, the type-instance that results from classification will be
-# extended to provide more operations, e.g. hashing.
+# Later in this file, the type-instance resulting from classification will be
+# extended to provide more operations, e.g. helping to construct blings.
 
-# Before we build a full classifier, we need a few things.
+# Before we build a full classifier, we need a few type-related
+# helpers.
 
 # `isType(T, obj)` is a simple boolean test to see if any
-# object `o` is of type `T`; respecting prototype chains,
+# object is of type `T`; respecting prototype chains,
 # constructors, and anything else we can think of that matters.
 isType = (T, o) ->
 	if not o? then T in [o,"null","undefined"]
 	else o.constructor is T or
 		o.constructor.name is T or
 		Object::toString.apply(o) is "[object #{T}]" or
-		isType T, o.__proto__
+		isType T, o.__proto__ # recursive
 
 # `inherit(parent, child)` is similar to extend, except it works by
 # inserting the parent as the prototype of the child _instance_. This is unlike
@@ -65,25 +65,25 @@ isType = (T, o) ->
 inherit = (parent, obj) ->
 	if typeof parent is "function"
 		obj.constructor = parent
-		parent = parent::
+		parent = parent:: # so that the obj instance will inherit all of the prototype (but _not a copy_ of it).
 	obj.__proto__ = parent
 	obj
 
 # Now, let's begin to build the classifier for `$.type(obj)`.
 type = (->
 
-	# Internally, maintain a registry of known types.
+	# Privately, maintain a registry of known types.
 	cache = {}
 
 	# Each type in the registry is an instance that inherits from a
-	# base object.  Later, when we want to do more than `match` with
-	# each type, we will put default implementations on this base.
+	# _base_ object.  Later, when we want to do more than `match` with
+	# each type, we will extend this base with default implementations.
 	base =
 		name: 'unknown'
 		match: (o) -> true
 
 	# When classifying an object, this array of names will control
-	# the order of the calls to `match` (and thus, the precedence).
+	# the order of the calls to `match` (and thus, the _type precedence_).
 	order = []
 
 	# When adding a new type to the regisry:
@@ -235,7 +235,7 @@ class Bling
 				extend @::, plugin
 				# Finally, add root-level wrappers for anything that doesn't
 				# have one already.
-				( @[key] or= (a...) => (@::[key].apply $(a[0]), a[1...]) ) for key of plugin # and gets a default global implementation
+				( @[key] or= (a...) => (@::[key].apply $(a[0]), a[1...]) ) for key of plugin
 				if opts.provides? then @provide opts.provides
 		catch error
 			log "failed to load plugin: #{this.name} '#{error.message}'"
@@ -443,14 +443,14 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 					next = (a) -> -> a.shift()() if a.length
 					add: (f, n) ->
 						f.order = n + $.now
-						for i in [0..@length]
+						for i in [0..@length] by 1
 							if i is @length or @[i].order > f.order
 								@splice i,0,f
 								break
 						setTimeout next(@), n
 						@
 					cancel: (f) ->
-						for i in [0...@length]
+						for i in [0...@length] by 1
 							if @[i] == f
 								@splice i, 1
 								break
@@ -464,7 +464,6 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				(n, f) ->
 					if $.is("function",f) then timeoutQueue.add(f, n)
 					cancel: -> timeoutQueue.cancel(f)
-
 			)()
 
 		# Continue with _f_ after _n_ milliseconds.
@@ -564,7 +563,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 			# Replace any false-ish items in _this_ with _x_.
 			# > `$("<a>").select('parentNode').or(document)`
-			or: (x) -> @[i] or= x for i in [0...@length]; @
+			or: (x) -> @[i] or= x for i in [0...@length] by 1; @
 
 			# Assign the value _v_ to property _b_ on every
 			# item in _this_.
@@ -601,12 +600,12 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			# Get a new set with only the first _n_ items from _this_.
 			take: (n = 1) ->
 				end = Math.min n, @length
-				$( @[i] for i in [0...end] )
+				$( @[i] for i in [0...end] by 1 )
 
 			# Get a new set with every item except the first _n_ items.
 			skip: (n = 0) ->
 				start = Math.max 0, n|0
-				$( @[i] for i in [start...@length] )
+				$( @[i] for i in [start...@length] by 1 )
 
 			# Get the first item(s).
 			first: (n = 1) -> if n is 1 then @[0] else @take(n)
@@ -618,10 +617,11 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			slice: (start=0, end=@length) ->
 				start = index start, @
 				end = index end, @
-				$( @[i] for i in [start...end] )
+				$( @[i] for i in [start...end] by 1 )
 
 			# Append the items in _b_ into _this_. Modifies _this_ in-place.
 			extend: (b) -> @.push(i) for i in b; @
+
 			# Appends a single item to _this_; unlike a native Array, it
 			# returns a reference to _this_ for chaining.
 			push: (b) -> Array::push.call(@, b); @
@@ -660,10 +660,10 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			weave: (b) ->
 				c = $()
 				# First spread out _this_, from back to front.
-				for i in [@length-1..0]
+				for i in [@length-1..0] by -1
 					c[(i*2)+1] = @[i]
 				# Then interleave items from _b_, from front to back
-				for i in [0...b.length]
+				for i in [0...b.length] by 1
 					c[i*2] = b[i]
 				c
 			# Notes about `weave`:
@@ -721,9 +721,9 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				step *= -1 if end < start and step > 0 # force step to have the same sign as start->end
 				$( (start + (i*step)) for i in [0...Math.ceil( (end - start) / step )] )
 			# Get an array of zeros.
-			zeros: (n) -> $( 0 for i in [0...n] )
+			zeros: (n) -> $( 0 for i in [0...n] by 1 )
 			# Get an array of ones.
-			ones: (n) -> $( 1 for i in [0...n] )
+			ones: (n) -> $( 1 for i in [0...n] by 1)
 		# Convert everything to a float.
 		floats: -> @map parseFloat
 		# Convert everything to an int.
@@ -749,7 +749,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		# Add this to d, get a new set.
 		add: (d) -> switch $.type(d)
 			when "number" then @map -> d + @
-			when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)-1] )
+			when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)-1] by 1 )
 		# Get a new set with same direction, but magnitude equal to 1.
 		normalize: -> @scale(1/@magnitude())
 
@@ -785,20 +785,22 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		# Return a bunch of root-level string functions.
 		return {
 			$:
+				# __$.toString(x)__ returns a fairly verbose string, based on
+				# the type system's "string" method.
 				toString: (x) ->
 					if not x? then "function Bling(selector, context) { [ ... ] }"
 					else $.type.lookup(x).string(x)
-				# Get a "px" string.
-				# Accepts anything parseInt-able (including an existing "px"
-				# string), adjusts by optional delta.
+				# __$.px(x,[delta])__ computes a "px"-string ("20px"), `x` can
+				# be a number or a "px"-string; if `delta` is present it will
+				# be added to the number portion.
 				px: (x, delta=0) -> x? and (parseInt(x,10)+(delta|0))+"px"
 				# Example: Add 100px of width to an element.
 
 				# jQuery style:
-				# > `node.css("width",$.px(node.css("width"), + 100))`
+				# `node.css("width",(node.css("width") + 100) + "px")`
 
 				# Bling style:
-				# > `node.zap 'style.width', -> $.px(@, + 100)`
+				# `node.zap 'style.width', -> $.px @, + 100`
 
 				# Properly **Capitalize** Each Word In A String.
 				capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
@@ -806,7 +808,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				# Convert a _camelCase_ name to a _dash-name_.
 				dashize: (name) ->
 					ret = ""
-					for i in [0...(name?.length|0)]
+					for i in [0...(name?.length|0)] by 1
 						c = name.charCodeAt i
 						# For each uppercase character,
 						if 91 > c > 64
@@ -835,10 +837,13 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 						s = s + c
 					s
 
-				# Count the number of occurences of `x` in `s`.
-				stringCount: (s, x, i = 0, n = 0) -> if (j=s.indexOf(x,i)) > i-1 then $.count(s,x,j+1,n+1) else n
+				# __$.stringCount(s,x)__ counts the number of occurences of `x` in `s`.
+				stringCount: (s, x, i = 0, n = 0) ->
+					if (j = s.indexOf x,i) > i-1
+						$.stringCount s, x, j+1, n+1
+					else n
 
-				# Splice the substring `n` into the string `s', replacing indices
+				# __$.stringSplice(s,i,j,n)__ splices the substring `n` into the string `s', replacing indices
 				# between `i` and `j`.
 				stringSplice: (s, i, j, n) ->
 					nn = s.length
@@ -850,7 +855,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 						start += nn
 					s.substring(0,start) + n + s.substring(end)
 
-				# Compute the Adler32 checksum of a string.
+				# __$.checksum(s)__ computes the Adler32 checksum of a string.
 				checksum: (s) ->
 					a = 1; b = 0
 					for i in [0...s.length]
@@ -883,14 +888,14 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			# __$.identity(x)__ returns x.
 			identity: (o) -> o
 			# __$.not(f)__ returns a new function that returns `not f(...)`.
-			not: (f) -> (a...) -> not f.apply @, a
+			not: (f) -> -> not f.apply @, arguments
 			# __$.compose(f,g)__ composes _f_ and _g_ to `f(g(...))`.
 			compose: (f,g) -> (x) -> f.call(y, (y = g.call(x,x)))
 			# __$.and(f,g)__ returns a new function that returns f(x) && g(x).
-			and: (f,g) -> (x) -> g.call(x,x) and f.call(x,x)
+			and: (f,g) -> (x) -> g.call(@,x) and f.call(@,x)
 			# __$.once(f)__ returns a new function that will only call
 			# _f_ **once**, or _n_ times if you pass the optional argument.
-			once: (f,n=1) -> f.n = n; (a...) -> (f.apply @,a) if f.n-- > 0
+			once: (f,n=1) -> f._once = n; -> (f.apply @,arguments) if f._once-- > 0
 			# __$.bound(context,f,[args])__ returns a new function that
 			# forces `this === context` when called.
 			bound: (t, f, args = []) ->
@@ -917,7 +922,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		$.type.extend
 			unknown: { trace: $.identity }
 			object:  { trace: (o, label, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
-			array:   { trace: (o, label, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length]); o }
+			array:   { trace: (o, label, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length] by 1); o }
 			function:
 				trace: (f, label, tracer) ->
 					r = (a...) ->
@@ -1480,7 +1485,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 						if @style.display is not "none"
 							@_display = @syle.display
 						@style.display = "none"
-				.trigger "hide"
+				.trigger("hide")
 				.delay updateDelay, callback
 
 			show: (callback) -> # .show() - show each node
@@ -1488,7 +1493,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 					if @style
 						@style.display = @_display
 						delete @_display
-				.trigger "show"
+				.trigger("show")
 				.delay updateDelay, callback
 
 			toggle: (callback) -> # .toggle() - show each hidden node, hide each visible one

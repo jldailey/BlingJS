@@ -468,7 +468,7 @@
                 add: function(f, n) {
                   var i, _i, _ref1;
                   f.order = n + $.now;
-                  for (i = _i = 0, _ref1 = this.length; 0 <= _ref1 ? _i <= _ref1 : _i >= _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
+                  for (i = _i = 0, _ref1 = this.length; _i <= _ref1; i = _i += 1) {
                     if (i === this.length || this[i].order > f.order) {
                       this.splice(i, 0, f);
                       break;
@@ -479,7 +479,7 @@
                 },
                 cancel: function(f) {
                   var i, _i, _ref1;
-                  for (i = _i = 0, _ref1 = this.length; 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
+                  for (i = _i = 0, _ref1 = this.length; _i < _ref1; i = _i += 1) {
                     if (this[i] === f) {
                       this.splice(i, 1);
                       break;
@@ -704,7 +704,7 @@
         })(),
         or: function(x) {
           var i, _i, _ref1;
-          for (i = _i = 0, _ref1 = this.length; 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
+          for (i = _i = 0, _ref1 = this.length; _i < _ref1; i = _i += 1) {
             this[i] || (this[i] = x);
           }
           return this;
@@ -744,7 +744,7 @@
           return $((function() {
             var _i, _results;
             _results = [];
-            for (i = _i = 0; 0 <= end ? _i < end : _i > end; i = 0 <= end ? ++_i : --_i) {
+            for (i = _i = 0; _i < end; i = _i += 1) {
               _results.push(this[i]);
             }
             return _results;
@@ -759,7 +759,7 @@
           return $((function() {
             var _i, _ref1, _results;
             _results = [];
-            for (i = _i = start, _ref1 = this.length; start <= _ref1 ? _i < _ref1 : _i > _ref1; i = start <= _ref1 ? ++_i : --_i) {
+            for (i = _i = start, _ref1 = this.length; _i < _ref1; i = _i += 1) {
               _results.push(this[i]);
             }
             return _results;
@@ -798,7 +798,7 @@
           return $((function() {
             var _i, _results;
             _results = [];
-            for (i = _i = start; start <= end ? _i < end : _i > end; i = start <= end ? ++_i : --_i) {
+            for (i = _i = start; _i < end; i = _i += 1) {
               _results.push(this[i]);
             }
             return _results;
@@ -847,10 +847,10 @@
         weave: function(b) {
           var c, i, _i, _j, _ref1, _ref2;
           c = $();
-          for (i = _i = _ref1 = this.length - 1; _ref1 <= 0 ? _i <= 0 : _i >= 0; i = _ref1 <= 0 ? ++_i : --_i) {
+          for (i = _i = _ref1 = this.length - 1; _i >= 0; i = _i += -1) {
             c[(i * 2) + 1] = this[i];
           }
-          for (i = _j = 0, _ref2 = b.length; 0 <= _ref2 ? _j < _ref2 : _j > _ref2; i = 0 <= _ref2 ? ++_j : --_j) {
+          for (i = _j = 0, _ref2 = b.length; _j < _ref2; i = _j += 1) {
             c[i * 2] = b[i];
           }
           return c;
@@ -936,7 +936,7 @@
             return $((function() {
               var _i, _results;
               _results = [];
-              for (i = _i = 0; 0 <= n ? _i < n : _i > n; i = 0 <= n ? ++_i : --_i) {
+              for (i = _i = 0; _i < n; i = _i += 1) {
                 _results.push(0);
               }
               return _results;
@@ -947,7 +947,7 @@
             return $((function() {
               var _i, _results;
               _results = [];
-              for (i = _i = 0; 0 <= n ? _i < n : _i > n; i = 0 <= n ? ++_i : --_i) {
+              for (i = _i = 0; _i < n; i = _i += 1) {
                 _results.push(1);
               }
               return _results;
@@ -1015,7 +1015,7 @@
               return $((function() {
                 var _i, _ref1, _results;
                 _results = [];
-                for (i = _i = 0, _ref1 = Math.min(this.length, d.length) - 1; 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
+                for (i = _i = 0, _ref1 = Math.min(this.length, d.length) - 1; _i < _ref1; i = _i += 1) {
                   _results.push(this[i] + d[i]);
                 }
                 return _results;
@@ -1115,7 +1115,7 @@
           dashize: function(name) {
             var c, i, ret, _i, _ref1;
             ret = "";
-            for (i = _i = 0, _ref1 = (name != null ? name.length : void 0) | 0; 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
+            for (i = _i = 0, _ref1 = (name != null ? name.length : void 0) | 0; _i < _ref1; i = _i += 1) {
               c = name.charCodeAt(i);
               if ((91 > c && c > 64)) {
                 c += 32;
@@ -1160,7 +1160,7 @@
               n = 0;
             }
             if ((j = s.indexOf(x, i)) > i - 1) {
-              return $.count(s, x, j + 1, n + 1);
+              return $.stringCount(s, x, j + 1, n + 1);
             } else {
               return n;
             }
@@ -1233,9 +1233,7 @@
           },
           not: function(f) {
             return function() {
-              var a;
-              a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-              return !f.apply(this, a);
+              return !f.apply(this, arguments);
             };
           },
           compose: function(f, g) {
@@ -1246,19 +1244,17 @@
           },
           and: function(f, g) {
             return function(x) {
-              return g.call(x, x) && f.call(x, x);
+              return g.call(this, x) && f.call(this, x);
             };
           },
           once: function(f, n) {
             if (n == null) {
               n = 1;
             }
-            f.n = n;
+            f._once = n;
             return function() {
-              var a;
-              a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-              if (f.n-- > 0) {
-                return f.apply(this, a);
+              if (f._once-- > 0) {
+                return f.apply(this, arguments);
               }
             };
           },
@@ -1317,7 +1313,7 @@
         array: {
           trace: function(o, label, tracer) {
             var i, _i, _ref1;
-            for (i = _i = 0, _ref1 = o.length; 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
+            for (i = _i = 0, _ref1 = o.length; _i < _ref1; i = _i += 1) {
               o[i] = $.trace(o[i], "" + label + "[" + i + "]", tracer);
             }
             return o;
@@ -2190,7 +2186,7 @@
               }
               return this.style.display = "none";
             }
-          }).trigger("hide".delay(updateDelay, callback));
+          }).trigger("hide").delay(updateDelay, callback);
         },
         show: function(callback) {
           return this.each(function() {
@@ -2198,7 +2194,7 @@
               this.style.display = this._display;
               return delete this._display;
             }
-          }).trigger("show".delay(updateDelay, callback));
+          }).trigger("show").delay(updateDelay, callback);
         },
         toggle: function(callback) {
           return this.weave(this.css("display")).fold(function(display, node) {

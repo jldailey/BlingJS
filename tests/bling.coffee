@@ -200,6 +200,7 @@ testGroup("HTML",
 		assertEqual( $.HTML.stringify($.HTML.parse(h)), h)
 	select_childNodes: -> assertEqual( $("<div><a></a><b></b><c></c></div>").select("childNodes").flatten().map($.type).toString(), "$([node, node, node])" )
 	child: -> i = 0; d = $("<div><a></a><b></b><c></c></div>"); assertEqual( d.select('childNodes').flatten().map( () -> d.child(i++) ).toString(), "$([$([<a/>]), $([<b/>]), $([<c/>])])")
+	child2: -> assertEqual($("tr").child(0).select('nodeName').toString(), "$([TD, TD, TD, TD])")
 	textData: ->
 		d = $("<div>&nbsp;</div>")
 		assertEqual( d.toString(), "$([<div>&nbsp;</div>])" )
@@ -270,6 +271,8 @@ testGroup("HTML",
 	value1: -> assertEqual($("<input type='text' value='foo'/>").val().toString(), "$([foo])")
 	value2: -> assertEqual($("<input />").val().toString(), "$([])")
 	value3: -> assertEqual($("<input type='checkbox' checked />").val().toString(), "$([on])")
+	parents: -> assertEqual($("td.d").parents().first().select('nodeName').toString(), "$([TR, TABLE, BODY, HTML])")
+	# prev: -> assertEqual($("div.c").next().first().toString(), "$([P])")
 
 )
 

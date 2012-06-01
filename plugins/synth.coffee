@@ -5,7 +5,7 @@
 				@reset()
 				@table = stateTable
 				Object.defineProperty @, "modeline",
-					get: @table[@_mode]
+					get: -> @table[@_mode]
 				Object.defineProperty @, "mode",
 					set: (m) ->
 						@_lastMode = @_mode

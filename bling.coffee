@@ -190,10 +190,10 @@ class Bling
 
 	constructor: (selector, context = default_context) ->
 		# Since we have this nice Type system, our constructor is succinct:
-		# 1. Classify the type.
-		# 2. Convert the selector to a set using the type-instance (which
+		# * Classify the type.
+		# * Convert the selector to a set using the type-instance (which
 		# in the case of anything array-like is a no-op).
-		# 3. Use inherit to _hijack_ the set's prototype in-place.
+		# * Use inherit to _hijack_ the set's prototype in-place.
 		return inherit Bling, extend type.lookup(selector).array(selector, context),
 			selector: selector
 			context: context

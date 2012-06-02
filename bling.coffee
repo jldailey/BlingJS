@@ -36,6 +36,7 @@ defineProperty = (o,name,opts) ->
 		configurable: true
 		enumerable: true
 	}, opts)
+	o
 
 # Type System
 # -----------
@@ -928,6 +929,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		provides: "trace"
 		depends: "function,type"
 	, ->
+		# This is perhaps the cleanest use of the type system so far...
 		$.type.extend
 			unknown: { trace: $.identity }
 			object:  { trace: (o, label, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
@@ -940,11 +942,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 					tracer "Trace: #{label or f.name} created."
 					r.toString = f.toString
 					r
-		return {
-			$:
-				trace: (o, label, tracer) -> $.type.lookup(o).trace(o, label, tracer)
-			trace: (label, tracer) -> @map -> $.trace(@,label,tracer)
-		}
+		return $: trace: (o, label, tracer) -> $.type.lookup(o).trace(o, label, tracer)
 
 
 	# Hash plugin

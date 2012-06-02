@@ -1608,20 +1608,24 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 	# Events plugin
 	# -------------
-	# Things like `.bind()`, `.trigger()`, etc.
+	# Things like `.bind('click')`, `.trigger('keyup')`, etc.
 	$.plugin
 		depends: "dom,function,core"
 		provides: "event"
 	, ->
 		EVENTSEP_RE = /,* +/
+		# This is a list of (almost) all the event types, each one of
+		# these will get a short-hand version like: `$("...").mouseup()`.
+		# Click is handled specially.
 		events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
 			'load','unload','reset','submit','keyup','keydown','change',
 			'abort','cut','copy','paste','selection','drag','drop','orientationchange',
 			'touchstart','touchmove','touchend','touchcancel',
 			'gesturestart','gestureend','gesturecancel',
 			'hashchange'
-		] # 'click' is handled specially
+		]
 
+		
 		binder = (e) -> (f) -> @bind(e, f) if $.is "function", f else @trigger(e, f)
 
 		register_live = (selector, context, evt, f, h) ->
@@ -1649,7 +1653,9 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		bindReady()
 
 		ret = {
-			bind: (e, f) -> # .bind(e, f) - adds handler f for event type e
+			# __.bind(e, f)__ adds handler f for event type e.
+			# `$("...").bind('click', -> )`
+			bind: (e, f) ->
 				c = (e or "").split(EVENTSEP_RE)
 				h = (evt) ->
 					ret = f.apply @, arguments
@@ -1658,26 +1664,14 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 					ret
 				@each -> (@addEventListener i, h, false) for i in c
 
-			unbind: (e, f) -> # .unbind(e, [f]) - removes handler f from event e
-				c = (e or "").split(EVENTSEP_RE)
+			# __.unbind(e, [f])__ remove handler[s] for event _e_. If _f_ is
+			# not passed, then remove all handlers.
+			unbind: (e, f) ->
+				c = (e or "").split EVENTSEP_RE
 				@each -> (@removeEventListener i, f, null) for i in c
 
-			once: (e, f) -> # .once(e, f) - adds a handler f that will only fire once (per node)
-				c = (e or "").split(EVENTSEP_RE)
-				for i in c
-					@bind i, (evt) ->
-						f.call(@, evt)
-						@removeEventListener(evt.type, arguments.callee, null)
-
-			cycle: (e, funcs...) -> # .cycle(e, ...) - bind handlers for e that trigger in a cycle
-				c = (e or "").split(EVENTSEP_RE)
-				nf = funcs.length
-				cycler = (i = -1) ->
-					(evt) -> funcs[i = ++i % nf].call(@, evt)
-				@bind j, cycler() for j in c
-				@
-
-			trigger: (evt, args = {}) -> # .trigger(e, a) - initiates a fake event
+			# __.trigger(e, [args])__ creates (and fires) a fake event on some DOM nodes.
+			trigger: (evt, args = {}) ->
 				args = $.extend
 					bubbles: true
 					cancelable: true
@@ -1772,34 +1766,42 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 							log("dispatchEvent error:",err)
 				@
 
-			live: (e, f) -> # .live(e, f) - handle events for nodes that will exist in the future
+			# __.live(e, f)__ bind _f_ to handle events for nodes that will exist in the future.
+			live: (e, f) ->
 				selector = @selector
 				context = @context
-				# wrap f
-				handler = (evt) -> # later, when event 'e' is fired
-					$(selector, context) # re-execute the selector in the original context
-						.intersect($(evt.target).parents().first().union($(evt.target))) # see if the event would bubble into a match
-						.each -> f.call(evt.target = @, evt) # then fire the real handler 'f' on the matched nodes
-				# record f so we can 'die' it if needed
+				# Create a wrapper for _f_.
+				handler = (evt) ->
+					# The wrapper will:
+					# Re-execute the selector in the original context.
+					$(selector, context)
+						# See if the event would bubble up into a match.
+						.intersect($(evt.target).parents().first().union($(evt.target)))
+						# Then fire the real _f_ on the nodes that really matched.
+						.each -> f.call(evt.target = @, evt)
+				# Register _f_ and it's wrapper, so we can find it later if we need to `die`.
 				register_live selector, context, e, f, handler
 				@
 
-			die: (e, f) -> # die(e, [f]) - stop f [or all] from living for event e
+			# __.die(e, [f])__ remove _f_ [or all handlers] that are living
+			# for event _e_.
+			die: (e, f) ->
 				$(@context).unbind e, unregister_live(@selector, @context, e, f)
 				@
 
-			liveCycle: (e, funcs...) -> # .liveCycle(e, ...) - bind each /f/ in /funcs/ to handle /e/
-				i = -1; nf = funcs.length
-				@live e, (evt) -> funcs[i = ++i % nf].call @, evt
-
-			click: (f = {}) -> # .click([f]) - trigger [or bind] the 'click' event
-				if @css("cursor") in ["auto",""] # if the cursor is default
-					@css "cursor", "pointer" # then make it look clickable
+			# __.click([f])__ triggers the 'click' event but also sets a
+			# default clickable appearance.
+			click: (f = {}) ->
+				# Only if the current appearance has not been set.
+				if @css("cursor") in ["auto",""]
+					# Then make it look clickable.
+					@css "cursor", "pointer"
+				# Bind or trigger just like other events, e.g. "mouseup".
 				if $.is "function", f then @bind 'click', f
 				else @trigger 'click', f
 
 			ready: (f) ->
-				return (f.call @) if triggerReady.n <= 0
+				return (f.call @) if triggerReady.exhausted
 				@bind "ready", f
 		}
 

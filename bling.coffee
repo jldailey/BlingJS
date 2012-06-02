@@ -896,9 +896,17 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			and: (f,g) -> (x) -> g.call(@,x) and f.call(@,x)
 			# __$.once(f)__ returns a new function that will only call
 			# _f_ **once**, or _n_ times if you pass the optional argument.
-			once: (f,n=1) -> f._once = n; -> (f.apply @,arguments) if f._once-- > 0
+			once: (f,n=1) ->
+				$.defineProperty (-> (f.apply @,arguments) if n-- > 0),
+					"exhausted",
+						get: -> n <= 0
+			# __.cycle(f...)__ returns a new function that cycles through
+			# other functions.
+			cycle: (f...) ->
+				i = -1
+				-> f[i = ++i % f.length].apply @, arguments
 			# __$.bound(context,f,[args])__ returns a new function that
-			# forces `this === context` when called.
+			# assures `this === context` when called.
 			bound: (t, f, args = []) ->
 				if $.is "function", f.bind
 					args.splice 0, 0, t

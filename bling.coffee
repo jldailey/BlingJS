@@ -1809,6 +1809,9 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		events.forEach (x) -> ret[x] = binder(x)
 		return ret
 
+	# Lazy Plugin
+	# -----------
+	# Asynchronously load scripts and stylesheets by injecting script and link tags into the head.
 	$.plugin
 		depends: "dom"
 		provides: "lazy"

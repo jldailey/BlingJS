@@ -8,8 +8,8 @@
       register = function(type, f) {
         return pruners[type] = f;
       };
-      lookup = function(f) {
-        return pruners[obj.t];
+      lookup = function(obj) {
+        return pruners[obj.t || obj.type];
       };
       stack = [];
       Object.Type.extend(null, {

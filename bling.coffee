@@ -327,6 +327,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		$:
 			inherit: inherit
 			extend: extend
+			defineProperty: defineProperty
 			# `$.isType(Array, [])` is lower level than the others,
 			# doing simple comparison between constructors.
 			isType: isType

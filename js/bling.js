@@ -41,10 +41,11 @@
   };
 
   defineProperty = function(o, name, opts) {
-    return Object.defineProperty(o, name, extend({
+    Object.defineProperty(o, name, extend({
       configurable: true,
       enumerable: true
     }, opts));
+    return o;
   };
 
   isType = function(T, o) {
@@ -340,6 +341,7 @@
         $: {
           inherit: inherit,
           extend: extend,
+          defineProperty: defineProperty,
           isType: isType,
           type: type,
           is: type.is,
@@ -1251,11 +1253,22 @@
             if (n == null) {
               n = 1;
             }
-            f._once = n;
-            return function() {
-              if (f._once-- > 0) {
+            return $.defineProperty((function() {
+              if (n-- > 0) {
                 return f.apply(this, arguments);
               }
+            }), "exhausted", {
+              get: function() {
+                return n <= 0;
+              }
+            });
+          },
+          cycle: function() {
+            var f, i;
+            f = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+            i = -1;
+            return function() {
+              return f[i = ++i % f.length].apply(this, arguments);
             };
           },
           bound: function(t, f, args) {
@@ -1339,11 +1352,6 @@
           trace: function(o, label, tracer) {
             return $.type.lookup(o).trace(o, label, tracer);
           }
-        },
-        trace: function(label, tracer) {
-          return this.map(function() {
-            return $.trace(this, label, tracer);
-          });
         }
       };
     });
@@ -2430,38 +2438,6 @@
             return _results;
           });
         },
-        once: function(e, f) {
-          var c, i, _i, _len, _results;
-          c = (e || "").split(EVENTSEP_RE);
-          _results = [];
-          for (_i = 0, _len = c.length; _i < _len; _i++) {
-            i = c[_i];
-            _results.push(this.bind(i, function(evt) {
-              f.call(this, evt);
-              return this.removeEventListener(evt.type, arguments.callee, null);
-            }));
-          }
-          return _results;
-        },
-        cycle: function() {
-          var c, cycler, e, funcs, j, nf, _i, _len;
-          e = arguments[0], funcs = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-          c = (e || "").split(EVENTSEP_RE);
-          nf = funcs.length;
-          cycler = function(i) {
-            if (i == null) {
-              i = -1;
-            }
-            return function(evt) {
-              return funcs[i = ++i % nf].call(this, evt);
-            };
-          };
-          for (_i = 0, _len = c.length; _i < _len; _i++) {
-            j = c[_i];
-            this.bind(j, cycler());
-          }
-          return this;
-        },
         trigger: function(evt, args) {
           var e, evt_i, _i, _len, _ref1;
           if (args == null) {
@@ -2568,15 +2544,6 @@
           $(this.context).unbind(e, unregister_live(this.selector, this.context, e, f));
           return this;
         },
-        liveCycle: function() {
-          var e, funcs, i, nf;
-          e = arguments[0], funcs = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-          i = -1;
-          nf = funcs.length;
-          return this.live(e, function(evt) {
-            return funcs[i = ++i % nf].call(this, evt);
-          });
-        },
         click: function(f) {
           var _ref1;
           if (f == null) {
@@ -2592,7 +2559,7 @@
           }
         },
         ready: function(f) {
-          if (triggerReady.n <= 0) {
+          if (triggerReady.exhausted) {
             return f.call(this);
           }
           return this.bind("ready", f);

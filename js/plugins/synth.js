@@ -4,90 +4,101 @@
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
   (function($) {
-    $.plugin(function() {
+    $.plugin({
+      provides: "StateMachine"
+    }, function() {
       var StateMachine;
-      StateMachine = (function() {
-
-        function StateMachine(stateTable) {
-          this.reset();
-          this.table = stateTable;
-          Object.defineProperty(this, "modeline", {
-            get: this.table[this._mode]
-          });
-          Object.defineProperty(this, "mode", {
-            set: function(m) {
-              var ret;
-              this._lastMode = this._mode;
-              this._mode = m;
-              if (this._mode !== this._lastMode && (this.modeline != null) && 'enter' in this.modeline) {
-                ret = this.modeline['enter'].call(this);
-                while (Object.IsFunction(ret)) {
-                  ret = ret.call(this);
-                }
-              }
-              return m;
-            },
-            get: function() {
-              return this._mode;
-            }
-          });
-        }
-
-        StateMachine.prototype.reset = function() {
-          this._mode = null;
-          return this._lastMode = null;
-        };
-
-        StateMachine.prototype.GO = function(m) {
-          return function() {
-            return this.mode = m;
-          };
-        };
-
-        StateMachine.GO = function(m) {
-          return function() {
-            return this.mode = m;
-          };
-        };
-
-        StateMachine.prototype.run = function(input) {
-          var c, ret, row, _i, _len, _ref;
-          this.mode = 0;
-          for (_i = 0, _len = input.length; _i < _len; _i++) {
-            c = input[_i];
-            row = this.modeline;
-            if (!(row != null)) {
-              ret = null;
-            } else if (c in row) {
-              ret = row[c];
-            } else if ('def' in row) {
-              ret = row['def'];
-            }
-            while (Object.IsFunction(ret)) {
-              ret = ret.call(this, c);
-            }
-          }
-          if (Object.IsFunction((_ref = this.modeline) != null ? _ref.eof : void 0)) {
-            ret = this.modeline.eof.call(this);
-          }
-          while (Object.IsFunction(ret)) {
-            ret = ret.call(this);
-          }
-          this.reset();
-          return this;
-        };
-
-        return StateMachine;
-
-      })();
       return {
-        name: "StateMachine",
         $: {
-          StateMachine: StateMachine
+          StateMachine: StateMachine = (function() {
+
+            function StateMachine(stateTable) {
+              this.reset();
+              this.table = stateTable;
+              Object.defineProperty(this, "modeline", {
+                get: function() {
+                  return this.table[this._mode];
+                }
+              });
+              Object.defineProperty(this, "mode", {
+                set: function(m) {
+                  var ret;
+                  this._lastMode = this._mode;
+                  this._mode = m;
+                  if (this._mode !== this._lastMode && (this.modeline != null) && 'enter' in this.modeline) {
+                    ret = this.modeline['enter'].call(this);
+                    while ($.is("function", ret)) {
+                      ret = ret.call(this);
+                    }
+                  }
+                  return m;
+                },
+                get: function() {
+                  return this._mode;
+                }
+              });
+            }
+
+            StateMachine.prototype.reset = function() {
+              this._mode = null;
+              return this._lastMode = null;
+            };
+
+            StateMachine.prototype.GO = function(m) {
+              return function() {
+                return this.mode = m;
+              };
+            };
+
+            StateMachine.GO = function(m) {
+              return function() {
+                return this.mode = m;
+              };
+            };
+
+            StateMachine.prototype.tick = function(c) {
+              var ret, row;
+              row = this.modeline;
+              if (!(row != null)) {
+                ret = null;
+              } else if (c in row) {
+                ret = row[c];
+              } else if ('def' in row) {
+                ret = row['def'];
+              }
+              while ($.is("function", ret)) {
+                ret = ret.call(this, c);
+              }
+              return ret;
+            };
+
+            StateMachine.prototype.run = function(inputs) {
+              var c, ret, _i, _len, _ref;
+              this.mode = 0;
+              for (_i = 0, _len = inputs.length; _i < _len; _i++) {
+                c = inputs[_i];
+                ret = this.tick(c);
+              }
+              if ($.is("function", (_ref = this.modeline) != null ? _ref.eof : void 0)) {
+                ret = this.modeline.eof.call(this);
+              }
+              while ($.is("function", ret)) {
+                ret = ret.call(this);
+              }
+              this.reset();
+              return this;
+            };
+
+            return StateMachine;
+
+          })()
         }
       };
     });
-    return $.plugin(function() {
+    return $.plugin({
+      provides: "synth",
+      depends: "StateMachine"
+    }, function() {
       var SynthMachine;
       SynthMachine = (function(_super) {
 
@@ -235,7 +246,6 @@
 
       })($.StateMachine);
       return {
-        name: "Synth",
         $: {
           synth: function(expr) {
             var s;

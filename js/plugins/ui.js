@@ -6,7 +6,7 @@
       var Accordion, Dialog, Draggable, ProgressBar, Tabs, ViewStack;
       Dialog = function(selector, opts) {
         var dialog;
-        opts = Object.Extend({
+        opts = $.extend({
           autoOpen: false,
           draggable: true
         }, opts);
@@ -25,10 +25,10 @@
       };
       Draggable = function(selector, opts) {
         var dragObject, handle, moving, oX, oY;
-        opts = Object.Extend({
+        opts = $.extend({
           handleCSS: {}
         }, opts);
-        opts.handleCSS = Object.Extend({
+        opts.handleCSS = $.extend({
           position: "absolute",
           top: "0px",
           left: "0px",
@@ -43,13 +43,13 @@
           height: "6px",
           "border-radius": "3px",
           cursor: "move"
-        }.css(opts.handleCSS.bind('mousedown, touchstart', function(evt) {
+        }).css(opts.handleCSS).bind('mousedown, touchstart', function(evt) {
           moving = true;
           oX || (oX = evt.pageX);
           oY || (oY = evt.pageY);
           return false;
-        })));
-        $(document.bind('mousemove, touchmove', function(evt) {
+        });
+        $(document).bind('mousemove, touchmove', function(evt) {
           var dX, dY;
           if (moving) {
             dX = evt.pageX - oX;
@@ -61,14 +61,14 @@
             });
             return false;
           }
-        })).bind('mouseup, touchend', function(evt) {
+        }).bind('mouseup, touchend', function(evt) {
           var pos;
           if (moving) {
             moving = false;
             pos = handle.position()[0];
-            return $(document.elementFromPoint(pos.left, pos.top - 1).trigger('drop', {
+            return $(document.elementFromPoint(pos.left, pos.top - 1)).trigger('drop', {
               dropObject: dragObject
-            }));
+            });
           }
         });
         return dragObject.addClass("draggable").css({
@@ -77,41 +77,42 @@
         }.append(handle));
       };
       ProgressBar = function(selector, opts) {
-        var node, _bg, _color, _progress;
-        opts = Object.Extend({
-          change: Function.Empty,
+        var node, _bg, _color;
+        opts = $.extend({
+          change: null,
           backgroundColor: "#fff",
           barColor: "rgba(0,128,0,0.5)",
           textColor: "white",
           reset: false
         }, opts);
         node = $(selector).addClass('progress-bar');
-        _progress = 0.0;
         if (opts.reset) {
           _bg = node.css("background").first();
           _color = node.css("color").first();
         }
         return node.zap('updateProgress', function(pct) {
-          while (pct > 1) {
-            pct /= 100;
+          while (pct < 1.0) {
+            pct *= 100.0;
           }
-          _progress = pct;
-          if (pct === 1 && opts.reset) {
-            node.css("background", _bg).css("color", _color);
+          if (pct >= 99.9 && opts.reset) {
+            node.css({
+              background: _bg,
+              color: _color
+            });
           } else {
             node.css({
-              background: "-webkit-gradient(linear, 0 0, " + parseInt(pct * 100) + "% 0, " + "color-stop(0, " + opts.barColor + "), " + "color-stop(0.98, " + opts.barColor + "), " + "color-stop(1.0, " + opts.backgroundColor + "))",
+              background: "-webkit-gradient(linear, 0 0, " + (parseInt(pct)) + "% 0,\ncolor-stop(0, " + opts.barColor + "),\ncolor-stop(0.98, " + opts.barColor + "),\ncolor-stop(1.0, " + opts.backgroundColor + "))",
               color: opts.textColor
             });
           }
-          if (Object.IsFunc(opts.change)) {
-            return opts.change(_progress);
+          if ($.is("function", opts.change)) {
+            return opts.change(pct);
           }
         });
       };
       Accordion = function(selector, opts) {
         var initRow, node, selectedChild;
-        opts = Object.Extend({
+        opts = $.extend({
           exclusive: false,
           sticky: false
         }, opts);
@@ -167,7 +168,7 @@
         items[active].show();
         items.next = function() {
           items[active].hide();
-          active = ++active % nn;
+          active = ++active % items.length;
           return items[active].show();
         };
         items.activate = function(k) {
@@ -176,9 +177,9 @@
           return items[k].show();
         };
         for (j = _i = 0, _ref = items.len(); 0 <= _ref ? _i < _ref : _i > _ref; j = 0 <= _ref ? ++_i : --_i) {
-          items[j].zap("_viewIndex", j.zap("activate", function() {
+          items[j].zap("_viewIndex", j).zap("activate", function() {
             return items.activate(this._viewIndex);
-          }));
+          });
         }
         return items;
       };
@@ -198,7 +199,6 @@
         });
       };
       return {
-        name: 'UI',
         $: {
           UI: {
             Draggable: Draggable,

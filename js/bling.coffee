@@ -184,31 +184,65 @@ type = (->
 # So, the Bling constructor should not be called as `new Bling`,
 # and as a bonus our assignment to a symbol (`$`) remains simple.
 class Bling
-	
-	# We compute this only once, privately, so we dont have to check
+
+	# Pipes are one way to make extensible code that I am playing with.
+	# Each pipe is a named list of methods. You can add new
+	# methods to either end. To execute the whole pipe you call it
+	# with an array of arguments.
+
+	# Add a method to a pipe:
+	# > `$.pipe("amplify").append (x) -> x+1`
+
+	# The output of each function becomes the input of the next function
+	# in the pipe.
+	# > `$.pipe("amplify").append (x) -> x*2`
+
+	# Invoking a pipe with arguments will call all the functions and
+	# return the final value.
+	# > `$.pipe("amplify", 10) == 22`
+
+	pipes = {}
+	@pipe: (name, args) ->
+		p = (pipes[name] or= [])
+		if not args
+			return {
+				prepend: (obj) -> p.unshift(obj); obj
+				append: (obj) -> p.push(obj); obj
+			}
+		for func in p
+			args = func.call @, args
+		args
+
+	# The very first pipe is the one used by the constructor: "bling-init".
+	# This first piece of the pipe converts [selector, context] -> object;
+	# and should always be in the _middle_ (if you `unshift` onto the
+	# beginning of this pipe you should accept and return [selector, context].
+	# If you `push` onto the end, you should accept and return a bling object.
+	@pipe("bling-init").prepend (args) ->
+		[selector, context] = args
+		# Classify the type of selector to get a type-instance, which is
+		# used to convert the selector and context together to an array.
+		inherit Bling, extend type.lookup(selector).array(selector, context),
+			selector: selector
+			context: context
+		# Note: Uses inherit to _hijack_ the resulting array's prototype in-place.
+
+	# Compute the default context object only once, privately, so we dont have to check
 	# during every construction.
 	default_context = if document? then document else {}
 
-	constructor: (selector, context = default_context) ->
-		# Since we have this nice Type system, our constructor is succinct:
-		# * Classify the type.
-		# * Convert the selector to a set using the type-instance (which
-		# in the case of anything array-like is a no-op).
-		# * Use inherit to _hijack_ the set's prototype in-place.
-		return inherit Bling, extend type.lookup(selector).array(selector, context),
-			selector: selector
-			context: context
+	constructor: (selector, context = default_context) -> return Bling.pipe("bling-init", [selector, context])
 
 	# $.plugin( [ opts ], func )
 	# -----------------
-	# Each plugin is a function that returns an object full of stuff to
+	# Each plugin function should return an object full of stuff to
 	# extend the Bling prototype with.
 
 	# Example: the simplest possible plugin.
 	# > $.plugin -> echo: -> @
 
-	# After this, `$(...).echo()` will work.  Also, this will
-	# create a default 'root' version: `$.echo`.
+	# This defines: `$(...).echo()`.  Also, this will
+	# create a 'root' version if one doesnt exist: `$.echo`.
 
 	# You can explicitly define root-level values by nesting things
 	# under a `$` key:
@@ -218,7 +252,7 @@ class Bling
 	@plugin: (opts, constructor) ->
 		if not constructor?
 			constructor = opts; opts = {}
-		
+
 		if "depends" of opts
 			return @depends opts.depends, =>
 				@plugin { provides: opts.provides }, constructor
@@ -232,7 +266,7 @@ class Bling
 				# older version of plugin() used to require names,
 				# but we ignore them now in favor of depends/provides.
 				['$','name'].forEach (k) -> delete plugin[k]
-				# Now put everything else on the Bling prototype
+				# Now put everything else on the Bling prototype.
 				extend @::, plugin
 				# Finally, add root-level wrappers for anything that doesn't
 				# have one already.
@@ -242,7 +276,7 @@ class Bling
 			log "failed to load plugin: #{this.name} '#{error.message}'"
 			throw error
 		@
-	
+
 	# Code dependencies
 	# -----------------
 	# $.depends, $.provide and $.provides, allow for representing
@@ -312,7 +346,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 # =======
 # Now that we have a way to load plugins and express dependencies
 # between them, all future code will come in a plugin.
-# 
+#
 # For the rest of this file, set up a namespace that protects `$`,
 # so we can safely use short-hand in all of our plugins.
 (($) ->
@@ -338,7 +372,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			is: type.is
 			isSimple: (o) -> type(o) in ["string", "number", "bool"]
 			isEmpty: (o) -> o in ["", null, undefined]
-	
+
 	# Symbol Plugin
 	# -------------
 	# Symbol adds a dynamic property: Bling.symbol, which contains the
@@ -509,12 +543,13 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			# Reduce _this_ to a single value, accumulating in _a_.
 			# Example: `(a,x) -> a+x` == `(a) -> a+@`.
 			reduce: (f, a) ->
-				t = @
-				if not a?
-					a = @[0]
-					t = @skip(1)
-				(a = f.call x, a, x) for x in t
-				a
+				i = 0; n = @length
+				# Init the accumulation.
+				a = @[i++] if not a?
+				# Run the reducer function across all items.
+				(a = f.call @[x], a, @[x]) for x in [i...n] by 1
+				# Return the accumulation.
+				return a
 			# Get a new set with every item from _this_ and from _other_. `strict` refers to whether
 			# to use == or === for comparison.
 			union: (other, strict = true) ->
@@ -897,7 +932,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			and: (f,g) -> (x) -> g.call(@,x) and f.call(@,x)
 			# __$.once(f)__ returns a new function that will only call
 			# _f_ **once**, or _n_ times if you pass the optional argument.
-			once: (f,n=1) ->
+			once: (f, n=1) ->
 				$.defineProperty (-> (f.apply @,arguments) if n-- > 0),
 					"exhausted",
 						get: -> n <= 0
@@ -916,34 +951,9 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 					r = (a...) -> f.apply t, (args if args.length else a)
 				$.extend r, { toString: -> "bound-method of #{t}.#{f.name}" }
 			# __$.memoize(f)__ returns a new function that caches function calls to f, based on hashing the arguments.
-			memoize: (f) -> cache = {}; (a...) -> cache[$.hash(a)] ?= f.apply @, a # BUG: skips cache if f returns null on purpose
-
-
-	# Trace Plugin
-	# ------------
-	# A very useful debugging tool, `$(o).trace() or $.trace(o)` will deep-walk all
-	# properties and wrap all functions with new functions that call the
-	# originals but log the calls (and use the property names from the
-	# deep walk as labels).
-	$.plugin
-		provides: "trace"
-		depends: "function,type"
-	, ->
-		# This is perhaps the cleanest use of the type system so far...
-		$.type.extend
-			unknown: { trace: $.identity }
-			object:  { trace: (o, label, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
-			array:   { trace: (o, label, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length] by 1); o }
-			function:
-				trace: (f, label, tracer) ->
-					r = (a...) ->
-						tracer "#{@name or $.type(@)}.#{label or f.name}(", a, ")"
-						f.apply @, a
-					tracer "Trace: #{label or f.name} created."
-					r.toString = f.toString
-					r
-		return $: trace: (o, label, tracer) -> $.type.lookup(o).trace(o, label, tracer)
-
+			memoize: (f) ->
+				cache = {}
+				(a...) -> cache[$.hash(a)] ?= f.apply @, a # BUG: skips cache if f returns null on purpose
 
 	# Hash plugin
 	# -----------
@@ -1014,23 +1024,25 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 	# EventEmitter Plugin
 	# -------------------
-	# The EventEmitter interface that NodeJS uses is much simpler (and faster) than the DOM event model.
-	# Example: `$.inherit new EventEmitter(), { myCode: () -> "..." }`
+	# The EventEmitter interface that NodeJS uses is much simpler (and
+	# faster) than the DOM event model.  With this plugin, every new
+	# bling becomes an EventEmitter automatically, or you can mix it in
+	# to any object: `$.EventEmitter(obj)`.
 	$.plugin
 		provides: "EventEmitter"
 	, ->
-		$: EventEmitter: class EventEmitter
-			constructor:        -> @__event = {}
-			addListener:        (e, h) -> (@__event[e] or= []).push(h); @emit('newListener', e, h)
-			on:                 (e, h) -> @addListener e, h
-			once:               (e,h) -> @addListener e, (f = (a...) -> @removeListener(f); h(a...))
-			removeListener:     (e, h) -> (@__event[e].splice i, 1) if (i = (@__event[e] or= []).indexOf(h)) > -1
-			removeAllListeners: (e) -> @__event[e] = []
-			setMaxListeners:    (n) -> # nop for now... who really needs this in the core API?
-			listeners:          (e) -> @__event[e]
-			emit:               (e, a...) -> (f.apply(@, a) for f in (@__event[e] or= [])); null
+		$: EventEmitter: $.pipe("bling-init").append (obj) ->
+			listeners = {}
+			list = (e) -> (listeners[e] or= [])
+			inherit obj,
+				emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); null
+				addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
+				on:                 (e, h) -> @addListener e, h
+				removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
+				removeAllListeners: (e) -> listeners[e] = []
+				setMaxListeners:    (n) -> # who really needs this in the core API?
+				listeners:          (e) -> list(e).slice 0
 
-	
 	if glob.document?
 		# DOM Plugin
 		# ----------
@@ -1625,7 +1637,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			'hashchange'
 		]
 
-		
+
 		binder = (e) -> (f) -> @bind(e, f) if $.is "function", f else @trigger(e, f)
 
 		register_live = (selector, context, evt, f, h) ->

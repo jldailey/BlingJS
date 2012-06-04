@@ -176,7 +176,40 @@
   })();
 
   Bling = (function() {
-    var default_context, done, filt, qu;
+    var default_context, done, filt, pipes, qu;
+
+    pipes = {};
+
+    Bling.pipe = function(name, args) {
+      var func, p, _i, _len;
+      p = (pipes[name] || (pipes[name] = []));
+      if (!args) {
+        return {
+          prepend: function(obj) {
+            p.unshift(obj);
+            return obj;
+          },
+          append: function(obj) {
+            p.push(obj);
+            return obj;
+          }
+        };
+      }
+      for (_i = 0, _len = p.length; _i < _len; _i++) {
+        func = p[_i];
+        args = func.call(this, args);
+      }
+      return args;
+    };
+
+    Bling.pipe("bling-init").prepend(function(args) {
+      var context, selector;
+      selector = args[0], context = args[1];
+      return inherit(Bling, extend(type.lookup(selector).array(selector, context), {
+        selector: selector,
+        context: context
+      }));
+    });
 
     default_context = typeof document !== "undefined" && document !== null ? document : {};
 
@@ -184,10 +217,7 @@
       if (context == null) {
         context = default_context;
       }
-      return inherit(Bling, extend(type.lookup(selector).array(selector, context), {
-        selector: selector,
-        context: context
-      }));
+      return Bling.pipe("bling-init", [selector, context]);
     }
 
     Bling.plugin = function(opts, constructor) {
@@ -567,15 +597,14 @@
           }).call(this));
         },
         reduce: function(f, a) {
-          var t, x, _i, _len;
-          t = this;
+          var i, n, x, _i;
+          i = 0;
+          n = this.length;
           if (!(a != null)) {
-            a = this[0];
-            t = this.skip(1);
+            a = this[i++];
           }
-          for (_i = 0, _len = t.length; _i < _len; _i++) {
-            x = t[_i];
-            a = f.call(x, a, x);
+          for (x = _i = i; _i < n; x = _i += 1) {
+            a = f.call(this[x], a, this[x]);
           }
           return a;
         },
@@ -1305,57 +1334,6 @@
       };
     });
     $.plugin({
-      provides: "trace",
-      depends: "function,type"
-    }, function() {
-      $.type.extend({
-        unknown: {
-          trace: $.identity
-        },
-        object: {
-          trace: function(o, label, tracer) {
-            var k, _i, _len, _ref1;
-            _ref1 = Object.keys(o);
-            for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-              k = _ref1[_i];
-              o[k] = $.trace(o[k], "" + label + "." + k, tracer);
-            }
-            return o;
-          }
-        },
-        array: {
-          trace: function(o, label, tracer) {
-            var i, _i, _ref1;
-            for (i = _i = 0, _ref1 = o.length; _i < _ref1; i = _i += 1) {
-              o[i] = $.trace(o[i], "" + label + "[" + i + "]", tracer);
-            }
-            return o;
-          }
-        },
-        "function": {
-          trace: function(f, label, tracer) {
-            var r;
-            r = function() {
-              var a;
-              a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-              tracer("" + (this.name || $.type(this)) + "." + (label || f.name) + "(", a, ")");
-              return f.apply(this, a);
-            };
-            tracer("Trace: " + (label || f.name) + " created.");
-            r.toString = f.toString;
-            return r;
-          }
-        }
-      });
-      return {
-        $: {
-          trace: function(o, label, tracer) {
-            return $.type.lookup(o).trace(o, label, tracer);
-          }
-        }
-      };
-    });
-    $.plugin({
       provides: "hash",
       depends: "type"
     }, function() {
@@ -1493,66 +1471,47 @@
     $.plugin({
       provides: "EventEmitter"
     }, function() {
-      var EventEmitter;
       return {
         $: {
-          EventEmitter: EventEmitter = (function() {
-
-            function EventEmitter() {
-              this.__event = {};
-            }
-
-            EventEmitter.prototype.addListener = function(e, h) {
-              var _base;
-              ((_base = this.__event)[e] || (_base[e] = [])).push(h);
-              return this.emit('newListener', e, h);
+          EventEmitter: $.pipe("bling-init").append(function(obj) {
+            var list, listeners;
+            listeners = {};
+            list = function(e) {
+              return listeners[e] || (listeners[e] = []);
             };
-
-            EventEmitter.prototype.on = function(e, h) {
-              return this.addListener(e, h);
-            };
-
-            EventEmitter.prototype.once = function(e, h) {
-              var f;
-              return this.addListener(e, (f = function() {
-                var a;
-                a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-                this.removeListener(f);
-                return h.apply(null, a);
-              }));
-            };
-
-            EventEmitter.prototype.removeListener = function(e, h) {
-              var i, _base;
-              if ((i = ((_base = this.__event)[e] || (_base[e] = [])).indexOf(h)) > -1) {
-                return this.__event[e].splice(i, 1);
+            return inherit(obj, {
+              emit: function() {
+                var a, e, f, _i, _len, _ref1;
+                e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+                _ref1 = list(e);
+                for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+                  f = _ref1[_i];
+                  f.apply(this, a);
+                }
+                return null;
+              },
+              addListener: function(e, h) {
+                list(e).push(h);
+                return this.emit('newListener', e, h);
+              },
+              on: function(e, h) {
+                return this.addListener(e, h);
+              },
+              removeListener: function(e, h) {
+                var i;
+                if ((i = list(e).indexOf(h)) > -1) {
+                  return list(e).splice(i, 1);
+                }
+              },
+              removeAllListeners: function(e) {
+                return listeners[e] = [];
+              },
+              setMaxListeners: function(n) {},
+              listeners: function(e) {
+                return list(e).slice(0);
               }
-            };
-
-            EventEmitter.prototype.removeAllListeners = function(e) {
-              return this.__event[e] = [];
-            };
-
-            EventEmitter.prototype.setMaxListeners = function(n) {};
-
-            EventEmitter.prototype.listeners = function(e) {
-              return this.__event[e];
-            };
-
-            EventEmitter.prototype.emit = function() {
-              var a, e, f, _base, _i, _len, _ref1;
-              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-              _ref1 = ((_base = this.__event)[e] || (_base[e] = []));
-              for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-                f = _ref1[_i];
-                f.apply(this, a);
-              }
-              return null;
-            };
-
-            return EventEmitter;
-
-          })()
+            });
+          })
         }
       };
     });

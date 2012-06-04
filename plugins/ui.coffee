@@ -4,7 +4,7 @@
 
 		Dialog = (selector, opts) ->
 			# $.UI.Dialog(selector, opts) - make a dialog
-			opts = Object.Extend({
+			opts = $.extend({
 				autoOpen: false
 				draggable: true
 			}, opts)
@@ -23,11 +23,11 @@
 		
 		Draggable = (selector, opts) ->
 			# $.UI.Dialog(selector, opts) - make an object draggable
-			opts = Object.Extend({
+			opts = $.extend({
 				handleCSS: {}
 			}, opts)
 
-			opts.handleCSS = Object.Extend({
+			opts.handleCSS = $.extend({
 				position: "absolute"
 				top: "0px"
 				left: "0px"
@@ -42,21 +42,21 @@
 				# create a handle
 				.synth("div.handle")
 				# set the default appearance of the handle
-				.defaultCss {
+				.defaultCss({
 					background: "-webkit-gradient(linear, 50% 0%, 50% 100%, from(#eee), color-stop(0.25, #bbb), color-stop(0.3, #eee), color-stop(0.5, #eee), to(#bbb))"
 					height: "6px"
 					"border-radius": "3px"
 					cursor: "move"
-				}
+				})
 				# force the handle's position, and any display overrides passed in as an option
-				.css opts.handleCSS
+				.css(opts.handleCSS)
 				# activate the handle with events for starting the drag
 				.bind 'mousedown, touchstart', (evt) ->
 					moving = true
 					oX or= evt.pageX
 					oY or= evt.pageY
 					false
-			$ document
+			$(document)
 			.bind 'mousemove, touchmove', (evt) ->
 				if moving
 					dX = (evt.pageX - oX)
@@ -73,10 +73,9 @@
 				if moving
 					moving = false
 					pos = handle.position()[0]
-					$ document.elementFromPoint(pos.left, pos.top - 1)
-					.trigger 'drop', {
+					$(document.elementFromPoint(pos.left, pos.top - 1))
+					.trigger 'drop',
 						dropObject: dragObject
-					}
 
 			dragObject
 				.addClass("draggable")
@@ -92,8 +91,8 @@
 
 		ProgressBar = (selector, opts) ->
 			# $.UI.ProgressBar - make a progress bar
-			opts = Object.Extend({
-				change: Function.Empty
+			opts = $.extend({
+				change: null
 				# the color of the 'incomplete' part of the bar
 				backgroundColor: "#fff"
 				# the color of 'complete'
@@ -106,33 +105,32 @@
 
 			node = $(selector)
 				.addClass('progress-bar')
-			_progress = 0.0
 			if( opts.reset ) # save the original styles
 				_bg = node.css("background").first()
 				_color = node.css("color").first()
 
 			node.zap 'updateProgress', (pct) ->
-				while pct > 1
-					pct /= 100
-				_progress = pct
-				if pct == 1 and opts.reset # restore original styles
-					node.css("background", _bg)
-						.css("color", _color)
+				while pct < 1.0
+					pct *= 100.0
+				if pct >= 99.9 and opts.reset # restore original styles
+					node.css
+						background: _bg
+						color: _color
 				else
-					node.css {
-						background:
-							"-webkit-gradient(linear, 0 0, "+parseInt(pct * 100)+"% 0, " +
-							"color-stop(0, "+opts.barColor+"), " +
-							"color-stop(0.98, "+opts.barColor+"), " +
-							"color-stop(1.0, "+opts.backgroundColor+"))"
+					node.css
+						background:"""
+							-webkit-gradient(linear, 0 0, #{parseInt(pct)}% 0,
+							color-stop(0, #{opts.barColor}),
+							color-stop(0.98, #{opts.barColor}),
+							color-stop(1.0, #{opts.backgroundColor}))
+						"""
 						color: opts.textColor
-					}
-				if Object.IsFunc(opts.change)
-					opts.change(_progress)
+				if $.is "function", opts.change
+					opts.change pct
 
 		Accordion = (selector, opts) ->
 			# $.UI.Accordion - make an accordion
-			opts = Object.Extend({
+			opts = $.extend({
 				exclusive: false
 				sticky: false
 			}, opts)
@@ -191,7 +189,7 @@
 			items[active].show()
 			items.next = () ->
 				items[active].hide()
-				active = (++active % nn)
+				active = (++active % items.length)
 				items[active].show()
 			items.activate = (k) ->
 				items[active].hide()
@@ -199,8 +197,8 @@
 				items[k].show()
 			for j in [0...items.len()]
 				items[j]
-				.zap "_viewIndex", j
-				.zap "activate", () ->
+				.zap("_viewIndex", j)
+				.zap "activate", ->
 					items.activate(this._viewIndex)
 			items
 
@@ -217,35 +215,26 @@
 				$(this).addClass("active")
 
 		return {
-			name: 'UI'
-			$: {
-				UI: {
+			$:
+				UI:
 					Draggable: Draggable
 					ProgressBar: ProgressBar
 					ViewStack: ViewStack
 					Tabs: Tabs
 					Accordion: Accordion
-				}
-			}
 
-			dialog: (opts) ->
-				# .dialog([opts]) - create a dialog from each node
-				return Dialog(this, opts)
-			progressBar: (opts) ->
-				# .progressBar([opts]) - create a progress bar from each node
-				return ProgressBar(this, opts)
-			viewStack: (opts) ->
-				# .viewStack([opts]) - make this set of nodes visually exclusive
-				return ViewStack(this, opts)
-			tabs: (views) ->
-				# .tabs([views]) - make this set of nodes control the views
-				return Tabs(this, views)
-			accordion: (opts) ->
-				# .accordion([opts]) - make this an accordion
-				return Accordion(this, opts)
-			draggable: (opts) ->
-				# .draggable([opts]) - make this draggable
-				return Draggable(this, opts)
+			# .dialog([opts]) - create a dialog from each node
+			dialog: (opts) -> Dialog(this, opts)
+			# .progressBar([opts]) - create a progress bar from each node
+			progressBar: (opts) -> ProgressBar(this, opts)
+			# .viewStack([opts]) - make this set of nodes visually exclusive
+			viewStack: (opts) -> ViewStack(this, opts)
+			# .tabs([views]) - make this set of nodes control a viewstack
+			tabs: (views) -> Tabs(this, views)
+			# .accordion([opts]) - make this an accordion
+			accordion: (opts) -> Accordion(this, opts)
+			# .draggable([opts]) - make this draggable
+			draggable: (opts) -> Draggable(this, opts)
 		}
 
 )(Bling)

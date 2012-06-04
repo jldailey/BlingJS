@@ -235,14 +235,14 @@ class Bling
 
 	# $.plugin( [ opts ], func )
 	# -----------------
-	# Each plugin is a function that returns an object full of stuff to
+	# Each plugin function should return an object full of stuff to
 	# extend the Bling prototype with.
 
 	# Example: the simplest possible plugin.
 	# > $.plugin -> echo: -> @
 
-	# After this, `$(...).echo()` will work.  Also, this will
-	# create a default 'root' version: `$.echo`.
+	# This defines: `$(...).echo()`.  Also, this will
+	# create a 'root' version if one doesnt exist: `$.echo`.
 
 	# You can explicitly define root-level values by nesting things
 	# under a `$` key:
@@ -252,7 +252,7 @@ class Bling
 	@plugin: (opts, constructor) ->
 		if not constructor?
 			constructor = opts; opts = {}
-		
+
 		if "depends" of opts
 			return @depends opts.depends, =>
 				@plugin { provides: opts.provides }, constructor
@@ -266,7 +266,7 @@ class Bling
 				# older version of plugin() used to require names,
 				# but we ignore them now in favor of depends/provides.
 				['$','name'].forEach (k) -> delete plugin[k]
-				# Now put everything else on the Bling prototype
+				# Now put everything else on the Bling prototype.
 				extend @::, plugin
 				# Finally, add root-level wrappers for anything that doesn't
 				# have one already.
@@ -276,7 +276,7 @@ class Bling
 			log "failed to load plugin: #{this.name} '#{error.message}'"
 			throw error
 		@
-	
+
 	# Code dependencies
 	# -----------------
 	# $.depends, $.provide and $.provides, allow for representing
@@ -346,7 +346,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 # =======
 # Now that we have a way to load plugins and express dependencies
 # between them, all future code will come in a plugin.
-# 
+#
 # For the rest of this file, set up a namespace that protects `$`,
 # so we can safely use short-hand in all of our plugins.
 (($) ->
@@ -372,7 +372,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			is: type.is
 			isSimple: (o) -> type(o) in ["string", "number", "bool"]
 			isEmpty: (o) -> o in ["", null, undefined]
-	
+
 	# Symbol Plugin
 	# -------------
 	# Symbol adds a dynamic property: Bling.symbol, which contains the
@@ -1067,7 +1067,6 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				setMaxListeners:    (n) -> # who really needs this in the core API?
 				listeners:          (e) -> list(e).slice 0
 
-	
 	if glob.document?
 		# DOM Plugin
 		# ----------
@@ -1662,7 +1661,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			'hashchange'
 		]
 
-		
+
 		binder = (e) -> (f) -> @bind(e, f) if $.is "function", f else @trigger(e, f)
 
 		register_live = (selector, context, evt, f, h) ->

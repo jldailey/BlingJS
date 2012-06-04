@@ -184,20 +184,54 @@ type = (->
 # So, the Bling constructor should not be called as `new Bling`,
 # and as a bonus our assignment to a symbol (`$`) remains simple.
 class Bling
-	
-	# We compute this only once, privately, so we dont have to check
+
+	# Pipes are one way to make extensible code that I am playing with.
+	# Each pipe is a named list of methods. You can add new
+	# methods to either end. To execute the whole pipe you call it
+	# with an array of arguments.
+
+	# Add a method to a pipe:
+	# > `$.pipe("amplify").append (x) -> x+1`
+
+	# The output of each function becomes the input of the next function
+	# in the pipe.
+	# > `$.pipe("amplify").append (x) -> x*2`
+
+	# Invoking a pipe with arguments will call all the functions and
+	# return the final value.
+	# > `$.pipe("amplify", 10) == 22`
+
+	pipes = {}
+	@pipe: (name, args) ->
+		p = (pipes[name] or= [])
+		if not args
+			return {
+				prepend: (obj) -> p.unshift(obj); obj
+				append: (obj) -> p.push(obj); obj
+			}
+		for func in p
+			args = func.call @, args
+		args
+
+	# The very first pipe is the one used by the constructor: "bling-init".
+	# This first piece of the pipe converts [selector, context] -> object;
+	# and should always be in the _middle_ (if you `unshift` onto the
+	# beginning of this pipe you should accept and return [selector, context].
+	# If you `push` onto the end, you should accept and return a bling object.
+	@pipe("bling-init").prepend (args) ->
+		[selector, context] = args
+		# Classify the type of selector to get a type-instance, which is
+		# used to convert the selector and context together to an array.
+		inherit Bling, extend type.lookup(selector).array(selector, context),
+			selector: selector
+			context: context
+		# Note: Uses inherit to _hijack_ the resulting array's prototype in-place.
+
+	# Compute the default context object only once, privately, so we dont have to check
 	# during every construction.
 	default_context = if document? then document else {}
 
-	constructor: (selector, context = default_context) ->
-		# Since we have this nice Type system, our constructor is succinct:
-		# * Classify the type.
-		# * Convert the selector to a set using the type-instance (which
-		# in the case of anything array-like is a no-op).
-		# * Use inherit to _hijack_ the set's prototype in-place.
-		return inherit Bling, extend type.lookup(selector).array(selector, context),
-			selector: selector
-			context: context
+	constructor: (selector, context = default_context) -> return Bling.pipe("bling-init", [selector, context])
 
 	# $.plugin( [ opts ], func )
 	# -----------------
@@ -897,7 +931,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			and: (f,g) -> (x) -> g.call(@,x) and f.call(@,x)
 			# __$.once(f)__ returns a new function that will only call
 			# _f_ **once**, or _n_ times if you pass the optional argument.
-			once: (f,n=1) ->
+			once: (f, n=1) ->
 				$.defineProperty (-> (f.apply @,arguments) if n-- > 0),
 					"exhausted",
 						get: -> n <= 0
@@ -1014,21 +1048,24 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 	# EventEmitter Plugin
 	# -------------------
-	# The EventEmitter interface that NodeJS uses is much simpler (and faster) than the DOM event model.
-	# Example: `$.inherit new EventEmitter(), { myCode: () -> "..." }`
+	# The EventEmitter interface that NodeJS uses is much simpler (and
+	# faster) than the DOM event model.  With this plugin, every new
+	# bling becomes an EventEmitter automatically, or you can mix it in
+	# to any object: `$.EventEmitter(obj)`.
 	$.plugin
 		provides: "EventEmitter"
 	, ->
-		$: EventEmitter: class EventEmitter
-			constructor:        -> @__event = {}
-			addListener:        (e, h) -> (@__event[e] or= []).push(h); @emit('newListener', e, h)
-			on:                 (e, h) -> @addListener e, h
-			once:               (e,h) -> @addListener e, (f = (a...) -> @removeListener(f); h(a...))
-			removeListener:     (e, h) -> (@__event[e].splice i, 1) if (i = (@__event[e] or= []).indexOf(h)) > -1
-			removeAllListeners: (e) -> @__event[e] = []
-			setMaxListeners:    (n) -> # nop for now... who really needs this in the core API?
-			listeners:          (e) -> @__event[e]
-			emit:               (e, a...) -> (f.apply(@, a) for f in (@__event[e] or= [])); null
+		$: EventEmitter: $.pipe("bling-init").append (obj) ->
+			listeners = {}
+			list = (e) -> (listeners[e] or= [])
+			inherit obj,
+				emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); null
+				addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
+				on:                 (e, h) -> @addListener e, h
+				removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
+				removeAllListeners: (e) -> listeners[e] = []
+				setMaxListeners:    (n) -> # who really needs this in the core API?
+				listeners:          (e) -> list(e).slice 0
 
 	
 	if glob.document?

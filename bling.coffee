@@ -543,12 +543,13 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			# Reduce _this_ to a single value, accumulating in _a_.
 			# Example: `(a,x) -> a+x` == `(a) -> a+@`.
 			reduce: (f, a) ->
-				t = @
-				if not a?
-					a = @[0]
-					t = @skip(1)
-				(a = f.call x, a, x) for x in t
-				a
+				i = 0; n = @length
+				# Init the accumulation.
+				a = @[i++] if not a?
+				# Run the reducer function across all items.
+				(a = f.call @[x], a, @[x]) for x in [i...n] by 1
+				# Return the accumulation.
+				return a
 			# Get a new set with every item from _this_ and from _other_. `strict` refers to whether
 			# to use == or === for comparison.
 			union: (other, strict = true) ->

@@ -1235,19 +1235,10 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 				replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
 					n = toNode(n)
-					b = $()
-					j = 0
-					# first node gets the real n
-					@take(1).each ->
-						@parentNode?.replaceChild(n, @)
-						b[j++] = n
-					# the rest get clones of n
-					@skip(1).each ->
-						c = n.cloneNode(true)
-						@parentNode?.replaceChild(c, @)
-						b[j++] = c
-					# the set of inserted nodes
-					b
+					clones = @map(-> n.cloneNode true)
+					for i in [0...clones.length] by 1
+						@[i].parentNode?.replaceChild clones[i], @[i]
+					clones
 
 				attr: (a,v) -> # .attr(a, [v]) - get [or set] an /a/ttribute [/v/alue]
 					switch v

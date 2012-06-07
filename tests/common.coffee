@@ -11,12 +11,35 @@ global.assertArrayEqual = (a, b, label) ->
 		catch err
 			throw Error "#{label or ''} #{a?.toString()} should equal #{b?.toString()}"
 
+require("coffee-script")
 dom = require("./domjs/dom")
 dom.registerGlobals(global)
 global.document = dom.createDocument()
 global.window = global
 require("../bling.coffee")
 require("../plugins/synth.coffee")
+require("../plugins/trace.coffee")
+Bling.plugin
+	provides: "assert"
+, ->
+	return {
+		assert: (msg, func) ->
+			if msg and not func?
+				func = msg
+				msg = ""
+			global.assert func.call @,@
+			return @
+		assertEqual: (args...) ->
+			if args.length > 1 # short-cut the trivial cases
+				args = args.map (x) => # call any functions passed as arguments
+					if $.is "function", x then x.call(@,@) else x
+				a = args[0]
+				for i in [1...args.length]
+					global.assertEqual a,args[i]
+			return @
+	}
+
+			
 
 UI =
 	dumb: # a dumb terminal

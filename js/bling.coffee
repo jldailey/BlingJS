@@ -25,7 +25,7 @@ Object.keys ?= (o) -> (k for k of o)
 # A way to assign properties from `b` to `a`.
 extend = (a, b) ->
 	return a if not b
-	for k in Object.keys(b)
+	for k of b
 		v = b[k]
 		if v? then a[k] = v
 	a
@@ -273,7 +273,7 @@ class Bling
 				( @[key] or= (a...) => (@::[key].apply $(a[0]), a[1...]) ) for key of plugin
 				if opts.provides? then @provide opts.provides
 		catch error
-			log "failed to load plugin: #{this.name} '#{error.message}'"
+			log "failed to load plugin: #{@name} '#{error.message}'"
 			throw error
 		@
 
@@ -336,7 +336,8 @@ class Bling
 		# Their hash is just the sum of member hashes.
 		hash:   (o) -> o.map(Bling.hash).sum()
 		# They have a very literal string representation.
-		string: (o) -> Bling.symbol + "([" + o.map(Bling.toString).join(", ")+ "])"
+		string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
+		repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 
 Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 # if such a thing were supported by the syntax directly.
@@ -353,6 +354,8 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 	# Grab a safe (browser vs. nodejs) reference to the global object
 	glob = if window? then window else global
+	glob.window = glob
+	glob.global = glob
 
 	#### Types plugin
 	# Exposes the type system publicly.
@@ -737,9 +740,9 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			# Log one line for each item in _this_.
 			log: (label) ->
 				if label
-					$.log(label, @, @length + " items")
+					$.log(label, @toString(), @length + " items")
 				else
-					$.log(@, @length + " items")
+					$.log(@toString(), @length + " items")
 				@
 
 			# Convert this to an array.
@@ -804,20 +807,25 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 		$.type.extend
 			# First, extend the base type with a default `string` function
-			unknown:   { string: (o) -> o.toString?() ? String(o) }
+			unknown:
+				string: (o) -> o.toString?() ? String(o)
+				repr: (o) -> $.type.lookup(o).string(o)
 			# Now, for each basic type, provide a basic `string` function.
 			# Later, more complex types will be added by plugins.
-			null:      { string: -> "null" }
+			null: { string: -> "null" }
 			undefined: { string: -> "undefined" }
-			string:    { string: $.identity }
-			array:     { string: (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
-			object:    { string: (o) -> "{" + ("#{k}:#{$.toString(v)}" for k,v in o).join(", ") + "}" }
-			number:    { string: (n) ->
-				switch true
-					when n.precision? then n.toPrecision(n.precision)
-					when n.fixed? then n.toFixed(n.fixed)
-					else String(n)
-			}
+			string:
+				string: $.identity
+				repr:   (s) -> "'#{s}'"
+			array:  { string: (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
+			object: { string: (o) -> "{" + ("#{k}:#{$.toString(v)}" for k,v in o).join(", ") + "}" }
+			number:
+				repr:   (n) -> String(n)
+				string: (n) ->
+					switch true
+						when n.precision? then n.toPrecision(n.precision)
+						when n.fixed? then n.toFixed(n.fixed)
+						else String(n)
 
 		# Return a bunch of root-level string functions.
 		return {
@@ -827,6 +835,11 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				toString: (x) ->
 					if not x? then "function Bling(selector, context) { [ ... ] }"
 					else $.type.lookup(x).string(x)
+
+				# __$.toRepr(x)__ returns a a code-like view of an object, using the
+				# type system's "repr" method.
+				toRepr: (x) -> $.type.lookup(x).repr(x)
+
 				# __$.px(x,[delta])__ computes a "px"-string ("20px"), `x` can
 				# be a number or a "px"-string; if `delta` is present it will
 				# be added to the number portion.
@@ -834,10 +847,10 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				# Example: Add 100px of width to an element.
 
 				# jQuery style:
-				# `node.css("width",(node.css("width") + 100) + "px")`
+				# `nodes.each(function(){ $(this).css("width",($(this).css("width") + 100) + "px")})`
 
 				# Bling style:
-				# `node.zap 'style.width', -> $.px @, + 100`
+				# `nodes.zap 'style.width', -> $.px @, + 100`
 
 				# Properly **Capitalize** Each Word In A String.
 				capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
@@ -912,6 +925,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 					@toString = ( ) => items.join("")
 					@
 			toString: -> $.toString @
+			toRepr: -> $.toRepr @
 		}
 
 	# Function Plugin
@@ -983,7 +997,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		subscribers = {} # a mapping of channel name to a list of subscribers
 		publish = (e, args...) ->
 			f.apply null, args for f in (subscribers[e] or= [])
-			@
+			args
 		subscribe = (e, func) ->
 			(subscribers[e] or= []).push func
 			func
@@ -1054,7 +1068,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				match:  (o) -> o? and $.isType "NodeList", o
 				hash:   (o) -> $($.hash(i) for i in x).sum()
 				array:  $.identity
-				string: (o) -> "{nodelist:"+$(o).select('nodeName').join(",")+"}"
+				string: (o) -> "{Nodelist:["+$(o).select('nodeName').join(",")+"]}"
 				node:   (o) -> $(o).toFragment()
 			$.type.register "node",
 				match:  (o) -> o?.nodeType > 0
@@ -1070,6 +1084,8 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				match:  (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
 				node:   (o) -> $.type.lookup(h = Bling.HTML.parse(o)).node(h)
 				array:  (o,c) -> $.type.lookup(h = Bling.HTML.parse(o)).array(h,c)
+				string: (o) -> "'#{o}'"
+				repr:   (o) -> '"' + o + '"'
 			$.type.extend
 				unknown:  { node: -> null }
 				bling:    { node: (o) -> o.toFragment() }
@@ -1094,6 +1110,8 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			computeCSSProperty = (k) -> -> window.getComputedStyle(@, null).getPropertyValue(k)
 
 			getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select(p)
+
+			selectChain = (prop) -> -> @map (p) -> $( p while p = p[prop] )
 
 			return {
 				$:
@@ -1217,45 +1235,32 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 				replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
 					n = toNode(n)
-					b = $()
-					j = 0
-					# first node gets the real n
-					@take(1).each ->
-						@parentNode?.replaceChild(n, @)
-						b[j++] = n
-					# the rest get clones of n
-					@skip(1).each ->
-						c = n.cloneNode(true)
-						@parentNode?.replaceChild(c, @)
-						b[j++] = c
-					# the set of inserted nodes
-					b
+					clones = @map(-> n.cloneNode true)
+					for i in [0...clones.length] by 1
+						@[i].parentNode?.replaceChild clones[i], @[i]
+					clones
 
 				attr: (a,v) -> # .attr(a, [v]) - get [or set] an /a/ttribute [/v/alue]
-					switch v
-						when undefined
-							return @select("getAttribute").call(a, v)
-						when null
-							return @select("removeAttribute").call(a, v)
+					return switch v
+						when undefined then @select("getAttribute").call(a, v)
+						when null then @select("removeAttribute").call(a, v)
 						else
 							@select("setAttribute").call(a, v)
-							return @
+							@
 
-				data: (k, v) ->
-					k = "data-#{$.dashize(k)}"
-					@attr(k, v)
+				data: (k, v) -> @attr "data-#{$.dashize(k)}", v
 
 				addClass: (x) -> # .addClass(/x/) - add x to each node's .className
+					notempty = (y) -> y isnt ""
 					@removeClass(x).each ->
-						c = @className.split(" ").filter (y) ->
-							y isnt ""
-						c.push(x) # since we dont know the len, its still faster to push, rather than insert at len()
+						c = @className.split(" ").filter notempty
+						c.push(x)
 						@className = c.join " "
 
 				removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
-					notx = (y)-> y != x
+					notx = (y) -> y != x
 					@each ->
-						c = @className?.split(" ").filter(notx).join(" ")
+						c = @className.split(" ").filter(notx).join(" ")
 						if c.length is 0
 							@removeAttribute('class')
 
@@ -1298,7 +1303,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 						# If the value was actually an array of values, then
 						# stripe the values across each item.
 						else if $.is "array", v
-							setter[i%nn] k, v[i%n], "" for i in [0...n = Math.max v.length, nn = setter.len()]
+							setter[i%nn] k, v[i%n], "" for i in [0...n = Math.max v.length, nn = setter.len()] by 1
 						return @
 					# Else, we are reading CSS properties.
 					else
@@ -1367,27 +1372,37 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				# Get the _n-th_ child from each node in _this_.
 				child: (n) -> @select('childNodes').map -> @[ if n < 0 then (n+@length) else n ]
 
-				parents: -> @map -> p = @; $( p while p = p?.parentNode ) # .parents() - collects the full ancestry up to the owner
+				# Collect the full ancestry of each node, including the owner document.
+				parents: selectChain('parentNode')
 
-				prev: -> @map -> p = @; $( p while p = p?.previousSibling ) # .prev() - collects the chain of .previousSibling nodes
+				# Collect the full chain of previous siblings.
+				prev: selectChain('previousSibling')
 
-				next: -> @map -> p = @; $( p while p = p?.nextSibling ) # .next() - collect the chain of .nextSibling nodes
+				# Collect the full chain of next siblings.
+				next: selectChain('nextSibling')
 
-				remove: -> @each -> @parentNode?.removeChild(@) # .remove() - removes each node in _this_ from the DOM
+				# Remove each node from the DOM.
+				remove: -> @each -> @parentNode?.removeChild(@)
 
-				find: (css) -> # .find(/css/) - collect nodes matching /css/
-					@filter("*") # limit to only DOM nodes
+				# Collect sub-nodes that match _css_, using **querySelectorAll**.
+				find: (css) ->
+					# Filter the input set to only DOM nodes.
+					@filter("*")
+						# Use each node as the context for creation of a new bling.
 						.map( -> $(css, @) )
+						# Flatten all the blings into a single set.
 						.flatten()
 
-				clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @ # .clone(deep=true) - copies a set of DOM nodes
+				# Collect a new set, full of clones of the DOM Nodes in the input set.
+				clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @
 
+				# Get a single DocumentFragment that contains all the nodes in _this_.
 				toFragment: ->
 					if @length > 1
 						df = document.createDocumentFragment()
-						@map(toNode).map $.bound df, df.appendChild
+						(@map toNode).map $.bound df, df.appendChild
 						return df
-					return toNode(@[0])
+					return toNode @[0]
 			}
 
 	# Transform plugin

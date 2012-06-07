@@ -25,13 +25,11 @@
   }
 
   extend = function(a, b) {
-    var k, v, _i, _len, _ref1;
+    var k, v;
     if (!b) {
       return a;
     }
-    _ref1 = Object.keys(b);
-    for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-      k = _ref1[_i];
+    for (k in b) {
       v = b[k];
       if (v != null) {
         a[k] = v;
@@ -351,7 +349,14 @@
         return o.map(Bling.hash).sum();
       },
       string: function(o) {
-        return Bling.symbol + "([" + o.map(Bling.toString).join(", ") + "])";
+        return Bling.symbol + "([" + o.map(function(x) {
+          return $.type.lookup(x).string(x);
+        }).join(", ") + "])";
+      },
+      repr: function(o) {
+        return Bling.symbol + "([" + o.map(function(x) {
+          return $.type.lookup(x).repr(x);
+        }).join(", ") + "])";
       }
     });
 
@@ -364,6 +369,8 @@
   (function($) {
     var glob;
     glob = typeof window !== "undefined" && window !== null ? window : global;
+    glob.window = glob;
+    glob.global = glob;
     $.plugin({
       provides: "type"
     }, function() {
@@ -928,9 +935,9 @@
         },
         log: function(label) {
           if (label) {
-            $.log(label, this, this.length + " items");
+            $.log(label, this.toString(), this.length + " items");
           } else {
-            $.log(this, this.length + " items");
+            $.log(this.toString(), this.length + " items");
           }
           return this;
         },
@@ -1067,6 +1074,9 @@
           string: function(o) {
             var _ref1;
             return (_ref1 = typeof o.toString === "function" ? o.toString() : void 0) != null ? _ref1 : String(o);
+          },
+          repr: function(o) {
+            return $.type.lookup(o).string(o);
           }
         },
         "null": {
@@ -1080,7 +1090,10 @@
           }
         },
         string: {
-          string: $.identity
+          string: $.identity,
+          repr: function(s) {
+            return "'" + s + "'";
+          }
         },
         array: {
           string: function(a) {
@@ -1111,6 +1124,9 @@
           }
         },
         number: {
+          repr: function(n) {
+            return String(n);
+          },
           string: function(n) {
             switch (true) {
               case n.precision != null:
@@ -1131,6 +1147,9 @@
             } else {
               return $.type.lookup(x).string(x);
             }
+          },
+          toRepr: function(x) {
+            return $.type.lookup(x).repr(x);
           },
           px: function(x, delta) {
             if (delta == null) {
@@ -1250,6 +1269,9 @@
         },
         toString: function() {
           return $.toString(this);
+        },
+        toRepr: function() {
+          return $.toRepr(this);
         }
       };
     });
@@ -1402,7 +1424,7 @@
           f = _ref1[_i];
           f.apply(null, args);
         }
-        return this;
+        return args;
       };
       subscribe = function(e, func) {
         (subscribers[e] || (subscribers[e] = [])).push(func);
@@ -1520,7 +1542,7 @@
         depends: "function",
         provides: "dom"
       }, function() {
-        var after, before, computeCSSProperty, escaper, getOrSetRect, toFrag, toNode;
+        var after, before, computeCSSProperty, escaper, getOrSetRect, selectChain, toFrag, toNode;
         $.type.register("nodelist", {
           match: function(o) {
             return (o != null) && $.isType("NodeList", o);
@@ -1539,7 +1561,7 @@
           },
           array: $.identity,
           string: function(o) {
-            return "{nodelist:" + $(o).select('nodeName').join(",") + "}";
+            return "{Nodelist:[" + $(o).select('nodeName').join(",") + "]}";
           },
           node: function(o) {
             return $(o).toFragment();
@@ -1591,6 +1613,12 @@
           array: function(o, c) {
             var h;
             return $.type.lookup(h = Bling.HTML.parse(o)).array(h, c);
+          },
+          string: function(o) {
+            return "'" + o + "'";
+          },
+          repr: function(o) {
+            return '"' + o + '"';
           }
         });
         $.type.extend({
@@ -1648,6 +1676,20 @@
             } else {
               return this.rect().select(p);
             }
+          };
+        };
+        selectChain = function(prop) {
+          return function() {
+            return this.map(function(p) {
+              return $((function() {
+                var _results;
+                _results = [];
+                while (p = p[prop]) {
+                  _results.push(p);
+                }
+                return _results;
+              })());
+            });
           };
         };
         return {
@@ -1803,26 +1845,17 @@
             });
           },
           replace: function(n) {
-            var b, j;
+            var clones, i, _i, _ref1, _ref2;
             n = toNode(n);
-            b = $();
-            j = 0;
-            this.take(1).each(function() {
-              var _ref1;
-              if ((_ref1 = this.parentNode) != null) {
-                _ref1.replaceChild(n, this);
-              }
-              return b[j++] = n;
+            clones = this.map(function() {
+              return n.cloneNode(true);
             });
-            this.skip(1).each(function() {
-              var c, _ref1;
-              c = n.cloneNode(true);
-              if ((_ref1 = this.parentNode) != null) {
-                _ref1.replaceChild(c, this);
+            for (i = _i = 0, _ref1 = clones.length; _i < _ref1; i = _i += 1) {
+              if ((_ref2 = this[i].parentNode) != null) {
+                _ref2.replaceChild(clones[i], this[i]);
               }
-              return b[j++] = c;
-            });
-            return b;
+            }
+            return clones;
           },
           attr: function(a, v) {
             switch (v) {
@@ -1836,15 +1869,16 @@
             }
           },
           data: function(k, v) {
-            k = "data-" + ($.dashize(k));
-            return this.attr(k, v);
+            return this.attr("data-" + ($.dashize(k)), v);
           },
           addClass: function(x) {
+            var notempty;
+            notempty = function(y) {
+              return y !== "";
+            };
             return this.removeClass(x).each(function() {
               var c;
-              c = this.className.split(" ").filter(function(y) {
-                return y !== "";
-              });
+              c = this.className.split(" ").filter(notempty);
               c.push(x);
               return this.className = c.join(" ");
             });
@@ -1855,8 +1889,8 @@
               return y !== x;
             };
             return this.each(function() {
-              var c, _ref1;
-              c = (_ref1 = this.className) != null ? _ref1.split(" ").filter(notx).join(" ") : void 0;
+              var c;
+              c = this.className.split(" ").filter(notx).join(" ");
               if (c.length === 0) {
                 return this.removeAttribute('class');
               }
@@ -1911,7 +1945,7 @@
               } else if ($.is("string", v)) {
                 setter.call(k, v, "");
               } else if ($.is("array", v)) {
-                for (i = _i = 0, _ref1 = n = Math.max(v.length, nn = setter.len()); 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
+                for (i = _i = 0, _ref1 = n = Math.max(v.length, nn = setter.len()); _i < _ref1; i = _i += 1) {
                   setter[i % nn](k, v[i % n], "");
                 }
               }
@@ -1973,48 +2007,9 @@
               return this[n < 0 ? n + this.length : n];
             });
           },
-          parents: function() {
-            return this.map(function() {
-              var p;
-              p = this;
-              return $((function() {
-                var _results;
-                _results = [];
-                while (p = p != null ? p.parentNode : void 0) {
-                  _results.push(p);
-                }
-                return _results;
-              })());
-            });
-          },
-          prev: function() {
-            return this.map(function() {
-              var p;
-              p = this;
-              return $((function() {
-                var _results;
-                _results = [];
-                while (p = p != null ? p.previousSibling : void 0) {
-                  _results.push(p);
-                }
-                return _results;
-              })());
-            });
-          },
-          next: function() {
-            return this.map(function() {
-              var p;
-              p = this;
-              return $((function() {
-                var _results;
-                _results = [];
-                while (p = p != null ? p.nextSibling : void 0) {
-                  _results.push(p);
-                }
-                return _results;
-              })());
-            });
-          },
+          parents: selectChain('parentNode'),
+          prev: selectChain('previousSibling'),
+          next: selectChain('nextSibling'),
           remove: function() {
             return this.each(function() {
               var _ref1;
@@ -2040,7 +2035,7 @@
             var df;
             if (this.length > 1) {
               df = document.createDocumentFragment();
-              this.map(toNode).map($.bound(df, df.appendChild));
+              (this.map(toNode)).map($.bound(df, df.appendChild));
               return df;
             }
             return toNode(this[0]);

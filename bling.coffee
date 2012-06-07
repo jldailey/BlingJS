@@ -1241,30 +1241,26 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 					clones
 
 				attr: (a,v) -> # .attr(a, [v]) - get [or set] an /a/ttribute [/v/alue]
-					switch v
-						when undefined
-							return @select("getAttribute").call(a, v)
-						when null
-							return @select("removeAttribute").call(a, v)
+					return switch v
+						when undefined then @select("getAttribute").call(a, v)
+						when null then @select("removeAttribute").call(a, v)
 						else
 							@select("setAttribute").call(a, v)
-							return @
+							@
 
-				data: (k, v) ->
-					k = "data-#{$.dashize(k)}"
-					@attr(k, v)
+				data: (k, v) -> @attr "data-#{$.dashize(k)}", v
 
 				addClass: (x) -> # .addClass(/x/) - add x to each node's .className
+					notempty = (y) -> y isnt ""
 					@removeClass(x).each ->
-						c = @className.split(" ").filter (y) ->
-							y isnt ""
-						c.push(x) # since we dont know the len, its still faster to push, rather than insert at len()
+						c = @className.split(" ").filter notempty
+						c.push(x)
 						@className = c.join " "
 
 				removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
-					notx = (y)-> y != x
+					notx = (y) -> y != x
 					@each ->
-						c = @className?.split(" ").filter(notx).join(" ")
+						c = @className.split(" ").filter(notx).join(" ")
 						if c.length is 0
 							@removeAttribute('class')
 
@@ -1307,7 +1303,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 						# If the value was actually an array of values, then
 						# stripe the values across each item.
 						else if $.is "array", v
-							setter[i%nn] k, v[i%n], "" for i in [0...n = Math.max v.length, nn = setter.len()]
+							setter[i%nn] k, v[i%n], "" for i in [0...n = Math.max v.length, nn = setter.len()] by 1
 						return @
 					# Else, we are reading CSS properties.
 					else

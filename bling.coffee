@@ -1111,6 +1111,8 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 			getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select(p)
 
+			selectChain = (prop) -> -> @map (p) -> $( p while p = p[prop] )
+
 			return {
 				$:
 
@@ -1383,13 +1385,14 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				# Get the _n-th_ child from each node in _this_.
 				child: (n) -> @select('childNodes').map -> @[ if n < 0 then (n+@length) else n ]
 
-				parents: -> @map -> p = @; $( p while p = p?.parentNode ) # .parents() - collects the full ancestry up to the owner
+				# Collect the full ancestry of each node, including the owner document.
+				parents: selectChain('parentNode')
 
-				prev: -> @map -> p = @; $( p while p = p?.previousSibling ) # .prev() - collects the chain of .previousSibling nodes
+				# Collect the full chain of previous siblings.
+				prev: selectChain('previousSibling')
 
-				next: -> @map -> p = @; $( p while p = p?.nextSibling ) # .next() - collect the chain of .nextSibling nodes
-
-				remove: -> @each -> @parentNode?.removeChild(@) # .remove() - removes each node in _this_ from the DOM
+				# Collect the full chain of next siblings.
+				next: selectChain('nextSibling')
 
 				find: (css) -> # .find(/css/) - collect nodes matching /css/
 					@filter("*") # limit to only DOM nodes

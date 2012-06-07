@@ -336,7 +336,8 @@ class Bling
 		# Their hash is just the sum of member hashes.
 		hash:   (o) -> o.map(Bling.hash).sum()
 		# They have a very literal string representation.
-		string: (o) -> Bling.symbol + "([" + o.map(Bling.toString).join(", ")+ "])"
+		string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
+		repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 
 Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 # if such a thing were supported by the syntax directly.
@@ -804,20 +805,25 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 		$.type.extend
 			# First, extend the base type with a default `string` function
-			unknown:   { string: (o) -> o.toString?() ? String(o) }
+			unknown:
+				string: (o) -> o.toString?() ? String(o)
+				repr: (o) -> $.type.lookup(o).string(o)
 			# Now, for each basic type, provide a basic `string` function.
 			# Later, more complex types will be added by plugins.
-			null:      { string: -> "null" }
+			null: { string: -> "null" }
 			undefined: { string: -> "undefined" }
-			string:    { string: $.identity }
-			array:     { string: (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
-			object:    { string: (o) -> "{" + ("#{k}:#{$.toString(v)}" for k,v in o).join(", ") + "}" }
-			number:    { string: (n) ->
-				switch true
-					when n.precision? then n.toPrecision(n.precision)
-					when n.fixed? then n.toFixed(n.fixed)
-					else String(n)
-			}
+			string:
+				string: $.identity
+				repr:   (s) -> "'#{s}'"
+			array:  { string: (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
+			object: { string: (o) -> "{" + ("#{k}:#{$.toString(v)}" for k,v in o).join(", ") + "}" }
+			number:
+				repr:   (n) -> String(n)
+				string: (n) ->
+					switch true
+						when n.precision? then n.toPrecision(n.precision)
+						when n.fixed? then n.toFixed(n.fixed)
+						else String(n)
 
 		# Return a bunch of root-level string functions.
 		return {
@@ -827,6 +833,11 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				toString: (x) ->
 					if not x? then "function Bling(selector, context) { [ ... ] }"
 					else $.type.lookup(x).string(x)
+
+				# __$.toRepr(x)__ returns a a code-like view of an object, using the
+				# type system's "repr" method.
+				toRepr: (x) -> $.type.lookup(x).repr(x)
+
 				# __$.px(x,[delta])__ computes a "px"-string ("20px"), `x` can
 				# be a number or a "px"-string; if `delta` is present it will
 				# be added to the number portion.
@@ -912,6 +923,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 					@toString = ( ) => items.join("")
 					@
 			toString: -> $.toString @
+			toRepr: -> $.toRepr @
 		}
 
 	# Function Plugin
@@ -1054,7 +1066,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				match:  (o) -> o? and $.isType "NodeList", o
 				hash:   (o) -> $($.hash(i) for i in x).sum()
 				array:  $.identity
-				string: (o) -> "{nodelist:"+$(o).select('nodeName').join(",")+"}"
+				string: (o) -> "{Nodelist:["+$(o).select('nodeName').join(",")+"]}"
 				node:   (o) -> $(o).toFragment()
 			$.type.register "node",
 				match:  (o) -> o?.nodeType > 0
@@ -1070,6 +1082,8 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				match:  (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
 				node:   (o) -> $.type.lookup(h = Bling.HTML.parse(o)).node(h)
 				array:  (o,c) -> $.type.lookup(h = Bling.HTML.parse(o)).array(h,c)
+				string: (o) -> "'#{o}'"
+				repr:   (o) -> '"' + o + '"'
 			$.type.extend
 				unknown:  { node: -> null }
 				bling:    { node: (o) -> o.toFragment() }

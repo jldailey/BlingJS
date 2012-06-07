@@ -354,6 +354,8 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 	# Grab a safe (browser vs. nodejs) reference to the global object
 	glob = if window? then window else global
+	glob.window = glob
+	glob.global = glob
 
 	#### Types plugin
 	# Exposes the type system publicly.

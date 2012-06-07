@@ -25,7 +25,7 @@ Object.keys ?= (o) -> (k for k of o)
 # A way to assign properties from `b` to `a`.
 extend = (a, b) ->
 	return a if not b
-	for k in Object.keys(b)
+	for k of b
 		v = b[k]
 		if v? then a[k] = v
 	a
@@ -273,7 +273,7 @@ class Bling
 				( @[key] or= (a...) => (@::[key].apply $(a[0]), a[1...]) ) for key of plugin
 				if opts.provides? then @provide opts.provides
 		catch error
-			log "failed to load plugin: #{this.name} '#{error.message}'"
+			log "failed to load plugin: #{@name} '#{error.message}'"
 			throw error
 		@
 

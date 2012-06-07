@@ -740,9 +740,9 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			# Log one line for each item in _this_.
 			log: (label) ->
 				if label
-					$.log(label, @, @length + " items")
+					$.log(label, @toString(), @length + " items")
 				else
-					$.log(@, @length + " items")
+					$.log(@toString(), @length + " items")
 				@
 
 			# Convert this to an array.
@@ -847,10 +847,10 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				# Example: Add 100px of width to an element.
 
 				# jQuery style:
-				# `node.css("width",(node.css("width") + 100) + "px")`
+				# `nodes.each(function(){ $(this).css("width",($(this).css("width") + 100) + "px")})`
 
 				# Bling style:
-				# `node.zap 'style.width', -> $.px @, + 100`
+				# `nodes.zap 'style.width', -> $.px @, + 100`
 
 				# Properly **Capitalize** Each Word In A String.
 				capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
@@ -997,7 +997,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		subscribers = {} # a mapping of channel name to a list of subscribers
 		publish = (e, args...) ->
 			f.apply null, args for f in (subscribers[e] or= [])
-			@
+			args
 		subscribe = (e, func) ->
 			(subscribers[e] or= []).push func
 			func
@@ -1381,19 +1381,28 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				# Collect the full chain of next siblings.
 				next: selectChain('nextSibling')
 
-				find: (css) -> # .find(/css/) - collect nodes matching /css/
-					@filter("*") # limit to only DOM nodes
+				# Remove each node from the DOM.
+				remove: -> @each -> @parentNode?.removeChild(@)
+
+				# Collect sub-nodes that match _css_, using **querySelectorAll**.
+				find: (css) ->
+					# Filter the input set to only DOM nodes.
+					@filter("*")
+						# Use each node as the context for creation of a new bling.
 						.map( -> $(css, @) )
+						# Flatten all the blings into a single set.
 						.flatten()
 
-				clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @ # .clone(deep=true) - copies a set of DOM nodes
+				# Collect a new set, full of clones of the DOM Nodes in the input set.
+				clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @
 
+				# Get a single DocumentFragment that contains all the nodes in _this_.
 				toFragment: ->
 					if @length > 1
 						df = document.createDocumentFragment()
-						@map(toNode).map $.bound df, df.appendChild
+						(@map toNode).map $.bound df, df.appendChild
 						return df
-					return toNode(@[0])
+					return toNode @[0]
 			}
 
 	# Transform plugin

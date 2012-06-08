@@ -399,6 +399,11 @@
       symbol = null;
       cache = {};
       glob.Bling = $;
+      $.type.extend("bling", {
+        string: function(o) {
+          return symbol + "([" + o.map(Object.String).join(", ") + "])";
+        }
+      });
       defineProperty($, "symbol", {
         set: function(v) {
           glob[symbol] = cache[symbol];
@@ -507,7 +512,7 @@
                 add: function(f, n) {
                   var i, _i, _ref1;
                   f.order = n + $.now;
-                  for (i = _i = 0, _ref1 = this.length; _i <= _ref1; i = _i += 1) {
+                  for (i = _i = 0, _ref1 = this.length; 0 <= _ref1 ? _i <= _ref1 : _i >= _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
                     if (i === this.length || this[i].order > f.order) {
                       this.splice(i, 0, f);
                       break;
@@ -518,7 +523,7 @@
                 },
                 cancel: function(f) {
                   var i, _i, _ref1;
-                  for (i = _i = 0, _ref1 = this.length; _i < _ref1; i = _i += 1) {
+                  for (i = _i = 0, _ref1 = this.length; 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
                     if (this[i] === f) {
                       this.splice(i, 1);
                       break;
@@ -742,7 +747,7 @@
         })(),
         or: function(x) {
           var i, _i, _ref1;
-          for (i = _i = 0, _ref1 = this.length; _i < _ref1; i = _i += 1) {
+          for (i = _i = 0, _ref1 = this.length; 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
             this[i] || (this[i] = x);
           }
           return this;
@@ -782,7 +787,7 @@
           return $((function() {
             var _i, _results;
             _results = [];
-            for (i = _i = 0; _i < end; i = _i += 1) {
+            for (i = _i = 0; 0 <= end ? _i < end : _i > end; i = 0 <= end ? ++_i : --_i) {
               _results.push(this[i]);
             }
             return _results;
@@ -797,7 +802,7 @@
           return $((function() {
             var _i, _ref1, _results;
             _results = [];
-            for (i = _i = start, _ref1 = this.length; _i < _ref1; i = _i += 1) {
+            for (i = _i = start, _ref1 = this.length; start <= _ref1 ? _i < _ref1 : _i > _ref1; i = start <= _ref1 ? ++_i : --_i) {
               _results.push(this[i]);
             }
             return _results;
@@ -836,7 +841,7 @@
           return $((function() {
             var _i, _results;
             _results = [];
-            for (i = _i = start; _i < end; i = _i += 1) {
+            for (i = _i = start; start <= end ? _i < end : _i > end; i = start <= end ? ++_i : --_i) {
               _results.push(this[i]);
             }
             return _results;
@@ -974,7 +979,7 @@
             return $((function() {
               var _i, _results;
               _results = [];
-              for (i = _i = 0; _i < n; i = _i += 1) {
+              for (i = _i = 0; 0 <= n ? _i < n : _i > n; i = 0 <= n ? ++_i : --_i) {
                 _results.push(0);
               }
               return _results;
@@ -985,7 +990,7 @@
             return $((function() {
               var _i, _results;
               _results = [];
-              for (i = _i = 0; _i < n; i = _i += 1) {
+              for (i = _i = 0; 0 <= n ? _i < n : _i > n; i = 0 <= n ? ++_i : --_i) {
                 _results.push(1);
               }
               return _results;
@@ -1053,7 +1058,7 @@
               return $((function() {
                 var _i, _ref1, _results;
                 _results = [];
-                for (i = _i = 0, _ref1 = Math.min(this.length, d.length) - 1; _i < _ref1; i = _i += 1) {
+                for (i = _i = 0, _ref1 = Math.min(this.length, d.length) - 1; 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
                   _results.push(this[i] + d[i]);
                 }
                 return _results;
@@ -1165,7 +1170,7 @@
           dashize: function(name) {
             var c, i, ret, _i, _ref1;
             ret = "";
-            for (i = _i = 0, _ref1 = (name != null ? name.length : void 0) | 0; _i < _ref1; i = _i += 1) {
+            for (i = _i = 0, _ref1 = (name != null ? name.length : void 0) | 0; 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
               c = name.charCodeAt(i);
               if ((91 > c && c > 64)) {
                 c += 32;
@@ -1542,7 +1547,7 @@
         depends: "function",
         provides: "dom"
       }, function() {
-        var after, before, computeCSSProperty, escaper, getOrSetRect, selectChain, toFrag, toNode;
+        var after, before, computeCSSProperty, escaper, getOrSetRect, parser, selectChain, toFrag, toNode;
         $.type.register("nodelist", {
           match: function(o) {
             return (o != null) && $.isType("NodeList", o);
@@ -1606,9 +1611,17 @@
             var s;
             return typeof o === "string" && (s = o.trimLeft())[0] === "<" && s[s.length - 1] === ">";
           },
-          node: function(o) {
-            var h;
-            return $.type.lookup(h = Bling.HTML.parse(o)).node(h);
+          node: function(h) {
+            var childNodes, df, i, n, node, _i;
+            (node = document.createElement('div')).innerHTML = h;
+            if (n = (childNodes = node.childNodes).length === 1) {
+              return node.removeChild(childNodes[0]);
+            }
+            df = document.createDocumentFragment();
+            for (i = _i = 0; _i < n; i = _i += 1) {
+              df.appendChild(node.removeChild(childNodes[0]));
+            }
+            return df;
           },
           array: function(o, c) {
             var h;
@@ -1630,6 +1643,16 @@
           bling: {
             node: function(o) {
               return o.toFragment();
+            }
+          },
+          node: {
+            html: function(n) {
+              var d, ret;
+              d = document.createElement("div");
+              d.appendChild((n = n.cloneNode(true)));
+              ret = d.innerHTML;
+              d.removeChild(n);
+              return ret;
             }
           },
           string: {
@@ -1663,7 +1686,8 @@
         toNode = function(x) {
           return $.type.lookup(x).node(x);
         };
-        escaper = null;
+        escaper = false;
+        parser = false;
         computeCSSProperty = function(k) {
           return function() {
             return window.getComputedStyle(this, null).getPropertyValue(k);
@@ -1696,33 +1720,10 @@
           $: {
             HTML: {
               parse: function(h) {
-                var childNodes, df, i, n, node, _i;
-                (node = document.createElement("div")).innerHTML = h;
-                if (n = (childNodes = node.childNodes).length === 1) {
-                  return node.removeChild(childNodes[0]);
-                }
-                df = document.createDocumentFragment();
-                for (i = _i = 0; 0 <= n ? _i < n : _i > n; i = 0 <= n ? ++_i : --_i) {
-                  df.appendChild(node.removeChild(childNodes[0]));
-                }
-                return df;
+                return $.type.lookup(h).node(h);
               },
               stringify: function(n) {
-                var d, ret;
-                switch ($.type(n)) {
-                  case "string":
-                  case "html":
-                    return n;
-                  case "node":
-                  case "fragment":
-                    d = document.createElement("div");
-                    d.appendChild((n = n.cloneNode(true)));
-                    ret = d.innerHTML;
-                    d.removeChild(n);
-                    return ret;
-                  default:
-                    return "HTML.stringify of unknown type: " + $.type(n);
-                }
+                return $.type.lookup(n).html(n);
               },
               escape: function(h) {
                 var ret;
@@ -2148,7 +2149,7 @@
               }
               return this.style.display = "none";
             }
-          }).trigger("hide").delay(updateDelay, callback);
+          }).trigger("hide".delay(updateDelay, callback));
         },
         show: function(callback) {
           return this.each(function() {
@@ -2156,7 +2157,7 @@
               this.style.display = this._display;
               return delete this._display;
             }
-          }).trigger("show").delay(updateDelay, callback);
+          }).trigger("show".delay(updateDelay, callback));
         },
         toggle: function(callback) {
           return this.weave(this.css("display")).fold(function(display, node) {

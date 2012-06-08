@@ -1093,13 +1093,12 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				hash:   (o) -> $($.hash(x) for x in o.childNodes).sum()
 				string: (o) -> o.toString()
 				node:   $.identity
-			parser = document.createElement('div')
 			$.type.register "html",
 				match:  (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
 				# Convert html to node.
 				node:   (h) ->
 					# Put the html into a new div.
-					parser.innerHTML = h
+					(node = document.createElement('div')).innerHTML = h
 					# If there's only one resulting child, return that Node.
 					if n = (childNodes = node.childNodes).length is 1
 						return node.removeChild(childNodes[0])

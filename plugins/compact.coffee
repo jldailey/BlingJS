@@ -2,7 +2,7 @@
 	$.plugin () ->
 		pruners = {}
 		register = (type, f) -> (pruners[type] = f)
-		lookup = (f) -> pruners[obj.t]
+		lookup = (obj) -> pruners[obj.t or obj.type]
 		stack = []
 
 		Object.Type.extend null,        { compact: (o) -> Object.String(o) }

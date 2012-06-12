@@ -23,7 +23,7 @@ Object.keys ?= (o) -> (k for k of o)
 # A way to assign properties from `b` to `a`.
 extend = (a, b) ->
 	return a if not b
-	for k in Object.keys(b)
+	for k of b
 		v = b[k]
 		if v? then a[k] = v
 	a
@@ -34,6 +34,7 @@ defineProperty = (o,name,opts) ->
 		configurable: true
 		enumerable: true
 	}, opts)
+	o
 
 # Type System
 # -----------
@@ -181,31 +182,65 @@ type = (->
 # So, the Bling constructor should not be called as `new Bling`,
 # and as a bonus our assignment to a symbol (`$`) remains simple.
 class Bling
-	
-	# We compute this only once, privately, so we dont have to check
+
+	# Pipes are one way to make extensible code that I am playing with.
+	# Each pipe is a named list of methods. You can add new
+	# methods to either end. To execute the whole pipe you call it
+	# with an array of arguments.
+
+	# Add a method to a pipe:
+	# > `$.pipe("amplify").append (x) -> x+1`
+
+	# The output of each function becomes the input of the next function
+	# in the pipe.
+	# > `$.pipe("amplify").append (x) -> x*2`
+
+	# Invoking a pipe with arguments will call all the functions and
+	# return the final value.
+	# > `$.pipe("amplify", 10) == 22`
+
+	pipes = {}
+	@pipe: (name, args) ->
+		p = (pipes[name] or= [])
+		if not args
+			return {
+				prepend: (obj) -> p.unshift(obj); obj
+				append: (obj) -> p.push(obj); obj
+			}
+		for func in p
+			args = func.call @, args
+		args
+
+	# The very first pipe is the one used by the constructor: "bling-init".
+	# This first piece of the pipe converts [selector, context] -> object;
+	# and should always be in the _middle_ (if you `unshift` onto the
+	# beginning of this pipe you should accept and return [selector, context].
+	# If you `push` onto the end, you should accept and return a bling object.
+	@pipe("bling-init").prepend (args) ->
+		[selector, context] = args
+		# Classify the type of selector to get a type-instance, which is
+		# used to convert the selector and context together to an array.
+		inherit Bling, extend type.lookup(selector).array(selector, context),
+			selector: selector
+			context: context
+		# Note: Uses inherit to _hijack_ the resulting array's prototype in-place.
+
+	# Compute the default context object only once, privately, so we dont have to check
 	# during every construction.
 	default_context = if document? then document else {}
 
-	constructor: (selector, context = default_context) ->
-		# Since we have this nice type system, our constructor is succinct:
-		# 1. Classify the type.
-		# 2. Convert the selector to a set using the type-instance (which
-		# in the case of anything array-like is a no-op).
-		# 3. Use inherit to _hijack_ the set's prototype in-place.
-		return inherit Bling, extend type.lookup(selector).array(selector, context),
-			selector: selector
-			context: context
+	constructor: (selector, context = default_context) -> return Bling.pipe("bling-init", [selector, context])
 
 	# $.plugin( [ opts ], func )
 	# -----------------
-	# Each plugin is a function that returns an object full of stuff to
+	# Each plugin function should return an object full of stuff to
 	# extend the Bling prototype with.
 
 	# Example: the simplest possible plugin.
 	# > $.plugin -> echo: -> @
 
-	# After this, `$(...).echo()` will work.  Also, this will
-	# create a default 'root' version: `$.echo`.
+	# This defines: `$(...).echo()`.  Also, this will
+	# create a 'root' version if one doesnt exist: `$.echo`.
 
 	# You can explicitly define root-level values by nesting things
 	# under a `$` key:
@@ -215,7 +250,7 @@ class Bling
 	@plugin: (opts, constructor) ->
 		if not constructor?
 			constructor = opts; opts = {}
-	
+
 		# Support a { depends: } option as a shortcut for `$.depends`.
 		if "depends" of opts
 			return @depends opts.depends, =>
@@ -231,7 +266,7 @@ class Bling
 				# older version of plugin() used to require names,
 				# but we ignore them now in favor of depends/provides.
 				['$','name'].forEach (k) -> delete plugin[k]
-				# Now put everything else on the Bling prototype
+				# Now put everything else on the Bling prototype.
 				extend @::, plugin
 				# Finally, add root-level wrappers for anything that doesn't
 				# have one already.
@@ -240,10 +275,10 @@ class Bling
 				# `$.provides`.
 				if opts.provides? then @provide opts.provides
 		catch error
-			log "failed to load plugin: #{this.name} '#{error.message}'"
-			# throw error
+			log "failed to load plugin: #{@name} '#{error.message}'"
+			throw error
 		@
-	
+
 	# Code dependencies
 	# -----------------
 	# $.depends, $.provide and $.provides, allow for representing
@@ -285,7 +320,7 @@ class Bling
 		# thing inside a real array.
 		unknown:   { array: (o) -> [o] }
 		# But where we do know better, we can provide more meaningful
-		# conversions. Later, in the DOM section, we will extend
+		# conversions. Later, in the DOM plugin, we will extend
 		# this further to know how to convert "html", "node", etc.
 
 		# Null and undefined values convert to an empty array.
@@ -306,23 +341,27 @@ class Bling
 		# Their hash is just the sum of member hashes.
 		hash:   (o) -> o.map(Bling.hash).sum()
 		# They have a very literal string representation.
-		string: (o) -> "$([" + o.map(Bling.toString).join(", ")+ "])"
+		string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
+		repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 
-Bling.prototype = [] # similar to `class Bling extends (new Array)`,
+# We specify an inheritance similar to `class Bling extends (new Array)`,
 # if such a thing were supported by the syntax directly.
+Bling.prototype = []
 
 
 # Plugins
 # =======
 # Now that we have a way to load plugins and express dependencies
 # between them, all future code will come in a plugin.
-# 
+#
 # For the rest of this file, set up a namespace that protects `$`,
 # so we can safely use short-hand in all of our plugins.
 (($) ->
 
 	# Grab a safe (browser vs. nodejs) reference to the global object
 	glob = if window? then window else global
+	glob.window = glob # Add these to protect unsafe code.
+	glob.global = glob
 
 	#### Types plugin
 	# Exposes the type system publicly.
@@ -330,10 +369,17 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		provides: "type"
 	, ->
 		$:
+			# __$.inherit(parent, child)__ makes _parent_ become the
+			# immediate *__proto__* of _child_.
 			inherit: inherit
+			# __$.extend(a,b)__ assigns properties from `b` onto `a`.
 			extend: extend
-			# `$.isType(Array, [])` is lower level than the others,
-			# doing simple comparison between constructors.
+			# __$.defineProperty(obj, name, opts)__ is like the native Object.defineProperty
+			# except with defaults that make the new properties 'public'.
+			defineProperty: defineProperty
+			# __$.isType(Array, [])__ is lower level than the others,
+			# doing simple comparison between constructors along the
+			# prototype chain.
 			isType: isType
 			# `$.type([])` equals `"array"`.
 			type: type
@@ -341,7 +387,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			is: type.is
 			isSimple: (o) -> type(o) in ["string", "number", "bool"]
 			isEmpty: (o) -> o in ["", null, undefined]
-	
+
 	# Symbol Plugin
 	# -------------
 	# Symbol adds a dynamic property: Bling.symbol, which contains the
@@ -525,12 +571,13 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			# Reduce _this_ to a single value, accumulating in _a_.
 			# Example: `(a,x) -> a+x` == `(a) -> a+@`.
 			reduce: (f, a) ->
-				t = @
-				if not a?
-					a = @[0]
-					t = @skip(1)
-				(a = f.call x, a, x) for x in t
-				a
+				i = 0; n = @length
+				# Init the accumulation.
+				a = @[i++] if not a?
+				# Run the reducer function across all items.
+				(a = f.call @[x], a, @[x]) for x in [i...n] by 1
+				# Return the accumulation.
+				return a
 			# Get a new set with every item from _this_ and from _other_. `strict` refers to whether
 			# to use == or === for comparison.
 			union: (other, strict = true) ->
@@ -718,9 +765,9 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			# Log one line for each item in _this_.
 			log: (label) ->
 				if label
-					$.log(label, @, @length + " items")
+					$.log(label, @toString(), @length + " items")
 				else
-					$.log(@, @length + " items")
+					$.log(@toString(), @length + " items")
 				@
 
 			# Convert this to an array.
@@ -734,8 +781,9 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		provides: "math"
 	, ->
 		$:
-			# Get an array of numbers.
+			# Get an array of sequential numbers.
 			range: (start, end, step = 1) ->
+				if not end? then (end = start; start = 0)
 				step *= -1 if end < start and step > 0 # force step to have the same sign as start->end
 				$( (start + (i*step)) for i in [0...Math.ceil( (end - start) / step )] )
 			# Get an array of zeros.
@@ -749,9 +797,9 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		# Convert everything to a "px" string.
 		px: (delta) -> @ints().map -> $.px @,delta
 		# Get the smallest element (defined by Math.min)
-		min: -> @reduce (a) -> Math.min @, a
+		min: -> @reduce Math.min
 		# Get the largest element (defined by Math.max)
-		max: -> @reduce (a) -> Math.max @, a
+		max: -> @reduce Math.max
 		# Get the mean (average) of the set.
 		mean: -> @sum() / @length
 		# Get the sum of the set.
@@ -768,7 +816,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		add: (d) -> switch $.type(d)
 			when "number" then @map -> d + @
 			when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)-1] )
-		# Get a new set with same direction, but magnitude equal to 1.
+		# Get a new vector with same direction, but magnitude equal to 1.
 		normalize: -> @scale(1/@magnitude())
 
 	# String Plugin
@@ -780,20 +828,25 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 	, ->
 		$.type.extend
 			# First, extend the base type with a default `string` function
-			unknown:   { string: (o) -> o.toString?() ? String(o) }
+			unknown:
+				string: (o) -> o.toString?() ? String(o)
+				repr: (o) -> $.type.lookup(o).string(o)
 			# Now, for each basic type, provide a basic `string` function.
 			# Later, more complex types will be added by plugins.
-			null:      { string: -> "null" }
+			null: { string: -> "null" }
 			undefined: { string: -> "undefined" }
-			string:    { string: $.identity }
-			array:     { string: (a) -> "[" + ($.toString(x) for x in a).join(", ") + "]" }
-			object:    { string: (o) -> "{" + ("#{k}:#{$.toString(v)}" for k,v in o).join(", ") + "}" }
-			number:    { string: (n) ->
-				switch true
-					when n.precision? then n.toPrecision(n.precision)
-					when n.fixed? then n.toFixed(n.fixed)
-					else String(n)
-			}
+			string:
+				string: $.identity
+				repr:   (s) -> "'#{s}'"
+			array:  { string: (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
+			object: { string: (o) -> "{" + ("#{k}:#{$.toString(v)}" for k,v in o).join(", ") + "}" }
+			number:
+				repr:   (n) -> String(n)
+				string: (n) ->
+					switch true
+						when n.precision? then n.toPrecision(n.precision)
+						when n.fixed? then n.toFixed(n.fixed)
+						else String(n)
 
 		# Return a bunch of root-level string functions.
 		return {
@@ -803,6 +856,11 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				toString: (x) ->
 					if not x? then "function Bling(selector, context) { [ ... ] }"
 					else $.type.lookup(x).string(x)
+
+				# __$.toRepr(x)__ returns a a code-like view of an object, using the
+				# type system's "repr" method.
+				toRepr: (x) -> $.type.lookup(x).repr(x)
+
 				# __$.px(x,[delta])__ computes a "px"-string ("20px"), `x` can
 				# be a number or a "px"-string; if `delta` is present it will
 				# be added to the number portion.
@@ -810,10 +868,10 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				# Example: Add 100px of width to an element.
 
 				# jQuery style:
-				# `node.css("width",(node.css("width") + 100) + "px")`
+				# `nodes.each(function(){ $(this).css("width",($(this).css("width") + 100) + "px")})`
 
 				# Bling style:
-				# `node.zap 'style.width', -> $.px @, + 100`
+				# `nodes.zap 'style.width', -> $.px @, + 100`
 
 				# Properly **Capitalize** Each Word In A String.
 				capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
@@ -888,6 +946,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 					@toString = ( ) => items.join("")
 					@
 			toString: -> $.toString @
+			toRepr: -> $.toRepr @
 		}
 
 	# Function Plugin
@@ -908,9 +967,17 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			and: (f,g) -> (x) -> g.call(@,x) and f.call(@,x)
 			# __$.once(f)__ returns a new function that will only call
 			# _f_ **once**, or _n_ times if you pass the optional argument.
-			once: (f,n=1) -> f._once = n; -> (f.apply @,arguments) if f._once-- > 0
+			once: (f, n=1) ->
+				$.defineProperty (-> (f.apply @,arguments) if n-- > 0),
+					"exhausted",
+						get: -> n <= 0
+			# __.cycle(f...)__ returns a new function that cycles through
+			# other functions.
+			cycle: (f...) ->
+				i = -1
+				-> f[i = ++i % f.length].apply @, arguments
 			# __$.bound(context,f,[args])__ returns a new function that
-			# forces `this === context` when called.
+			# assures `this === context` when called.
 			bound: (t, f, args = []) ->
 				if $.is "function", f.bind
 					args.splice 0, 0, t
@@ -919,37 +986,9 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 					r = (a...) -> f.apply t, (args if args.length else a)
 				$.extend r, { toString: -> "bound-method of #{t}.#{f.name}" }
 			# __$.memoize(f)__ returns a new function that caches function calls to f, based on hashing the arguments.
-			memoize: (f) -> cache = {}; (a...) -> cache[$.hash(a)] ?= f.apply @, a # BUG: skips cache if f returns null on purpose
-
-
-	# Trace Plugin
-	# ------------
-	# A very useful debugging tool, `$(o).trace() or $.trace(o)` will deep-walk all
-	# properties and wrap all functions with new functions that call the
-	# originals but log the calls (and use the property names from the
-	# deep walk as labels).
-	$.plugin
-		provides: "trace"
-		depends: "type,core"
-	, ->
-		$.type.extend
-			unknown: { trace: $.identity }
-			object:  { trace: (o, label, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
-			array:   { trace: (o, label, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length]); o }
-			function:
-				trace: (f, label, tracer) ->
-					r = (a...) ->
-						tracer "#{@name or $.type(@)}.#{label or f.name}(", a, ")"
-						f.apply @, a
-					tracer "Trace: #{label or f.name} created."
-					r.toString = f.toString
-					r
-		return {
-			$:
-				trace: (o, label, tracer = $.log) -> $.type.lookup(o).trace o, label, tracer
-			trace: (label, tracer = $.log) -> @map -> $.trace @, label, tracer
-		}
-
+			memoize: (f) ->
+				cache = {}
+				(a...) -> cache[$.hash(a)] ?= f.apply @, a # BUG: skips cache if f returns null on purpose
 
 	# Hash plugin
 	# -----------
@@ -979,7 +1018,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		subscribers = {} # a mapping of channel name to a list of subscribers
 		publish = (e, args...) ->
 			f.apply null, args for f in (subscribers[e] or= [])
-			@
+			args
 		subscribe = (e, func) ->
 			(subscribers[e] or= []).push func
 			func
@@ -1020,26 +1059,25 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 	# EventEmitter Plugin
 	# -------------------
-	# The EventEmitter interface that NodeJS uses is much simpler (and faster) than the DOM event model.
-	# Example: `$.inherit new $.EventEmitter, { myCode: -> }`
+	# The EventEmitter interface that NodeJS uses is much simpler (and
+	# faster) than the DOM event model.  With this plugin, every new
+	# bling becomes an EventEmitter automatically, or you can mix it in
+	# to any object: `$.EventEmitter(obj)`.
 	$.plugin
 		provides: "EventEmitter"
 	, ->
-		class EventEmitter
-			constructor:        -> @__event = {}
-			addListener:        (e, h) -> (@__event[e] or= []).push(h); @emit('newListener', e, h)
-			on:                 (e, h) -> @addListener e, h
-			once:               (e,h) -> @addListener e, (f = (a...) -> @removeListener(f); h(a...))
-			removeListener:     (e, h) -> (@__event[e].splice i, 1) if (i = (@__event[e] or= []).indexOf(h)) > -1
-			removeAllListeners: (e) -> @__event[e] = []
-			setMaxListeners:    (n) -> # nop for now... who really needs this in the core API?
-			listeners:          (e) -> @__event[e]
-			emit:               (e, a...) -> (f.apply(@, a) for f in (@__event[e] or= [])); null
+		$: EventEmitter: $.pipe("bling-init").append (obj) ->
+			listeners = {}
+			list = (e) -> (listeners[e] or= [])
+			inherit obj,
+				emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); null
+				addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
+				on:                 (e, h) -> @addListener e, h
+				removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
+				removeAllListeners: (e) -> listeners[e] = []
+				setMaxListeners:    (n) -> # who really needs this in the core API?
+				listeners:          (e) -> list(e).slice 0
 
-		$: EventEmitter: EventEmitter
-
-
-	
 	if glob.document?
 		# DOM Plugin
 		# ----------
@@ -1051,7 +1089,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				match:  (o) -> o? and $.isType "NodeList", o
 				hash:   (o) -> $($.hash(i) for i in x).sum()
 				array:  $.identity
-				string: (o) -> "{nodelist:"+$(o).select('nodeName').join(",")+"}"
+				string: (o) -> "{Nodelist:["+$(o).select('nodeName').join(",")+"]}"
 				node:   (o) -> $(o).toFragment()
 			$.type.register "node",
 				match:  (o) -> o?.nodeType > 0
@@ -1068,7 +1106,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				# Convert html to node.
 				node:   (h) ->
 					# Put the html into a new div.
-					(parser or= document.createElement("div")).innerHTML = h
+					(node = document.createElement('div')).innerHTML = h
 					# If there's only one resulting child, return that Node.
 					if n = (childNodes = node.childNodes).length is 1
 						return node.removeChild(childNodes[0])
@@ -1078,6 +1116,8 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 					df.appendChild(node.removeChild(childNodes[0])) for i in [0...n] by 1
 					df
 				array:  (o,c) -> $.type.lookup(h = Bling.HTML.parse o).array h, c
+				string: (o) -> "'#{o}'"
+				repr:   (o) -> '"' + o + '"'
 			$.type.extend
 				unknown:  { node: -> null }
 				bling:    { node: (o) -> o.toFragment() }
@@ -1112,6 +1152,8 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			computeCSSProperty = (k) -> -> window.getComputedStyle(@, null).getPropertyValue(k)
 
 			getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select(p)
+
+			selectChain = (prop) -> -> @map (p) -> $( p while p = p[prop] )
 
 			return {
 				$:
@@ -1214,45 +1256,32 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 				replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
 					n = toNode(n)
-					b = $()
-					j = 0
-					# first node gets the real n
-					@take(1).each ->
-						@parentNode?.replaceChild(n, @)
-						b[j++] = n
-					# the rest get clones of n
-					@skip(1).each ->
-						c = n.cloneNode(true)
-						@parentNode?.replaceChild(c, @)
-						b[j++] = c
-					# the set of inserted nodes
-					b
+					clones = @map(-> n.cloneNode true)
+					for i in [0...clones.length] by 1
+						@[i].parentNode?.replaceChild clones[i], @[i]
+					clones
 
 				attr: (a,v) -> # .attr(a, [v]) - get [or set] an /a/ttribute [/v/alue]
-					switch v
-						when undefined
-							return @select("getAttribute").call(a, v)
-						when null
-							return @select("removeAttribute").call(a, v)
+					return switch v
+						when undefined then @select("getAttribute").call(a, v)
+						when null then @select("removeAttribute").call(a, v)
 						else
 							@select("setAttribute").call(a, v)
-							return @
+							@
 
-				data: (k, v) ->
-					k = "data-#{$.dashize(k)}"
-					@attr(k, v)
+				data: (k, v) -> @attr "data-#{$.dashize(k)}", v
 
 				addClass: (x) -> # .addClass(/x/) - add x to each node's .className
+					notempty = (y) -> y isnt ""
 					@removeClass(x).each ->
-						c = @className.split(" ").filter (y) ->
-							y isnt ""
-						c.push(x) # since we dont know the len, its still faster to push, rather than insert at len()
+						c = @className.split(" ").filter notempty
+						c.push(x)
 						@className = c.join " "
 
 				removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
-					notx = (y)-> y != x
+					notx = (y) -> y != x
 					@each ->
-						c = @className?.split(" ").filter(notx).join(" ")
+						c = @className.split(" ").filter(notx).join(" ")
 						if c.length is 0
 							@removeAttribute('class')
 
@@ -1295,7 +1324,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 						# If the value was actually an array of values, then
 						# stripe the values across each item.
 						else if $.is "array", v
-							setter[i%nn] k, v[i%n], "" for i in [0...n = Math.max v.length, nn = setter.len()]
+							setter[i%nn] k, v[i%n], "" for i in [0...n = Math.max v.length, nn = setter.len()] by 1
 						return @
 					# Else, we are reading CSS properties.
 					else
@@ -1364,27 +1393,38 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				# Get the _n-th_ child from each node in _this_.
 				child: (n) -> @select('childNodes').map -> @[ if n < 0 then (n+@length) else n ]
 
-				parents: -> @map -> p = @; $( p while p = p?.parentNode ) # .parents() - collects the full ancestry up to the owner
+				# Collect the full ancestry of each node, including the owner document.
+				parents: selectChain('parentNode')
 
-				prev: -> @map -> p = @; $( p while p = p?.previousSibling ) # .prev() - collects the chain of .previousSibling nodes
+				# Collect the full chain of previous siblings.
+				prev: selectChain('previousSibling')
 
-				next: -> @map -> p = @; $( p while p = p?.nextSibling ) # .next() - collect the chain of .nextSibling nodes
+				# Collect the full chain of next siblings.
+				next: selectChain('nextSibling')
 
-				remove: -> @each -> @parentNode?.removeChild(@) # .remove() - removes each node in _this_ from the DOM
+				# Remove each node from the DOM.
+				remove: -> @each -> @parentNode?.removeChild(@)
 
-				find: (css) -> # .find(/css/) - collect nodes matching /css/
-					@filter("*") # limit to only DOM nodes
+				# Collect sub-nodes that match _css_, using **querySelectorAll**.
+				find: (css) ->
+					# Filter the input set to only DOM nodes.
+					@filter("*")
+						# Use each node as the context for creation of a new bling.
 						.map( -> $(css, @) )
+						# Flatten all the blings into a single set.
 						.flatten()
 
-				clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @ # .clone(deep=true) - copies a set of DOM nodes
+				# Collect a new set, full of clones of the DOM Nodes in the input set.
+				clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @
 
+				# Get a single DocumentFragment that contains all the nodes in _this_.
 				toFragment: ->
 					if @length > 1
 						df = document.createDocumentFragment()
-						@map(toNode).map $.bound df, df.appendChild
+						# Convert every item in _this_ to a DOM node, and then append it to the Fragment.
+						(@map toNode).map $.bound df, df.appendChild
 						return df
-					return toNode(@[0])
+					return toNode @[0]
 			}
 
 	# Transform plugin
@@ -1544,11 +1584,12 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			fadeDown: (speed, callback)  -> @fadeOut speed, callback, 0.0, @height().first()
 		}
 
-	# HTTP Plugin
+	# HTTP Client Plugin
 	# -----------
 	# Things like `.ajax()`, `.get()`, `$.post()`.
 	$.plugin
 		depends: "dom"
+		provides: "http"
 	, ->
 		formencode = (obj) -> # create &foo=bar strings from object properties
 			o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
@@ -1560,10 +1601,10 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 		return {
 			$:
-				# $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
+				# __$.http(url, [opts/callback])__ - fetch _url_ using HTTP (method in _opts_)
 				http: (url, opts = {}) ->
 					xhr = new XMLHttpRequest()
-					if $.is("function",opts)
+					if $.is "function", opts
 						opts = success: $.bound(xhr, opts)
 					opts = $.extend {
 						method: "GET"
@@ -1577,19 +1618,25 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 						followRedirects: false
 						withCredentials: false
 					}, opts
+					# Bind all the event handlers.
 					opts.state = $.bound(xhr, opts.state)
 					opts.success = $.bound(xhr, opts.success)
 					opts.error = $.bound(xhr, opts.error)
+					# Append url parameters.
 					if opts.data and opts.method is "GET"
 						url += "?" + formencode(opts.data)
 					else if opts.data and opts.method is "POST"
 						opts.data = formencode(opts.data)
+					# Open the connection.
 					xhr.open(opts.method, url, opts.async)
+					# Set the options.
 					xhr = $.extend xhr,
 						asBlob: opts.asBlob
 						timeout: opts.timeout
 						followRedirects: opts.followRedirects
 						withCredentials: opts.withCredentials
+						# There is one central state handler that calls the
+						# various handlers bound to opts.
 						onreadystatechange: ->
 							opts.state?()
 							if xhr.readyState is 4
@@ -1597,17 +1644,19 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 									opts.success xhr.responseText
 								else
 									opts.error xhr.status, xhr.statusText
+					# Send the request body.
 					xhr.send opts.data
+					# Return the wrapped xhr object (for cancelling mostly)
 					return $(xhr)
 
-				# $.post(/url/, [/opts/]) - fetch /url/ with a POST request
+				# __$.post(_url_, [_opts_])__ - fetch _url_ with a POST request
 				post: (url, opts = {}) ->
 					if $.is("function",opts)
 						opts = success: opts
 					opts.method = "POST"
 					$.http(url, opts)
 
-				# $.get(/url/, [/opts/]) - fetch /url/ with a GET request
+				# __$.get(_url_, [_opts_])__ - fetch _url_ with a GET request
 				get: (url, opts = {}) ->
 					if( $.is("function",opts) )
 						opts = success: opts
@@ -1617,19 +1666,22 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 	# Events plugin
 	# -------------
-	# Things like `.bind()`, `.trigger()`, etc.
+	# Things like `.bind('click')`, `.trigger('keyup')`, etc.
 	$.plugin
 		depends: "dom,function,core"
 		provides: "event"
 	, ->
 		EVENTSEP_RE = /,* +/
+		# This is a list of (almost) all the event types, each one of
+		# these will get a short-hand version like: `$("...").mouseup()`.
+		# "click" is handled specially.
 		events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
 			'load','unload','reset','submit','keyup','keydown','change',
 			'abort','cut','copy','paste','selection','drag','drop','orientationchange',
 			'touchstart','touchmove','touchend','touchcancel',
 			'gesturestart','gestureend','gesturecancel',
 			'hashchange'
-		] # 'click' is handled specially
+		]
 
 		binder = (e) -> (f) -> @bind(e, f) if $.is "function", f else @trigger(e, f)
 
@@ -1647,7 +1699,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				$c.unbind(e, c[f])
 				delete c[f]
 
-		# detect and fire the document.ready event
+		# Detect and fire the document's `ready` event.
 		triggerReady = $.once ->
 			$(document).trigger("ready").unbind("ready")
 			document.removeEventListener?("DOMContentLoaded", triggerReady, false)
@@ -1658,7 +1710,9 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		bindReady()
 
 		ret = {
-			bind: (e, f) -> # .bind(e, f) - adds handler f for event type e
+			# __.bind(e, f)__ adds handler f for event type e.
+			# `$("...").bind('click', -> )`
+			bind: (e, f) ->
 				c = (e or "").split(EVENTSEP_RE)
 				h = (evt) ->
 					ret = f.apply @, arguments
@@ -1667,26 +1721,14 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 					ret
 				@each -> (@addEventListener i, h, false) for i in c
 
-			unbind: (e, f) -> # .unbind(e, [f]) - removes handler f from event e
-				c = (e or "").split(EVENTSEP_RE)
+			# __.unbind(e, [f])__ remove handler[s] for event _e_. If _f_ is
+			# not passed, then remove all handlers.
+			unbind: (e, f) ->
+				c = (e or "").split EVENTSEP_RE
 				@each -> (@removeEventListener i, f, null) for i in c
 
-			once: (e, f) -> # .once(e, f) - adds a handler f that will only fire once (per node)
-				c = (e or "").split(EVENTSEP_RE)
-				for i in c
-					@bind i, (evt) ->
-						f.call(@, evt)
-						@removeEventListener(evt.type, arguments.callee, null)
-
-			cycle: (e, funcs...) -> # .cycle(e, ...) - bind handlers for e that trigger in a cycle
-				c = (e or "").split(EVENTSEP_RE)
-				nf = funcs.length
-				cycler = (i = -1) ->
-					(evt) -> funcs[i = ++i % nf].call(@, evt)
-				@bind j, cycler() for j in c
-				@
-
-			trigger: (evt, args = {}) -> # .trigger(e, a) - initiates a fake event
+			# __.trigger(e, [args])__ creates (and fires) a fake event on some DOM nodes.
+			trigger: (evt, args = {}) ->
 				args = $.extend
 					bubbles: true
 					cancelable: true
@@ -1781,34 +1823,42 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 							log("dispatchEvent error:",err)
 				@
 
-			live: (e, f) -> # .live(e, f) - handle events for nodes that will exist in the future
+			# __.live(e, f)__ bind _f_ to handle events for nodes that will exist in the future.
+			live: (e, f) ->
 				selector = @selector
 				context = @context
-				# wrap f
-				handler = (evt) -> # later, when event 'e' is fired
-					$(selector, context) # re-execute the selector in the original context
-						.intersect($(evt.target).parents().first().union($(evt.target))) # see if the event would bubble into a match
-						.each -> f.call(evt.target = @, evt) # then fire the real handler 'f' on the matched nodes
-				# record f so we can 'die' it if needed
+				# Create a wrapper for _f_.
+				handler = (evt) ->
+					# The wrapper will:
+					# Re-execute the selector in the original context.
+					$(selector, context)
+						# See if the event would bubble up into a match.
+						.intersect($(evt.target).parents().first().union($(evt.target)))
+						# Then fire the real _f_ on the nodes that really matched.
+						.each -> f.call(evt.target = @, evt)
+				# Register _f_ and it's wrapper, so we can find it later if we need to `die`.
 				register_live selector, context, e, f, handler
 				@
 
-			die: (e, f) -> # die(e, [f]) - stop f [or all] from living for event e
+			# __.die(e, [f])__ remove _f_ [or all handlers] that are living
+			# for event _e_.
+			die: (e, f) ->
 				$(@context).unbind e, unregister_live(@selector, @context, e, f)
 				@
 
-			liveCycle: (e, funcs...) -> # .liveCycle(e, ...) - bind each /f/ in /funcs/ to handle /e/
-				i = -1; nf = funcs.length
-				@live e, (evt) -> funcs[i = ++i % nf].call @, evt
-
-			click: (f = {}) -> # .click([f]) - trigger [or bind] the 'click' event
-				if @css("cursor") in ["auto",""] # if the cursor is default
-					@css "cursor", "pointer" # then make it look clickable
+			# __.click([f])__ triggers the 'click' event but also sets a
+			# default clickable appearance.
+			click: (f = {}) ->
+				# Only if the current appearance has not been set.
+				if @css("cursor") in ["auto",""]
+					# Then make it look clickable.
+					@css "cursor", "pointer"
+				# Bind or trigger just like other events, e.g. "mouseup".
 				if $.is "function", f then @bind 'click', f
 				else @trigger 'click', f
 
 			ready: (f) ->
-				return (f.call @) if triggerReady.n <= 0
+				return (f.call @) if triggerReady.exhausted
 				@bind "ready", f
 		}
 
@@ -1816,6 +1866,9 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		events.forEach (x) -> ret[x] = binder(x)
 		return ret
 
+	# Lazy Plugin
+	# -----------
+	# Asynchronously load scripts and stylesheets by injecting script and link tags into the head.
 	$.plugin
 		depends: "dom"
 		provides: "lazy"
@@ -1823,8 +1876,10 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		lazy_load = (elementName, props) ->
 			$("head").append $.extend document.createElement(elementName), props
 		$:
+			# __$.script(src)__ loads javascript files asynchronously.
 			script: (src) ->
 				lazy_load "script", { src: src }
+			# __$.style(src)__  loads stylesheets asynchronously.
 			style: (src) ->
 				lazy_load "link", { href: src, rel: "stylesheet" }
 

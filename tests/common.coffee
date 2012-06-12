@@ -89,9 +89,9 @@ global.testGroup = (name, tests) ->
 				test()
 				passed += 1
 				total[1] += 1
-				ui.output "#{name}_#{test_name}...ok"
+				ui.output "#{name}_#{test_name}...#{ui.green}ok#{ui.normal}"
 			catch err
-				ui.output "#{name}_#{test_name}...fail: '#{err.toString()}'"
+				ui.output "#{name}_#{test_name}...#{ui.red}fail:#{ui.normal} '#{err.toString()}'"
 				failed += 1
 				total[2] += 1
 				failures.push(test_name)

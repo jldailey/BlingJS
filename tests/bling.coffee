@@ -84,16 +84,30 @@ testGroup("Symbol",
 		assertEqual($, Bling)
 )
 
+testGroup("Math",
+	sum: -> assertEqual($([1,2,3,4,5]).sum(), 15)
+	range1: -> assertEqual($.range(1,6).toRepr(), '$([1, 2, 3, 4, 5])')
+	range2: -> assertEqual($.range(5).toRepr(), '$([0, 1, 2, 3, 4])')
+	zeros1: -> assertEqual($.zeros(10).sum(), 0)
+	zeros2: -> assertEqual($.zeros(5).toRepr(), '$([0, 0, 0, 0, 0])')
+	ones: -> assertEqual($.ones(10).sum(), 10)
+	floats: -> assertEqual($(["12.1","29.9"]).floats().sum(), 42)
+	ints: -> assertEqual($(["12.1","29.9px"]).ints().sum(), 41)
+	px: -> assertEqual( $(["12.1", "29.9"]).px(2).toRepr(), "$(['14px', '31px'])" )
+	min: -> assertEqual( $([12.1, 29.9]).min(), 12.1)
+	max: -> assertEqual( $([12.1, 29.9]).max(), 29.9)
+)
+
 # set up a test document, to run DOM tests against
 document.body.innerHTML = "
-	<table>
+<table>
 	<tr><td>1,1</td><td>1,2</td></tr>
 	<tr><td>2,1</td><td>2,2</td></tr>
 	<tr><td>3,1</td><td class='d'>3,2</td></tr>
 	<tr><td>4,1</td><td>4,2</td></tr>
-	</table>
-	<div class='c'>C</div>
-	<p><span>foobar</span></p>
+</table>
+<div class='c'>C</div>
+<p><span>foobar</span></p>
 "
 testGroup("Core",
 	new1: ->
@@ -273,13 +287,8 @@ testGroup("HTML",
 	value2: -> assertEqual($("<input />").val().toRepr(), "$([''])")
 	value3: -> assertEqual($("<input type='checkbox' checked />").val().toRepr(), "$(['on'])")
 	parents: -> assertEqual($("td.d").parents().first().select('nodeName').toRepr(), "$(['TR', 'TABLE', 'BODY', 'HTML'])")
-	prev: -> assertEqual($("div.c").prev().first().select('nodeName').toRepr(), "$(['#TEXT', 'TABLE', '#TEXT'])")
-	next: -> assertEqual($("div.c").next().first().select('nodeName').toRepr(), "$(['#TEXT', 'P'])")
-	find: ->
-		a = $("<a><b class='x'/><c class='x'/><d/></a>")
-			.find(".x")
-			.assertEqual(2, -> @length)
-			.assertEqual("$(['B', 'C'])", -> @select('nodeName').toRepr())
+	prev: -> assertEqual($("div.c").prev().first().select('nodeName').toRepr(), "$(['TABLE'])")
+	next: -> assertEqual($("div.c").next().first().select('nodeName').toRepr(), "$(['P'])")
 	remove: ->
 		a = $("<a><b class='x'/><c class='x'/><d/></a>")
 		b = a.find(".x")
@@ -288,7 +297,19 @@ testGroup("HTML",
 			.remove()
 			.assertEqual("$([null, null])", -> @select('parentNode').toRepr() )
 		assertEqual a.toRepr(), '$([<a><d/></a>])'
-
+	find: ->
+		a = $("<a><b class='x'/><c class='x'/><d/></a>")
+			.find(".x")
+			.assertEqual(2, -> @length)
+			.assertEqual("$(['B', 'C'])", -> @select('nodeName').toRepr())
+	clone: ->
+		c = $("div.c").clone()[0]
+		d = $("div.c")[0]
+		c.a = "magic"
+		assertEqual( typeof d.a, "undefined")
+		assertEqual( typeof c.a, "string")
+	toFragment: ->
+		assertEqual($("td").clone().toFragment().childNodes.length, 8)
 )
 
 testReport()

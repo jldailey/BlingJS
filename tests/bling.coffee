@@ -1,17 +1,50 @@
 common = require('./common')
 
 testGroup("Object",
-	Keys: -> assertArrayEqual Object.keys({a: 1, b: 2}), ['a','b']
-	Extend: -> assertArrayEqual Object.keys($.extend({A:1},{B:2})), ['A','B']
-	Type_string: -> assertEqual $.type(""), "string"
-	Type_number:-> assertEqual $.type(42), "number"
-	Type_undef: -> assertEqual $.type(), "undefined"
-	Type_null: -> assertEqual $.type(null), "null"
-	Type_array: -> assertEqual $.type([]), "array"
-	Type_function: -> assertEqual $.type(() -> null), "function"
-	Type_bool: -> assertEqual $.type(true), "bool"
-	Type_regexp: -> assertEqual $.type(//), "regexp"
-	Type_window: -> assertEqual $.type(window), "global"
+	keys: -> assertArrayEqual Object.keys({a: 1, b: 2}), ['a','b']
+)
+
+testGroup("Type",
+	string: -> assertEqual $.type(""), "string"
+	number:-> assertEqual $.type(42), "number"
+	undef: -> assertEqual $.type(), "undefined"
+	null: -> assertEqual $.type(null), "null"
+	array: -> assertEqual $.type([]), "array"
+	function: -> assertEqual $.type(() -> null), "function"
+	bool: -> assertEqual $.type(true), "bool"
+	regexp: -> assertEqual $.type(//), "regexp"
+	window: -> assertEqual $.type(window), "global"
+	is: ->
+		assert($.is "function", ->)
+		assert($.is "array", [])
+	inherit: ->
+		a = { a: 1 }
+		b = { b: 2 }
+		$.inherit a, b
+		assertEqual(b.__proto__, a)
+		assertEqual(b.a, 1)
+		assert( not b.hasOwnProperty("a") )
+	extend: -> assertArrayEqual Object.keys($.extend({A:1},{B:2})), ['A','B']
+	defineProperty: ->
+		a = {}
+		$.defineProperty a, "b",
+			get: -> 2
+		assert( "b" of a )
+	isType1: ->
+		assert( $.isType(Array, []) )
+	isType2: ->
+		assert( $.isType('Array', []) )
+	isType3: ->
+		class Foo
+		f = new Foo()
+		assert( $.isType Foo, f )
+	isSimple1: -> assert( $.isSimple "" )
+	isSimple2: -> assert( $.isSimple 42.0 )
+	isSimple3: -> assert( $.isSimple false )
+	isSimple4: -> assert( not $.isSimple {} )
+	isEmpty1: -> assert( $.isEmpty "" )
+	isEmpty2: -> assert( $.isEmpty null )
+	isEmpty3: -> assert( $.isEmpty undefined )
 )
 
 testGroup("Function",
@@ -116,6 +149,10 @@ testGroup("Core",
 		assertEqual(b[1], 2)
 		assertEqual(b[2], 3)
 		assertEqual(b.constructor.name, "Bling")
+	pipe1: ->
+		$.pipe('unit-test').append (x) -> x += 2
+		$.pipe('unit-test').prepend (x) -> x *= 2
+		assertEqual( $.pipe('unit-test', 4), 10)
 	eq: -> assertEqual($([1,2,3]).eq(1)[0], 2)
 	each: ->
 		sum = 0

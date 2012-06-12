@@ -320,7 +320,7 @@ class Bling
 		# thing inside a real array.
 		unknown:   { array: (o) -> [o] }
 		# But where we do know better, we can provide more meaningful
-		# conversions. Later, in the DOM section, we will extend
+		# conversions. Later, in the DOM plugin, we will extend
 		# this further to know how to convert "html", "node", etc.
 
 		# Null and undefined values convert to an empty array.
@@ -344,8 +344,9 @@ class Bling
 		string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
 		repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 
-Bling.prototype = [] # similar to `class Bling extends (new Array)`,
+# We specify an inheritance similar to `class Bling extends (new Array)`,
 # if such a thing were supported by the syntax directly.
+Bling.prototype = []
 
 
 # Plugins
@@ -359,7 +360,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 	# Grab a safe (browser vs. nodejs) reference to the global object
 	glob = if window? then window else global
-	glob.window = glob
+	glob.window = glob # Add these to protect unsafe code.
 	glob.global = glob
 
 	#### Types plugin
@@ -368,11 +369,17 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		provides: "type"
 	, ->
 		$:
+			# __$.inherit(parent, child)__ makes _parent_ become the
+			# immediate *__proto__* of _child_.
 			inherit: inherit
+			# __$.extend(a,b)__ assigns properties from `b` onto `a`.
 			extend: extend
+			# __$.defineProperty(obj, name, opts)__ is like the native Object.defineProperty
+			# except with defaults that make the new properties 'public'.
 			defineProperty: defineProperty
-			# `$.isType(Array, [])` is lower level than the others,
-			# doing simple comparison between constructors.
+			# __$.isType(Array, [])__ is lower level than the others,
+			# doing simple comparison between constructors along the
+			# prototype chain.
 			isType: isType
 			# `$.type([])` equals `"array"`.
 			type: type
@@ -1692,7 +1699,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				$c.unbind(e, c[f])
 				delete c[f]
 
-		# detect and fire the document.ready event
+		# Detect and fire the document's `ready` event.
 		triggerReady = $.once ->
 			$(document).trigger("ready").unbind("ready")
 			document.removeEventListener?("DOMContentLoaded", triggerReady, false)

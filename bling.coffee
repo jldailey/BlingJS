@@ -774,8 +774,9 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		provides: "math"
 	, ->
 		$:
-			# Get an array of numbers.
+			# Get an array of sequential numbers.
 			range: (start, end, step = 1) ->
+				if not end? then (end = start; start = 0)
 				step *= -1 if end < start and step > 0 # force step to have the same sign as start->end
 				$( (start + (i*step)) for i in [0...Math.ceil( (end - start) / step )] )
 			# Get an array of zeros.
@@ -789,9 +790,9 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		# Convert everything to a "px" string.
 		px: (delta) -> @ints().map -> $.px @,delta
 		# Get the smallest element (defined by Math.min)
-		min: -> @reduce (a) -> Math.min @, a
+		min: -> @reduce Math.min
 		# Get the largest element (defined by Math.max)
-		max: -> @reduce (a) -> Math.max @, a
+		max: -> @reduce Math.max
 		# Get the mean (average) of the set.
 		mean: -> @sum() / @length
 		# Get the sum of the set.
@@ -808,7 +809,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		add: (d) -> switch $.type(d)
 			when "number" then @map -> d + @
 			when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)-1] )
-		# Get a new set with same direction, but magnitude equal to 1.
+		# Get a new vector with same direction, but magnitude equal to 1.
 		normalize: -> @scale(1/@magnitude())
 
 	# String Plugin
@@ -1413,6 +1414,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				toFragment: ->
 					if @length > 1
 						df = document.createDocumentFragment()
+						# Convert every item in _this_ to a DOM node, and then append it to the Fragment.
 						(@map toNode).map $.bound df, df.appendChild
 						return df
 					return toNode @[0]
@@ -1575,11 +1577,12 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			fadeDown: (speed, callback)  -> @fadeOut speed, callback, 0.0, @height().first()
 		}
 
-	# HTTP Plugin
+	# HTTP Client Plugin
 	# -----------
 	# Things like `.ajax()`, `.get()`, `$.post()`.
 	$.plugin
 		depends: "dom"
+		provides: "http"
 	, ->
 		formencode = (obj) -> # create &foo=bar strings from object properties
 			o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
@@ -1591,10 +1594,10 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 		return {
 			$:
-				# $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
+				# __$.http(url, [opts/callback])__ - fetch _url_ using HTTP (method in _opts_)
 				http: (url, opts = {}) ->
 					xhr = new XMLHttpRequest()
-					if $.is("function",opts)
+					if $.is "function", opts
 						opts = success: $.bound(xhr, opts)
 					opts = $.extend {
 						method: "GET"
@@ -1608,19 +1611,25 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 						followRedirects: false
 						withCredentials: false
 					}, opts
+					# Bind all the event handlers.
 					opts.state = $.bound(xhr, opts.state)
 					opts.success = $.bound(xhr, opts.success)
 					opts.error = $.bound(xhr, opts.error)
+					# Append url parameters.
 					if opts.data and opts.method is "GET"
 						url += "?" + formencode(opts.data)
 					else if opts.data and opts.method is "POST"
 						opts.data = formencode(opts.data)
+					# Open the connection.
 					xhr.open(opts.method, url, opts.async)
+					# Set the options.
 					xhr = $.extend xhr,
 						asBlob: opts.asBlob
 						timeout: opts.timeout
 						followRedirects: opts.followRedirects
 						withCredentials: opts.withCredentials
+						# There is one central state handler that calls the
+						# various handlers bound to opts.
 						onreadystatechange: ->
 							opts.state?()
 							if xhr.readyState is 4
@@ -1628,17 +1637,19 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 									opts.success xhr.responseText
 								else
 									opts.error xhr.status, xhr.statusText
+					# Send the request body.
 					xhr.send opts.data
+					# Return the wrapped xhr object (for cancelling mostly)
 					return $(xhr)
 
-				# $.post(/url/, [/opts/]) - fetch /url/ with a POST request
+				# __$.post(_url_, [_opts_])__ - fetch _url_ with a POST request
 				post: (url, opts = {}) ->
 					if $.is("function",opts)
 						opts = success: opts
 					opts.method = "POST"
 					$.http(url, opts)
 
-				# $.get(/url/, [/opts/]) - fetch /url/ with a GET request
+				# __$.get(_url_, [_opts_])__ - fetch _url_ with a GET request
 				get: (url, opts = {}) ->
 					if( $.is("function",opts) )
 						opts = success: opts
@@ -1656,7 +1667,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		EVENTSEP_RE = /,* +/
 		# This is a list of (almost) all the event types, each one of
 		# these will get a short-hand version like: `$("...").mouseup()`.
-		# Click is handled specially.
+		# "click" is handled specially.
 		events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
 			'load','unload','reset','submit','keyup','keydown','change',
 			'abort','cut','copy','paste','selection','drag','drop','orientationchange',
@@ -1664,7 +1675,6 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			'gesturestart','gestureend','gesturecancel',
 			'hashchange'
 		]
-
 
 		binder = (e) -> (f) -> @bind(e, f) if $.is "function", f else @trigger(e, f)
 
@@ -1859,8 +1869,10 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		lazy_load = (elementName, props) ->
 			$("head").append $.extend document.createElement(elementName), props
 		$:
+			# __$.script(src)__ loads javascript files asynchronously.
 			script: (src) ->
 				lazy_load "script", { src: src }
+			# __$.style(src)__  loads stylesheets asynchronously.
 			style: (src) ->
 				lazy_load "link", { href: src, rel: "stylesheet" }
 

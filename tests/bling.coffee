@@ -85,6 +85,7 @@ testGroup("String",
 	Splice4: -> assertEqual($.stringSplice("foobar",0,0,"baz"), "bazfoobar")
 	Checksum1: -> assertEqual($.checksum("foobar"), 145425018) # test values are from python's adler32 in zlib
 	Checksum2: -> assertEqual($.checksum("foobarbaz"), 310051767)
+	ToString: -> assertEqual($([2,3,4]).toString(), "$([2, 3, 4])")
 )
 
 testGroup("Plugins",
@@ -118,7 +119,8 @@ testGroup("Symbol",
 )
 
 testGroup("Math",
-	sum: -> assertEqual($([1,2,3,4,5]).sum(), 15)
+	sum1: -> assertEqual($([1,2,3,4,5]).sum(), 15)
+	sum2: -> assertEqual($([1,2,NaN,3]).sum(), 6)
 	range1: -> assertEqual($.range(1,6).toRepr(), '$([1, 2, 3, 4, 5])')
 	range2: -> assertEqual($.range(5).toRepr(), '$([0, 1, 2, 3, 4])')
 	zeros1: -> assertEqual($.zeros(10).sum(), 0)
@@ -127,8 +129,10 @@ testGroup("Math",
 	floats: -> assertEqual($(["12.1","29.9"]).floats().sum(), 42)
 	ints: -> assertEqual($(["12.1","29.9px"]).ints().sum(), 41)
 	px: -> assertEqual( $(["12.1", "29.9"]).px(2).toRepr(), "$(['14px', '31px'])" )
-	min: -> assertEqual( $([12.1, 29.9]).min(), 12.1)
-	max: -> assertEqual( $([12.1, 29.9]).max(), 29.9)
+	min1: -> assertEqual( $([12.1, 29.9]).min(), 12.1)
+	min2: -> assertEqual( $([12.1, NaN, 29.9]).min(), 12.1)
+	max1: -> assertEqual( $([12.1, 29.9]).max(), 29.9)
+	max2: -> assertEqual( $([12.1, NaN, 29.9]).max(), 29.9)
 )
 
 # set up a test document, to run DOM tests against

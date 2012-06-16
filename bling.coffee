@@ -360,8 +360,6 @@ Bling.prototype = []
 
 	# Grab a safe (browser vs. nodejs) reference to the global object
 	glob = if window? then window else global
-	glob.window = glob # Add these to protect unsafe code.
-	glob.global = glob
 
 	#### Types plugin
 	# Exposes the type system publicly.
@@ -415,7 +413,7 @@ Bling.prototype = []
 		# Over-ride the bling->string conversion to output the current
 		# symbol.
 		$.type.extend "bling",
-			string: (o) -> symbol + "(["+ o.map(Object.String).join(", ") + "])"
+			string: (o) -> symbol + "(["+ o.map($.toString).join(", ") + "])"
 		# Define $.symbol as a dynamic property.
 		defineProperty $, "symbol",
 			set: (v) ->
@@ -797,15 +795,15 @@ Bling.prototype = []
 		# Convert everything to a "px" string.
 		px: (delta) -> @ints().map -> $.px @,delta
 		# Get the smallest element (defined by Math.min)
-		min: -> @reduce Math.min
+		min: -> @filter( isFinite ).reduce Math.min
 		# Get the largest element (defined by Math.max)
-		max: -> @reduce Math.max
+		max: -> @filter( isFinite ).reduce Math.max
 		# Get the mean (average) of the set.
 		mean: -> @sum() / @length
 		# Get the sum of the set.
-		sum: -> @reduce (a) -> a + @
+		sum: -> @filter( isFinite ).reduce (a) -> a + @
 		# Get the product of all items in the set.
-		product: -> @reduce (a) -> a * @
+		product: -> @filter( isFinite ).reduce (a) -> a * @
 		# Get a new set with every item squared.
 		squares: -> @map -> @ * @
 		# Get the magnitude (vector length) of this set.

@@ -320,7 +320,7 @@ class Bling
 		# thing inside a real array.
 		unknown:   { array: (o) -> [o] }
 		# But where we do know better, we can provide more meaningful
-		# conversions. Later, in the DOM section, we will extend
+		# conversions. Later, in the DOM plugin, we will extend
 		# this further to know how to convert "html", "node", etc.
 
 		# Null and undefined values convert to an empty array.
@@ -344,8 +344,9 @@ class Bling
 		string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
 		repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 
-Bling.prototype = [] # similar to `class Bling extends (new Array)`,
+# We specify an inheritance similar to `class Bling extends (new Array)`,
 # if such a thing were supported by the syntax directly.
+Bling.prototype = []
 
 
 # Plugins
@@ -359,8 +360,6 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 	# Grab a safe (browser vs. nodejs) reference to the global object
 	glob = if window? then window else global
-	glob.window = glob
-	glob.global = glob
 
 	#### Types plugin
 	# Exposes the type system publicly.
@@ -368,11 +367,17 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		provides: "type"
 	, ->
 		$:
+			# __$.inherit(parent, child)__ makes _parent_ become the
+			# immediate *__proto__* of _child_.
 			inherit: inherit
+			# __$.extend(a,b)__ assigns properties from `b` onto `a`.
 			extend: extend
+			# __$.defineProperty(obj, name, opts)__ is like the native Object.defineProperty
+			# except with defaults that make the new properties 'public'.
 			defineProperty: defineProperty
-			# `$.isType(Array, [])` is lower level than the others,
-			# doing simple comparison between constructors.
+			# __$.isType(Array, [])__ is lower level than the others,
+			# doing simple comparison between constructors along the
+			# prototype chain.
 			isType: isType
 			# `$.type([])` equals `"array"`.
 			type: type
@@ -408,7 +413,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		# Over-ride the bling->string conversion to output the current
 		# symbol.
 		$.type.extend "bling",
-			string: (o) -> symbol + "(["+ o.map(Object.String).join(", ") + "])"
+			string: (o) -> symbol + "(["+ o.map($.toString).join(", ") + "])"
 		# Define $.symbol as a dynamic property.
 		defineProperty $, "symbol",
 			set: (v) ->
@@ -774,8 +779,9 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		provides: "math"
 	, ->
 		$:
-			# Get an array of numbers.
+			# Get an array of sequential numbers.
 			range: (start, end, step = 1) ->
+				if not end? then (end = start; start = 0)
 				step *= -1 if end < start and step > 0 # force step to have the same sign as start->end
 				$( (start + (i*step)) for i in [0...Math.ceil( (end - start) / step )] )
 			# Get an array of zeros.
@@ -789,15 +795,15 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		# Convert everything to a "px" string.
 		px: (delta) -> @ints().map -> $.px @,delta
 		# Get the smallest element (defined by Math.min)
-		min: -> @reduce (a) -> Math.min @, a
+		min: -> @filter( isFinite ).reduce Math.min
 		# Get the largest element (defined by Math.max)
-		max: -> @reduce (a) -> Math.max @, a
+		max: -> @filter( isFinite ).reduce Math.max
 		# Get the mean (average) of the set.
 		mean: -> @sum() / @length
 		# Get the sum of the set.
-		sum: -> @reduce (a) -> a + @
+		sum: -> @filter( isFinite ).reduce (a) -> a + @
 		# Get the product of all items in the set.
-		product: -> @reduce (a) -> a * @
+		product: -> @filter( isFinite ).reduce (a) -> a * @
 		# Get a new set with every item squared.
 		squares: -> @map -> @ * @
 		# Get the magnitude (vector length) of this set.
@@ -808,7 +814,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		add: (d) -> switch $.type(d)
 			when "number" then @map -> d + @
 			when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)-1] )
-		# Get a new set with same direction, but magnitude equal to 1.
+		# Get a new vector with same direction, but magnitude equal to 1.
 		normalize: -> @scale(1/@magnitude())
 
 	# String Plugin
@@ -1413,6 +1419,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				toFragment: ->
 					if @length > 1
 						df = document.createDocumentFragment()
+						# Convert every item in _this_ to a DOM node, and then append it to the Fragment.
 						(@map toNode).map $.bound df, df.appendChild
 						return df
 					return toNode @[0]
@@ -1575,11 +1582,12 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			fadeDown: (speed, callback)  -> @fadeOut speed, callback, 0.0, @height().first()
 		}
 
-	# HTTP Plugin
+	# HTTP Client Plugin
 	# -----------
 	# Things like `.ajax()`, `.get()`, `$.post()`.
 	$.plugin
 		depends: "dom"
+		provides: "http"
 	, ->
 		formencode = (obj) -> # create &foo=bar strings from object properties
 			o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
@@ -1591,10 +1599,10 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 
 		return {
 			$:
-				# $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
+				# __$.http(url, [opts/callback])__ - fetch _url_ using HTTP (method in _opts_)
 				http: (url, opts = {}) ->
 					xhr = new XMLHttpRequest()
-					if $.is("function",opts)
+					if $.is "function", opts
 						opts = success: $.bound(xhr, opts)
 					opts = $.extend {
 						method: "GET"
@@ -1608,19 +1616,25 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 						followRedirects: false
 						withCredentials: false
 					}, opts
+					# Bind all the event handlers.
 					opts.state = $.bound(xhr, opts.state)
 					opts.success = $.bound(xhr, opts.success)
 					opts.error = $.bound(xhr, opts.error)
+					# Append url parameters.
 					if opts.data and opts.method is "GET"
 						url += "?" + formencode(opts.data)
 					else if opts.data and opts.method is "POST"
 						opts.data = formencode(opts.data)
+					# Open the connection.
 					xhr.open(opts.method, url, opts.async)
+					# Set the options.
 					xhr = $.extend xhr,
 						asBlob: opts.asBlob
 						timeout: opts.timeout
 						followRedirects: opts.followRedirects
 						withCredentials: opts.withCredentials
+						# There is one central state handler that calls the
+						# various handlers bound to opts.
 						onreadystatechange: ->
 							opts.state?()
 							if xhr.readyState is 4
@@ -1628,17 +1642,19 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 									opts.success xhr.responseText
 								else
 									opts.error xhr.status, xhr.statusText
+					# Send the request body.
 					xhr.send opts.data
+					# Return the wrapped xhr object (for cancelling mostly)
 					return $(xhr)
 
-				# $.post(/url/, [/opts/]) - fetch /url/ with a POST request
+				# __$.post(_url_, [_opts_])__ - fetch _url_ with a POST request
 				post: (url, opts = {}) ->
 					if $.is("function",opts)
 						opts = success: opts
 					opts.method = "POST"
 					$.http(url, opts)
 
-				# $.get(/url/, [/opts/]) - fetch /url/ with a GET request
+				# __$.get(_url_, [_opts_])__ - fetch _url_ with a GET request
 				get: (url, opts = {}) ->
 					if( $.is("function",opts) )
 						opts = success: opts
@@ -1656,7 +1672,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		EVENTSEP_RE = /,* +/
 		# This is a list of (almost) all the event types, each one of
 		# these will get a short-hand version like: `$("...").mouseup()`.
-		# Click is handled specially.
+		# "click" is handled specially.
 		events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
 			'load','unload','reset','submit','keyup','keydown','change',
 			'abort','cut','copy','paste','selection','drag','drop','orientationchange',
@@ -1664,7 +1680,6 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 			'gesturestart','gestureend','gesturecancel',
 			'hashchange'
 		]
-
 
 		binder = (e) -> (f) -> @bind(e, f) if $.is "function", f else @trigger(e, f)
 
@@ -1682,7 +1697,7 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 				$c.unbind(e, c[f])
 				delete c[f]
 
-		# detect and fire the document.ready event
+		# Detect and fire the document's `ready` event.
 		triggerReady = $.once ->
 			$(document).trigger("ready").unbind("ready")
 			document.removeEventListener?("DOMContentLoaded", triggerReady, false)
@@ -1859,8 +1874,10 @@ Bling.prototype = [] # similar to `class Bling extends (new Array)`,
 		lazy_load = (elementName, props) ->
 			$("head").append $.extend document.createElement(elementName), props
 		$:
+			# __$.script(src)__ loads javascript files asynchronously.
 			script: (src) ->
 				lazy_load "script", { src: src }
+			# __$.style(src)__  loads stylesheets asynchronously.
 			style: (src) ->
 				lazy_load "link", { href: src, rel: "stylesheet" }
 

@@ -270,7 +270,10 @@ class Bling
 				extend @::, plugin
 				# Finally, add root-level wrappers for anything that doesn't
 				# have one already.
-				( @[key] or= (a...) => (@::[key].apply $(a[0]), a[1...]) ) for key of plugin # and gets a default global implementation
+				for key of plugin
+					((key) =>
+						@[key] or= (a...) => (@::[key].apply $(a[0]), a[1...])
+					)(key)
 				# Support a { provides: } option as a shortcut for
 				# `$.provides`.
 				if opts.provides? then @provide opts.provides
@@ -302,7 +305,6 @@ class Bling
 		f
 
 	@provide: (needs) ->
-		console.log "provide(#{needs})"
 		for need in filt(needs)
 			done[need] = i = 0
 			while i < qu.length
@@ -813,7 +815,7 @@ Bling.prototype = []
 		# Add this to d, get a new set.
 		add: (d) -> switch $.type(d)
 			when "number" then @map -> d + @
-			when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)-1] )
+			when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)] )
 		# Get a new vector with same direction, but magnitude equal to 1.
 		normalize: -> @scale(1/@magnitude())
 
@@ -1014,24 +1016,25 @@ Bling.prototype = []
 		provides: "pubsub"
 	, ->
 		subscribers = {} # a mapping of channel name to a list of subscribers
-		publish = (e, args...) ->
-			f.apply null, args for f in (subscribers[e] or= [])
-			args
-		subscribe = (e, func) ->
-			(subscribers[e] or= []).push func
-			func
-		unsubscribe = (e, func) ->
-			if not func?
-				subscribers[e] = []
-			else
-				a = (subscribers[e] or= [])
-				if (i = a.indexOf func)  > -1
-					a.splice(i,i)
 		return {
 			$:
-				publish: publish
-				subscribe: subscribe
-				unsubscribe: unsubscribe
+				publish: (e, args...) ->
+					f.apply null, args for f in (subscribers[e] or= [])
+					args
+				publisher: (e, func) ->
+					(args...) ->
+						$.publish e, args
+						func.apply @, args
+				subscribe: (e, func) ->
+					(subscribers[e] or= []).push func
+					func
+				unsubscribe: (e, func) ->
+					if not func?
+						subscribers[e] = []
+					else
+						a = (subscribers[e] or= [])
+						if (i = a.indexOf func)  > -1
+							a.splice(i,i)
 		}
 
 	# Throttle Plugin
@@ -1854,6 +1857,7 @@ Bling.prototype = []
 				# Bind or trigger just like other events, e.g. "mouseup".
 				if $.is "function", f then @bind 'click', f
 				else @trigger 'click', f
+				@
 
 			ready: (f) ->
 				return (f.call @) if triggerReady.exhausted

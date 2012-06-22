@@ -839,7 +839,7 @@ Bling.prototype = []
 				string: $.identity
 				repr:   (s) -> "'#{s}'"
 			array:  { string: (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
-			object: { string: (o) -> "{" + ("#{k}:#{$.toString(v)}" for k,v in o).join(", ") + "}" }
+			object: { string: (o) -> "{" + ("#{k}:#{$.toString(v)}" for k,v of o).join(", ") + "}" }
 			number:
 				repr:   (n) -> String(n)
 				string: (n) ->

@@ -219,7 +219,7 @@
     }
 
     Bling.plugin = function(opts, constructor) {
-      var key, plugin,
+      var key, plugin, _fn,
         _this = this;
       if (!(constructor != null)) {
         constructor = opts;
@@ -239,12 +239,15 @@
             return delete plugin[k];
           });
           extend(this.prototype, plugin);
-          for (key in plugin) {
-            this[key] || (this[key] = function() {
+          _fn = function(key) {
+            return _this[key] || (_this[key] = function() {
               var a;
               a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
               return _this.prototype[key].apply($(a[0]), a.slice(1));
             });
+          };
+          for (key in plugin) {
+            _fn(key);
           }
           if (opts.provides != null) {
             this.provide(opts.provides);
@@ -281,7 +284,6 @@
 
     Bling.provide = function(needs) {
       var f, i, need, _i, _len, _ref1;
-      console.log("provide(" + needs + ")");
       _ref1 = filt(needs);
       for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
         need = _ref1[_i];
@@ -369,8 +371,6 @@
   (function($) {
     var glob;
     glob = typeof window !== "undefined" && window !== null ? window : global;
-    glob.window = glob;
-    glob.global = glob;
     $.plugin({
       provides: "type"
     }, function() {
@@ -401,7 +401,7 @@
       glob.Bling = $;
       $.type.extend("bling", {
         string: function(o) {
-          return symbol + "([" + o.map(Object.String).join(", ") + "])";
+          return symbol + "([" + o.map($.toString).join(", ") + "])";
         }
       });
       defineProperty($, "symbol", {
@@ -1015,21 +1015,21 @@
           });
         },
         min: function() {
-          return this.reduce(Math.min);
+          return this.filter(isFinite).reduce(Math.min);
         },
         max: function() {
-          return this.reduce(Math.max);
+          return this.filter(isFinite).reduce(Math.max);
         },
         mean: function() {
           return this.sum() / this.length;
         },
         sum: function() {
-          return this.reduce(function(a) {
+          return this.filter(isFinite).reduce(function(a) {
             return a + this;
           });
         },
         product: function() {
-          return this.reduce(function(a) {
+          return this.filter(isFinite).reduce(function(a) {
             return a * this;
           });
         },
@@ -1058,7 +1058,7 @@
               return $((function() {
                 var _i, _ref1, _results;
                 _results = [];
-                for (i = _i = 0, _ref1 = Math.min(this.length, d.length) - 1; 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
+                for (i = _i = 0, _ref1 = Math.min(this.length, d.length); 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
                   _results.push(this[i] + d[i]);
                 }
                 return _results;
@@ -1118,10 +1118,10 @@
           string: function(o) {
             var k, v;
             return "{" + ((function() {
-              var _i, _len, _results;
+              var _results;
               _results = [];
-              for (v = _i = 0, _len = o.length; _i < _len; v = ++_i) {
-                k = o[v];
+              for (k in o) {
+                v = o[k];
                 _results.push("" + k + ":" + ($.toString(v)));
               }
               return _results;
@@ -1419,38 +1419,43 @@
     $.plugin({
       provides: "pubsub"
     }, function() {
-      var publish, subscribe, subscribers, unsubscribe;
+      var subscribers;
       subscribers = {};
-      publish = function() {
-        var args, e, f, _i, _len, _ref1;
-        e = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-        _ref1 = (subscribers[e] || (subscribers[e] = []));
-        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-          f = _ref1[_i];
-          f.apply(null, args);
-        }
-        return args;
-      };
-      subscribe = function(e, func) {
-        (subscribers[e] || (subscribers[e] = [])).push(func);
-        return func;
-      };
-      unsubscribe = function(e, func) {
-        var a, i;
-        if (!(func != null)) {
-          return subscribers[e] = [];
-        } else {
-          a = (subscribers[e] || (subscribers[e] = []));
-          if ((i = a.indexOf(func)) > -1) {
-            return a.splice(i, i);
-          }
-        }
-      };
       return {
         $: {
-          publish: publish,
-          subscribe: subscribe,
-          unsubscribe: unsubscribe
+          publish: function() {
+            var args, e, f, _i, _len, _ref1;
+            e = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+            _ref1 = (subscribers[e] || (subscribers[e] = []));
+            for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+              f = _ref1[_i];
+              f.apply(null, args);
+            }
+            return args;
+          },
+          publisher: function(e, func) {
+            return function() {
+              var args;
+              args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+              $.publish(e, args);
+              return func.apply(this, args);
+            };
+          },
+          subscribe: function(e, func) {
+            (subscribers[e] || (subscribers[e] = [])).push(func);
+            return func;
+          },
+          unsubscribe: function(e, func) {
+            var a, i;
+            if (!(func != null)) {
+              return subscribers[e] = [];
+            } else {
+              a = (subscribers[e] || (subscribers[e] = []));
+              if ((i = a.indexOf(func)) > -1) {
+                return a.splice(i, i);
+              }
+            }
+          }
         }
       };
     });
@@ -2509,10 +2514,11 @@
             this.css("cursor", "pointer");
           }
           if ($.is("function", f)) {
-            return this.bind('click', f);
+            this.bind('click', f);
           } else {
-            return this.trigger('click', f);
+            this.trigger('click', f);
           }
+          return this;
         },
         ready: function(f) {
           if (triggerReady.exhausted) {

@@ -10,7 +10,7 @@ DIST_PLUGINS=$(DIST)/plugins
 
 all: clean dist report
 
-bling: $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
+bling: $(DIST)/min.bling.js $(DIST)/min.bling.js.gz $(DIST)/bling.coffee
 
 dist: $(DIST)/bling.js bling plugin
 
@@ -59,6 +59,9 @@ plugin_compile:
 
 $(DIST)/bling.js: ../bling.coffee
 	cd .. && coffee -o dist -c bling.coffee
+
+$(DIST)/bling.coffee: ../bling.coffee
+	cat $< | sed -E 's/^	*#.*$$//g' | grep -v '^$$' > $@
 
 $(DIST)/min.%.js: $(DIST)/%.js yuicompressor.jar
 	$(JAVA) -jar yuicompressor.jar $< -v -o $@

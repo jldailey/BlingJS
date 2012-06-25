@@ -2,7 +2,7 @@
 	# DOM Plugin
 	# ----------
 	# Only works if there is a global document.
-	if glob.document?
+	if $.global.document?
 		$.plugin
 			depends: "function"
 			provides: "dom"

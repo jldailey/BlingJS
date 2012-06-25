@@ -12,7 +12,7 @@ all: clean dist report
 
 bling: $(DIST)/min.bling.js $(DIST)/min.bling.js.gz $(DIST)/bling.coffee
 
-dist: $(DIST)/bling.js bling plugin
+dist: $(DIST)/bling.js bling plugins
 
 docs: $(DIST)/docs/bling.html
 
@@ -38,7 +38,16 @@ publish:
 	&& git checkout master \
 	&& git stash pop || true
 
-plugin: plugin_compile plugin_minify plugin_compress
+$(DIST)/bling.browser.coffee: $(DIST)/bling.coffee
+	cat $(DIST)/bling.coffee > $@
+	for x in dom events http lazy transform; do cat $(PLUGINS)/$$x.coffee >> $@; done
+
+$(DIST)/bling.browser.js: $(DIST)/bling.browser.coffee
+	coffee -c $<
+
+browser: $(DIST)/min.bling.browser.js $(DIST)/min.bling.browser.js.gz
+
+plugins: plugin_compile plugin_minify plugin_compress
 
 plugin_minify: $(DIST_PLUGINS)/min.synth.js $(DIST_PLUGINS)/min.pprint.js $(DIST_PLUGINS)/min.template.js $(DIST_PLUGINS)/min.tnet.js $(DIST_PLUGINS)/min.ui.js $(DIST_PLUGINS)/min.compact.js $(DIST_PLUGINS)/min.all.js 
 
@@ -79,4 +88,4 @@ clean:
 	rm -f $(DIST)/*.js
 	rm -f $(DIST_PLUGINS)/*.js
 
-.PHONY: all bling clean dist site publish plugin
+.PHONY: all bling clean dist site publish plugins

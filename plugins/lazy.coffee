@@ -1,34 +1,20 @@
 (($) ->
 
-	$.plugin () -> # LazyLoader plugin, depends on PubSub
-		create = (elementName, props) ->
-			Object.Extend document.createElement(elementName), props
-
+	# Lazy Plugin
+	# -----------
+	# Asynchronously load scripts and stylesheets by injecting script and link tags into the head.
+	$.plugin
+		depends: "dom"
+		provides: "lazy"
+	, ->
 		lazy_load = (elementName, props) ->
-			depends = provides = null
-			n = create elementName, Object.Extend(props, {
-				"onload!": () ->
-					if provides?
-						$.publish(provides)
-			})
-			$("head").delay 10, () ->
-				if depends?
-					$.subscribe depends, () => @append(n)
-				else
-					@append(n)
-			n = $(n)
-			Object.Extend n, {
-				depends: (tag) -> depends = elementName+"-"+tag; n
-				provides: (tag) -> provides = elementName+"-"+tag; n
-			}
-
-		return {
-			name: "LazyLoader"
-			$:
-				script: (src) ->
-					lazy_load "script", { "src!": src }
-				style: (src) ->
-					lazy_load "link", { "href!": src, "rel!": "stylesheet" }
-		}
+			$("head").append $.extend document.createElement(elementName), props
+		$:
+			# __$.script(src)__ loads javascript files asynchronously.
+			script: (src) ->
+				lazy_load "script", { src: src }
+			# __$.style(src)__  loads stylesheets asynchronously.
+			style: (src) ->
+				lazy_load "link", { href: src, rel: "stylesheet" }
 
 )(Bling)

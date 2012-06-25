@@ -405,6 +405,7 @@ Bling.prototype = []
 	# > `Bling.symbol = 'foo'; $.is("bling", foo()) == true`
 	$.plugin
 		provides: "symbol"
+		depends: "type"
 	, ->
 		# The current symbol.
 		symbol = null
@@ -540,6 +541,7 @@ Bling.prototype = []
 	# basic stuff that you are familiar with from jQuery: 'each', 'map',
 	# etc.
 	$.plugin
+		depends: "type"
 		provides: "core"
 	, ->
 
@@ -777,6 +779,7 @@ Bling.prototype = []
 	# -----------
 	# All the stuff you need to use blings as vectors in linear algebra.
 	$.plugin
+		depends: "core"
 		provides: "math"
 	, ->
 		$:
@@ -952,8 +955,8 @@ Bling.prototype = []
 	# ---------------
 	# These are little function factories, for making new functions out of other functions.
 	$.plugin
-		provides: "function"
 		depends: "hash"
+		provides: "function"
 	, ->
 		$:
 			# __$.identity(x)__ returns x.
@@ -993,8 +996,8 @@ Bling.prototype = []
 	# -----------
 	# `$.hash(o)` Reduces any thing to an integer hash code (not secure).
 	$.plugin
-		provides: "hash"
 		depends: "type"
+		provides: "hash"
 	, ->
 		$.type.extend
 			unknown: { hash: (o) -> $.checksum $.toString(o) }
@@ -1041,8 +1044,8 @@ Bling.prototype = []
 	# `$.throttle` and `$.debounce` are two different ways to rate limit
 	# a function.  Both are function decorators.
 	$.plugin
-		provides: "throttle"
 		depends: "core"
+		provides: "throttle"
 	, ->
 		$:
 			throttle: (f,n=250,last=0) ->
@@ -1069,7 +1072,7 @@ Bling.prototype = []
 		$: EventEmitter: $.pipe("bling-init").append (obj) ->
 			listeners = {}
 			list = (e) -> (listeners[e] or= [])
-			inherit obj,
+			return inherit obj,
 				emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); null
 				addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
 				on:                 (e, h) -> @addListener e, h

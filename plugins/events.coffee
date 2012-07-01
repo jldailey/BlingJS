@@ -155,7 +155,7 @@
 						try
 							@each -> @dispatchEvent e
 						catch err
-							log("dispatchEvent error:",err)
+							$.log "dispatchEvent error:", err
 				@
 
 			# __.live(e, f)__ bind _f_ to handle events for nodes that will exist in the future.

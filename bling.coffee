@@ -497,8 +497,8 @@ Bling.prototype = []
 	# necessarily about timer (in)accuracy, it's about how it
 	# stores and dequeues handlers.
 	$.plugin
-		depends: "function"
 		provides: "delay"
+		depends: "function"
 	, ->
 		$:
 			delay: (->
@@ -541,8 +541,8 @@ Bling.prototype = []
 	# basic stuff that you are familiar with from jQuery: 'each', 'map',
 	# etc.
 	$.plugin
-		depends: "type"
 		provides: "core"
+		depends: "type"
 	, ->
 
 		defineProperty $, "now",
@@ -779,8 +779,8 @@ Bling.prototype = []
 	# -----------
 	# All the stuff you need to use blings as vectors in linear algebra.
 	$.plugin
-		depends: "core"
 		provides: "math"
+		depends: "core"
 	, ->
 		$:
 			# Get an array of sequential numbers.
@@ -825,8 +825,8 @@ Bling.prototype = []
 	# -------------
 	# Filling out the standard library of string functions.
 	$.plugin
-		depends: "function"
 		provides: "string"
+		depends: "function"
 	, ->
 		$.type.extend
 			# First, extend the base type with a default `string` function
@@ -955,8 +955,8 @@ Bling.prototype = []
 	# ---------------
 	# These are little function factories, for making new functions out of other functions.
 	$.plugin
-		depends: "hash"
 		provides: "function"
+		depends: "hash"
 	, ->
 		$:
 			# __$.identity(x)__ returns x.
@@ -996,8 +996,8 @@ Bling.prototype = []
 	# -----------
 	# `$.hash(o)` Reduces any thing to an integer hash code (not secure).
 	$.plugin
-		depends: "type"
 		provides: "hash"
+		depends: "type"
 	, ->
 		$.type.extend
 			unknown: { hash: (o) -> $.checksum $.toString(o) }
@@ -1044,8 +1044,8 @@ Bling.prototype = []
 	# `$.throttle` and `$.debounce` are two different ways to rate limit
 	# a function.  Both are function decorators.
 	$.plugin
-		depends: "core"
 		provides: "throttle"
+		depends: "core"
 	, ->
 		$:
 			throttle: (f,n=250,last=0) ->

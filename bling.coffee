@@ -1025,8 +1025,8 @@ Bling.prototype = []
 					args
 				publisher: (e, func) ->
 					(args...) ->
-						$.publish e, args
 						func.apply @, args
+						$.publish e, args
 				subscribe: (e, func) ->
 					(subscribers[e] or= []).push func
 					func

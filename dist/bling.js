@@ -493,8 +493,8 @@
       return {};
     });
     $.plugin({
-      depends: "function",
-      provides: "delay"
+      provides: "delay",
+      depends: "function"
     }, function() {
       return {
         $: {
@@ -555,8 +555,8 @@
       };
     });
     $.plugin({
-      depends: "type",
-      provides: "core"
+      provides: "core",
+      depends: "type"
     }, function() {
       var index;
       defineProperty($, "now", {
@@ -955,8 +955,8 @@
       };
     });
     $.plugin({
-      depends: "core",
-      provides: "math"
+      provides: "math",
+      depends: "core"
     }, function() {
       return {
         $: {
@@ -1074,8 +1074,8 @@
       };
     });
     $.plugin({
-      depends: "function",
-      provides: "string"
+      provides: "string",
+      depends: "function"
     }, function() {
       $.type.extend({
         unknown: {
@@ -1284,8 +1284,8 @@
       };
     });
     $.plugin({
-      depends: "hash",
-      provides: "function"
+      provides: "function",
+      depends: "hash"
     }, function() {
       return {
         $: {
@@ -1364,8 +1364,8 @@
       };
     });
     $.plugin({
-      depends: "type",
-      provides: "hash"
+      provides: "hash",
+      depends: "type"
     }, function() {
       $.type.extend({
         unknown: {
@@ -1440,8 +1440,8 @@
             return function() {
               var args;
               args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-              $.publish(e, args);
-              return func.apply(this, args);
+              func.apply(this, args);
+              return $.publish(e, args);
             };
           },
           subscribe: function(e, func) {
@@ -1463,8 +1463,8 @@
       };
     });
     $.plugin({
-      depends: "core",
-      provides: "throttle"
+      provides: "throttle",
+      depends: "core"
     }, function() {
       return {
         $: {

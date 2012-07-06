@@ -203,8 +203,8 @@ Bling.prototype = []
 					return n
 		return { }
 	$.plugin
-		depends: "function"
 		provides: "delay"
+		depends: "function"
 	, ->
 		$:
 			delay: (->
@@ -232,8 +232,8 @@ Bling.prototype = []
 		delay: (n, f, c=@) ->
 			$.delay n, $.bound(c, f)
 	$.plugin
-		depends: "type"
 		provides: "core"
+		depends: "type"
 	, ->
 		defineProperty $, "now",
 			get: -> +new Date
@@ -354,8 +354,8 @@ Bling.prototype = []
 			toArray: -> (@.__proto__ = Array::); @ # no copies, yay?
 		}
 	$.plugin
-		depends: "core"
 		provides: "math"
+		depends: "core"
 	, ->
 		$:
 			range: (start, end, step = 1) ->
@@ -380,8 +380,8 @@ Bling.prototype = []
 			when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)] )
 		normalize: -> @scale(1/@magnitude())
 	$.plugin
-		depends: "function"
 		provides: "string"
+		depends: "function"
 	, ->
 		$.type.extend
 			unknown:
@@ -463,8 +463,8 @@ Bling.prototype = []
 			toRepr: -> $.toRepr @
 		}
 	$.plugin
-		depends: "hash"
 		provides: "function"
+		depends: "hash"
 	, ->
 		$:
 			identity: (o) -> o
@@ -489,8 +489,8 @@ Bling.prototype = []
 				cache = {}
 				(a...) -> cache[$.hash(a)] ?= f.apply @, a # BUG: skips cache if f returns null on purpose
 	$.plugin
-		depends: "type"
 		provides: "hash"
+		depends: "type"
 	, ->
 		$.type.extend
 			unknown: { hash: (o) -> $.checksum $.toString(o) }
@@ -513,8 +513,8 @@ Bling.prototype = []
 					args
 				publisher: (e, func) ->
 					(args...) ->
-						$.publish e, args
 						func.apply @, args
+						$.publish e, args
 				subscribe: (e, func) ->
 					(subscribers[e] or= []).push func
 					func
@@ -527,8 +527,8 @@ Bling.prototype = []
 							a.splice(i,i)
 		}
 	$.plugin
-		depends: "core"
 		provides: "throttle"
+		depends: "core"
 	, ->
 		$:
 			throttle: (f,n=250,last=0) ->

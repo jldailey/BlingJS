@@ -6,7 +6,7 @@ LEVEL=SIMPLE_OPTIMIZATIONS
 DIST=../dist
 PLUGINS=../plugins
 DIST_PLUGINS=$(DIST)/plugins
-# TEMP:=$(shell mktemp /tmp/blingjs.XXXXXX)
+BROWSER_PLUGINS=dom events http lazy transform
 
 all: clean dist report
 
@@ -40,7 +40,7 @@ publish:
 
 $(DIST)/bling.browser.coffee: $(DIST)/bling.coffee
 	cat $(DIST)/bling.coffee > $@
-	for x in dom events http lazy transform; do cat $(PLUGINS)/$$x.coffee >> $@; done
+	for x in $(BROWSER_PLUGINS); do cat $(PLUGINS)/$$x.coffee >> $@; done
 
 $(DIST)/bling.browser.js: $(DIST)/bling.browser.coffee
 	coffee -c $<

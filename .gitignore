@@ -11,3 +11,4 @@ yuicompressor*
 dist/*
 js/*
 web.config
+node_modules

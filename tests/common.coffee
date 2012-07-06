@@ -12,11 +12,12 @@ global.assertArrayEqual = (a, b, label) ->
 			throw Error "#{label or ''} #{a?.toString()} should equal #{b?.toString()}"
 
 require("coffee-script")
-dom = require("./domjs/dom")
+dom = require("jldom")
 dom.registerGlobals(global)
 global.document = dom.createDocument()
 global.window = global
 require("../bling.coffee")
+require("../plugins/dom.coffee")
 require("../plugins/synth.coffee")
 require("../plugins/trace.coffee")
 Bling.plugin
@@ -38,8 +39,6 @@ Bling.plugin
 					global.assertEqual a,args[i]
 			return @
 	}
-
-			
 
 UI =
 	dumb: # a dumb terminal

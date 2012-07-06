@@ -246,7 +246,7 @@ testGroup("Core",
 		assertEqual(Bling(10).length, 0)
 )
 
-testGroup("HTML",
+testGroup("DOM",
 	parse: ->
 		d = $.HTML.parse("<div><a></a><b></b><c></c></div>")
 		assertEqual( $.type(d), "node")

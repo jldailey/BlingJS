@@ -12,4 +12,3 @@ dist/*
 js/*
 web.config
 node_modules
-plugins/experimental

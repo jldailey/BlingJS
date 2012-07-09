@@ -1,12 +1,8 @@
 # JAVA=/usr/lib/jvm/java-6-sun/bin/java
 JAVA=$(shell which java)
-LEVEL=SIMPLE_OPTIMIZATIONS
-# LEVEL=ADVANCED_OPTIMIZATIONS
-# LEVEL=WHITESPACE_ONLY
 DIST=../dist
 PLUGINS=../plugins
-DIST_PLUGINS=$(DIST)/plugins
-BROWSER_PLUGINS=dom events http lazy transform
+YUI_VERSION=2.4.7
 
 all: clean dist report
 
@@ -38,39 +34,17 @@ publish:
 	&& git checkout master \
 	&& git stash pop || true
 
-$(DIST)/bling.browser.coffee: $(DIST)/bling.coffee
-	cat $(DIST)/bling.coffee > $@
-	for x in $(BROWSER_PLUGINS); do cat $(PLUGINS)/$$x.coffee >> $@; done
-
-$(DIST)/bling.browser.js: $(DIST)/bling.browser.coffee
-	coffee -c $<
-
-browser: $(DIST)/min.bling.browser.js $(DIST)/min.bling.browser.js.gz
-
-plugins: plugin_compile plugin_minify plugin_compress
-
-plugin_minify: $(DIST_PLUGINS)/min.synth.js $(DIST_PLUGINS)/min.pprint.js $(DIST_PLUGINS)/min.template.js $(DIST_PLUGINS)/min.tnet.js $(DIST_PLUGINS)/min.ui.js $(DIST_PLUGINS)/min.compact.js $(DIST_PLUGINS)/min.all.js 
-
-plugin_compress: $(DIST_PLUGINS)/min.synth.js.gz $(DIST_PLUGINS)/min.pprint.js.gz $(DIST_PLUGINS)/min.template.js.gz $(DIST_PLUGINS)/min.tnet.js.gz $(DIST_PLUGINS)/min.ui.js.gz $(DIST_PLUGINS)/min.compact.js.gz $(DIST_PLUGINS)/min.all.js.gz
-
 yuicompressor.jar:
-	curl http://yui.zenfs.com/releases/yuicompressor/yuicompressor-2.4.7.zip > yuicompressor.zip
+	curl http://yui.zenfs.com/releases/yuicompressor/yuicompressor-$(YUI_VERSION).zip > yuicompressor.zip
 	unzip yuicompressor.zip
-	cp yuicompressor-2.4.7/build/yuicompressor-2.4.7.jar ./yuicompressor.jar
-	rm -r yuicompressor-2.4.7
+	cp yuicompressor-$(YUI_VERSION)/build/yuicompressor-$(YUI_VERSION).jar ./yuicompressor.jar
+	rm -r yuicompressor-$(YUI_VERSION)
 
-$(DIST_PLUGINS)/min.%.js: $(DIST_PLUGINS)/%.js yuicompressor.jar
-	$(JAVA) -jar yuicompressor.jar $< -v -o $@
+$(DIST)/bling.js: $(DIST)/bling.coffee
+	coffee -o $(DIST) -c $<
 
-plugin_compile:
-	coffee -o $(DIST_PLUGINS) -c $(PLUGINS)/*.coffee
-	cat $(DIST_PLUGINS)/*.js > $(DIST_PLUGINS)/all.js
-
-$(DIST)/bling.js: ../bling.coffee
-	cd .. && coffee -o dist -c bling.coffee
-
-$(DIST)/bling.coffee: ../bling.coffee
-	cat $< | sed -E 's/^	*#.*$$//g' | grep -v '^$$' > $@
+$(DIST)/bling.coffee: ../bling.coffee $(shell ls ../plugins/*.coffee)
+	cat $^ | sed -E 's/^	*#.*$$//g' | grep -v '^$$' > $@
 
 $(DIST)/min.%.js: $(DIST)/%.js yuicompressor.jar
 	$(JAVA) -jar yuicompressor.jar $< -v -o $@
@@ -82,10 +56,9 @@ $(DIST)/docs/%.html: ../%.coffee
 	gzip -vf9c $< > $@
 
 report:
-	@cd $(DIST) && wc -c `ls *.js *.gz | sort` | grep -v total | grep -v externs.js
+	@cd $(DIST) && wc -c `ls *.coffee *.js *.gz | sort` | grep -v total
 
 clean:
-	rm -f $(DIST)/*.js
-	rm -f $(DIST_PLUGINS)/*.js
+	rm -rf $(DIST)/*.coffee $(DIST)/*.jsA $(DIST)/*.gz $(DIST)/docs
 
 .PHONY: all bling clean dist site publish plugins

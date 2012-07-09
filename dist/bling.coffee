@@ -557,3 +557,1369 @@ Bling.prototype = []
 				setMaxListeners:    (n) -> # who really needs this in the core API?
 				listeners:          (e) -> list(e).slice 0
 )(Bling, @)
+(($) ->
+	$.plugin () ->
+		pruners = {}
+		register = (type, f) -> (pruners[type] = f)
+		lookup = (obj) -> pruners[obj.t or obj.type]
+		stack = []
+		Object.Type.extend null,        { compact: (o) -> Object.String(o) }
+		Object.Type.extend "undefined", { compact: (o) -> "" }
+		Object.Type.extend "null",      { compact: (o) -> "" }
+		Object.Type.extend "string",    { compact: Function.Identity }
+		Object.Type.extend "array",     { compact: (o) -> (Object.Compact(x) for x in o).join("") }
+		Object.Type.extend "bling",     { compact: (o) -> o.map(Object.Compact).join("") }
+		Object.Type.extend "object",    { compact: (o) -> Object.Compact(lookup(o)?.call o, o) }
+		Object.Compact = (o) ->
+			stack.push(o)
+			Object.Type.lookup(o)?.compact(o)
+			stack.pop()
+		Object.Extend Object.Compact,
+			register: register
+			lookup: lookup
+		register 'page', -> [
+			"<!DOCTYPE html><html><head>",
+				@head,
+			"</head><body>",
+				@body,
+			"</body></html>"
+		]
+		register 'text', -> @EN
+		register 'link', ->
+			a = $(["<a"])
+			a.extend(" ",k,"='",@[k],"'") for k in ["href","name","target"] when k of @
+			a.extend(">",node.content,"</a>")
+		$.assert(Object.Compact({ t: "page", head: [], body: {type: "text", EN: "Hello World"} }) is
+			"<!DOCTYPE html><html><head></head><body>Hello World</body></html>")
+		return { name: "Compact" }
+)(Bling)
+require "../bling"
+$.plugin
+	provides: "date"
+	depends: "experimental"
+, ->
+	[ms,s,m,h,d] = [1,1000,1000*60,1000*60*60,1000*60*60*24]
+	units = {
+		ms, s, m, h, d,
+		sec: s
+		second: s
+		seconds: s
+		min: m
+		minute: m
+		minutes: m
+		hr: h
+		hour: h
+		hours: h
+		day: d
+		days: d
+	}
+	formats =
+		yyyy: Date::getUTCFullYear
+		mm: -> @getUTCMonth() + 1
+		dd: Date::getUTCDate
+		HH: Date::getUTCHours
+		MM: Date::getUTCMinutes
+		SS: Date::getUTCSeconds
+		MS: Date::getUTCMilliseconds
+	format_keys = Object.keys(formats).sort().reverse()
+	parsers =
+		yyyy: Date::setUTCFullYear
+		mm: (x) -> @setUTCMonth(x - 1)
+		dd: Date::setUTCDate
+		HH: Date::setUTCHours
+		MM: Date::setUTCMinutes
+		SS: Date::setUTCSeconds
+		MS: Date::setUTCMilliseconds
+	parser_keys = Object.keys(parsers).sort().reverse()
+	floor = Math.floor
+	unit_re = new RegExp("(\\d+\\.*\\d*)\\s*(" + Object.keys(units).join("|") + ")")
+	unpackUnits = (str) ->
+		ret = switch $.type str
+			when "date" then unpackUnits $.date.convert(str.getTime() + "ms", $.date.defaultUnit)
+			else (str?.match(unit_re) ? [ str, parseFloat(str), $.date.defaultUnit ])[1..2]
+		return ret
+	$.type.register "date",
+		match: (o) -> $.isType Date, o
+		array: (o) -> [o]
+	
+	$:
+		date:
+			defaultUnit: "ms"
+			defaultFormat: "yyyy-mm-dd HH:MM:SS"
+			stamp: (date = new Date, unit = $.date.defaultUnit) ->
+				(floor (date / units[unit])) + unit
+			unstamp: (stamp) ->
+				[stamp, unit] = unpackUnits(stamp)
+				new Date floor(stamp * units[unit])
+			midnight: (stamp) ->
+				[_, unit] = unpackUnits(stamp)
+				$.date.convert ($.date.convert stamp, "d"), unit
+			convert: (stamp, to = "ms") ->
+				[stamp, from] = unpackUnits(stamp)
+				(floor stamp * units[from] / units[to]) + to
+			format: (stamp, fmt = $.date.defaultFormat) ->
+				date = $.date.unstamp(stamp)
+				for k in format_keys
+					fmt = fmt.replace k, ($.padLeft ""+formats[k].call(date), k.length, "0")
+				fmt
+			parse: (dateString, fmt = $.date.defaultFormat, to = $.date.defaultUnit) ->
+				date = new Date(0)
+				for i in [0...fmt.length] by 1
+					for k in parser_keys
+						if fmt.indexOf(k, i) is i
+							try
+								parsers[k].call date,
+									parseInt dateString[i...i+k.length], 10
+							catch err
+								throw new Error("Invalid date ('#{dateString}') given format mask: #{fmt} (failed at position #{i})")
+				$.date.stamp date, to
+			add: (stamp, delta) ->
+				[stamp, stamp_unit] = unpackUnits(stamp)
+				(+ stamp) + (parseInt $.date.convert(delta, stamp_unit), 10) + stamp_unit
+	midnight: -> @map(-> $.date.midnight @)
+	unstamp: -> @map(-> $.date.unstamp @)
+	stamp: -> @map(-> $.date.stamp @)
+	dateConvert: (to = $.date.defaultUnit) -> @map(-> $.date.convert @, to)
+	dateFormat: (fmt = $.date.defaultFormat) -> @map(-> $.date.format @, fmt)
+	dateParse: (fmt = $.date.defaultFormat) -> @map(-> $.date.parse @, fmt)
+	dateAdd: (delta) -> @map(-> $.date.add @, delta)
+if require.main is module
+	$.provide "experimental"
+	$.date.defaultUnit = "s"
+	$($.date.stamp())
+		.log('current time')
+		.unstamp()
+		.log('current date')
+		.dateFormat()
+		.log('formatted')
+		.dateParse()
+		.log('parsed')
+		.dateConvert('days')
+		.log('as days')
+		.midnight()
+		.log('midnight raw')
+		.unstamp().log('midnight UTC').stamp()
+		.dateAdd('3h')
+		.unstamp().log('3 hours later').stamp()
+		.dateAdd('30d')
+		.unstamp().log('30 days later').stamp()
+	$($.date.parse "06/20/2012 12:24:42", "mm/dd/yyyy HH:MM:SS")
+		.unstamp().log('parsed')
+(($) ->
+	if $.global.document?
+		$.plugin
+			depends: "function"
+			provides: "dom"
+		, ->
+			$.type.register "nodelist",
+				match:  (o) -> o? and $.isType "NodeList", o
+				hash:   (o) -> $($.hash(i) for i in x).sum()
+				array:  $.identity
+				string: (o) -> "{Nodelist:["+$(o).select('nodeName').join(",")+"]}"
+				node:   (o) -> $(o).toFragment()
+			$.type.register "node",
+				match:  (o) -> o?.nodeType > 0
+				hash:   (o) -> $.checksum(o.nodeName) + $.hash(o.attributes) + $.checksum(o.innerHTML)
+				string: (o) -> o.toString()
+				node:   $.identity
+			$.type.register "fragment",
+				match:  (o) -> o?.nodeType is 11
+				hash:   (o) -> $($.hash(x) for x in o.childNodes).sum()
+				string: (o) -> o.toString()
+				node:   $.identity
+			$.type.register "html",
+				match:  (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
+				node:   (h) ->
+					(node = document.createElement('div')).innerHTML = h
+					if n = (childNodes = node.childNodes).length is 1
+						return node.removeChild(childNodes[0])
+					df = document.createDocumentFragment()
+					df.appendChild(node.removeChild(childNodes[0])) for i in [0...n] by 1
+					df
+				array:  (o,c) -> $.type.lookup(h = Bling.HTML.parse o).array h, c
+				string: (o) -> "'#{o}'"
+				repr:   (o) -> '"' + o + '"'
+			$.type.extend
+				unknown:  { node: -> null }
+				bling:    { node: (o) -> o.toFragment() }
+				node:     { html: (n) ->
+					d = document.createElement "div"
+					d.appendChild (n = n.cloneNode true)
+					ret = d.innerHTML
+					d.removeChild n # break links to prevent leaks
+					ret
+				}
+				string:
+					node:  (o) -> $(o).toFragment()
+					array: (o,c) -> c.querySelectorAll?(o)
+				function: { node: (o) -> $(o.toString()).toFragment() }
+			toFrag = (a) ->
+				if not a.parentNode?
+					df = document.createDocumentFragment()
+					df.appendChild(a)
+				a
+			before = (a,b) -> toFrag(a).parentNode.insertBefore b, a
+			after = (a,b) -> toFrag(a).parentNode.insertBefore b, a.nextSibling
+			toNode = (x) -> $.type.lookup(x).node(x)
+			escaper = false
+			parser = false
+			computeCSSProperty = (k) -> -> window.getComputedStyle(@, null).getPropertyValue(k)
+			getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select(p)
+			selectChain = (prop) -> -> @map (p) -> $( p while p = p[prop] )
+			return {
+				$:
+					HTML:
+						parse: (h) -> $.type.lookup(h).node(h)
+						stringify: (n) -> $.type.lookup(n).html(n)
+						escape: (h) ->
+							escaper or= $("<div>&nbsp;</div>").child(0)
+							ret = escaper.zap('data', h).select("parentNode.innerHTML").first()
+							escaper.zap('data', '')
+							ret
+				html: (h) ->
+					return switch $.type h
+						when "undefined","null" then @select 'innerHTML'
+						when "string" then @zap 'innerHTML', h
+						when "bling" then @html h.toFragment()
+						when "node"
+							@each -> # replace all our children with the new child
+								@replaceChild @childNodes[0], h
+								while @childNodes.length > 1
+									@removeChild @childNodes[1]
+				append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
+					x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
+					@each -> @appendChild x.cloneNode true
+				appendTo: (x) -> # .appendTo(/n/) - each node [or fragment] will become the last child of x
+					clones = @map( -> @cloneNode true)
+					i = 0
+					$(x).each -> @appendChild clones[i++]
+					clones
+				prepend: (x) -> # .prepend(/n/) - insert n [or a clone] as the first child of each node
+					if x?
+						x = toNode(x)
+						@take(1).each ->
+							before @childNodes[0], x
+						@skip(1).each ->
+							before @childNodes[0], x.cloneNode(true)
+					@
+				prependTo: (x) -> # .prependTo(/n/) - each node [or a fragment] will become the first child of x
+					if x?
+						$(x).prepend(@)
+					@
+				before: (x) -> # .before(/x/) - insert content x before each node
+					if x?
+						x = toNode(x)
+						@take(1).each -> before @, x
+						@skip(1).each -> before @, x.cloneNode(true)
+					@
+				after: (x) -> # .after(/n/) - insert content n after each node
+					if x?
+						x = toNode(x)
+						@take(1).each -> after @, x
+						@skip(1).each -> after @, x.cloneNode(true)
+					@
+				wrap: (parent) -> # .wrap(/parent/) - parent becomes the new .parentNode of each node
+					parent = toNode(parent)
+					if $.is "fragment", parent
+						throw new Error("cannot call .wrap() with a fragment as the parent")
+					@each (child) ->
+						if ($.is "fragment", child) or not child.parentNode
+							return parent.appendChild child
+						grandpa = child.parentNode
+						marker = document.createElement "dummy"
+						parent.appendChild grandpa.replaceChild marker, child
+						grandpa.replaceChild parent, marker
+				unwrap: -> # .unwrap() - replace each node's parent with itself
+					@each ->
+						if @parentNode and @parentNode.parentNode
+							@parentNode.parentNode.replaceChild(@, @parentNode)
+						else if @parentNode
+							@parentNode.removeChild(@)
+				replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
+					n = toNode(n)
+					clones = @map(-> n.cloneNode true)
+					for i in [0...clones.length] by 1
+						@[i].parentNode?.replaceChild clones[i], @[i]
+					clones
+				attr: (a,v) -> # .attr(a, [v]) - get [or set] an /a/ttribute [/v/alue]
+					return switch v
+						when undefined then @select("getAttribute").call(a, v)
+						when null then @select("removeAttribute").call(a, v)
+						else
+							@select("setAttribute").call(a, v)
+							@
+				data: (k, v) -> @attr "data-#{$.dashize(k)}", v
+				addClass: (x) -> # .addClass(/x/) - add x to each node's .className
+					notempty = (y) -> y isnt ""
+					@removeClass(x).each ->
+						c = @className.split(" ").filter notempty
+						c.push(x)
+						@className = c.join " "
+				removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
+					notx = (y) -> y != x
+					@each ->
+						c = @className.split(" ").filter(notx).join(" ")
+						if c.length is 0
+							@removeAttribute('class')
+				toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
+					notx = (y) -> y isnt x
+					@each ->
+						cls = @className.split(" ")
+						filter = $.not $.isEmpty
+						if( cls.indexOf(x) > -1 )
+							filter = $.and notx, filter
+						else
+							cls.push(x)
+						c = cls.filter(filter).join(" ")
+						@className = c
+						if c.length is 0
+							@removeAttribute('class')
+				hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x
+					@select('className.split').call(" ").select('indexOf').call(x).map (x) -> x > -1
+				text: (t) -> # .text([t]) - get [or set] each node's .textContent
+					return @zap('textContent', t) if t?
+					return @select('textContent')
+				val: (v) -> # .val([v]) - get [or set] each node's .value
+					return @zap('value', v) if v?
+					return @select('value')
+				css: (k,v) ->
+					if v? or $.is "object", k
+						setter = @select 'style.setProperty'
+						if $.is "object", k then setter.call i, k[i], "" for i of k
+						else if $.is "string", v then setter.call k, v, ""
+						else if $.is "array", v
+							setter[i%nn] k, v[i%n], "" for i in [0...n = Math.max v.length, nn = setter.len()] by 1
+						return @
+					else
+						cv = @map computeCSSProperty(k)
+						ov = @select('style').select k
+						ov.weave(cv).fold (x,y) -> x or y
+				defaultCss: (k, v) ->
+					sel = @selector
+					style = ""
+					if $.is "string", k
+						if $.is "string", v
+							style += "#{sel} { #{k}: #{v} } "
+						else throw Error("defaultCss requires a value with a string key")
+					else if $.is "object", k
+						style += "#{sel} { " +
+							"#{i}: #{k[i]}; " for i of k +
+						"} "
+					$("<style></style>").text(style).appendTo("head")
+					@
+				rect: -> @select('getBoundingClientRect').call()
+				width: getOrSetRect("width")
+				height: getOrSetRect("height")
+				top: getOrSetRect("top")
+				left: getOrSetRect("left")
+				bottom: getOrSetRect("bottom")
+				right: getOrSetRect("right")
+				position: (left, top) ->
+					switch true
+						when not left? then @rect()
+						when not top? then @css("left", $.px(left))
+						else @css({top: $.px(top), left: $.px(left)})
+				scrollToCenter: ->
+					document.body.scrollTop = @[0].offsetTop - (window.innerHeight / 2)
+					@
+				child: (n) -> @select('childNodes').map -> @[ if n < 0 then (n+@length) else n ]
+				parents: selectChain('parentNode')
+				prev: selectChain('previousSibling')
+				next: selectChain('nextSibling')
+				remove: -> @each -> @parentNode?.removeChild(@)
+				find: (css) ->
+					@filter("*")
+						.map( -> $(css, @) )
+						.flatten()
+				clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @
+				toFragment: ->
+					if @length > 1
+						df = document.createDocumentFragment()
+						(@map toNode).map $.bound df, df.appendChild
+						return df
+					return toNode @[0]
+			}
+)(Bling)
+(($) ->
+	$.plugin
+		depends: "dom,function,core"
+		provides: "event"
+	, ->
+		EVENTSEP_RE = /,* +/
+		events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
+			'load','unload','reset','submit','keyup','keydown','change',
+			'abort','cut','copy','paste','selection','drag','drop','orientationchange',
+			'touchstart','touchmove','touchend','touchcancel',
+			'gesturestart','gestureend','gesturecancel',
+			'hashchange'
+		]
+		binder = (e) -> (f) -> @bind(e, f) if $.is "function", f else @trigger(e, f)
+		register_live = (selector, context, evt, f, h) ->
+			$(context).bind(evt, h)
+				.each -> (((@__alive__ or= {})[selector] or= {})[evt] or= {})[f] = h
+		unregister_live = (selector, context, e, f) ->
+			$c = $(context)
+			$c.each ->
+				a = (@__alive__ or= {})
+				b = (a[selector] or= {})
+				c = (b[e] or= {})
+				$c.unbind(e, c[f])
+				delete c[f]
+		triggerReady = $.once ->
+			$(document).trigger("ready").unbind("ready")
+			document.removeEventListener?("DOMContentLoaded", triggerReady, false)
+			window.removeEventListener?("load", triggerReady, false)
+		bindReady = $.once ->
+			document.addEventListener?("DOMContentLoaded", triggerReady, false)
+			window.addEventListener?("load", triggerReady, false)
+		bindReady()
+		ret = {
+			bind: (e, f) ->
+				c = (e or "").split(EVENTSEP_RE)
+				h = (evt) ->
+					ret = f.apply @, arguments
+					if ret is false
+						evt.preventAll()
+					ret
+				@each -> (@addEventListener i, h, false) for i in c
+			unbind: (e, f) ->
+				c = (e or "").split EVENTSEP_RE
+				@each -> (@removeEventListener i, f, null) for i in c
+			trigger: (evt, args = {}) ->
+				args = $.extend
+					bubbles: true
+					cancelable: true
+				, args
+				for evt_i in (evt or "").split(EVENTSEP_RE)
+					if evt_i in ["click", "mousemove", "mousedown", "mouseup", "mouseover", "mouseout"] # mouse events
+						e = document.createEvent "MouseEvents"
+						args = $.extend
+							detail: 1,
+							screenX: 0,
+							screenY: 0,
+							clientX: 0,
+							clientY: 0,
+							ctrlKey: false,
+							altKey: false,
+							shiftKey: false,
+							metaKey: false,
+							button: 0,
+							relatedTarget: null
+						, args
+						e.initMouseEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+							args.button, args.relatedTarget
+					else if evt_i in ["blur", "focus", "reset", "submit", "abort", "change", "load", "unload"] # UI events
+						e = document.createEvent "UIEvents"
+						e.initUIEvent evt_i, args.bubbles, args.cancelable, window, 1
+					else if evt_i in ["touchstart", "touchmove", "touchend", "touchcancel"] # touch events
+						e = document.createEvent "TouchEvents"
+						args = $.extend
+							detail: 1,
+							screenX: 0,
+							screenY: 0,
+							clientX: 0,
+							clientY: 0,
+							ctrlKey: false,
+							altKey: false,
+							shiftKey: false,
+							metaKey: false,
+							touches: [],
+							targetTouches: [],
+							changedTouches: [],
+							scale: 1.0,
+							rotation: 0.0
+						, args
+						e.initTouchEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+							args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
+					else if evt_i in ["gesturestart", "gestureend", "gesturecancel"] # gesture events
+						e = document.createEvent "GestureEvents"
+						args = $.extend {
+							detail: 1,
+							screenX: 0,
+							screenY: 0,
+							clientX: 0,
+							clientY: 0,
+							ctrlKey: false,
+							altKey: false,
+							shiftKey: false,
+							metaKey: false,
+							target: null,
+							scale: 1.0,
+							rotation: 0.0
+						}, args
+						e.initGestureEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+							args.target, args.scale, args.rotation
+					else
+						e = document.createEvent "Events"
+						e.initEvent evt_i, args.bubbles, args.cancelable
+						try
+							e = $.extend e, args
+						catch err
+					if not e
+						continue
+					else
+						try
+							@each -> @dispatchEvent e
+						catch err
+							$.log "dispatchEvent error:", err
+				@
+			live: (e, f) ->
+				selector = @selector
+				context = @context
+				handler = (evt) ->
+					$(selector, context)
+						.intersect($(evt.target).parents().first().union($(evt.target)))
+						.each -> f.call(evt.target = @, evt)
+				register_live selector, context, e, f, handler
+				@
+			die: (e, f) ->
+				$(@context).unbind e, unregister_live(@selector, @context, e, f)
+				@
+			click: (f = {}) ->
+				if @css("cursor") in ["auto",""]
+					@css "cursor", "pointer"
+				if $.is "function", f then @bind 'click', f
+				else @trigger 'click', f
+				@
+			ready: (f) ->
+				return (f.call @) if triggerReady.exhausted
+				@bind "ready", f
+		}
+		events.forEach (x) -> ret[x] = binder(x)
+		return ret
+)(Bling)
+(($) ->
+	$.plugin
+		depends: "dom"
+		provides: "http"
+	, ->
+		formencode = (obj) -> # create &foo=bar strings from object properties
+			o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
+			("#{i}=#{escape o[i]}" for i of o).join "&"
+		$.type.register "http",
+			match: (o) -> $.isType 'XMLHttpRequest', o
+			array: (o) -> [o]
+		return {
+			$:
+				http: (url, opts = {}) ->
+					xhr = new XMLHttpRequest()
+					if $.is "function", opts
+						opts = success: $.bound(xhr, opts)
+					opts = $.extend {
+						method: "GET"
+						data: null
+						state: $.identity # onreadystatechange
+						success: $.identity # onload
+						error: $.identity # onerror
+						async: true
+						asBlob: false
+						timeout: 0 # milliseconds, 0 is forever
+						followRedirects: false
+						withCredentials: false
+					}, opts
+					opts.state = $.bound(xhr, opts.state)
+					opts.success = $.bound(xhr, opts.success)
+					opts.error = $.bound(xhr, opts.error)
+					if opts.data and opts.method is "GET"
+						url += "?" + formencode(opts.data)
+					else if opts.data and opts.method is "POST"
+						opts.data = formencode(opts.data)
+					xhr.open(opts.method, url, opts.async)
+					xhr = $.extend xhr,
+						asBlob: opts.asBlob
+						timeout: opts.timeout
+						followRedirects: opts.followRedirects
+						withCredentials: opts.withCredentials
+						onreadystatechange: ->
+							opts.state?()
+							if xhr.readyState is 4
+								if xhr.status is 200
+									opts.success xhr.responseText
+								else
+									opts.error xhr.status, xhr.statusText
+					xhr.send opts.data
+					return $(xhr)
+				post: (url, opts = {}) ->
+					if $.is("function",opts)
+						opts = success: opts
+					opts.method = "POST"
+					$.http(url, opts)
+				get: (url, opts = {}) ->
+					if( $.is("function",opts) )
+						opts = success: opts
+					opts.method = "GET"
+					$.http(url, opts)
+		}
+)(Bling)
+(($) ->
+	$.plugin
+		depends: "dom"
+		provides: "lazy"
+	, ->
+		lazy_load = (elementName, props) ->
+			$("head").append $.extend document.createElement(elementName), props
+		$:
+			script: (src) ->
+				lazy_load "script", { src: src }
+			style: (src) ->
+				lazy_load "link", { href: src, rel: "stylesheet" }
+)(Bling)
+(($) ->
+	$.plugin () -> # Pretty Print plugin
+		operators = /!==|!=|!|\#|\%|\%=|\&|\&\&|\&\&=|&=|\*|\*=|\+|\+=|-|-=|->|\.{1,3}|\/|\/=|:|::|;|<<=|<<|<=|<|===|==|=|>>>=|>>=|>=|>>>|>>|>|\?|@|\[|\]|}|{|\^|\^=|\^\^|\^\^=|\|=|\|\|=|\|\||\||~/g
+		operatorHtml = "<span class='opr'>$&</span>"
+		keywords = /\b[Ff]unction\b|\bvar\b|\.prototype\b|\.__proto__\b|\bString\b|\bArray\b|\bNumber\b|\bObject\b|\bbreak\b|\bcase\b|\bcontinue\b|\bdelete\b|\bdo\b|\bif\b|\belse\b|\bfinally\b|\binstanceof\b|\breturn\b|\bthrow\b|\btry\b|\btypeof\b|\btrue\b|\bfalse\b/g
+		keywordHtml = "<span class='kwd'>$&</span>"
+		allNumbers = /\d+\.*\d*/g
+		numberHtml = "<span class='num'>$&</span>"
+		blingSymbol = /\$(\(|\.)/g
+		blingHtml = "<span class='bln'>$$</span>$1"
+		tabs = /\t/g
+		tabHtml = "&nbsp;&nbsp;"
+		singlelineComment = /\/\/.*?(?:\n|$)/
+		multilineComment = /\/\*(?:.|\n)*?\*\//
+		commentHtml = (comment) ->
+			if comment then "<span class='com'>#{comment}</span>" else ""
+		quotedHtml = (quoted) ->
+			if quoted then "<span class='str'>#{quoted}</span>" else ""
+		firstQuote = (s, i) -> # return the type of quote and its first index (after i)
+			a = s.indexOf('"', i)
+			b = s.indexOf("'", i)
+			a = s.length if a is -1
+			b = s.length if b is -1
+			return [null, -1] if a is b
+			return ['"', a] if a < b
+			return ["'", b]
+		closingQuote = (s, i, q) -> # find the closing quote
+			r = s.indexOf(q, i)
+			while( s.charAt(r-1) is "\\" and 0 < r < s.length)
+				r = s.indexOf(q, r+1)
+			r
+		splitQuoted = (s) -> # splits a string into a list where even items were inside quoted strings, odd items were unquoted
+			i = 0
+			n = s.length
+			ret = []
+			if not Object.IsString(s)
+				if not Object.IsFunction(s.toString)
+					throw TypeError("invalid string argument to split_quoted")
+				else
+					s = s.toString()
+					n = s.length
+			while( i < n )
+				q = firstQuote(s, i)
+				j = q[1]
+				if( j is -1 )
+					ret.push(s.substring(i))
+					break
+				ret.push(s.substring(i,j))
+				k = closingQuote(s, j+1, q[0])
+				if( k is -1 )
+					throw Error("unclosed quote: "+q[0]+" starting at "+j)
+				ret.push(s.substring(j, k+1))
+				i = k+1
+			ret
+		firstComment = (s) ->
+			a = s.match(singlelineComment)
+			b = s.match(multilineComment)
+			return [-1, null] if a is b
+			return [b.index, b[0]] if a == null and b != null
+			return [a.index, a[0]] if a != null && b == null
+			return [b.index, b[0]] if b.index < a.index
+			return [a.index, a[0]]
+		splitComments = (s) ->
+			ret = []
+			i = 0
+			n = s.length
+			while( i < n )
+				ss = s.substring(i)
+				q = firstComment(ss)
+				j = q[0]
+				if( j > -1 )
+					ret.push(ss.substring(0,j))
+					ret.push(q[1])
+					i += j + q[1].length
+				else
+					ret.push(ss)
+					break
+			ret
+		foldCodeAndQuoted = (code, quoted) ->
+			code.replace(operators, operatorHtml).replace(allNumbers, numberHtml).replace(keywords, keywordHtml).replace(blingSymbol, blingHtml).replace(tabs, tabHtml) + quotedHtml(quoted)
+		foldTextAndComments = (text, comment) ->
+			$(splitQuoted(text)).fold(foldCodeAndQuoted).join('') + commentHtml(comment)
+		return {
+			name: "PrettyPrint"
+			$:
+				prettyPrint: (js, colors) ->
+					js = js.toString() if Object.IsFunction(js)
+					if not Object.IsString(js)
+						throw TypeError("prettyPrint requires a function or string to format, not '"+Object.Type(js)+"'")
+					if $("style#prettyPrint").length is 0
+						css = "code.pp .bln { font-size: 17px; } "
+						colors = Object.Extend(
+							opr: "#880"
+							str: "#008"
+							com: "#080"
+							kwd: "#088"
+							num: "#808"
+							bln: "#800"
+						, colors)
+						for cls of colors
+							css += "code.pp .#{cls} { color: #{colors[cls]}; } "
+						$.synth("style#prettyPrint")
+							.text(css)
+							.appendTo("head")
+					ret = "<code class='pp'>" + ($(splitComments(js)).fold(foldTextAndComments).join('')) + "</code>"
+		}
+)(Bling)
+(($) ->
+	$.plugin
+		provides: "StateMachine"
+	, ->
+		$: StateMachine: class StateMachine
+			constructor: (stateTable) ->
+				@reset()
+				@table = stateTable
+				Object.defineProperty @, "modeline",
+					get: -> @table[@_mode]
+				Object.defineProperty @, "mode",
+					set: (m) ->
+						@_lastMode = @_mode
+						@_mode = m
+						if @_mode isnt @_lastMode and @modeline? and 'enter' of @modeline
+							ret = @modeline['enter'].call @
+							while $.is("function",ret)
+								ret = ret.call @
+						m
+					get: -> @_mode
+			reset: ->
+				@_mode = null
+				@_lastMode = null
+			GO: (m) -> -> @mode = m
+			@GO: (m) -> -> @mode = m
+			
+			tick: (c) ->
+				row = @modeline
+				if not row?
+					ret = null
+				else if c of row
+					ret = row[c]
+				else if 'def' of row
+					ret = row['def']
+				while $.is "function",ret
+					ret = ret.call @, c
+				ret
+			run: (inputs) ->
+				@mode = 0
+				for c in inputs
+					ret = @tick(c)
+				if $.is "function",@modeline?.eof
+					ret = @modeline.eof.call @
+				while $.is "function",ret
+					ret = ret.call @
+				@reset()
+				return @
+	$.plugin
+		provides: "synth"
+		depends: "StateMachine"
+	, ->
+		class SynthMachine extends $.StateMachine
+			@STATE_TABLE = [
+				{ # 0: START
+					enter: ->
+						@tag = @id = @cls = @attr = @val = @text = ""
+						@attrs = {}
+						@GO 1
+				},
+				{ # 1: read a tag name
+					'"': @GO(6), "'": @GO(7), "#": @GO(2), ".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
+					def: (c) -> @tag += c
+					eof: @GO 13
+				},
+				{ # 2: read an #id
+					".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
+					def: (c) -> @id += c
+					eof: @GO 13
+				},
+				{ # 3: read a .class name
+					enter: -> @cls += " " if @cls.length > 0
+					"#": @GO(2), ".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
+					def: (c) -> @cls += c
+					eof: @GO 13
+				},
+				{ # 4: read an attribute name (left-side)
+					"=": @GO 5
+					"]": -> @attrs[@attr] = @val; @GO 1
+					def: (c) -> @attr += c
+					eof: @GO 12
+				},
+				{ # 5: read an attribute value (right-side)
+					"]": -> @attrs[@attr] = @val; @GO 1
+					def: (c) -> @val += c
+					eof: @GO 12
+				},
+				{ # 6: read d-quoted text
+					'"': @GO 8
+					def: (c) -> @text += c
+					eof: @GO 12
+				},
+				{ # 7: read s-quoted text
+					"'": @GO 8
+					def: (c) -> @text += c
+					eof: @GO 12
+				},
+				{ # 8: emit text and continue
+					enter: ->
+						@emitText()
+						@GO 0
+				},
+				{ # 9: emit node and descend
+					enter: ->
+						@emitNode()
+						@GO 0
+				},
+				{ # 10: emit node and start a new tree
+					enter: ->
+						@emitNode()
+						@parent = null
+						@GO 0
+				},
+				{ # 11: emit node and step sideways to create a sibling
+					enter: ->
+						@emitNode()
+						@parent = @parent?.parentNode
+						@GO 0
+				},
+				{ # 12: ERROR
+					enter: -> $.log "Error in synth expression: #{@input}"
+				},
+				{ # 13: FINALIZE
+					enter: ->
+						@emitNode() if @tag.length
+						@emitText() if @text.length
+				}
+			]
+			constructor: ->
+				super(SynthMachine.STATE_TABLE)
+				@fragment = @parent = document.createDocumentFragment()
+			emitNode: ->
+				node = document.createElement(@tag)
+				node.id = @id or null
+				node.className = @cls or null
+				for k of @attrs
+					node.setAttribute k, @attrs[k]
+				@parent.appendChild node
+				@parent = node
+			emitText: ->
+				@parent.appendChild $.HTML.parse(@text)
+				@text = ""
+		return {
+			$:
+				synth: (expr) ->
+					s = new SynthMachine()
+					s.run(expr)
+					if s.fragment.childNodes.length == 1
+						$(s.fragment.childNodes[0])
+					else
+						$(s.fragment)
+		}
+)(Bling)
+(($) ->
+	engines = {} # a registry for different template engines
+	$.plugin () -> # Template plugin, pythonic style: %(value).2f
+		current_engine = null
+		engines = {}
+		template = {
+			register_engine: (name, render_func) ->
+				engines[name] = render_func
+				if not current_engine?
+					current_engine = name
+			render: (text, args) ->
+				if current_engine of engines
+					engines[current_engine](text, args)
+		}
+		template.__defineSetter__ 'engine', (v) ->
+			if not v of engines
+				throw new Error "invalid template engine: #{v} not one of #{Object.Keys(engines)}"
+			else
+				current_engine = v
+		template.__defineGetter__ 'engine', () -> current_engine
+		return {
+			name: 'Template'
+			$:
+				template: template
+		}
+	
+	$.template.register_engine 'null', (() ->
+		return (text, values) ->
+			text
+	)()
+	match_forward = (text, find, against, start, stop = -1) -> # a brace-matcher, useful in most template parsing steps
+		count = 1
+		if stop < 0
+			stop = text.length + 1 + stop
+		for i in [start...stop]
+			t = text[i]
+			if t is against
+				count += 1
+			else if t is find
+				count -= 1
+			if count is 0
+				return i
+		return -1
+	$.template.register_engine 'pythonic', (() ->
+		type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/ # '%.2f' becomes [key, pad, fixed, type, remainder]
+		chunk_re = /%[\(\/]/
+		compile = (text) ->
+			chunks = text.split chunk_re
+			n = chunks.length
+			ret = [chunks[0]]
+			j = 1 # insert marker into ret
+			for i in [1...n]
+				end = match_forward chunks[i], ')', '(', 0, -1
+				if end is -1
+					return "Template syntax error: unmatched '%(' starting at: #{chunks[i].substring(0,15)}"
+				key = chunks[i].substring 0, end
+				rest = chunks[i].substring end
+				match = type_re.exec rest
+				if match is null
+					return "Template syntax error: invalid type specifier starting at '#{rest}'"
+				rest = match[4]
+				ret[j++] = key
+				ret[j++] = match[1]|0
+				ret[j++] = match[2]|0
+				ret[j++] = match[3]
+				ret[j++] = rest
+			return ret
+		compile.cache = {}
+		render = (text, values) -> # $.render(/t/, /v/) - replace markers in string /t/ with values from /v/
+			cache = compile.cache[text] # get the cached version
+			if not cache?
+				cache = compile.cache[text] = compile(text) # or compile and cache it
+			output = [cache[0]] # the first block is always just text
+			j = 1 # insert marker into output
+			n = cache.length
+			for i in [1..n-5] by 5
+				[key, pad, fixed, type, rest] = cache[i..i+4]
+				value = values[key]
+				if not value?
+					value = "missing value: #{key}"
+				switch type
+					when 'd'
+						output[j++] = "" + parseInt(value, 10)
+					when 'f'
+						output[j++] = parseFloat(value).toFixed(fixed)
+					when 's'
+						output[j++] = "" + value
+					else
+						output[j++] = "" + value
+				if pad > 0
+					output[j] = String.PadLeft output[j], pad
+				output[j++] = rest
+			output.join ""
+		return render
+	)()
+	$.template.register_engine 'js-eval', (() -> # work in progress...
+		class TemplateMachine extends $.StateMachine
+			@STATE_TABLE = [
+				{ # 0: START
+					enter: () ->
+						@data = []
+						@GO(1)
+				},
+				{ # 1: read anything
+				}
+			]
+			
+		return (text, values) ->
+			text
+	)()
+)(Bling)
+(($) ->
+	$.plugin () -> # TnetStrings plugin
+		parseOne = (data) ->
+			i = data.indexOf ":"
+			if i > 0
+				len = parseInt data[0...i], 10
+				item = data[i+1...i+1+len]
+				type = data[i+1+len]
+				extra = data[i+len+2...]
+				item = switch type
+					when "#" then Number(item)
+					when "'" then String(item)
+					when "!" then (item is "true")
+					when "~" then null
+					when "]" then parseArray(item)
+					when "}" then parseObject(item)
+				return [item, extra]
+			return undefined
+		parseArray = (x) ->
+			data = []
+			while x.length > 0
+				[one, x] = parseOne(x)
+				data.push(one)
+			data
+		parseObject = (x) ->
+			data = {}
+			while x.length > 0
+				[key, x] = parseOne(x)
+				[value, x] = parseOne(x)
+				data[key] = value
+			data
+		return {
+			name: 'TNET'
+			$: {
+				TNET: {
+					stringify: (x) ->
+						[data, type] = switch Object.Type(x)
+							when "number" then [String(x), "#"]
+							when "string" then [x, "'"]
+							when "function" then [String(x), "'"]
+							when "boolean" then [String(not not x), "!"]
+							when "null" then ["", "~"]
+							when "undefined" then ["", "~"]
+							when "array" then [($.TNET.stringify(y) for y in x).join(''), "]"]
+							when "object" then [($.TNET.stringify(y)+$.TNET.stringify(x[y]) for y of x).join(''), "}"]
+						return (data.length|0) + ":" + data + type
+					parse: (x) ->
+						parseOne(x)?[0]
+				}
+			}
+		}
+)(Bling)
+(($) ->
+	$.plugin
+		provides: "trace"
+		depends: "function,type"
+	, ->
+		$.type.extend
+			unknown: { trace: $.identity }
+			object:  { trace: (o, label, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
+			array:   { trace: (o, label, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length] by 1); o }
+			function:
+				trace: (f, label, tracer) ->
+					r = (a...) ->
+						tracer "#{@name or $.type(@)}.#{label or f.name}(", a, ")"
+						f.apply @, a
+					tracer "Trace: #{label or f.name} created."
+					r.toString = f.toString
+					r
+		return $: trace: (o, label, tracer = $.log) -> $.type.lookup(o).trace(o, label, tracer)
+)(Bling)
+(($) ->
+	$.plugin
+		depends: "dom"
+	, ->
+		COMMASEP = ", "
+		speeds = # constant speed names
+			"slow": 700
+			"medium": 500
+			"normal": 300
+			"fast": 100
+			"instant": 0
+			"now": 0
+		accel_props_re = /(?:scale(?:3d)*|translate(?:[XYZ]|3d)*|rotate(?:[XYZ]|3d)*)/
+		updateDelay = 30 # ms to wait for DOM changes to apply
+		testStyle = document.createElement("div").style
+		transformProperty = "transform"
+		transitionProperty = "transition-property"
+		transitionDuration = "transition-duration"
+		transitionTiming = "transition-timing-function"
+		if "WebkitTransform" of testStyle
+			transformProperty = "-webkit-transform"
+			transitionProperty = "-webkit-transition-property"
+			transitionDuration = "-webkit-transition-duration"
+			transitionTiming = "-webkit-transition-timing-function"
+		else if "MozTransform" of testStyle
+			transformProperty = "-moz-transform"
+			transitionProperty = "-moz-transition-property"
+			transitionDuration = "-moz-transition-duration"
+			transitionTiming = "-moz-transition-timing-function"
+		else if "OTransform" of testStyle
+			transformProperty = "-o-transform"
+			transitionProperty = "-o-transition-property"
+			transitionDuration = "-o-transition-duration"
+			transitionTiming = "-o-transition-timing-function"
+		return {
+			$:
+				duration: (speed) ->
+					d = speeds[speed]
+					return d if d?
+					return parseFloat speed
+			transform: (end_css, speed, easing, callback) ->
+				if $.is("function",speed)
+					callback = speed
+					speed = easing = null
+				else if $.is("function",easing)
+					callback = easing
+					easing = null
+				speed ?= "normal"
+				easing or= "ease"
+				duration = $.duration(speed) + "ms"
+				props = []
+				trans = ""
+				css = {}
+				for i of end_css
+					if accel_props_re.test(i)
+						ii = end_css[i]
+						if ii.join
+							ii = $(ii).px().join COMMASEP
+						else if ii.toString
+							ii = ii.toString()
+						trans += " " + i + "(" + ii + ")"
+					else css[i] = end_css[i]
+				(props.push i) for i of css
+				if trans
+					props.push transformProperty
+				css[transitionProperty] = props.join COMMASEP
+				css[transitionDuration] = props.map(-> duration).join COMMASEP
+				css[transitionTiming] = props.map(-> easing).join COMMASEP
+				if trans
+					css[transformProperty] = trans
+				@css css
+				@delay duration, callback
+			hide: (callback) -> # .hide() - each node gets display:none
+				@each ->
+					if @style
+						@_display = "" # stash the old display
+						if @style.display is not "none"
+							@_display = @syle.display
+						@style.display = "none"
+				.trigger "hide"
+				.delay updateDelay, callback
+			show: (callback) -> # .show() - show each node
+				@each ->
+					if @style
+						@style.display = @_display
+						delete @_display
+				.trigger "show"
+				.delay updateDelay, callback
+			toggle: (callback) -> # .toggle() - show each hidden node, hide each visible one
+				@weave(@css("display"))
+					.fold (display, node) ->
+						if display is "none"
+							node.style.display = node._display or ""
+							delete node._display
+							$(node).trigger "show"
+						else
+							node._display = display
+							node.style.display = "none"
+							$(node).trigger "hide"
+						node
+					.delay(updateDelay, callback)
+			fadeIn: (speed, callback) -> # .fadeIn() - fade each node to opacity 1.0
+				@.css('opacity','0.0')
+					.show ->
+						@transform {
+							opacity:"1.0",
+							translate3d: [0,0,0]
+						}, speed, callback
+			fadeOut: (speed, callback, x = 0.0, y = 0.0) -> # .fadeOut() - fade each node to opacity:0.0
+				@transform {
+					opacity:"0.0",
+					translate3d:[x,y,0.0]
+				}, speed, -> @hide(callback)
+			fadeLeft: (speed, callback) -> @fadeOut speed, callback, "-"+@width().first(), 0.0
+			fadeRight: (speed, callback) -> @fadeOut speed, callback, @width().first(), 0.0
+			fadeUp: (speed, callback) -> @fadeOut speed, callback, 0.0, "-"+@height().first()
+			fadeDown: (speed, callback)  -> @fadeOut speed, callback, 0.0, @height().first()
+		}
+)(Bling)
+(($) ->
+	$.plugin () ->
+		Dialog = (selector, opts) ->
+			opts = $.extend({
+				autoOpen: false
+				draggable: true
+			}, opts)
+			dialog = $(selector)
+				.addClass("dialog")
+			if opts.draggable
+				dialog.draggable()
+			if opts.autoOpen
+				dialog.show().center()
+			dialog
+				.find("button.close, .close-button")
+				.bind "click touchstart", () ->
+					dialog.hide()
+					false
+			dialog
+		
+		Draggable = (selector, opts) ->
+			opts = $.extend({
+				handleCSS: {}
+			}, opts)
+			opts.handleCSS = $.extend({
+				position: "absolute"
+				top: "0px"
+				left: "0px"
+				width: "100%"
+				height: "6px"
+			}, opts.handleCSS)
+			dragObject = $(selector)
+			moving = false
+			oX = oY = 0
+			handle = $
+				.synth("div.handle")
+				.defaultCss({
+					background: "-webkit-gradient(linear, 50% 0%, 50% 100%, from(#eee), color-stop(0.25, #bbb), color-stop(0.3, #eee), color-stop(0.5, #eee), to(#bbb))"
+					height: "6px"
+					"border-radius": "3px"
+					cursor: "move"
+				})
+				.css(opts.handleCSS)
+				.bind 'mousedown, touchstart', (evt) ->
+					moving = true
+					oX or= evt.pageX
+					oY or= evt.pageY
+					false
+			$(document)
+			.bind 'mousemove, touchmove', (evt) ->
+				if moving
+					dX = (evt.pageX - oX)
+					dY = (evt.pageY - oY)
+					dragObject.transform({
+						translate: [ dX, dY ]
+					}, 0)
+					.trigger 'drag', {
+						dragObject: dragObject
+					}
+					false
+			.bind 'mouseup, touchend', (evt) ->
+				if moving
+					moving = false
+					pos = handle.position()[0]
+					$(document.elementFromPoint(pos.left, pos.top - 1))
+					.trigger 'drop',
+						dropObject: dragObject
+			dragObject
+				.addClass("draggable")
+				.css {
+					position: "relative"
+					"padding-top": dragObject.css("padding-top")
+						.map(Number.AtLeast(parseInt(opts.handleCSS.height,10)))
+						.px().first()
+				}
+				.append(handle)
+		ProgressBar = (selector, opts) ->
+			opts = $.extend({
+				change: null
+				backgroundColor: "#fff"
+				barColor: "rgba(0,128,0,0.5)"
+				textColor: "white"
+				reset: false
+			}, opts)
+			node = $(selector)
+				.addClass('progress-bar')
+			if( opts.reset ) # save the original styles
+				_bg = node.css("background").first()
+				_color = node.css("color").first()
+			node.zap 'updateProgress', (pct) ->
+				while pct < 1.0
+					pct *= 100.0
+				if pct >= 99.9 and opts.reset # restore original styles
+					node.css
+						background: _bg
+						color: _color
+				else
+					node.css
+						background:"""
+							-webkit-gradient(linear, 0 0, #{parseInt(pct)}% 0,
+							color-stop(0, #{opts.barColor}),
+							color-stop(0.98, #{opts.barColor}),
+							color-stop(1.0, #{opts.backgroundColor}))
+						"""
+						color: opts.textColor
+				if $.is "function", opts.change
+					opts.change pct
+		Accordion = (selector, opts) ->
+			opts = $.extend({
+				exclusive: false
+				sticky: false
+			}, opts)
+			node = $(selector).addClass("accordion")
+			selectedChild = null
+			initRow = (n) ->
+				t = $(n).children().first().filter("*")
+				if( t.len() isnt 2 )
+					throw Exception("accordion row requires 2 elements, not #{t.len()}")
+				title = t.eq(0).addClass("title")
+				body = t.eq(1).addClass("body").hide()
+				bodyVisible = false
+				title.click () ->
+					if opts.exclusive
+						node.find(".body").hide()
+					if bodyVisible
+						if not opts.sticky
+							body.hide().removeClass("visible")
+							title.removeClass("selected").trigger("deselect")
+							bodyVisible = false
+						else
+							body.show().addClass("visible")
+							title.addClass("selected").trigger("select")
+							bodyVisible = true
+					else
+						body.show().addClass("visible")
+						title.addClass("selected").trigger("select")
+						bodyVisible = true
+			node.bind "DOMNodeInserted", (evt) ->
+				directChildren = node.children().first().filter("*")
+				parentsOfInserted = $(evt.target).parents().first()
+				initRow(parentsOfInserted.intersect(directChildren))
+			node.children().first()
+				.filter("*") # only Nodes
+				.map(initRow)
+			return node
+		ViewStack = (selector, opts) ->
+			items = $(selector)
+				.css {
+					position: "relative"
+					top: "0px"
+					left: "0px"
+				}
+				.hide()
+				.map($)
+			active = 0
+			items[active].show()
+			items.next = () ->
+				items[active].hide()
+				active = (++active % items.length)
+				items[active].show()
+			items.activate = (k) ->
+				items[active].hide()
+				active = k
+				items[k].show()
+			for j in [0...items.len()]
+				items[j]
+				.zap("_viewIndex", j)
+				.zap "activate", ->
+					items.activate(this._viewIndex)
+			items
+		Tabs = (selector, views) ->
+			tabs = $(selector)
+			views = $(views).viewStack()
+			nn = tabs.len()
+			tabs._tabIndex = i for i in [0..nn]
+			$(tabs[0]).addClass("active")
+			tabs.click () ->
+				tabs.removeClass("active")
+				views.activate(this._tabIndex)
+				$(this).addClass("active")
+		return {
+			$:
+				UI:
+					Draggable: Draggable
+					ProgressBar: ProgressBar
+					ViewStack: ViewStack
+					Tabs: Tabs
+					Accordion: Accordion
+			dialog: (opts) -> Dialog(this, opts)
+			progressBar: (opts) -> ProgressBar(this, opts)
+			viewStack: (opts) -> ViewStack(this, opts)
+			tabs: (views) -> Tabs(this, views)
+			accordion: (opts) -> Accordion(this, opts)
+			draggable: (opts) -> Draggable(this, opts)
+		}
+)(Bling)

@@ -1555,7 +1555,9 @@
   })(Bling, this);
 
   (function($) {
-    return $.plugin(function() {
+    return $.plugin({
+      depends: "experimental"
+    }, function() {
       var lookup, pruners, register, stack;
       pruners = {};
       register = function(type, f) {
@@ -1565,25 +1567,25 @@
         return pruners[obj.t || obj.type];
       };
       stack = [];
-      Object.Type.extend(null, {
+      $.type.extend(null, {
         compact: function(o) {
-          return Object.String(o);
+          return $.toString(o);
         }
       });
-      Object.Type.extend("undefined", {
-        compact: function(o) {
-          return "";
-        }
-      });
-      Object.Type.extend("null", {
+      $.type.extend("undefined", {
         compact: function(o) {
           return "";
         }
       });
-      Object.Type.extend("string", {
-        compact: Function.Identity
+      $.type.extend("null", {
+        compact: function(o) {
+          return "";
+        }
       });
-      Object.Type.extend("array", {
+      $.type.extend("string", {
+        compact: $.identity
+      });
+      $.type.extend("array", {
         compact: function(o) {
           var x;
           return ((function() {
@@ -1597,12 +1599,12 @@
           })()).join("");
         }
       });
-      Object.Type.extend("bling", {
+      $.type.extend("bling", {
         compact: function(o) {
           return o.map(Object.Compact).join("");
         }
       });
-      Object.Type.extend("object", {
+      $.type.extend("object", {
         compact: function(o) {
           var _ref1;
           return Object.Compact((_ref1 = lookup(o)) != null ? _ref1.call(o, o) : void 0);
@@ -1611,12 +1613,12 @@
       Object.Compact = function(o) {
         var _ref1;
         stack.push(o);
-        if ((_ref1 = Object.Type.lookup(o)) != null) {
+        if ((_ref1 = $.type.lookup(o)) != null) {
           _ref1.compact(o);
         }
         return stack.pop();
       };
-      Object.Extend(Object.Compact, {
+      $.extend(Object.Compact, {
         register: register,
         lookup: lookup
       });
@@ -1652,206 +1654,204 @@
     });
   })(Bling);
 
-  require("../bling");
-
-  $.plugin({
-    provides: "date",
-    depends: "experimental"
-  }, function() {
-    var d, floor, format_keys, formats, h, m, ms, parser_keys, parsers, s, unit_re, units, unpackUnits, _ref1;
-    _ref1 = [1, 1000, 1000 * 60, 1000 * 60 * 60, 1000 * 60 * 60 * 24], ms = _ref1[0], s = _ref1[1], m = _ref1[2], h = _ref1[3], d = _ref1[4];
-    units = {
-      ms: ms,
-      s: s,
-      m: m,
-      h: h,
-      d: d,
-      sec: s,
-      second: s,
-      seconds: s,
-      min: m,
-      minute: m,
-      minutes: m,
-      hr: h,
-      hour: h,
-      hours: h,
-      day: d,
-      days: d
-    };
-    formats = {
-      yyyy: Date.prototype.getUTCFullYear,
-      mm: function() {
-        return this.getUTCMonth() + 1;
-      },
-      dd: Date.prototype.getUTCDate,
-      HH: Date.prototype.getUTCHours,
-      MM: Date.prototype.getUTCMinutes,
-      SS: Date.prototype.getUTCSeconds,
-      MS: Date.prototype.getUTCMilliseconds
-    };
-    format_keys = Object.keys(formats).sort().reverse();
-    parsers = {
-      yyyy: Date.prototype.setUTCFullYear,
-      mm: function(x) {
-        return this.setUTCMonth(x - 1);
-      },
-      dd: Date.prototype.setUTCDate,
-      HH: Date.prototype.setUTCHours,
-      MM: Date.prototype.setUTCMinutes,
-      SS: Date.prototype.setUTCSeconds,
-      MS: Date.prototype.setUTCMilliseconds
-    };
-    parser_keys = Object.keys(parsers).sort().reverse();
-    floor = Math.floor;
-    unit_re = new RegExp("(\\d+\\.*\\d*)\\s*(" + Object.keys(units).join("|") + ")");
-    unpackUnits = function(str) {
-      var ret;
-      ret = (function() {
-        var _ref2;
-        switch ($.type(str)) {
-          case "date":
-            return unpackUnits($.date.convert(str.getTime() + "ms", $.date.defaultUnit));
-          default:
-            return ((_ref2 = str != null ? str.match(unit_re) : void 0) != null ? _ref2 : [str, parseFloat(str), $.date.defaultUnit]).slice(1, 3);
+  (function($) {
+    $.plugin({
+      provides: "date"
+    }, function() {
+      var d, floor, format_keys, formats, h, m, ms, parser_keys, parsers, s, unit_re, units, unpackUnits, _ref1;
+      _ref1 = [1, 1000, 1000 * 60, 1000 * 60 * 60, 1000 * 60 * 60 * 24], ms = _ref1[0], s = _ref1[1], m = _ref1[2], h = _ref1[3], d = _ref1[4];
+      units = {
+        ms: ms,
+        s: s,
+        m: m,
+        h: h,
+        d: d,
+        sec: s,
+        second: s,
+        seconds: s,
+        min: m,
+        minute: m,
+        minutes: m,
+        hr: h,
+        hour: h,
+        hours: h,
+        day: d,
+        days: d
+      };
+      formats = {
+        yyyy: Date.prototype.getUTCFullYear,
+        mm: function() {
+          return this.getUTCMonth() + 1;
+        },
+        dd: Date.prototype.getUTCDate,
+        HH: Date.prototype.getUTCHours,
+        MM: Date.prototype.getUTCMinutes,
+        SS: Date.prototype.getUTCSeconds,
+        MS: Date.prototype.getUTCMilliseconds
+      };
+      format_keys = Object.keys(formats).sort().reverse();
+      parsers = {
+        yyyy: Date.prototype.setUTCFullYear,
+        mm: function(x) {
+          return this.setUTCMonth(x - 1);
+        },
+        dd: Date.prototype.setUTCDate,
+        HH: Date.prototype.setUTCHours,
+        MM: Date.prototype.setUTCMinutes,
+        SS: Date.prototype.setUTCSeconds,
+        MS: Date.prototype.setUTCMilliseconds
+      };
+      parser_keys = Object.keys(parsers).sort().reverse();
+      floor = Math.floor;
+      unit_re = new RegExp("(\\d+\\.*\\d*)\\s*(" + Object.keys(units).join("|") + ")");
+      unpackUnits = function(str) {
+        var ret;
+        ret = (function() {
+          var _ref2;
+          switch ($.type(str)) {
+            case "date":
+              return unpackUnits($.date.convert(str.getTime() + "ms", $.date.defaultUnit));
+            default:
+              return ((_ref2 = str != null ? str.match(unit_re) : void 0) != null ? _ref2 : [str, parseFloat(str), $.date.defaultUnit]).slice(1, 3);
+          }
+        })();
+        return ret;
+      };
+      $.type.register("date", {
+        match: function(o) {
+          return $.isType(Date, o);
+        },
+        array: function(o) {
+          return [o];
         }
-      })();
-      return ret;
-    };
-    $.type.register("date", {
-      match: function(o) {
-        return $.isType(Date, o);
-      },
-      array: function(o) {
-        return [o];
-      }
-    });
-    return {
-      $: {
-        date: {
-          defaultUnit: "ms",
-          defaultFormat: "yyyy-mm-dd HH:MM:SS",
-          stamp: function(date, unit) {
-            if (date == null) {
-              date = new Date;
-            }
-            if (unit == null) {
-              unit = $.date.defaultUnit;
-            }
-            return (floor(date / units[unit])) + unit;
-          },
-          unstamp: function(stamp) {
-            var unit, _ref2;
-            _ref2 = unpackUnits(stamp), stamp = _ref2[0], unit = _ref2[1];
-            return new Date(floor(stamp * units[unit]));
-          },
-          midnight: function(stamp) {
-            var unit, _, _ref2;
-            _ref2 = unpackUnits(stamp), _ = _ref2[0], unit = _ref2[1];
-            return $.date.convert($.date.convert(stamp, "d"), unit);
-          },
-          convert: function(stamp, to) {
-            var from, _ref2;
-            if (to == null) {
-              to = "ms";
-            }
-            _ref2 = unpackUnits(stamp), stamp = _ref2[0], from = _ref2[1];
-            return (floor(stamp * units[from] / units[to])) + to;
-          },
-          format: function(stamp, fmt) {
-            var date, k, _i, _len;
-            if (fmt == null) {
-              fmt = $.date.defaultFormat;
-            }
-            date = $.date.unstamp(stamp);
-            for (_i = 0, _len = format_keys.length; _i < _len; _i++) {
-              k = format_keys[_i];
-              fmt = fmt.replace(k, $.padLeft("" + formats[k].call(date), k.length, "0"));
-            }
-            return fmt;
-          },
-          parse: function(dateString, fmt, to) {
-            var date, i, k, _i, _j, _len, _ref2;
-            if (fmt == null) {
-              fmt = $.date.defaultFormat;
-            }
-            if (to == null) {
-              to = $.date.defaultUnit;
-            }
-            date = new Date(0);
-            for (i = _i = 0, _ref2 = fmt.length; _i < _ref2; i = _i += 1) {
-              for (_j = 0, _len = parser_keys.length; _j < _len; _j++) {
-                k = parser_keys[_j];
-                if (fmt.indexOf(k, i) === i) {
-                  try {
-                    parsers[k].call(date, parseInt(dateString.slice(i, i + k.length), 10));
-                  } catch (err) {
-                    throw new Error("Invalid date ('" + dateString + "') given format mask: " + fmt + " (failed at position " + i + ")");
+      });
+      return {
+        $: {
+          date: {
+            defaultUnit: "ms",
+            defaultFormat: "yyyy-mm-dd HH:MM:SS",
+            stamp: function(date, unit) {
+              if (date == null) {
+                date = new Date;
+              }
+              if (unit == null) {
+                unit = $.date.defaultUnit;
+              }
+              return (floor(date / units[unit])) + unit;
+            },
+            unstamp: function(stamp) {
+              var unit, _ref2;
+              _ref2 = unpackUnits(stamp), stamp = _ref2[0], unit = _ref2[1];
+              return new Date(floor(stamp * units[unit]));
+            },
+            midnight: function(stamp) {
+              var unit, _, _ref2;
+              _ref2 = unpackUnits(stamp), _ = _ref2[0], unit = _ref2[1];
+              return $.date.convert($.date.convert(stamp, "d"), unit);
+            },
+            convert: function(stamp, to) {
+              var from, _ref2;
+              if (to == null) {
+                to = "ms";
+              }
+              _ref2 = unpackUnits(stamp), stamp = _ref2[0], from = _ref2[1];
+              return (floor(stamp * units[from] / units[to])) + to;
+            },
+            format: function(stamp, fmt) {
+              var date, k, _i, _len;
+              if (fmt == null) {
+                fmt = $.date.defaultFormat;
+              }
+              date = $.date.unstamp(stamp);
+              for (_i = 0, _len = format_keys.length; _i < _len; _i++) {
+                k = format_keys[_i];
+                fmt = fmt.replace(k, $.padLeft("" + formats[k].call(date), k.length, "0"));
+              }
+              return fmt;
+            },
+            parse: function(dateString, fmt, to) {
+              var date, i, k, _i, _j, _len, _ref2;
+              if (fmt == null) {
+                fmt = $.date.defaultFormat;
+              }
+              if (to == null) {
+                to = $.date.defaultUnit;
+              }
+              date = new Date(0);
+              for (i = _i = 0, _ref2 = fmt.length; _i < _ref2; i = _i += 1) {
+                for (_j = 0, _len = parser_keys.length; _j < _len; _j++) {
+                  k = parser_keys[_j];
+                  if (fmt.indexOf(k, i) === i) {
+                    try {
+                      parsers[k].call(date, parseInt(dateString.slice(i, i + k.length), 10));
+                    } catch (err) {
+                      throw new Error("Invalid date ('" + dateString + "') given format mask: " + fmt + " (failed at position " + i + ")");
+                    }
                   }
                 }
               }
+              return $.date.stamp(date, to);
+            },
+            add: function(stamp, delta) {
+              var stamp_unit, _ref2;
+              _ref2 = unpackUnits(stamp), stamp = _ref2[0], stamp_unit = _ref2[1];
+              return (+stamp) + (parseInt($.date.convert(delta, stamp_unit), 10)) + stamp_unit;
             }
-            return $.date.stamp(date, to);
-          },
-          add: function(stamp, delta) {
-            var stamp_unit, _ref2;
-            _ref2 = unpackUnits(stamp), stamp = _ref2[0], stamp_unit = _ref2[1];
-            return (+stamp) + (parseInt($.date.convert(delta, stamp_unit), 10)) + stamp_unit;
           }
+        },
+        midnight: function() {
+          return this.map(function() {
+            return $.date.midnight(this);
+          });
+        },
+        unstamp: function() {
+          return this.map(function() {
+            return $.date.unstamp(this);
+          });
+        },
+        stamp: function() {
+          return this.map(function() {
+            return $.date.stamp(this);
+          });
+        },
+        dateConvert: function(to) {
+          if (to == null) {
+            to = $.date.defaultUnit;
+          }
+          return this.map(function() {
+            return $.date.convert(this, to);
+          });
+        },
+        dateFormat: function(fmt) {
+          if (fmt == null) {
+            fmt = $.date.defaultFormat;
+          }
+          return this.map(function() {
+            return $.date.format(this, fmt);
+          });
+        },
+        dateParse: function(fmt) {
+          if (fmt == null) {
+            fmt = $.date.defaultFormat;
+          }
+          return this.map(function() {
+            return $.date.parse(this, fmt);
+          });
+        },
+        dateAdd: function(delta) {
+          return this.map(function() {
+            return $.date.add(this, delta);
+          });
         }
-      },
-      midnight: function() {
-        return this.map(function() {
-          return $.date.midnight(this);
-        });
-      },
-      unstamp: function() {
-        return this.map(function() {
-          return $.date.unstamp(this);
-        });
-      },
-      stamp: function() {
-        return this.map(function() {
-          return $.date.stamp(this);
-        });
-      },
-      dateConvert: function(to) {
-        if (to == null) {
-          to = $.date.defaultUnit;
-        }
-        return this.map(function() {
-          return $.date.convert(this, to);
-        });
-      },
-      dateFormat: function(fmt) {
-        if (fmt == null) {
-          fmt = $.date.defaultFormat;
-        }
-        return this.map(function() {
-          return $.date.format(this, fmt);
-        });
-      },
-      dateParse: function(fmt) {
-        if (fmt == null) {
-          fmt = $.date.defaultFormat;
-        }
-        return this.map(function() {
-          return $.date.parse(this, fmt);
-        });
-      },
-      dateAdd: function(delta) {
-        return this.map(function() {
-          return $.date.add(this, delta);
-        });
-      }
-    };
-  });
-
-  if (require.main === module) {
-    $.provide("experimental");
-    $.date.defaultUnit = "s";
-    $($.date.stamp()).log('current time').unstamp().log('current date').dateFormat().log('formatted').dateParse().log('parsed').dateConvert('days').log('as days').midnight().log('midnight raw').unstamp().log('midnight UTC').stamp().dateAdd('3h').unstamp().log('3 hours later').stamp().dateAdd('30d').unstamp().log('30 days later').stamp();
-    $($.date.parse("06/20/2012 12:24:42", "mm/dd/yyyy HH:MM:SS")).unstamp().log('parsed');
-  }
+      };
+    });
+    if (require.main === module) {
+      require("../bling");
+      $.date.defaultUnit = "s";
+      $($.date.stamp()).log('current time').unstamp().log('current date').dateFormat().log('formatted').dateParse().log('parsed').dateConvert('days').log('as days').midnight().log('midnight raw').unstamp().log('midnight UTC').stamp().dateAdd('3h').unstamp().log('3 hours later').stamp().dateAdd('30d').unstamp().log('30 days later').stamp();
+      return $($.date.parse("06/20/2012 12:24:42", "mm/dd/yyyy HH:MM:SS")).unstamp().log('parsed');
+    }
+  })(Bling);
 
   (function($) {
     if ($.global.document != null) {

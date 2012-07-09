@@ -804,6 +804,7 @@ Bling.prototype = []
 		max: -> @filter( isFinite ).reduce Math.max
 		# Get the mean (average) of the set.
 		mean: -> @sum() / @length
+		avg: -> @sum() / @length
 		# Get the sum of the set.
 		sum: -> @filter( isFinite ).reduce (a) -> a + @
 		# Get the product of all items in the set.

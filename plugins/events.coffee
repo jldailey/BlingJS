@@ -38,10 +38,10 @@
 		triggerReady = $.once ->
 			$(document).trigger("ready").unbind("ready")
 			document.removeEventListener?("DOMContentLoaded", triggerReady, false)
-			window.removeEventListener?("load", triggerReady, false)
+			$.global.removeEventListener?("load", triggerReady, false)
 		bindReady = $.once ->
 			document.addEventListener?("DOMContentLoaded", triggerReady, false)
-			window.addEventListener?("load", triggerReady, false)
+			$.global.addEventListener?("load", triggerReady, false)
 		bindReady()
 
 		ret = {
@@ -85,13 +85,13 @@
 							button: 0,
 							relatedTarget: null
 						, args
-						e.initMouseEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+						e.initMouseEvent evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
 							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
 							args.button, args.relatedTarget
 
 					else if evt_i in ["blur", "focus", "reset", "submit", "abort", "change", "load", "unload"] # UI events
 						e = document.createEvent "UIEvents"
-						e.initUIEvent evt_i, args.bubbles, args.cancelable, window, 1
+						e.initUIEvent evt_i, args.bubbles, args.cancelable, $.global, 1
 
 					else if evt_i in ["touchstart", "touchmove", "touchend", "touchcancel"] # touch events
 						e = document.createEvent "TouchEvents"
@@ -112,7 +112,7 @@
 							scale: 1.0,
 							rotation: 0.0
 						, args
-						e.initTouchEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+						e.initTouchEvent(evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
 							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
 							args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
 
@@ -133,7 +133,7 @@
 							scale: 1.0,
 							rotation: 0.0
 						}, args
-						e.initGestureEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+						e.initGestureEvent evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
 							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
 							args.target, args.scale, args.rotation
 

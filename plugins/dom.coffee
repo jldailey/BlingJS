@@ -71,7 +71,7 @@
 			# window.getComputedStyle is not a normal function
 			# (it doesnt support .call() so we can't use it with .map())
 			# so define something that does work properly for use in .css
-			computeCSSProperty = (k) -> -> window.getComputedStyle(@, null).getPropertyValue(k)
+			computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue(k)
 
 			getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select(p)
 
@@ -303,7 +303,7 @@
 				# Adjust the document's scroll position so the first node in
 				# _this_ is centered in the viewport.
 				scrollToCenter: ->
-					document.body.scrollTop = @[0].offsetTop - (window.innerHeight / 2)
+					document.body.scrollTop = @[0].offsetTop - ($.global.innerHeight / 2)
 					@
 
 				# Get the _n-th_ child from each node in _this_.

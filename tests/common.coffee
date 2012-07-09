@@ -16,7 +16,7 @@ dom = require("jldom")
 dom.registerGlobals(global)
 global.document = dom.createDocument()
 global.window = global
-require("../dist/bling.coffee")
+require("../dist/bling.js")
 Bling.plugin
 	provides: "assert"
 , ->

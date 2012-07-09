@@ -38,16 +38,16 @@
 		next.seed = +new Date()
 
 		return $.extend next,
-			float: (min, max) ->
+			real: (min, max) ->
 				if not max?
 					[min,max] = [0,min]
 				($.random() * (max - min)) + min
-			int: (min, max) -> Math.floor $.random.float(min,max)
+			integer: (min, max) -> Math.floor $.random.real(min,max)
 			string: (len, prefix="") ->
 				prefix += $.random.element(alphabet) while prefix.length < len
 				prefix
 			coin: (balance=.5) -> $.random() <= balance
-			element: (arr) -> arr[$.random.int(0, arr.length)]
+			element: (arr) -> arr[$.random.integer(0, arr.length)]
 			gaussian: (mean=0.5, ssig=0.12) -> # paraphrased from Wikipedia
 				while true
 					u = $.random()

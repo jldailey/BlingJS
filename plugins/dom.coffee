@@ -148,26 +148,20 @@
 						@skip(1).each -> after @, x.cloneNode(true)
 					@
 
-				wrap: (parent) -> # .wrap(/p/) - p becomes the new .parentNode of each node
-					# all items of @ will become children of parent
-					# parent will take each child's position in the DOM
+				wrap: (parent) -> # .wrap(/parent/) - parent becomes the new .parentNode of each node
 					parent = toNode(parent)
-					if $.is("fragment", parent)
-						throw new Error("cannot wrap with a fragment")
+					if $.is "fragment", parent
+						throw new Error("cannot call .wrap() with a fragment as the parent")
 					@each (child) ->
-						switch $.type(child)
-							when "fragment"
-								parent.appendChild(child)
-							when "node"
-								p = child.parentNode
-								if not p
-									parent.appendChild(child)
-								else # swap out the DOM nodes using a placeholder element
-									marker = document.createElement("dummy")
-									# put a marker in the DOM, put removed node in new parent
-									parent.appendChild( p.replaceChild(marker, child) )
-									# replace marker with new parent
-									p.replaceChild(parent, marker)
+						if ($.is "fragment", child) or not child.parentNode
+							return parent.appendChild child
+						grandpa = child.parentNode
+						# swap out the DOM nodes using a placeholder element
+						marker = document.createElement "dummy"
+						# put a marker in the DOM, put removed node in new parent
+						parent.appendChild grandpa.replaceChild marker, child
+						# replace marker with new parent
+						grandpa.replaceChild parent, marker
 
 				unwrap: -> # .unwrap() - replace each node's parent with itself
 					@each ->

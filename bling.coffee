@@ -290,7 +290,7 @@ class Bling
 	qu = []
 	done = {}
 	filt = (n) ->
-		(if (typeof n) is "string" then n.split "," else n)
+		(if (typeof n) is "string" then n.split /, */ else n)
 		.filter (x) -> not (x of done)
 
 	# Example: `$.depends "tag", -> console.log "hello"`

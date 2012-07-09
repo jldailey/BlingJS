@@ -105,7 +105,7 @@ class Bling
 	qu = []
 	done = {}
 	filt = (n) ->
-		(if (typeof n) is "string" then n.split "," else n)
+		(if (typeof n) is "string" then n.split /, */ else n)
 		.filter (x) -> not (x of done)
 	@depends: (needs, f) ->
 		if (needs = filt(needs)).length is 0 then f()
@@ -370,6 +370,7 @@ Bling.prototype = []
 		min: -> @filter( isFinite ).reduce Math.min
 		max: -> @filter( isFinite ).reduce Math.max
 		mean: -> @sum() / @length
+		avg: -> @sum() / @length
 		sum: -> @filter( isFinite ).reduce (a) -> a + @
 		product: -> @filter( isFinite ).reduce (a) -> a * @
 		squares: -> @map -> @ * @
@@ -450,6 +451,12 @@ Bling.prototype = []
 						a = (a + s.charCodeAt(i)) % 65521
 						b = (b + a) % 65521
 					(b << 16) | a
+				repeat: (x, n=2) ->
+					switch true
+						when n is 1 then x
+						when n < 1 then ""
+						when $.is "string", x then x + $.repeat(x, n-1)
+						else $(x).extend $.repeat(x, n-1)
 				stringBuilder: ->
 					if $.is("window", @) then return new $.stringBuilder()
 					items = []
@@ -557,6 +564,36 @@ Bling.prototype = []
 				setMaxListeners:    (n) -> # who really needs this in the core API?
 				listeners:          (e) -> list(e).slice 0
 )(Bling, @)
+(($) ->
+	$.plugin
+		provides: "cartesian"
+	, ->
+		$:
+			cartesian: (sets...) ->
+				n = sets.length
+				ret = []
+				helper = (cur, i) ->
+					(return ret.push cur) if ++i >= n
+					for x in sets[i]
+						helper (cur.concat x), i
+					null
+				helper [], -1
+				return $(ret)
+	if require.main is module
+		require "../bling"
+		console.log $.cartesian(
+			[2,3,4,5],
+			['sweet','ugly'],
+			['cats','dogs','hogs']
+		).map( -> @join " " )
+		.join "\n"
+)(Bling)
+(($) ->
+	$.plugin
+		provides: 'config'
+	, ->
+		$: config: (name, def) -> process.env[name] ? def
+)(Bling)
 (($) ->
 	$.plugin
 		provides: "date"
@@ -1055,6 +1092,30 @@ Bling.prototype = []
 		return ret
 )(Bling)
 (($) ->
+	$.plugin ->
+		$:
+			histogram: (data, bucket_width=1, output_width=80) ->
+				buckets = $()
+				len = 0
+				for x in data
+					i = Math.floor( x / bucket_width )
+					buckets[i] ?= 0
+					buckets[i] += 1
+					len = Math.max(len, i+1)
+				buckets.length = len
+				max = buckets.max()
+				buckets = buckets.map((x) -> x or 0)
+					.scale(1/max)
+					.scale(output_width)
+				sum = buckets.sum()
+				ret = ""
+				for n in [0...len] by 1
+					end = (n+1) * bucket_width
+					pct = (buckets[n]*100/sum).toFixed(0)
+					ret += $.padLeft(pct+"%",3) + $.padRight(" < #{end.toFixed(2)}", 10) + ": " + $.repeat("#", buckets[n]) + "\n"
+				ret
+)(Bling)
+(($) ->
 	$.plugin
 		depends: "dom"
 		provides: "http"
@@ -1129,6 +1190,89 @@ Bling.prototype = []
 				lazy_load "script", { src: src }
 			style: (src) ->
 				lazy_load "link", { href: src, rel: "stylesheet" }
+)(Bling)
+(($) ->
+	alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split ""
+	random = (-> # Mersenne Twister algorithm, from the psuedocode on wikipedia
+		MT = new Array(624)
+		index = 0
+		init_generator = (seed) ->
+			MT[0] = seed
+			for i in [1..623]
+				MT[i] = 0xFFFFFFFF & (1812433253 * (MT[i-1] ^ (MT[i-1] >>> 30)) + i)
+		
+		generate_numbers = ->
+			for i in [0..623]
+				y = ((MT[i] & 0x80000000) >>> 31) + (0x7FFFFFFF & MT[ (i+1) % 624 ])
+				MT[i] = MT[ (i+397) % 624 ] ^ (y >>> 1)
+				if (y%2) is 1
+					MT[i] = MT[i] ^ 2567483615
+		a = Math.pow(2,31)
+		b = a * 2
+		next = ->
+			if index is 0
+				generate_numbers()
+			y = MT[index] ^
+				(y >>> 11) ^
+				((y << 7) and 2636928640) ^
+				((y << 15) and 4022730752) ^
+				(y >>> 18)
+			index = (index + 1) % 624
+			(y + a) / b
+		$.defineProperty next, "seed",
+			set: (v) -> init_generator(v)
+		
+		next.seed = +new Date()
+		return $.extend next,
+			real: (min, max) ->
+				if not max?
+					[min,max] = [0,min]
+				($.random() * (max - min)) + min
+			integer: (min, max) -> Math.floor $.random.real(min,max)
+			string: (len, prefix="") ->
+				prefix += $.random.element(alphabet) while prefix.length < len
+				prefix
+			coin: (balance=.5) -> $.random() <= balance
+			element: (arr) -> arr[$.random.integer(0, arr.length)]
+			gaussian: (mean=0.5, ssig=0.12) -> # paraphrased from Wikipedia
+				while true
+					u = $.random()
+					v = 1.7156 * ($.random() - 0.5)
+					x = u - 0.449871
+					y = Math.abs(v) + 0.386595
+					q = (x*x) + y*(0.19600*y-0.25472*x)
+					break unless q > 0.27597 and (q > 0.27846 or (v*v) > (-4*Math.log(u)*u*u))
+				return mean + ssig*v/u
+	)()
+	$.plugin
+		provides: "random"
+	, ->
+		$:
+			random: random
+)(Bling)
+(($) ->
+	$.plugin
+		provides: "sendgrid"
+		depends: "config"
+	, ->
+		try
+			nodemailer = require 'nodemailer'
+		catch err
+			`return`
+		transport = nodemailer.createTransport 'SMTP',
+			service: 'SendGrid'
+			auth:
+				user: $.config.get 'SENDGRID_USERNAME'
+				pass: $.config.get 'SENDGRID_PASSWORD' # this should be set manually by 'heroku config:add SENDGRID_PASSWORD=xyz123'
+		$:
+			sendMail: (mail, callback) ->
+				mail.transport ?= transport
+				mail.from ?= $.config.get 'EMAILS_FROM'
+				mail.bcc ?= $.config.get 'EMAILS_BCC'
+				if $.config.get('SENDGRID_ENABLED', 'true') is 'true'
+					nodemailer.sendMail mail, callback
+				else
+					callback(false) # Reply as if an email was sent
 )(Bling)
 (($) ->
 	$.plugin
@@ -1582,4 +1726,60 @@ Bling.prototype = []
 			fadeUp: (speed, callback) -> @fadeOut speed, callback, 0.0, "-"+@height().first()
 			fadeDown: (speed, callback)  -> @fadeOut speed, callback, 0.0, @height().first()
 		}
+)(Bling)
+(($) ->
+	$.plugin
+		provides: "unittest"
+		depends: "core"
+	, ->
+		testCount = passCount = failCount = 0
+		failed = []
+		invokeTest = (group, name, func) ->
+			return if not $.is "function", func
+			_log = (msg) -> $.log "#{group}: #{name}... #{msg}"
+			shouldFail = name.toLowerCase().indexOf("fail") isnt -1
+			done = $.once (err) ->
+				testCount--
+				if (!!err isnt shouldFail)
+					_log "fail: #{err}"
+					failCount++
+					failed.push name
+				else
+					_log "pass"
+					passCount++
+					$.provide name
+			f = (done) ->
+				try func(done)
+				catch err then done(err)
+				finally
+					if name.toLowerCase().indexOf("async") is -1 then done()
+			testCount++
+			try f(done)
+			catch err then done(err)
+		testReport = $.once ->
+			$.log "Passed: #{passCount} Failed: #{failCount} [#{failed}]"
+		$:
+			approx: (a, b, margin=.1) -> Math.abs(a - b) < margin
+			assert: (cnd, msg = "no message") -> if not cnd then throw new Error "Assertion failed: #{msg}"
+			assertEqual: (a, b, label) ->
+				if a != b
+					throw Error "#{label or ''} (#{a?.toString()}) should equal (#{b?.toString()})"
+			assertArrayEqual: (a, b, label) ->
+				for i in [0...a.length]
+					try
+						$.assertEqual(a[i], b[i], label)
+					catch err
+						throw Error "#{label or ''} #{a?.toString()} should equal #{b?.toString()}"
+			testGroup: (name, funcs) ->
+				interval = setInterval (-> if testCount is 0 then clearInterval(interval); testReport()), 50
+				for k,func of funcs
+					invokeTest(name, k, func)
+		assertEqual: (args...) ->
+			if args.length > 1 # short-cut the trivial cases
+				args = args.map (x) => # call any functions passed as arguments
+					if $.is "function", x then x.call(@,@) else x
+				a = args[0]
+				for i in [1...args.length]
+					$.assertEqual a, args[i]
+			return @
 )(Bling)

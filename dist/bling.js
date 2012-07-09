@@ -267,7 +267,7 @@
     done = {};
 
     filt = function(n) {
-      return ((typeof n) === "string" ? n.split(",") : n).filter(function(x) {
+      return ((typeof n) === "string" ? n.split(/, */) : n).filter(function(x) {
         return !(x in done);
       });
     };
@@ -1028,6 +1028,9 @@
         mean: function() {
           return this.sum() / this.length;
         },
+        avg: function() {
+          return this.sum() / this.length;
+        },
         sum: function() {
           return this.filter(isFinite).reduce(function(a) {
             return a + this;
@@ -1247,6 +1250,21 @@
               b = (b + a) % 65521;
             }
             return (b << 16) | a;
+          },
+          repeat: function(x, n) {
+            if (n == null) {
+              n = 2;
+            }
+            switch (true) {
+              case n === 1:
+                return x;
+              case n < 1:
+                return "";
+              case $.is("string", x):
+                return x + $.repeat(x, n - 1);
+              default:
+                return $(x).extend($.repeat(x, n - 1));
+            }
           },
           stringBuilder: function() {
             var items,
@@ -1553,6 +1571,58 @@
       };
     });
   })(Bling, this);
+
+  (function($) {
+    $.plugin({
+      provides: "cartesian"
+    }, function() {
+      return {
+        $: {
+          cartesian: function() {
+            var helper, n, ret, sets;
+            sets = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+            n = sets.length;
+            ret = [];
+            helper = function(cur, i) {
+              var x, _i, _len, _ref1;
+              if (++i >= n) {
+                return ret.push(cur);
+              }
+              _ref1 = sets[i];
+              for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+                x = _ref1[_i];
+                helper(cur.concat(x), i);
+              }
+              return null;
+            };
+            helper([], -1);
+            return $(ret);
+          }
+        }
+      };
+    });
+    if (require.main === module) {
+      require("../bling");
+      return console.log($.cartesian([2, 3, 4, 5], ['sweet', 'ugly'], ['cats', 'dogs', 'hogs']).map(function() {
+        return this.join(" ");
+      }).join("\n"));
+    }
+  })(Bling);
+
+  (function($) {
+    return $.plugin({
+      provides: 'config'
+    }, function() {
+      return {
+        $: {
+          config: function(name, def) {
+            var _ref1;
+            return (_ref1 = process.env[name]) != null ? _ref1 : def;
+          }
+        }
+      };
+    });
+  })(Bling);
 
   (function($) {
     $.plugin({
@@ -2467,6 +2537,48 @@
   })(Bling);
 
   (function($) {
+    return $.plugin(function() {
+      return {
+        $: {
+          histogram: function(data, bucket_width, output_width) {
+            var buckets, end, i, len, max, n, pct, ret, sum, x, _i, _j, _len, _ref1;
+            if (bucket_width == null) {
+              bucket_width = 1;
+            }
+            if (output_width == null) {
+              output_width = 80;
+            }
+            buckets = $();
+            len = 0;
+            for (_i = 0, _len = data.length; _i < _len; _i++) {
+              x = data[_i];
+              i = Math.floor(x / bucket_width);
+              if ((_ref1 = buckets[i]) == null) {
+                buckets[i] = 0;
+              }
+              buckets[i] += 1;
+              len = Math.max(len, i + 1);
+            }
+            buckets.length = len;
+            max = buckets.max();
+            buckets = buckets.map(function(x) {
+              return x || 0;
+            }).scale(1 / max).scale(output_width);
+            sum = buckets.sum();
+            ret = "";
+            for (n = _j = 0; _j < len; n = _j += 1) {
+              end = (n + 1) * bucket_width;
+              pct = (buckets[n] * 100 / sum).toFixed(0);
+              ret += $.padLeft(pct + "%", 3) + $.padRight(" < " + (end.toFixed(2)), 10) + ": " + $.repeat("#", buckets[n]) + "\n";
+            }
+            return ret;
+          }
+        }
+      };
+    });
+  })(Bling);
+
+  (function($) {
     return $.plugin({
       depends: "dom",
       provides: "http"
@@ -2597,6 +2709,158 @@
               href: src,
               rel: "stylesheet"
             });
+          }
+        }
+      };
+    });
+  })(Bling);
+
+  (function($) {
+    var alphabet, random;
+    alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    random = (function() {
+      var MT, a, b, generate_numbers, index, init_generator, next;
+      MT = new Array(624);
+      index = 0;
+      init_generator = function(seed) {
+        var i, _i, _results;
+        MT[0] = seed;
+        _results = [];
+        for (i = _i = 1; _i <= 623; i = ++_i) {
+          _results.push(MT[i] = 0xFFFFFFFF & (1812433253 * (MT[i - 1] ^ (MT[i - 1] >>> 30)) + i));
+        }
+        return _results;
+      };
+      generate_numbers = function() {
+        var i, y, _i, _results;
+        _results = [];
+        for (i = _i = 0; _i <= 623; i = ++_i) {
+          y = ((MT[i] & 0x80000000) >>> 31) + (0x7FFFFFFF & MT[(i + 1) % 624]);
+          MT[i] = MT[(i + 397) % 624] ^ (y >>> 1);
+          if ((y % 2) === 1) {
+            _results.push(MT[i] = MT[i] ^ 2567483615);
+          } else {
+            _results.push(void 0);
+          }
+        }
+        return _results;
+      };
+      a = Math.pow(2, 31);
+      b = a * 2;
+      next = function() {
+        var y;
+        if (index === 0) {
+          generate_numbers();
+        }
+        y = MT[index] ^ (y >>> 11) ^ ((y << 7) && 2636928640) ^ ((y << 15) && 4022730752) ^ (y >>> 18);
+        index = (index + 1) % 624;
+        return (y + a) / b;
+      };
+      $.defineProperty(next, "seed", {
+        set: function(v) {
+          return init_generator(v);
+        }
+      });
+      next.seed = +new Date();
+      return $.extend(next, {
+        real: function(min, max) {
+          var _ref1;
+          if (!(max != null)) {
+            _ref1 = [0, min], min = _ref1[0], max = _ref1[1];
+          }
+          return ($.random() * (max - min)) + min;
+        },
+        integer: function(min, max) {
+          return Math.floor($.random.real(min, max));
+        },
+        string: function(len, prefix) {
+          if (prefix == null) {
+            prefix = "";
+          }
+          while (prefix.length < len) {
+            prefix += $.random.element(alphabet);
+          }
+          return prefix;
+        },
+        coin: function(balance) {
+          if (balance == null) {
+            balance = .5;
+          }
+          return $.random() <= balance;
+        },
+        element: function(arr) {
+          return arr[$.random.integer(0, arr.length)];
+        },
+        gaussian: function(mean, ssig) {
+          var q, u, v, x, y;
+          if (mean == null) {
+            mean = 0.5;
+          }
+          if (ssig == null) {
+            ssig = 0.12;
+          }
+          while (true) {
+            u = $.random();
+            v = 1.7156 * ($.random() - 0.5);
+            x = u - 0.449871;
+            y = Math.abs(v) + 0.386595;
+            q = (x * x) + y * (0.19600 * y - 0.25472 * x);
+            if (!(q > 0.27597 && (q > 0.27846 || (v * v) > (-4 * Math.log(u) * u * u)))) {
+              break;
+            }
+          }
+          return mean + ssig * v / u;
+        }
+      });
+    })();
+    return $.plugin({
+      provides: "random"
+    }, function() {
+      return {
+        $: {
+          random: random
+        }
+      };
+    });
+  })(Bling);
+
+  (function($) {
+    return $.plugin({
+      provides: "sendgrid",
+      depends: "config"
+    }, function() {
+      var nodemailer, transport;
+      try {
+        nodemailer = require('nodemailer');
+      } catch (err) {
+        return;
+
+      }
+      transport = nodemailer.createTransport('SMTP', {
+        service: 'SendGrid',
+        auth: {
+          user: $.config.get('SENDGRID_USERNAME'),
+          pass: $.config.get('SENDGRID_PASSWORD')
+        }
+      });
+      return {
+        $: {
+          sendMail: function(mail, callback) {
+            var _ref1, _ref2, _ref3;
+            if ((_ref1 = mail.transport) == null) {
+              mail.transport = transport;
+            }
+            if ((_ref2 = mail.from) == null) {
+              mail.from = $.config.get('EMAILS_FROM');
+            }
+            if ((_ref3 = mail.bcc) == null) {
+              mail.bcc = $.config.get('EMAILS_BCC');
+            }
+            if ($.config.get('SENDGRID_ENABLED', 'true') === 'true') {
+              return nodemailer.sendMail(mail, callback);
+            } else {
+              return callback(false);
+            }
           }
         }
       };
@@ -3349,6 +3613,128 @@
         },
         fadeDown: function(speed, callback) {
           return this.fadeOut(speed, callback, 0.0, this.height().first());
+        }
+      };
+    });
+  })(Bling);
+
+  (function($) {
+    return $.plugin({
+      provides: "unittest",
+      depends: "core"
+    }, function() {
+      var failCount, failed, invokeTest, passCount, testCount, testReport;
+      testCount = passCount = failCount = 0;
+      failed = [];
+      invokeTest = function(group, name, func) {
+        var done, f, shouldFail, _log;
+        if (!$.is("function", func)) {
+          return;
+        }
+        _log = function(msg) {
+          return $.log("" + group + ": " + name + "... " + msg);
+        };
+        shouldFail = name.toLowerCase().indexOf("fail") !== -1;
+        done = $.once(function(err) {
+          testCount--;
+          if (!!err !== shouldFail) {
+            _log("fail: " + err);
+            failCount++;
+            return failed.push(name);
+          } else {
+            _log("pass");
+            passCount++;
+            return $.provide(name);
+          }
+        });
+        f = function(done) {
+          try {
+            return func(done);
+          } catch (err) {
+            return done(err);
+          } finally {
+            if (name.toLowerCase().indexOf("async") === -1) {
+              done();
+            }
+          }
+        };
+        testCount++;
+        try {
+          return f(done);
+        } catch (err) {
+          return done(err);
+        }
+      };
+      testReport = $.once(function() {
+        return $.log("Passed: " + passCount + " Failed: " + failCount + " [" + failed + "]");
+      });
+      return {
+        $: {
+          approx: function(a, b, margin) {
+            if (margin == null) {
+              margin = .1;
+            }
+            return Math.abs(a - b) < margin;
+          },
+          assert: function(cnd, msg) {
+            if (msg == null) {
+              msg = "no message";
+            }
+            if (!cnd) {
+              throw new Error("Assertion failed: " + msg);
+            }
+          },
+          assertEqual: function(a, b, label) {
+            if (a !== b) {
+              throw Error("" + (label || '') + " (" + (a != null ? a.toString() : void 0) + ") should equal (" + (b != null ? b.toString() : void 0) + ")");
+            }
+          },
+          assertArrayEqual: function(a, b, label) {
+            var i, _i, _ref1, _results;
+            _results = [];
+            for (i = _i = 0, _ref1 = a.length; 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
+              try {
+                _results.push($.assertEqual(a[i], b[i], label));
+              } catch (err) {
+                throw Error("" + (label || '') + " " + (a != null ? a.toString() : void 0) + " should equal " + (b != null ? b.toString() : void 0));
+              }
+            }
+            return _results;
+          },
+          testGroup: function(name, funcs) {
+            var func, interval, k, _results;
+            interval = setInterval((function() {
+              if (testCount === 0) {
+                clearInterval(interval);
+                return testReport();
+              }
+            }), 50);
+            _results = [];
+            for (k in funcs) {
+              func = funcs[k];
+              _results.push(invokeTest(name, k, func));
+            }
+            return _results;
+          }
+        },
+        assertEqual: function() {
+          var a, args, i, _i, _ref1,
+            _this = this;
+          args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+          if (args.length > 1) {
+            args = args.map(function(x) {
+              if ($.is("function", x)) {
+                return x.call(_this, _this);
+              } else {
+                return x;
+              }
+            });
+            a = args[0];
+            for (i = _i = 1, _ref1 = args.length; 1 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 1 <= _ref1 ? ++_i : --_i) {
+              $.assertEqual(a, args[i]);
+            }
+          }
+          return this;
         }
       };
     });

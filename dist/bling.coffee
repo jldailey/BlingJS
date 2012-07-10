@@ -763,7 +763,7 @@ Bling.prototype = []
 			toNode = (x) -> $.type.lookup(x).node(x)
 			escaper = false
 			parser = false
-			computeCSSProperty = (k) -> -> window.getComputedStyle(@, null).getPropertyValue(k)
+			computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue(k)
 			getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select(p)
 			selectChain = (prop) -> -> @map (p) -> $( p while p = p[prop] )
 			return {
@@ -920,7 +920,7 @@ Bling.prototype = []
 						when not top? then @css("left", $.px(left))
 						else @css({top: $.px(top), left: $.px(left)})
 				scrollToCenter: ->
-					document.body.scrollTop = @[0].offsetTop - (window.innerHeight / 2)
+					document.body.scrollTop = @[0].offsetTop - ($.global.innerHeight / 2)
 					@
 				child: (n) -> @select('childNodes').map -> @[ if n < 0 then (n+@length) else n ]
 				parents: selectChain('parentNode')
@@ -968,10 +968,10 @@ Bling.prototype = []
 		triggerReady = $.once ->
 			$(document).trigger("ready").unbind("ready")
 			document.removeEventListener?("DOMContentLoaded", triggerReady, false)
-			window.removeEventListener?("load", triggerReady, false)
+			$.global.removeEventListener?("load", triggerReady, false)
 		bindReady = $.once ->
 			document.addEventListener?("DOMContentLoaded", triggerReady, false)
-			window.addEventListener?("load", triggerReady, false)
+			$.global.addEventListener?("load", triggerReady, false)
 		bindReady()
 		ret = {
 			bind: (e, f) ->
@@ -1006,12 +1006,12 @@ Bling.prototype = []
 							button: 0,
 							relatedTarget: null
 						, args
-						e.initMouseEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+						e.initMouseEvent evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
 							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
 							args.button, args.relatedTarget
 					else if evt_i in ["blur", "focus", "reset", "submit", "abort", "change", "load", "unload"] # UI events
 						e = document.createEvent "UIEvents"
-						e.initUIEvent evt_i, args.bubbles, args.cancelable, window, 1
+						e.initUIEvent evt_i, args.bubbles, args.cancelable, $.global, 1
 					else if evt_i in ["touchstart", "touchmove", "touchend", "touchcancel"] # touch events
 						e = document.createEvent "TouchEvents"
 						args = $.extend
@@ -1030,7 +1030,7 @@ Bling.prototype = []
 							scale: 1.0,
 							rotation: 0.0
 						, args
-						e.initTouchEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+						e.initTouchEvent(evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
 							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
 							args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
 					else if evt_i in ["gesturestart", "gestureend", "gesturecancel"] # gesture events
@@ -1049,7 +1049,7 @@ Bling.prototype = []
 							scale: 1.0,
 							rotation: 0.0
 						}, args
-						e.initGestureEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
+						e.initGestureEvent evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
 							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
 							args.target, args.scale, args.rotation
 					else

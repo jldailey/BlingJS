@@ -1972,7 +1972,7 @@
         parser = false;
         computeCSSProperty = function(k) {
           return function() {
-            return window.getComputedStyle(this, null).getPropertyValue(k);
+            return $.global.getComputedStyle(this, null).getPropertyValue(k);
           };
         };
         getOrSetRect = function(p) {
@@ -2276,7 +2276,7 @@
             }
           },
           scrollToCenter: function() {
-            document.body.scrollTop = this[0].offsetTop - (window.innerHeight / 2);
+            document.body.scrollTop = this[0].offsetTop - ($.global.innerHeight / 2);
             return this;
           },
           child: function(n) {
@@ -2354,17 +2354,19 @@
         });
       };
       triggerReady = $.once(function() {
+        var _base;
         $(document).trigger("ready").unbind("ready");
         if (typeof document.removeEventListener === "function") {
           document.removeEventListener("DOMContentLoaded", triggerReady, false);
         }
-        return typeof window.removeEventListener === "function" ? window.removeEventListener("load", triggerReady, false) : void 0;
+        return typeof (_base = $.global).removeEventListener === "function" ? _base.removeEventListener("load", triggerReady, false) : void 0;
       });
       bindReady = $.once(function() {
+        var _base;
         if (typeof document.addEventListener === "function") {
           document.addEventListener("DOMContentLoaded", triggerReady, false);
         }
-        return typeof window.addEventListener === "function" ? window.addEventListener("load", triggerReady, false) : void 0;
+        return typeof (_base = $.global).addEventListener === "function" ? _base.addEventListener("load", triggerReady, false) : void 0;
       });
       bindReady();
       ret = {
@@ -2428,10 +2430,10 @@
                 button: 0,
                 relatedTarget: null
               }, args);
-              e.initMouseEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY, args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey, args.button, args.relatedTarget);
+              e.initMouseEvent(evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY, args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey, args.button, args.relatedTarget);
             } else if (evt_i === "blur" || evt_i === "focus" || evt_i === "reset" || evt_i === "submit" || evt_i === "abort" || evt_i === "change" || evt_i === "load" || evt_i === "unload") {
               e = document.createEvent("UIEvents");
-              e.initUIEvent(evt_i, args.bubbles, args.cancelable, window, 1);
+              e.initUIEvent(evt_i, args.bubbles, args.cancelable, $.global, 1);
             } else if (evt_i === "touchstart" || evt_i === "touchmove" || evt_i === "touchend" || evt_i === "touchcancel") {
               e = document.createEvent("TouchEvents");
               args = $.extend({
@@ -2450,7 +2452,7 @@
                 scale: 1.0,
                 rotation: 0.0
               }, args);
-              e.initTouchEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY, args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey, args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation);
+              e.initTouchEvent(evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY, args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey, args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation);
             } else if (evt_i === "gesturestart" || evt_i === "gestureend" || evt_i === "gesturecancel") {
               e = document.createEvent("GestureEvents");
               args = $.extend({
@@ -2467,7 +2469,7 @@
                 scale: 1.0,
                 rotation: 0.0
               }, args);
-              e.initGestureEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY, args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey, args.target, args.scale, args.rotation);
+              e.initGestureEvent(evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY, args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey, args.target, args.scale, args.rotation);
             } else {
               e = document.createEvent("Events");
               e.initEvent(evt_i, args.bubbles, args.cancelable);

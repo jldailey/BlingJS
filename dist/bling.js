@@ -402,6 +402,12 @@
       symbol = null;
       cache = {};
       glob.Bling = $;
+      if (typeof module !== "undefined" && module !== null) {
+        module.exports = {
+          $: Bling,
+          Bling: Bling
+        };
+      }
       $.type.extend("bling", {
         string: function(o) {
           return symbol + "([" + o.map($.toString).join(", ") + "])";
@@ -493,68 +499,6 @@
         }
       }
       return {};
-    });
-    $.plugin({
-      provides: "delay",
-      depends: "function"
-    }, function() {
-      return {
-        $: {
-          delay: (function() {
-            var timeoutQueue;
-            timeoutQueue = $.extend([], (function() {
-              var next;
-              next = function(a) {
-                return function() {
-                  if (a.length) {
-                    return a.shift()();
-                  }
-                };
-              };
-              return {
-                add: function(f, n) {
-                  var i, _i, _ref1;
-                  f.order = n + $.now;
-                  for (i = _i = 0, _ref1 = this.length; 0 <= _ref1 ? _i <= _ref1 : _i >= _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
-                    if (i === this.length || this[i].order > f.order) {
-                      this.splice(i, 0, f);
-                      break;
-                    }
-                  }
-                  setTimeout(next(this), n);
-                  return this;
-                },
-                cancel: function(f) {
-                  var i, _i, _ref1;
-                  for (i = _i = 0, _ref1 = this.length; 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
-                    if (this[i] === f) {
-                      this.splice(i, 1);
-                      break;
-                    }
-                  }
-                  return this;
-                }
-              };
-            })());
-            return function(n, f) {
-              if ($.is("function", f)) {
-                timeoutQueue.add(f, n);
-              }
-              return {
-                cancel: function() {
-                  return timeoutQueue.cancel(f);
-                }
-              };
-            };
-          })()
-        },
-        delay: function(n, f, c) {
-          if (c == null) {
-            c = this;
-          }
-          return $.delay(n, $.bound(c, f));
-        }
-      };
     });
     $.plugin({
       provides: "core",
@@ -1269,7 +1213,7 @@
           stringBuilder: function() {
             var items,
               _this = this;
-            if ($.is("window", this)) {
+            if ($.is("global", this)) {
               return new $.stringBuilder();
             }
             items = [];
@@ -1806,6 +1750,71 @@
           return this.map(function() {
             return $.date.add(this, delta);
           });
+        }
+      };
+    });
+  })(Bling);
+
+  (function($) {
+    return $.plugin({
+      provides: "delay",
+      depends: "function"
+    }, function() {
+      return {
+        $: {
+          delay: (function() {
+            var timeoutQueue;
+            timeoutQueue = $.extend([], (function() {
+              var next;
+              next = function(a) {
+                return function() {
+                  if (a.length) {
+                    return a.shift()();
+                  }
+                };
+              };
+              return {
+                add: function(f, n) {
+                  var i, _i, _ref1;
+                  f.order = n + $.now;
+                  for (i = _i = 0, _ref1 = this.length; 0 <= _ref1 ? _i <= _ref1 : _i >= _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
+                    if (i === this.length || this[i].order > f.order) {
+                      this.splice(i, 0, f);
+                      break;
+                    }
+                  }
+                  setTimeout(next(this), n);
+                  return this;
+                },
+                cancel: function(f) {
+                  var i, _i, _ref1;
+                  for (i = _i = 0, _ref1 = this.length; 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
+                    if (this[i] === f) {
+                      this.splice(i, 1);
+                      break;
+                    }
+                  }
+                  return this;
+                }
+              };
+            })());
+            return function(n, f) {
+              if ($.is("function", f)) {
+                timeoutQueue.add(f, n);
+              }
+              return {
+                cancel: function() {
+                  return timeoutQueue.cancel(f);
+                }
+              };
+            };
+          })()
+        },
+        delay: function(n, f, c) {
+          if (c == null) {
+            c = this;
+          }
+          return inherit(this, $.delay(n, $.bound(c, f)));
         }
       };
     });
@@ -2714,6 +2723,7 @@
       index = 0;
       init_generator = function(seed) {
         var i, _i, _results;
+        index = 0;
         MT[0] = seed;
         _results = [];
         for (i = _i = 1; _i <= 623; i = ++_i) {
@@ -2754,9 +2764,12 @@
       next.seed = +new Date();
       return $.extend(next, {
         real: function(min, max) {
-          var _ref1;
+          var _ref1, _ref2;
+          if (!(min != null)) {
+            _ref1 = [0, 1.0], min = _ref1[0], max = _ref1[1];
+          }
           if (!(max != null)) {
-            _ref1 = [0, min], min = _ref1[0], max = _ref1[1];
+            _ref2 = [0, min], min = _ref2[0], max = _ref2[1];
           }
           return ($.random() * (max - min)) + min;
         },

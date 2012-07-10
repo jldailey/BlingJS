@@ -93,10 +93,8 @@ class Bling
 				extend @, plugin?.$
 				['$','name'].forEach (k) -> delete plugin[k]
 				extend @::, plugin
-				for key of plugin
-					((key) =>
-						@[key] or= (a...) => (@::[key].apply $(a[0]), a[1...])
-					)(key)
+				for key of plugin then do (key) =>
+					@[key] or= (a...) => (@::[key].apply $(a[0]), a[1...])
 				if opts.provides? then @provide opts.provides
 		catch error
 			log "failed to load plugin: #{@name} '#{error.message}'"
@@ -156,6 +154,10 @@ Bling.prototype = []
 		symbol = null
 		cache = {}
 		glob.Bling = $
+		if module?
+			module.exports =
+				$: Bling
+				Bling: Bling
 		$.type.extend "bling",
 			string: (o) -> symbol + "(["+ o.map($.toString).join(", ") + "])"
 		defineProperty $, "symbol",
@@ -202,35 +204,6 @@ Bling.prototype = []
 							n.appendChild i.cloneNode true
 					return n
 		return { }
-	$.plugin
-		provides: "delay"
-		depends: "function"
-	, ->
-		$:
-			delay: (->
-				timeoutQueue = $.extend [], (->
-					next = (a) -> -> a.shift()() if a.length
-					add: (f, n) ->
-						f.order = n + $.now
-						for i in [0..@length]
-							if i is @length or @[i].order > f.order
-								@splice i,0,f
-								break
-						setTimeout next(@), n
-						@
-					cancel: (f) ->
-						for i in [0...@length]
-							if @[i] == f
-								@splice i, 1
-								break
-						@
-				)()
-				(n, f) ->
-					if $.is("function",f) then timeoutQueue.add(f, n)
-					cancel: -> timeoutQueue.cancel(f)
-			)()
-		delay: (n, f, c=@) ->
-			$.delay n, $.bound(c, f)
 	$.plugin
 		provides: "core"
 		depends: "type"
@@ -458,7 +431,7 @@ Bling.prototype = []
 						when $.is "string", x then x + $.repeat(x, n-1)
 						else $(x).extend $.repeat(x, n-1)
 				stringBuilder: ->
-					if $.is("window", @) then return new $.stringBuilder()
+					if $.is("global", @) then return new $.stringBuilder()
 					items = []
 					@length   = 0
 					@append   = (s) => items.push s; @length += s?.toString().length|0
@@ -674,6 +647,37 @@ Bling.prototype = []
 		dateFormat: (fmt = $.date.defaultFormat) -> @map(-> $.date.format @, fmt)
 		dateParse: (fmt = $.date.defaultFormat) -> @map(-> $.date.parse @, fmt)
 		dateAdd: (delta) -> @map(-> $.date.add @, delta)
+)(Bling)
+(($) ->
+	$.plugin
+		provides: "delay"
+		depends: "function"
+	, ->
+		$:
+			delay: (->
+				timeoutQueue = $.extend [], (->
+					next = (a) -> -> a.shift()() if a.length
+					add: (f, n) ->
+						f.order = n + $.now
+						for i in [0..@length]
+							if i is @length or @[i].order > f.order
+								@splice i,0,f
+								break
+						setTimeout next(@), n
+						@
+					cancel: (f) ->
+						for i in [0...@length]
+							if @[i] == f
+								@splice i, 1
+								break
+						@
+				)()
+				(n, f) ->
+					if $.is("function",f) then timeoutQueue.add(f, n)
+					cancel: -> timeoutQueue.cancel(f)
+			)()
+		delay: (n, f, c=@) ->
+			inherit @, $.delay n, $.bound(c, f)
 )(Bling)
 (($) ->
 	if $.global.document?
@@ -1167,6 +1171,7 @@ Bling.prototype = []
 		MT = new Array(624)
 		index = 0
 		init_generator = (seed) ->
+			index = 0
 			MT[0] = seed
 			for i in [1..623]
 				MT[i] = 0xFFFFFFFF & (1812433253 * (MT[i-1] ^ (MT[i-1] >>> 30)) + i)
@@ -1195,6 +1200,8 @@ Bling.prototype = []
 		next.seed = +new Date()
 		return $.extend next,
 			real: (min, max) ->
+				if not min?
+					[min,max] = [0,1.0]
 				if not max?
 					[min,max] = [0,min]
 				($.random() * (max - min)) + min

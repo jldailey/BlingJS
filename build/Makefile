@@ -4,7 +4,7 @@ DIST=../dist
 PLUGINS=../plugins
 YUI_VERSION=2.4.7
 
-all: clean dist report
+all: clean dist docs report
 
 bling: $(DIST)/min.bling.js $(DIST)/min.bling.js.gz $(DIST)/bling.coffee
 
@@ -44,7 +44,7 @@ $(DIST)/bling.js: $(DIST)/bling.coffee
 	coffee -o $(DIST) -c $<
 
 $(DIST)/bling.coffee: ../bling.coffee $(shell ls ../plugins/*.coffee)
-	cat $^ | sed -E 's/^	*#.*$$//g' | grep -v '^$$' > $@
+	cat $^ | sed -E 's/^	*#.*$$//g' | grep -v '^ *$$' > $@
 
 $(DIST)/min.%.js: $(DIST)/%.js yuicompressor.jar
 	$(JAVA) -jar yuicompressor.jar $< -v -o $@
@@ -59,6 +59,6 @@ report:
 	@cd $(DIST) && wc -c `ls *.coffee *.js *.gz | sort` | grep -v total
 
 clean:
-	rm -rf $(DIST)/*.coffee $(DIST)/*.jsA $(DIST)/*.gz $(DIST)/docs
+	rm -rf $(DIST)/*.coffee $(DIST)/*.js $(DIST)/*.gz $(DIST)/docs
 
 .PHONY: all bling clean dist site publish plugins

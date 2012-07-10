@@ -6,6 +6,7 @@
 		MT = new Array(624)
 		index = 0
 		init_generator = (seed) ->
+			index = 0
 			MT[0] = seed
 			for i in [1..623]
 				MT[i] = 0xFFFFFFFF & (1812433253 * (MT[i-1] ^ (MT[i-1] >>> 30)) + i)
@@ -39,6 +40,8 @@
 
 		return $.extend next,
 			real: (min, max) ->
+				if not min?
+					[min,max] = [0,1.0]
 				if not max?
 					[min,max] = [0,min]
 				($.random() * (max - min)) + min

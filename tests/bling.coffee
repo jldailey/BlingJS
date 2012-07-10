@@ -135,6 +135,31 @@ $.testGroup("Math",
 	max2: -> $.assertEqual( $([12.1, NaN, 29.9]).max(), 29.9)
 )
 
+$.testGroup("Random",
+	random: ->
+		$.assert 0.0 < $.random() < 1.0
+	real: ->
+		$.assert 10.0 < $.random.real(10,100) < 100.0
+	integer: ->
+		r = $.random.integer(3,9)
+		$.assert 3 <= r <= 9, "r is in range"
+		$.assert Math.floor(r) is r, "r is an integer"
+	string: ->
+		s = $.random.string(16)
+		$.assert $.type(s) is "string", "s is a string"
+		$.assert s.length is 16, "s has the right length"
+	seed: ->
+		$.random.seed = 42
+		r = $.random.string(16)
+		$.random.seed = 43
+		s = $.random.string(16)
+		$.random.seed = 42
+		t = $.random.string(16)
+		$.assert r is t, "same seed produces same output"
+		$.assert r isnt s, "different seed produces different output"
+)
+
+
 # set up a test document, to run DOM tests against
 document.body.innerHTML = "
 <table>

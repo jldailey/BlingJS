@@ -2,6 +2,6 @@
 	$.plugin
 		provides: 'config'
 	, ->
-		$: config: (name, def) -> process.env[name] ? def
+		$: config: get: (name, def) -> process.env[name] ? def
 )(Bling)
 

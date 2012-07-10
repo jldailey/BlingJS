@@ -1573,7 +1573,7 @@
   })(Bling, this);
 
   (function($) {
-    $.plugin({
+    return $.plugin({
       provides: "cartesian"
     }, function() {
       return {
@@ -1601,12 +1601,6 @@
         }
       };
     });
-    if (require.main === module) {
-      require("../bling");
-      return console.log($.cartesian([2, 3, 4, 5], ['sweet', 'ugly'], ['cats', 'dogs', 'hogs']).map(function() {
-        return this.join(" ");
-      }).join("\n"));
-    }
   })(Bling);
 
   (function($) {
@@ -1625,7 +1619,7 @@
   })(Bling);
 
   (function($) {
-    $.plugin({
+    return $.plugin({
       provides: "date"
     }, function() {
       var d, floor, format_keys, formats, h, m, ms, parser_keys, parsers, s, unit_re, units, unpackUnits, _ref1;
@@ -1815,12 +1809,6 @@
         }
       };
     });
-    if (require.main === module) {
-      require("../bling");
-      $.date.defaultUnit = "s";
-      $($.date.stamp()).log('current time').unstamp().log('current date').dateFormat().log('formatted').dateParse().log('parsed').dateConvert('days').log('as days').midnight().log('midnight raw').unstamp().log('midnight UTC').stamp().dateAdd('3h').unstamp().log('3 hours later').stamp().dateAdd('30d').unstamp().log('30 days later').stamp();
-      return $($.date.parse("06/20/2012 12:24:42", "mm/dd/yyyy HH:MM:SS")).unstamp().log('parsed');
-    }
   })(Bling);
 
   (function($) {

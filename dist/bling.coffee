@@ -579,14 +579,6 @@ Bling.prototype = []
 					null
 				helper [], -1
 				return $(ret)
-	if require.main is module
-		require "../bling"
-		console.log $.cartesian(
-			[2,3,4,5],
-			['sweet','ugly'],
-			['cats','dogs','hogs']
-		).map( -> @join " " )
-		.join "\n"
 )(Bling)
 (($) ->
 	$.plugin
@@ -682,28 +674,6 @@ Bling.prototype = []
 		dateFormat: (fmt = $.date.defaultFormat) -> @map(-> $.date.format @, fmt)
 		dateParse: (fmt = $.date.defaultFormat) -> @map(-> $.date.parse @, fmt)
 		dateAdd: (delta) -> @map(-> $.date.add @, delta)
-	if require.main is module
-		require "../bling"
-		$.date.defaultUnit = "s"
-		$($.date.stamp())
-			.log('current time')
-			.unstamp()
-			.log('current date')
-			.dateFormat()
-			.log('formatted')
-			.dateParse()
-			.log('parsed')
-			.dateConvert('days')
-			.log('as days')
-			.midnight()
-			.log('midnight raw')
-			.unstamp().log('midnight UTC').stamp()
-			.dateAdd('3h')
-			.unstamp().log('3 hours later').stamp()
-			.dateAdd('30d')
-			.unstamp().log('30 days later').stamp()
-		$($.date.parse "06/20/2012 12:24:42", "mm/dd/yyyy HH:MM:SS")
-			.unstamp().log('parsed')
 )(Bling)
 (($) ->
 	if $.global.document?

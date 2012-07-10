@@ -14,14 +14,4 @@
 				helper [], -1
 				return $(ret)
 
-	###
-	if require.main is module
-		require "../bling"
-		console.log $.cartesian(
-			[2,3,4,5],
-			['sweet','ugly'],
-			['cats','dogs','hogs']
-		).map( -> @join " " )
-		.join "\n"
-	###
 )(Bling)

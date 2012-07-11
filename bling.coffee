@@ -615,6 +615,9 @@ Bling.prototype = []
 					else @each -> @[p] = v
 				@
 
+			# Remove a property from each item.
+			clean: (prop) -> @each -> delete @[prop]
+
 			# Get a new set with only the first _n_ items from _this_.
 			take: (n = 1) ->
 				end = Math.min n, @length

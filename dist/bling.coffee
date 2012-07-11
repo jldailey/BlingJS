@@ -270,6 +270,7 @@ Bling.prototype = []
 					when "function" then @zap p, @select(p).map(v)
 					else @each -> @[p] = v
 				@
+			clean: (prop) -> @each -> delete @[prop]
 			take: (n = 1) ->
 				end = Math.min n, @length
 				$( @[i] for i in [0...end] )

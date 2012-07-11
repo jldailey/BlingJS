@@ -726,6 +726,11 @@
           }
           return this;
         },
+        clean: function(prop) {
+          return this.each(function() {
+            return delete this[prop];
+          });
+        },
         take: function(n) {
           var end, i;
           if (n == null) {

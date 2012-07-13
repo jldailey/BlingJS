@@ -1,3 +1,6 @@
+# About
+-------
+
 BlingJS is inspired by jQuery, but more consistent.
 In particular, it is more consistent about doing set-based operations.
 
@@ -42,4 +45,6 @@ It can map a function across nested properties of your set items:
 This example moves every list-item's 2nd-child up by 10 pixels, and allows you to continue chaining
 on the list-items (not the moved children in this case).
 
-http://blingjs.com
+# Installation
+--------------
+    npm install bling

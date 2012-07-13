@@ -22,11 +22,10 @@ isType = (T, o) ->
 		isType T, o.__proto__ # recursive
 inherit = (parent, obj) ->
 	if typeof parent is "function"
-		obj.constructor = parent
 		parent = parent:: # so that the obj instance will inherit all of the prototype (but _not a copy_ of it).
 	obj.__proto__ = parent
 	obj
-type = (->
+_type = (->
 	cache = {}
 	base =
 		name: 'unknown'
@@ -77,11 +76,13 @@ class Bling
 		args
 	@pipe("bling-init").prepend (args) ->
 		[selector, context] = args
-		inherit Bling, extend type.lookup(selector).array(selector, context),
+		inherit Bling, inherit {
 			selector: selector
 			context: context
+		}, _type.lookup(selector).array(selector, context)
 	default_context = if document? then document else {}
-	constructor: (selector, context = default_context) -> return Bling.pipe("bling-init", [selector, context])
+	constructor: (selector, context = default_context) ->
+		return Bling.pipe("bling-init", [selector, context])
 	@plugin: (opts, constructor) ->
 		if not constructor?
 			constructor = opts; opts = {}
@@ -120,19 +121,20 @@ class Bling
 				else i++
 		null
 	@provides: (needs, f) -> (a...) -> r=f(a...); Bling.provide(needs); r
-	type.extend
+	_type.extend
 		unknown:   { array: (o) -> [o] }
 		null:      { array: (o) -> [] }
 		undefined: { array: (o) -> [] }
 		array:     { array: (o) -> o }
 		number:    { array: (o) -> Bling.extend new Array(o), length: 0 }
-	type.register "bling",
+	_type.register "bling",
 		match:  (o) -> o and isType Bling, o
 		array:  (o) -> o.toArray()
 		hash:   (o) -> o.map(Bling.hash).sum()
 		string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
 		repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 Bling.prototype = []
+Bling.prototype.constructor = Bling
 (($) ->
 	$.global = glob = if window? then window else global
 	$.plugin
@@ -143,9 +145,9 @@ Bling.prototype = []
 			extend: extend
 			defineProperty: defineProperty
 			isType: isType
-			type: type
-			is: type.is
-			isSimple: (o) -> type(o) in ["string", "number", "bool"]
+			type: _type
+			is: _type.is
+			isSimple: (o) -> _type(o) in ["string", "number", "bool"]
 			isEmpty: (o) -> o in ["", null, undefined]
 	$.plugin
 		provides: "symbol"
@@ -325,7 +327,9 @@ Bling.prototype = []
 				else
 					$.log(@toString(), @length + " items")
 				@
-			toArray: -> (@.__proto__ = Array::); @ # no copies, yay?
+			toArray: ->
+				@__proto__ = Array::
+				@ # no copies, yay?
 		}
 	$.plugin
 		provides: "math"
@@ -529,14 +533,17 @@ Bling.prototype = []
 		$: EventEmitter: $.pipe("bling-init").append (obj) ->
 			listeners = {}
 			list = (e) -> (listeners[e] or= [])
-			return inherit obj,
-				emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); null
+			obj.__proto__ = {
+				emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
 				addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
 				on:                 (e, h) -> @addListener e, h
 				removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
 				removeAllListeners: (e) -> listeners[e] = []
 				setMaxListeners:    (n) -> # who really needs this in the core API?
 				listeners:          (e) -> list(e).slice 0
+				__proto__: obj.__proto__
+			}
+			obj
 )(Bling, @)
 (($) ->
 	$.plugin
@@ -598,32 +605,28 @@ Bling.prototype = []
 			MS: Date::setUTCMilliseconds
 		parser_keys = Object.keys(parsers).sort().reverse()
 		floor = Math.floor
-		unit_re = new RegExp("(\\d+\\.*\\d*)\\s*(" + Object.keys(units).join("|") + ")")
-		unpackUnits = (str) ->
-			ret = switch $.type str
-				when "date" then unpackUnits $.date.convert(str.getTime() + "ms", $.date.defaultUnit)
-				else (str?.match(unit_re) ? [ str, parseFloat(str), $.date.defaultUnit ])[1..2]
-			return ret
 		$.type.register "date",
 			match: (o) -> $.isType Date, o
 			array: (o) -> [o]
+		adder = (key) ->
+			(stamp, delta, stamp_unit = $.date.defaultUnit) ->
+				date = $.date.unstamp(stamp, stamp_unit)
+				parsers[key].call date, (formats[key].call date) + delta
+				$.date.stamp date, stamp_unit
 		$:
 			date:
 				defaultUnit: "ms"
 				defaultFormat: "yyyy-mm-dd HH:MM:SS"
 				stamp: (date = new Date, unit = $.date.defaultUnit) ->
-					(floor (date / units[unit])) + unit
-				unstamp: (stamp) ->
-					[stamp, unit] = unpackUnits(stamp)
+					floor (date / units[unit])
+				unstamp: (stamp, unit = $.date.defaultUnit) ->
 					new Date floor(stamp * units[unit])
-				midnight: (stamp) ->
-					[_, unit] = unpackUnits(stamp)
-					$.date.convert ($.date.convert stamp, "d"), unit
-				convert: (stamp, to = "ms") ->
-					[stamp, from] = unpackUnits(stamp)
-					(floor stamp * units[from] / units[to]) + to
-				format: (stamp, fmt = $.date.defaultFormat) ->
-					date = $.date.unstamp(stamp)
+				convert: (stamp, from = $.date.defaultUnit, to = $.date.defaultUnit) ->
+					(floor stamp * units[from] / units[to])
+				midnight: (stamp, unit = $.date.defaultUnit) ->
+					$.date.convert ($.date.convert stamp, unit, "d"), "d", unit
+				format: (stamp, fmt = $.date.defaultFormat, unit = $.date.defaultUnit) ->
+					date = $.date.unstamp(stamp, unit)
 					for k in format_keys
 						fmt = fmt.replace k, ($.padLeft ""+formats[k].call(date), k.length, "0")
 					fmt
@@ -638,16 +641,25 @@ Bling.prototype = []
 								catch err
 									throw new Error("Invalid date ('#{dateString}') given format mask: #{fmt} (failed at position #{i})")
 					$.date.stamp date, to
-				add: (stamp, delta) ->
-					[stamp, stamp_unit] = unpackUnits(stamp)
-					(+ stamp) + (parseInt $.date.convert(delta, stamp_unit), 10) + stamp_unit
-		midnight: -> @map(-> $.date.midnight @)
-		unstamp: -> @map(-> $.date.unstamp @)
-		stamp: -> @map(-> $.date.stamp @)
-		dateConvert: (to = $.date.defaultUnit) -> @map(-> $.date.convert @, to)
-		dateFormat: (fmt = $.date.defaultFormat) -> @map(-> $.date.format @, fmt)
-		dateParse: (fmt = $.date.defaultFormat) -> @map(-> $.date.parse @, fmt)
-		dateAdd: (delta) -> @map(-> $.date.add @, delta)
+				addMilliseconds: adder("MS")
+				addSeconds: adder("SS")
+				addMinutes: adder("MM")
+				addHours: adder("HH")
+				addDays: adder("dd")
+				addMonths: adder("mm")
+				addYears: adder("yyyy")
+				range: (from, to, interval=1, interval_unit="dd", stamp_unit = $.date.defaultUnit) ->
+					add = adder(interval_unit)
+					ret = [from]
+					while (cur = ret[ret.length-1]) < to
+						ret.push add(cur, interval, stamp_unit)
+					ret
+	
+		midnight: (unit = $.date.defaultUnit) -> @map(-> $.date.midnight @, unit)
+		unstamp: (unit = $.date.defaultUnit) -> @map(-> $.date.unstamp @, unit)
+		stamp: (unit = $.date.defaultUnit) -> @map(-> $.date.stamp @, unit)
+		dateFormat: (fmt = $.date.defaultFormat, unit = $.date.defaultUnit) -> @map(-> $.date.format @, fmt, unit)
+		dateParse: (fmt = $.date.defaultFormat, unit = $.date.defaultUnit) -> @map(-> $.date.parse @, fmt, unit)
 )(Bling)
 (($) ->
 	$.plugin
@@ -1546,26 +1558,21 @@ Bling.prototype = []
 				[value, x] = parseOne(x)
 				data[key] = value
 			data
-		return {
-			name: 'TNET'
-			$: {
-				TNET: {
-					stringify: (x) ->
-						[data, type] = switch Object.Type(x)
-							when "number" then [String(x), "#"]
-							when "string" then [x, "'"]
-							when "function" then [String(x), "'"]
-							when "boolean" then [String(not not x), "!"]
-							when "null" then ["", "~"]
-							when "undefined" then ["", "~"]
-							when "array" then [($.TNET.stringify(y) for y in x).join(''), "]"]
-							when "object" then [($.TNET.stringify(y)+$.TNET.stringify(x[y]) for y of x).join(''), "}"]
-						return (data.length|0) + ":" + data + type
-					parse: (x) ->
-						parseOne(x)?[0]
-				}
-			}
-		}
+		$:
+			TNET:
+				stringify: (x) ->
+					[data, type] = switch $.type x
+						when "number" then [String(x), "#"]
+						when "string" then [x, "'"]
+						when "function" then [String(x), "'"]
+						when "boolean" then [String(not not x), "!"]
+						when "null" then ["", "~"]
+						when "undefined" then ["", "~"]
+						when "array" then [($.TNET.stringify(y) for y in x).join(''), "]"]
+						when "object" then [($.TNET.stringify(y)+$.TNET.stringify(x[y]) for y of x).join(''), "}"]
+					return (data.length|0) + ":" + data + type
+				parse: (x) ->
+					parseOne(x)?[0]
 )(Bling)
 (($) ->
 	$.plugin

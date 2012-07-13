@@ -38,10 +38,9 @@ functional context.
 
 More than just simple assignment, it can also 'stripe' values across a set;
 a common thing to want to accomplish across list items.
-    `$("li").zap('className', ["odd", "even"])`.
 
-It can map a function across nested properties of your set items:
-    `$("li").zap('childNodes.1.style.top', -> $.px @+10 )`
+    $("li").zap('className', ["odd", "even"])
+    $("li").zap('childNodes.1.style.top', -> $.px @+10 )
 
 This example moves every list-item's 2nd-child up by 10 pixels, and allows you to continue chaining
 on the list-items (not the moved children in this case).

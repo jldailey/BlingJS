@@ -78,6 +78,7 @@ $.testGroup("Function",
 $.testGroup("String",
 	Px1: -> $.assertEqual($.px(100), "100px")
 	Px2: -> $.assertEqual($.px(-100.0), "-100px")
+	Px3: -> $.assertEqual $.px("100.0px"), "100px"
 	PadLeft1: -> $.assertEqual($.padLeft("foo", 5), "  foo")
 	PadLeft2: -> $.assertEqual($.padLeft("foo", 3), "foo")
 	PadLeft3: -> $.assertEqual($.padLeft("foo", 2), "foo")
@@ -413,22 +414,19 @@ $.testGroup "Date",
 	parse: ->
 		$.assert $.date.parse("1970-01-12 13:46:40", "yyyy-mm-dd HH:MM:SS", "ms") is 1000000000
 	range: ->
-		$.assertEqual $($.date.range(1000, 1000000, 3, "dd", "s"))
-			.unstamp("s")
-			.select("getDate").call()
-			.ints().sum(), 61
+		$.assertEqual $($.date.range(1000, 1000000, 3))
+			.unstamp()
+			.select("getUTCDate").call()
+			.ints().sum(), 35 # == 1 + 4 + 7 + 10 + 13 (every 3 days from Jan 1 1970 for 2 weeks)
 	chain_format: ->
-		$.assertEqual $($.date.range 1000, 1000000, 3, "dd", "s")
-			.dateFormat("dd", "s")
-			.ints()
-			.sum(), 35
+		$.assertEqual $($.date.range 1000, 1000000, 3)
+			.dateFormat("dd")
+			.ints().sum(), 35
 	chain_midnight: ->
-		$.assertEqual $($.date.range 1000, 1000000, 3, "dd", "s")
-			.midnight("s")
-			.dateFormat("HHMMSS", "s")
-			.ints()
-			.sum(), 0
-
+		$.assertEqual $($.date.range 1000, 1000000, 3)
+			.midnight()
+			.dateFormat("HHMMSS")
+			.ints().sum(), 0
 
 $.testGroup "TNET",
 	basic: ->

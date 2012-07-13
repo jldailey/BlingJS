@@ -4,7 +4,7 @@ DIST=../dist
 PLUGINS=../plugins
 YUI_VERSION=2.4.7
 
-all: clean dist docs report
+all: dist docs report
 
 bling: $(DIST)/min.bling.js $(DIST)/min.bling.js.gz $(DIST)/bling.coffee
 

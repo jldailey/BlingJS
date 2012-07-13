@@ -47,4 +47,9 @@ on the list-items (not the moved children in this case).
 
 # Installation
 --------------
-    npm install bling
+    $ npm install bling
+		$ node
+		> require("bling")
+		> $([1,2,3,4]).scale(2.5).sum()
+		25
+

@@ -63,13 +63,13 @@ isType = (T, o) ->
 # __constructor__.
 inherit = (parent, obj) ->
 	if typeof parent is "function"
-		obj.constructor = parent
+		# obj.constructor = parent
 		parent = parent:: # so that the obj instance will inherit all of the prototype (but _not a copy_ of it).
 	obj.__proto__ = parent
 	obj
 
 # Now, let's begin to build the classifier for `$.type(obj)`.
-type = (->
+_type = (->
 
 	# Privately, maintain a registry of known types.
 	cache = {}
@@ -220,16 +220,18 @@ class Bling
 		[selector, context] = args
 		# Classify the type of selector to get a type-instance, which is
 		# used to convert the selector and context together to an array.
-		inherit Bling, extend type.lookup(selector).array(selector, context),
+		inherit Bling, inherit {
 			selector: selector
 			context: context
+		}, _type.lookup(selector).array(selector, context)
 		# Note: Uses inherit to _hijack_ the resulting array's prototype in-place.
 
 	# Compute the default context object only once, privately, so we dont have to check
 	# during every construction.
 	default_context = if document? then document else {}
 
-	constructor: (selector, context = default_context) -> return Bling.pipe("bling-init", [selector, context])
+	constructor: (selector, context = default_context) ->
+		return Bling.pipe("bling-init", [selector, context])
 
 	# $.plugin( [ opts ], func )
 	# -----------------
@@ -315,7 +317,7 @@ class Bling
 	#### Registering the "bling" type.
 	# First, we give the basic types the ability to turn into something
 	# array-like, for use by the constructor.
-	type.extend
+	_type.extend
 		# If we don't know any better way, we just stick the
 		# thing inside a real array.
 		unknown:   { array: (o) -> [o] }
@@ -333,7 +335,7 @@ class Bling
 
 	# Now, we register "bling", and all the things we know how to do
 	# with it:
-	type.register "bling",
+	_type.register "bling",
 		# Add the type test so: `$.type($()) == "bling"`.
 		match:  (o) -> o and isType Bling, o
 		# Blings extend arrays so they convert to themselves.
@@ -347,6 +349,7 @@ class Bling
 # We specify an inheritance similar to `class Bling extends (new Array)`,
 # if such a thing were supported by the syntax directly.
 Bling.prototype = []
+Bling.prototype.constructor = Bling
 
 
 # Plugins
@@ -380,10 +383,10 @@ Bling.prototype = []
 			# prototype chain.
 			isType: isType
 			# `$.type([])` equals `"array"`.
-			type: type
+			type: _type
 			# `$.is("function", ->)` equals true/false.
-			is: type.is
-			isSimple: (o) -> type(o) in ["string", "number", "bool"]
+			is: _type.is
+			isSimple: (o) -> _type(o) in ["string", "number", "bool"]
 			isEmpty: (o) -> o in ["", null, undefined]
 
 	# Symbol Plugin
@@ -727,7 +730,9 @@ Bling.prototype = []
 				@
 
 			# Convert this to an array.
-			toArray: -> (@.__proto__ = Array::); @ # no copies, yay?
+			toArray: ->
+				@__proto__ = Array::
+				@ # no copies, yay?
 		}
 
 	# Math Plugin
@@ -1036,14 +1041,17 @@ Bling.prototype = []
 		$: EventEmitter: $.pipe("bling-init").append (obj) ->
 			listeners = {}
 			list = (e) -> (listeners[e] or= [])
-			return inherit obj,
-				emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); null
+			obj.__proto__ = {
+				emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
 				addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
 				on:                 (e, h) -> @addListener e, h
 				removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
 				removeAllListeners: (e) -> listeners[e] = []
 				setMaxListeners:    (n) -> # who really needs this in the core API?
 				listeners:          (e) -> list(e).slice 0
+				__proto__: obj.__proto__
+			}
+			obj
 
 
 )(Bling, @)

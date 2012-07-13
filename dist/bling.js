@@ -1643,7 +1643,7 @@
       return {
         $: {
           date: {
-            defaultUnit: "ms",
+            defaultUnit: "s",
             defaultFormat: "yyyy-mm-dd HH:MM:SS",
             stamp: function(date, unit) {
               if (date == null) {
@@ -1667,6 +1667,9 @@
               if (to == null) {
                 to = $.date.defaultUnit;
               }
+              if ($.is("date", stamp)) {
+                stamp = $.date.stamp(stamp, from);
+              }
               return floor(stamp * units[from] / units[to]);
             },
             midnight: function(stamp, unit) {
@@ -1682,6 +1685,9 @@
               }
               if (unit == null) {
                 unit = $.date.defaultUnit;
+              }
+              if ($.is("date", stamp)) {
+                stamp = $.date.stamp(stamp, unit);
               }
               date = $.date.unstamp(stamp, unit);
               for (_i = 0, _len = format_keys.length; _i < _len; _i++) {

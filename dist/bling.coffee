@@ -615,18 +615,20 @@ Bling.prototype.constructor = Bling
 				$.date.stamp date, stamp_unit
 		$:
 			date:
-				defaultUnit: "ms"
+				defaultUnit: "s"
 				defaultFormat: "yyyy-mm-dd HH:MM:SS"
 				stamp: (date = new Date, unit = $.date.defaultUnit) ->
 					floor (date / units[unit])
 				unstamp: (stamp, unit = $.date.defaultUnit) ->
 					new Date floor(stamp * units[unit])
 				convert: (stamp, from = $.date.defaultUnit, to = $.date.defaultUnit) ->
+					if $.is "date", stamp then stamp = $.date.stamp(stamp, from)
 					(floor stamp * units[from] / units[to])
 				midnight: (stamp, unit = $.date.defaultUnit) ->
 					$.date.convert ($.date.convert stamp, unit, "d"), "d", unit
 				format: (stamp, fmt = $.date.defaultFormat, unit = $.date.defaultUnit) ->
-					date = $.date.unstamp(stamp, unit)
+					if $.is "date", stamp then stamp = $.date.stamp(stamp, unit)
+					date = $.date.unstamp stamp, unit
 					for k in format_keys
 						fmt = fmt.replace k, ($.padLeft ""+formats[k].call(date), k.length, "0")
 					fmt

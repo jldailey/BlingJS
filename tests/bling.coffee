@@ -1,4 +1,4 @@
-common = require('./common')
+require('./common')
 
 $.testGroup("Object",
 	keys: -> $.assertArrayEqual Object.keys({a: 1, b: 2}), ['a','b']
@@ -45,6 +45,13 @@ $.testGroup("Type",
 	isEmpty1: -> $.assert( $.isEmpty "" )
 	isEmpty2: -> $.assert( $.isEmpty null )
 	isEmpty3: -> $.assert( $.isEmpty undefined )
+	toArray1: ->
+		a = $([1,2,3])
+		b = a.toArray()
+		$.assert b.constructor.name is "Array", "constructor name is Array"
+		$.assert b[1] is 2, "still has data"
+		$.assert b.length is 3, "length is preserved"
+		$.assert not b.zap, "has shed bling"
 )
 
 $.testGroup("Function",
@@ -158,7 +165,6 @@ $.testGroup("Random",
 		$.assert r is t, "same seed produces same output"
 		$.assert r isnt s, "different seed produces different output"
 )
-
 
 # set up a test document, to run DOM tests against
 document.body.innerHTML = "
@@ -377,3 +383,59 @@ $.testGroup("DOM",
 	toFragment: ->
 		$.assertEqual($("td").clone().toFragment().childNodes.length, 8)
 )
+
+$.testGroup "EventEmitter",
+	basic: ->
+		v = null
+		$().on("change", (data) -> v = data)
+			.emit("change", "foo")
+		$.assertEqual v, "foo"
+
+$.testGroup "Date",
+	stamp: ->
+		$.assert $.date.stamp(new Date(1000000), "ms") is 1000000
+	stamp_sec: ->
+		$.assert $.date.stamp(new Date(1000000), "s") is 1000
+	unstamp: ->
+		d1 = new Date(1000000)
+		d2 = $.date.unstamp $.date.stamp d1
+		$.assert d1.toString() is d2.toString()
+	convert: ->
+		$.assert $.date.convert(1000000, "ms", "s") is 1000
+	midnight: ->
+		d2 = $.date.unstamp $.date.midnight new Date 1000000000
+		$.assert d2.toString().indexOf("19:00:00 GMT-0500") > -1
+	format: ->
+		d1 = new Date(1000000000)
+		d2 = new Date(1000000)
+		$.assertEqual $.date.format(d1, "yyyy-mm-dd HH:MM:SS"), "1970-01-12 13:46:40"
+		$.assertEqual $.date.format(d2, "yyyy-mm-dd HH:MM:SS"), "1970-01-01 00:16:40"
+	parse: ->
+		$.assert $.date.parse("1970-01-12 13:46:40", "yyyy-mm-dd HH:MM:SS", "ms") is 1000000000
+	range: ->
+		$.assertEqual $($.date.range(1000, 1000000, 3, "dd", "s"))
+			.unstamp("s")
+			.select("getDate").call()
+			.ints().sum(), 61
+	chain_format: ->
+		$.assertEqual $($.date.range 1000, 1000000, 3, "dd", "s")
+			.dateFormat("dd", "s")
+			.ints()
+			.sum(), 35
+	chain_midnight: ->
+		$.assertEqual $($.date.range 1000, 1000000, 3, "dd", "s")
+			.midnight("s")
+			.dateFormat("HHMMSS", "s")
+			.ints()
+			.sum(), 0
+
+
+$.testGroup "TNET",
+	basic: ->
+		obj = $.TNET.parse $.TNET.stringify a:1,b:[2,3]
+		$.assert obj.a is 1, "1"
+		$.assert obj.b[0] is 2, "2"
+		$.assert obj.b[1] is 3, "3"
+	basic2: ->
+		a = $()
+

@@ -1,7 +1,3 @@
-global.assert = (c, msg) ->
-	if not c
-		throw Error msg
-
 require("coffee-script")
 dom = require("jldom")
 dom.registerGlobals(global)

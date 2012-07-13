@@ -43,34 +43,30 @@
 
 		floor = Math.floor
 
-		unit_re = new RegExp("(\\d+\\.*\\d*)\\s*(" + Object.keys(units).join("|") + ")")
-		unpackUnits = (str) ->
-			ret = switch $.type str
-				when "date" then unpackUnits $.date.convert(str.getTime() + "ms", $.date.defaultUnit)
-				else (str?.match(unit_re) ? [ str, parseFloat(str), $.date.defaultUnit ])[1..2]
-			return ret
-
 		$.type.register "date",
 			match: (o) -> $.isType Date, o
 			array: (o) -> [o]
+
+		adder = (key) ->
+			(stamp, delta, stamp_unit = $.date.defaultUnit) ->
+				date = $.date.unstamp(stamp, stamp_unit)
+				parsers[key].call date, (formats[key].call date) + delta
+				$.date.stamp date, stamp_unit
 
 		$:
 			date:
 				defaultUnit: "ms"
 				defaultFormat: "yyyy-mm-dd HH:MM:SS"
 				stamp: (date = new Date, unit = $.date.defaultUnit) ->
-					(floor (date / units[unit])) + unit
-				unstamp: (stamp) ->
-					[stamp, unit] = unpackUnits(stamp)
+					floor (date / units[unit])
+				unstamp: (stamp, unit = $.date.defaultUnit) ->
 					new Date floor(stamp * units[unit])
-				midnight: (stamp) ->
-					[_, unit] = unpackUnits(stamp)
-					$.date.convert ($.date.convert stamp, "d"), unit
-				convert: (stamp, to = "ms") ->
-					[stamp, from] = unpackUnits(stamp)
-					(floor stamp * units[from] / units[to]) + to
-				format: (stamp, fmt = $.date.defaultFormat) ->
-					date = $.date.unstamp(stamp)
+				convert: (stamp, from = $.date.defaultUnit, to = $.date.defaultUnit) ->
+					(floor stamp * units[from] / units[to])
+				midnight: (stamp, unit = $.date.defaultUnit) ->
+					$.date.convert ($.date.convert stamp, unit, "d"), "d", unit
+				format: (stamp, fmt = $.date.defaultFormat, unit = $.date.defaultUnit) ->
+					date = $.date.unstamp(stamp, unit)
 					for k in format_keys
 						fmt = fmt.replace k, ($.padLeft ""+formats[k].call(date), k.length, "0")
 					fmt
@@ -85,16 +81,25 @@
 								catch err
 									throw new Error("Invalid date ('#{dateString}') given format mask: #{fmt} (failed at position #{i})")
 					$.date.stamp date, to
-				add: (stamp, delta) ->
-					[stamp, stamp_unit] = unpackUnits(stamp)
-					(+ stamp) + (parseInt $.date.convert(delta, stamp_unit), 10) + stamp_unit
-		midnight: -> @map(-> $.date.midnight @)
-		unstamp: -> @map(-> $.date.unstamp @)
-		stamp: -> @map(-> $.date.stamp @)
-		dateConvert: (to = $.date.defaultUnit) -> @map(-> $.date.convert @, to)
-		dateFormat: (fmt = $.date.defaultFormat) -> @map(-> $.date.format @, fmt)
-		dateParse: (fmt = $.date.defaultFormat) -> @map(-> $.date.parse @, fmt)
-		dateAdd: (delta) -> @map(-> $.date.add @, delta)
+				addMilliseconds: adder("MS")
+				addSeconds: adder("SS")
+				addMinutes: adder("MM")
+				addHours: adder("HH")
+				addDays: adder("dd")
+				addMonths: adder("mm")
+				addYears: adder("yyyy")
+				range: (from, to, interval=1, interval_unit="dd", stamp_unit = $.date.defaultUnit) ->
+					add = adder(interval_unit)
+					ret = [from]
+					while (cur = ret[ret.length-1]) < to
+						ret.push add(cur, interval, stamp_unit)
+					ret
+	
+		midnight: (unit = $.date.defaultUnit) -> @map(-> $.date.midnight @, unit)
+		unstamp: (unit = $.date.defaultUnit) -> @map(-> $.date.unstamp @, unit)
+		stamp: (unit = $.date.defaultUnit) -> @map(-> $.date.stamp @, unit)
+		dateFormat: (fmt = $.date.defaultFormat, unit = $.date.defaultUnit) -> @map(-> $.date.format @, fmt, unit)
+		dateParse: (fmt = $.date.defaultFormat, unit = $.date.defaultUnit) -> @map(-> $.date.parse @, fmt, unit)
 
 )(Bling)
 

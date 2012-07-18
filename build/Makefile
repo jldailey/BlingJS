@@ -19,6 +19,7 @@ site: dist
 	&& cp dist/*.js js \
 	&& cp dist/*.js.gz js \
 	&& git show master:dist/bling.coffee > js/bling.coffee \
+	&& git show master:dist/bling.js > js/bling.js \
 	&& git commit js -m "build files" || true \
 	&& echo '$$.log("' `git log -1 --format="commit:%h @ %ci"` '")' > js/log-build.js \
 	&& git commit js/log-build.js --amend -m "build annotation" \

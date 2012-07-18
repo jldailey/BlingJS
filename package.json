@@ -1,7 +1,17 @@
 {
-	"name": "bling",
-	"main": "./dist/bling.js",
-	"version": "0.0.9",
+  "author": "Jesse Dailey <jesse.dailey@gmail.com>",
+  "name": "bling",
+	"main": "./dist/bling.js"
+  "description": "A kitchen sink in CoffeeScript.",
+  "version": "0.0.9",
+  "homepage": "http://blingjs.com",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/jldailey/BlingJS.git"
+  },
+  "scripts": {
+    "test": "coffee tests/bling.coffee"
+  },
 	"devDependencies": {
 		"coffee-script": "*",
 		"jldom": "*"

@@ -29,15 +29,14 @@ The `.select()` operation will collect a single property from every item in
 a set.
 > `.html()` is short-hand for `.select('innerHTML')`.
 
-* You can extract nested values, e.g. `.select('style.color')`.
-* Arbitrary nesting depth, and arrays, e.g. `.select('childNodes.1.className')`.
+* You can extract nested values, e.g. `$(nodes).select('style.color')`.
+* Arbitrary nesting depth, and arrays, e.g. `$(nodes).select('childNodes.1.className')`.
 
-The `.zap()` operation is a way to do assignment and stay in a loosely
-functional context.
+The `.zap()` operation is for doing bulk assignment.
 > `.html("new html")` is short-hand for `.zap('innerHTML', "new html")`.
 
 More than just simple assignment, it can also 'stripe' values across a set;
-a common thing to want to accomplish across list items.
+and map functions over selected properties.
 
     $("li").zap('className', ["odd", "even"])
     $("li").zap('childNodes.1.style.top', -> $.px @+10 )

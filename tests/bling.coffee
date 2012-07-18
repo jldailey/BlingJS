@@ -124,6 +124,16 @@ $.testGroup("Symbol",
 	reset: ->
 		Bling.symbol = "$"
 		Bling.assertEqual($, Bling)
+	noConflict: ->
+		Bling.global.noConflictTest = "magic"
+		Bling.symbol = "noConflictTest"
+		$.assert Bling.global.noConflictTest is Bling, 1
+		foo = Bling.noConflict()
+		$.assert Bling.symbol = "Bling", 2
+		$.assert Bling.global[Bling.symbol] is Bling, 3
+		$.assert foo is Bling, 4
+		$.assert Bling.global.noConflictTest is "magic", 5
+
 )
 
 $.testGroup("Math",

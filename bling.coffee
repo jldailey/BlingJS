@@ -431,7 +431,11 @@ Bling.prototype.constructor = Bling
 				cache[symbol = v] = glob[v]
 				glob[v] = Bling
 			get: -> symbol
-		return $: symbol: "$"
+		return $:
+			symbol: "$"
+			noConflict: ->
+				Bling.symbol = "Bling"
+				return Bling
 		# Example:
 		# > `Bling.symbol = "_"; _("body").html("Hello World");`
 		# If `$` had been bound before, it's value will be restored.

@@ -29,24 +29,19 @@
 				[value, x] = parseOne(x)
 				data[key] = value
 			data
-		return {
-			name: 'TNET'
-			$: {
-				TNET: {
-					stringify: (x) ->
-						[data, type] = switch Object.Type(x)
-							when "number" then [String(x), "#"]
-							when "string" then [x, "'"]
-							when "function" then [String(x), "'"]
-							when "boolean" then [String(not not x), "!"]
-							when "null" then ["", "~"]
-							when "undefined" then ["", "~"]
-							when "array" then [($.TNET.stringify(y) for y in x).join(''), "]"]
-							when "object" then [($.TNET.stringify(y)+$.TNET.stringify(x[y]) for y of x).join(''), "}"]
-						return (data.length|0) + ":" + data + type
-					parse: (x) ->
-						parseOne(x)?[0]
-				}
-			}
-		}
+		$:
+			TNET:
+				stringify: (x) ->
+					[data, type] = switch $.type x
+						when "number" then [String(x), "#"]
+						when "string" then [x, "'"]
+						when "function" then [String(x), "'"]
+						when "boolean" then [String(not not x), "!"]
+						when "null" then ["", "~"]
+						when "undefined" then ["", "~"]
+						when "array" then [($.TNET.stringify(y) for y in x).join(''), "]"]
+						when "object" then [($.TNET.stringify(y)+$.TNET.stringify(x[y]) for y of x).join(''), "}"]
+					return (data.length|0) + ":" + data + type
+				parse: (x) ->
+					parseOne(x)?[0]
 )(Bling)

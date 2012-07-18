@@ -1,4 +1,9 @@
 {
-	"name": "BlingJS",
-	"main": "./dist/bling.js"
+	"name": "bling",
+	"main": "./dist/bling.js",
+	"version": "0.0.9",
+	"devDependencies": {
+		"coffee-script": "*",
+		"jldom": "*"
+	}
 }

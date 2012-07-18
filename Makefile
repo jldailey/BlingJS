@@ -50,7 +50,7 @@ yuicompressor.jar:
 	unzip yuicompressor.zip
 	rm yuicompressor.zip
 	cp yuicompressor-$(YUI_VERSION)/build/yuicompressor-$(YUI_VERSION).jar ./yuicompressor.jar
-	rm -r yuicompressor-$(YUI_VERSION)
+	rm -rf yuicompressor-$(YUI_VERSION)
 
 $(DIST)/docs/%.html: %.coffee $(DOCCO)
 	(cd $(DIST) && ../$(DOCCO) $<)
@@ -62,10 +62,7 @@ report:
 	@cd $(DIST) && wc -c `ls *.coffee *.js *.gz | sort` | grep -v total
 
 clean:
-	rm -f $(DIST)/*.coffee
-	rm -f $(DIST)/*.js
-	rm -f $(DIST)/*.gz
-	rm -rf $(DIST)/docs
+	rm -rf $(DIST)/*
 	rm -rf yuicompressor.zip yuicompressor.jar yuicompressor-$(YUI_VERSION)
 
 .PHONY: all bling clean dist site publish plugins

@@ -63,13 +63,14 @@ isType = (T, o) ->
 # __constructor__.
 inherit = (parent, obj) ->
 	if typeof parent is "function"
-		# obj.constructor = parent
 		parent = parent:: # so that the obj instance will inherit all of the prototype (but _not a copy_ of it).
+	if parent.__proto__ is Object::
+		parent.__proto__ = obj.__proto__
 	obj.__proto__ = parent
 	obj
 
 # Now, let's begin to build the classifier for `$.type(obj)`.
-_type = (->
+_type = do ->
 
 	# Privately, maintain a registry of known types.
 	cache = {}
@@ -154,8 +155,35 @@ _type = (->
 	# Later, once other systems have extended the base type, the
 	# type-instance returned from type.lookup will do more.
 
-)()
+_pipe = do ->
+	# Pipes are one way to make extensible code that I am playing with.
+	# Each pipe is a named list of methods. You can add new
+	# methods to either end. To execute the whole pipe you call it
+	# with an array of arguments.
 
+	# Add a method to a pipe:
+	# > `$.pipe("amplify").append (x) -> x+1`
+
+	# The output of each function becomes the input of the next function
+	# in the pipe.
+	# > `$.pipe("amplify").append (x) -> x*2`
+
+	# Invoking a pipe with arguments will call all the functions and
+	# return the final value.
+	# > `$.pipe("amplify", 10) == 22`
+
+	pipes = {}
+
+	(name, args) ->
+		p = (pipes[name] or= [])
+		if not args
+			return {
+				prepend: (obj) -> p.unshift(obj); obj
+				append: (obj) -> p.push(obj); obj
+			}
+		for func in p
+			args = func.call @, args
+		args
 
 # The Bling Constructor
 # =====================
@@ -183,39 +211,21 @@ _type = (->
 # and as a bonus our assignment to a symbol (`$`) remains simple.
 class Bling
 
-	# Pipes are one way to make extensible code that I am playing with.
-	# Each pipe is a named list of methods. You can add new
-	# methods to either end. To execute the whole pipe you call it
-	# with an array of arguments.
 
-	# Add a method to a pipe:
-	# > `$.pipe("amplify").append (x) -> x+1`
+	# Compute the default context object only once, privately, so we dont have to check
+	# during every construction.
+	default_context = if document? then document else {}
 
-	# The output of each function becomes the input of the next function
-	# in the pipe.
-	# > `$.pipe("amplify").append (x) -> x*2`
+	constructor: (selector, context = default_context) ->
+		return Bling.pipe("bling-init", [selector, context])
 
-	# Invoking a pipe with arguments will call all the functions and
-	# return the final value.
-	# > `$.pipe("amplify", 10) == 22`
+	@pipe: _pipe
 
-	pipes = {}
-	@pipe: (name, args) ->
-		p = (pipes[name] or= [])
-		if not args
-			return {
-				prepend: (obj) -> p.unshift(obj); obj
-				append: (obj) -> p.push(obj); obj
-			}
-		for func in p
-			args = func.call @, args
-		args
-
-	# The very first pipe is the one used by the constructor: "bling-init".
+	# Create the very first pipe used by the constructor: "bling-init".
 	# This first piece of the pipe converts [selector, context] -> object;
-	# and should always be in the _middle_ (if you `unshift` onto the
+	# and should always be in the _middle_ (if you `prepend` onto the
 	# beginning of this pipe you should accept and return [selector, context].
-	# If you `push` onto the end, you should accept and return a bling object.
+	# If you `append` onto the end, you should accept and return a bling object.
 	@pipe("bling-init").prepend (args) ->
 		[selector, context] = args
 		# Classify the type of selector to get a type-instance, which is
@@ -225,13 +235,6 @@ class Bling
 			context: context
 		}, _type.lookup(selector).array(selector, context)
 		# Note: Uses inherit to _hijack_ the resulting array's prototype in-place.
-
-	# Compute the default context object only once, privately, so we dont have to check
-	# during every construction.
-	default_context = if document? then document else {}
-
-	constructor: (selector, context = default_context) ->
-		return Bling.pipe("bling-init", [selector, context])
 
 	# $.plugin( [ opts ], func )
 	# -----------------
@@ -287,36 +290,41 @@ class Bling
 	# $.depends, $.provide and $.provides, allow for representing
 	# dependencies between any functions. Plugins can and should use this
 	# to ensure their correct loading order.
-	qu = []
-	done = {}
-	filt = (n) ->
-		(if (typeof n) is "string" then n.split /, */ else n)
-		.filter (x) -> not (x of done)
+	dep = # private stuff for depends/provides system.
+		q: []
+		done: {}
+		filter: (n) ->
+			(if (typeof n) is "string" then n.split /, */ else n)
+			.filter (x) -> not (x of done)
 
 	# Example: `$.depends "tag", -> console.log "hello"`
 	# This example will not log "hello" until `provide("tag")` is
 	# called.
 	@depends: (needs, f) ->
-		if (needs = filt(needs)).length is 0 then f()
-		else qu.push (need) ->
-			((needs.splice i, 1) if ( i = needs.indexOf need ) > -1) and
+		if (needs = dep.filter needs).length is 0 then f()
+		else dep.q.push (need) ->
+			(needs.splice i, 1) if (i = needs.indexOf need) > -1 and
 			needs.length is 0 and
 			f
 		f
 
-	@provide: (needs) ->
-		for need in filt(needs)
+	@provide: (needs, data) ->
+		for need in dep.filter needs
 			done[need] = i = 0
-			while i < qu.length
-				if (f = qu[i](need)) then (qu.splice i,1; f())
+			while i < dep.q.length
+				if (f = dep.q[i] need)
+					dep.q.splice i,1
+					f data
 				else i++
-		null
+		data
 
-	@provides: (needs, f) -> (a...) -> r=f(a...); Bling.provide(needs); r
+	@provides: (needs, f) ->
+		(args...) ->
+			Bling.provide needs, f args...
 
-	#### Registering the "bling" type.
+	#### Extending the type system
 	# First, we give the basic types the ability to turn into something
-	# array-like, for use by the constructor.
+	# array-like, for use by the constructor pipeline.
 	_type.extend
 		# If we don't know any better way, we just stick the
 		# thing inside a real array.
@@ -351,7 +359,6 @@ class Bling
 Bling.prototype = []
 Bling.prototype.constructor = Bling
 
-
 # Plugins
 # =======
 # Now that we have a way to load plugins and express dependencies
@@ -364,7 +371,8 @@ Bling.prototype.constructor = Bling
 	# Grab a safe (browser vs. nodejs) reference to the global object
 	$.global = glob = if window? then window else global
 
-	#### Types plugin
+	# Types plugin
+	# ------------
 	# Exposes the type system publicly.
 	$.plugin
 		provides: "type"
@@ -413,11 +421,9 @@ Bling.prototype.constructor = Bling
 		# Allocate some space to remember clobbered symbols.
 		cache = {}
 		# Export the global 'Bling' symbol.
-		glob.Bling = $
+		$.global.Bling = $
 		if module?
-			module.exports =
-				$: Bling
-				Bling: Bling
+			module.exports = Bling
 		# Over-ride the bling->string conversion to output the current
 		# symbol.
 		$.type.extend "bling",
@@ -1045,7 +1051,7 @@ Bling.prototype.constructor = Bling
 		$: EventEmitter: $.pipe("bling-init").append (obj) ->
 			listeners = {}
 			list = (e) -> (listeners[e] or= [])
-			obj.__proto__ = {
+			inherit {
 				emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
 				addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
 				on:                 (e, h) -> @addListener e, h
@@ -1053,10 +1059,8 @@ Bling.prototype.constructor = Bling
 				removeAllListeners: (e) -> listeners[e] = []
 				setMaxListeners:    (n) -> # who really needs this in the core API?
 				listeners:          (e) -> list(e).slice 0
-				__proto__: obj.__proto__
-			}
-			obj
+			}, obj
 
 
-)(Bling, @)
+)(Bling)
 # vim: ft=coffee sw=2 ts=2

@@ -171,8 +171,8 @@ require('./common')
 			$.assert r is t, "same seed produces same output"
 			$.assert r isnt s, "different seed produces different output"
 
-# set up a test document, to run DOM tests against
-	document.body.innerHTML = "
+	# set up a test document, to run DOM tests against
+	document.body.innerHTML = """
 	<table>
 		<tr><td>1,1</td><td>1,2</td></tr>
 		<tr><td>2,1</td><td>2,2</td></tr>
@@ -181,7 +181,7 @@ require('./common')
 	</table>
 	<div class='c'>C</div>
 	<p><span>foobar</span></p>
-	"
+	"""
 	$.testGroup "Core",
 		new1: ->
 			b = $([1,2,3])
@@ -438,6 +438,41 @@ require('./common')
 			$.assert obj.b[1] is 3, "3"
 		basic2: ->
 			a = $()
+
+	$.testGroup "StateMachine",
+		hello: ->
+			class TestMachine extends $.StateMachine
+				@STATE_TABLE = [
+					{ # 0
+						enter: ->
+							@output = "<"
+							@GO(1)
+					}
+					{ # 1
+						def: (c) -> @output += c.toUpperCase()
+						eof: @GO(2)
+					}
+					{ # 2
+						enter: -> @output += ">"
+					}
+				]
+				constructor: ->
+					super(TestMachine.STATE_TABLE)
+					@output = ""
+			m = new TestMachine()
+			$.assertEqual(m.run("hello").output, "<HELLO>")
+			$.assertEqual(m.run("hi").output, "<HI>")
+
+	$.testGroup "Synth",
+		basic_node: -> $.assertEqual $.synth("style").toString(), "$([<style/>])"
+		id_node: -> $.assertEqual $.synth('style#specialId').toString(), '$([<style id="specialId"/>])'
+		class_node: -> $.assertEqual $.synth('style.specClass').toString(), '$([<style class="specClass"/>])'
+		attr_node: -> $.assertEqual $.synth('style[foo=bar]').toString(), '$([<style foo="bar"/>])'
+		combo_node: -> $.assertEqual $.synth("style[a=b].c#d").toString(), '$([<style id="d" class="c" a="b"/>])'
+		text: -> $.assertEqual $.synth("style 'text'").toString(), "$([<style>text</style>])"
+		entity1: -> $.assertEqual $.synth("style 'text&amp;stuff'").toString(), "$([<style>text&amp;stuff</style>])"
+		entity2: -> $.assertEqual $.synth("style 'text&stuff'").toString(), "$([<style>text&stuff</style>])"
+
 
 )(Bling)
 

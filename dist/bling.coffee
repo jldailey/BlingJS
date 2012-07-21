@@ -23,9 +23,11 @@ isType = (T, o) ->
 inherit = (parent, obj) ->
 	if typeof parent is "function"
 		parent = parent:: # so that the obj instance will inherit all of the prototype (but _not a copy_ of it).
+	if parent.__proto__ is Object::
+		parent.__proto__ = obj.__proto__
 	obj.__proto__ = parent
 	obj
-_type = (->
+_type = do ->
 	cache = {}
 	base =
 		name: 'unknown'
@@ -61,10 +63,9 @@ _type = (->
 		lookup: lookup
 		extend: _extend
 		is: (t, o) -> cache[t]?.match.call o, o
-)()
-class Bling
+_pipe = do ->
 	pipes = {}
-	@pipe: (name, args) ->
+	(name, args) ->
 		p = (pipes[name] or= [])
 		if not args
 			return {
@@ -74,15 +75,17 @@ class Bling
 		for func in p
 			args = func.call @, args
 		args
+class Bling
+	default_context = if document? then document else {}
+	constructor: (selector, context = default_context) ->
+		return Bling.pipe("bling-init", [selector, context])
+	@pipe: _pipe
 	@pipe("bling-init").prepend (args) ->
 		[selector, context] = args
 		inherit Bling, inherit {
 			selector: selector
 			context: context
 		}, _type.lookup(selector).array(selector, context)
-	default_context = if document? then document else {}
-	constructor: (selector, context = default_context) ->
-		return Bling.pipe("bling-init", [selector, context])
 	@plugin: (opts, constructor) ->
 		if not constructor?
 			constructor = opts; opts = {}
@@ -101,26 +104,31 @@ class Bling
 			log "failed to load plugin: #{@name} '#{error.message}'"
 			throw error
 		@
-	qu = []
-	done = {}
-	filt = (n) ->
-		(if (typeof n) is "string" then n.split /, */ else n)
-		.filter (x) -> not (x of done)
+	dep = # private stuff for depends/provides system.
+		q: []
+		done: {}
+		filter: (n) ->
+			(if (typeof n) is "string" then n.split /, */ else n)
+			.filter (x) -> not (x of done)
 	@depends: (needs, f) ->
-		if (needs = filt(needs)).length is 0 then f()
-		else qu.push (need) ->
-			((needs.splice i, 1) if ( i = needs.indexOf need ) > -1) and
+		if (needs = dep.filter needs).length is 0 then f()
+		else dep.q.push (need) ->
+			(needs.splice i, 1) if (i = needs.indexOf need) > -1 and
 			needs.length is 0 and
 			f
 		f
-	@provide: (needs) ->
-		for need in filt(needs)
+	@provide: (needs, data) ->
+		for need in dep.filter needs
 			done[need] = i = 0
-			while i < qu.length
-				if (f = qu[i](need)) then (qu.splice i,1; f())
+			while i < dep.q.length
+				if (f = dep.q[i] need)
+					dep.q.splice i,1
+					f data
 				else i++
-		null
-	@provides: (needs, f) -> (a...) -> r=f(a...); Bling.provide(needs); r
+		data
+	@provides: (needs, f) ->
+		(args...) ->
+			Bling.provide needs, f args...
 	_type.extend
 		unknown:   { array: (o) -> [o] }
 		null:      { array: (o) -> [] }
@@ -155,11 +163,9 @@ Bling.prototype.constructor = Bling
 	, ->
 		symbol = null
 		cache = {}
-		glob.Bling = $
+		$.global.Bling = $
 		if module?
-			module.exports =
-				$: Bling
-				Bling: Bling
+			module.exports = Bling
 		$.type.extend "bling",
 			string: (o) -> symbol + "(["+ o.map($.toString).join(", ") + "])"
 		defineProperty $, "symbol",
@@ -168,7 +174,11 @@ Bling.prototype.constructor = Bling
 				cache[symbol = v] = glob[v]
 				glob[v] = Bling
 			get: -> symbol
-		return $: symbol: "$"
+		return $:
+			symbol: "$"
+			noConflict: ->
+				Bling.symbol = "Bling"
+				return Bling
 	$.plugin ->
 		String::trimLeft or= -> @replace(/^\s+/, "")
 		String::split or= (sep) ->
@@ -533,7 +543,7 @@ Bling.prototype.constructor = Bling
 		$: EventEmitter: $.pipe("bling-init").append (obj) ->
 			listeners = {}
 			list = (e) -> (listeners[e] or= [])
-			obj.__proto__ = {
+			inherit {
 				emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
 				addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
 				on:                 (e, h) -> @addListener e, h
@@ -541,10 +551,8 @@ Bling.prototype.constructor = Bling
 				removeAllListeners: (e) -> listeners[e] = []
 				setMaxListeners:    (n) -> # who really needs this in the core API?
 				listeners:          (e) -> list(e).slice 0
-				__proto__: obj.__proto__
-			}
-			obj
-)(Bling, @)
+			}, obj
+)(Bling)
 (($) ->
 	$.plugin
 		provides: "cartesian"

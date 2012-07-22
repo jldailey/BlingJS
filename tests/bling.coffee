@@ -52,6 +52,8 @@ $.testGroup("Type",
 		$.assert b[1] is 2, "still has data"
 		$.assert b.length is 3, "length is preserved"
 		$.assert not b.zap, "has shed bling"
+	as1: ->
+		$.log $.as "number", "1234"
 )
 
 $.testGroup("Function",
@@ -127,12 +129,13 @@ $.testGroup("Symbol",
 	noConflict: ->
 		Bling.global.noConflictTest = "magic"
 		Bling.symbol = "noConflictTest"
-		$.assert Bling.global.noConflictTest is Bling, 1
+		Bling.assert Bling.global.noConflictTest is Bling, 1
 		foo = Bling.noConflict()
-		$.assert Bling.symbol = "Bling", 2
-		$.assert Bling.global[Bling.symbol] is Bling, 3
-		$.assert foo is Bling, 4
-		$.assert Bling.global.noConflictTest is "magic", 5
+		Bling.assert Bling.symbol = "Bling", 2
+		Bling.assert Bling.global[Bling.symbol] is Bling, 3
+		Bling.assert foo is Bling, 4
+		Bling.assert Bling.global.noConflictTest is "magic", 5
+		Bling.symbol = "$"
 
 )
 

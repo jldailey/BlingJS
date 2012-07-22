@@ -34,6 +34,7 @@ _type = (->
 	register = (name, data) ->
 		order.unshift name if not (name of cache)
 		cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
+		cache[name][name] = (o) -> o
 	_extend = (name, data) ->
 		if typeof name is "string"
 			cache[name] ?= register name, {}
@@ -61,6 +62,7 @@ _type = (->
 		lookup: lookup
 		extend: _extend
 		is: (t, o) -> cache[t]?.match.call o, o
+		as: (t, o) -> lookup(o)[t]?(o)
 )()
 class Bling
 	pipes = {}
@@ -147,6 +149,7 @@ Bling.prototype.constructor = Bling
 			isType: isType
 			type: _type
 			is: _type.is
+			as: _type.as
 			isSimple: (o) -> _type(o) in ["string", "number", "bool"]
 			isEmpty: (o) -> o in ["", null, undefined]
 	$.plugin
@@ -155,11 +158,9 @@ Bling.prototype.constructor = Bling
 	, ->
 		symbol = null
 		cache = {}
-		glob.Bling = $
+		glob.Bling = Bling
 		if module?
-			module.exports =
-				$: Bling
-				Bling: Bling
+			module.exports = Bling
 		$.type.extend "bling",
 			string: (o) -> symbol + "(["+ o.map($.toString).join(", ") + "])"
 		defineProperty $, "symbol",
@@ -168,7 +169,11 @@ Bling.prototype.constructor = Bling
 				cache[symbol = v] = glob[v]
 				glob[v] = Bling
 			get: -> symbol
-		return $: symbol: "$"
+		return $:
+			symbol: "$"
+			noConflict: ->
+				Bling.symbol = "Bling"
+				return Bling
 	$.plugin ->
 		String::trimLeft or= -> @replace(/^\s+/, "")
 		String::split or= (sep) ->
@@ -369,6 +374,7 @@ Bling.prototype.constructor = Bling
 			null: { string: -> "null" }
 			undefined: { string: -> "undefined" }
 			string:
+				number: parseFloat
 				string: $.identity
 				repr:   (s) -> "'#{s}'"
 			array:  { string: (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }

@@ -78,7 +78,10 @@
       if (!(name in cache)) {
         order.unshift(name);
       }
-      return cache[data.name = name] = base !== data ? inherit(base, data) : data;
+      cache[data.name = name] = base !== data ? inherit(base, data) : data;
+      return cache[name][name] = function(o) {
+        return o;
+      };
     };
     _extend = function(name, data) {
       var k, _ref1, _results;
@@ -170,6 +173,10 @@
       is: function(t, o) {
         var _ref1;
         return (_ref1 = cache[t]) != null ? _ref1.match.call(o, o) : void 0;
+      },
+      as: function(t, o) {
+        var _base;
+        return typeof (_base = lookup(o))[t] === "function" ? _base[t](o) : void 0;
       }
     });
   })();
@@ -385,6 +392,7 @@
           isType: isType,
           type: _type,
           is: _type.is,
+          as: _type.as,
           isSimple: function(o) {
             var _ref1;
             return (_ref1 = _type(o)) === "string" || _ref1 === "number" || _ref1 === "bool";
@@ -402,12 +410,9 @@
       var cache, symbol;
       symbol = null;
       cache = {};
-      glob.Bling = $;
+      glob.Bling = Bling;
       if (typeof module !== "undefined" && module !== null) {
-        module.exports = {
-          $: Bling,
-          Bling: Bling
-        };
+        module.exports = Bling;
       }
       $.type.extend("bling", {
         string: function(o) {
@@ -426,7 +431,11 @@
       });
       return {
         $: {
-          symbol: "$"
+          symbol: "$",
+          noConflict: function() {
+            Bling.symbol = "Bling";
+            return Bling;
+          }
         }
       };
     });
@@ -1053,6 +1062,7 @@
           }
         },
         string: {
+          number: parseFloat,
           string: $.identity,
           repr: function(s) {
             return "'" + s + "'";

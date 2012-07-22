@@ -366,9 +366,9 @@ Bling.prototype.constructor = Bling
 #
 # For the rest of this file, set up a namespace that protects `$`,
 # so we can safely use short-hand in all of our plugins.
-(($) ->
+do ($ = Bling) ->
 
-	# Grab a safe (browser vs. nodejs) reference to the global object
+	# Grab a safe reference to the global object
 	$.global = glob = if window? then window else global
 
 	# Types plugin
@@ -674,8 +674,8 @@ Bling.prototype.constructor = Bling
 					when "function" then f
 					else
 						throw new Error("unsupported type passed to filter: #{$.type(f)}")
-				$( Array::filter.call @, g )
-				# $( it for it in @ when g.call(it,it) )
+				# $( Array::filter.call @, g )
+				$( it for it in @ when g.call(it,it) )
 
 			# Get a new set of booleans, true if the node from _this_
 			# matched the CSS expression.
@@ -777,7 +777,7 @@ Bling.prototype.constructor = Bling
 		mean: -> @sum() / @length
 		avg: -> @sum() / @length
 		# Get the sum of the set.
-		sum: -> @filter( isFinite ).reduce (a) -> a + @
+		sum: -> @filter( isFinite ).reduce(((a) -> a + @), 0)
 		# Get the product of all items in the set.
 		product: -> @filter( isFinite ).reduce (a) -> a * @
 		# Get a new set with every item squared.
@@ -971,7 +971,8 @@ Bling.prototype.constructor = Bling
 			# __$.memoize(f)__ returns a new function that caches function calls to f, based on hashing the arguments.
 			memoize: (f) ->
 				cache = {}
-				(a...) -> cache[$.hash(a)] ?= f.apply @, a # BUG: skips cache if f returns null on purpose
+				extend ((a...) -> cache[$.hash(a)] ?= f.apply @, a), # BUG: skips cache if f returns null on purpose
+					stats: -> Object.keys(cache).length
 
 	# Hash plugin
 	# -----------
@@ -983,7 +984,8 @@ Bling.prototype.constructor = Bling
 		$.type.extend
 			unknown: { hash: (o) -> $.checksum $.toString(o) }
 			object:  { hash: (o) -> ($.hash(o[k]) for k of o) + $.hash(Object.keys(o)) }
-			array:   { hash: (o) -> ($.hash(i) for i in x).reduce (a,x) -> a+x }
+			array:   { hash: (o) ->
+				$.hash(Array) + ($.hash(i) for i in o).reduce (a,x) -> a+x }
 			bool:    { hash: (o) -> parseInt(1 if o) }
 		return {
 			$:
@@ -1063,6 +1065,4 @@ Bling.prototype.constructor = Bling
 				listeners:          (e) -> list(e).slice 0
 			}, obj
 
-
-)(Bling)
 # vim: ft=coffee sw=2 ts=2

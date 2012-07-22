@@ -91,6 +91,7 @@ _type = (->
 		order.unshift name if not (name of cache)
 		# * inherit from the base type and store in the cache.
 		cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
+		cache[name][name] = (o) -> o
 
 	# Later, plugins can `extend` previously registered types with new
 	# functionality.
@@ -142,6 +143,7 @@ _type = (->
 		lookup: lookup
 		extend: _extend
 		is: (t, o) -> cache[t]?.match.call o, o
+		as: (t, o) -> lookup(o)[t]?(o)
 
 	# Example: Calling $.type directly will get you the simple name of the
 	# best match.
@@ -386,6 +388,7 @@ Bling.prototype.constructor = Bling
 			type: _type
 			# `$.is("function", ->)` equals true/false.
 			is: _type.is
+			as: _type.as
 			isSimple: (o) -> _type(o) in ["string", "number", "bool"]
 			isEmpty: (o) -> o in ["", null, undefined]
 

@@ -63,8 +63,8 @@ isType = (T, o) ->
 # __constructor__.
 inherit = (parent, obj) ->
 	if typeof parent is "function"
-		parent = parent:: # so that the obj instance will inherit all of the prototype (but _not a copy_ of it).
-	if parent.__proto__ is Object::
+		parent = parent.prototype
+	if parent.__proto__ is Object.prototype
 		parent.__proto__ = obj.__proto__
 	obj.__proto__ = parent
 	obj
@@ -213,13 +213,12 @@ _pipe = do ->
 # and as a bonus our assignment to a symbol (`$`) remains simple.
 class Bling
 
-
 	# Compute the default context object only once, privately, so we dont have to check
 	# during every construction.
 	default_context = if document? then document else {}
 
 	constructor: (selector, context = default_context) ->
-		return Bling.pipe("bling-init", [selector, context])
+		return Bling.pipe "bling-init", [selector, context]
 
 	@pipe: _pipe
 
@@ -297,7 +296,7 @@ class Bling
 		done: {}
 		filter: (n) ->
 			(if (typeof n) is "string" then n.split /, */ else n)
-			.filter (x) -> not (x of done)
+			.filter (x) -> not (x of dep.done)
 
 	# Example: `$.depends "tag", -> console.log "hello"`
 	# This example will not log "hello" until `provide("tag")` is
@@ -305,14 +304,13 @@ class Bling
 	@depends: (needs, f) ->
 		if (needs = dep.filter needs).length is 0 then f()
 		else dep.q.push (need) ->
-			(needs.splice i, 1) if (i = needs.indexOf need) > -1 and
-			needs.length is 0 and
-			f
+			(needs.splice i, 1) if (i = needs.indexOf need) > -1
+			return (needs.length is 0 and f)
 		f
 
 	@provide: (needs, data) ->
 		for need in dep.filter needs
-			done[need] = i = 0
+			dep.done[need] = i = 0
 			while i < dep.q.length
 				if (f = dep.q[i] need)
 					dep.q.splice i,1

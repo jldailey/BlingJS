@@ -1,7 +1,7 @@
 (($) ->
 	$.plugin
 		provides: "unittest"
-		depends: "core"
+		depends: "core,function"
 	, ->
 		testCount = passCount = failCount = 0
 		failed = []

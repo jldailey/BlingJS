@@ -416,11 +416,9 @@ Bling.prototype.constructor = Bling
 		# Allocate some space to remember clobbered symbols.
 		cache = {}
 		# Export the global 'Bling' symbol.
-		glob.Bling = $
+		glob.Bling = Bling
 		if module?
-			module.exports =
-				$: Bling
-				Bling: Bling
+			module.exports = Bling
 		# Over-ride the bling->string conversion to output the current
 		# symbol.
 		$.type.extend "bling",
@@ -806,6 +804,7 @@ Bling.prototype.constructor = Bling
 			null: { string: -> "null" }
 			undefined: { string: -> "undefined" }
 			string:
+				number: parseFloat
 				string: $.identity
 				repr:   (s) -> "'#{s}'"
 			array:  { string: (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }

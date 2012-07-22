@@ -1,7 +1,7 @@
 # About
 -------
 
-BlingJS is inspired by jQuery, but more consistent.
+BlingJS is a kitchen sink, inspired by jQuery, but more consistent.
 In particular, it is more consistent about doing set-based operations.
 
 * All operations return sets wherever possible.
@@ -46,8 +46,8 @@ on the list-items (not the moved children in this case).
 
 # Installation
 --------------
-    $ npm install bling
-    $ node
+    % npm install bling
+    % node
     > require("bling")
     > $([1,2,3,4]).scale(2.5).sum()
     25

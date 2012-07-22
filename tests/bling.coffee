@@ -1,10 +1,9 @@
 require('./common')
 
-$.testGroup("Object",
+$.testGroup "Object",
 	keys: -> $.assertArrayEqual Object.keys({a: 1, b: 2}), ['a','b']
-)
 
-$.testGroup("Type",
+$.testGroup "Type",
 	string: -> $.assertEqual $.type(""), "string"
 	number:-> $.assertEqual $.type(42), "number"
 	undef: -> $.assertEqual $.type(), "undefined"
@@ -54,9 +53,8 @@ $.testGroup("Type",
 		$.assert not b.zap, "has shed bling"
 	as1: ->
 		$.log $.as "number", "1234"
-)
 
-$.testGroup("Function",
+$.testGroup "Function",
 	identity1: -> $.assertEqual $.type($.identity), "function"
 	identity2: -> $.assertEqual( $.identity(a = {}), a)
 	bound: ->
@@ -75,9 +73,8 @@ $.testGroup("Function",
 		f() # this will not be traced
 		h() # but this will, putting one "window.lable()" in the output
 		$.assertArrayEqual(g, [ 'Trace: label created.', 'global.label()' ])
-)
 
-$.testGroup("String",
+$.testGroup "String",
 	Px1: -> $.assertEqual($.px(100), "100px")
 	Px2: -> $.assertEqual($.px(-100.0), "-100px")
 	Px3: -> $.assertEqual $.px("100.0px"), "100px"
@@ -96,9 +93,8 @@ $.testGroup("String",
 	Checksum1: -> $.assertEqual($.checksum("foobar"), 145425018) # test values are from python's adler32 in zlib
 	Checksum2: -> $.assertEqual($.checksum("foobarbaz"), 310051767)
 	ToString: -> $.assertEqual($([2,3,4]).toString(), "$([2, 3, 4])")
-)
 
-$.testGroup("Plugins",
+$.testGroup "Plugins",
 	new_plugin: ->
 		$.plugin ->
 			$:
@@ -107,9 +103,8 @@ $.testGroup("Plugins",
 		$.assertEqual $.testGlobal?(), 9
 		$.assertEqual $().testOp?(), 42
 		$.assertEqual $.testOp?(), 42
-)
 
-$.testGroup("Symbol",
+$.testGroup "Symbol",
 	exists: -> $.assert( Bling?, "bling should exist")
 	current: ->
 		Bling.assertEqual( Bling.symbol, "$" )
@@ -118,11 +113,11 @@ $.testGroup("Symbol",
 		Bling.symbol = "_"
 		Bling.assertEqual( _, Bling )
 	preserve: ->
-		global.$ = "before"
+		Bling.global.$ = "before"
 		Bling.symbol = "$"
-		Bling.assertEqual($, Bling)
+		Bling.assertEqual(Bling.global.$, Bling)
 		Bling.symbol = "_"
-		Bling.assertEqual($, "before")
+		Bling.assertEqual(Bling.global.$, "before")
 	reset: ->
 		Bling.symbol = "$"
 		Bling.assertEqual($, Bling)
@@ -137,9 +132,7 @@ $.testGroup("Symbol",
 		Bling.assert Bling.global.noConflictTest is "magic", 5
 		Bling.symbol = "$"
 
-)
-
-$.testGroup("Math",
+$.testGroup "Math",
 	sum1: -> $.assertEqual($([1,2,3,4,5]).sum(), 15)
 	sum2: -> $.assertEqual($([1,2,NaN,3]).sum(), 6)
 	range1: -> $.assertEqual($.range(1,6).toRepr(), '$([1, 2, 3, 4, 5])')
@@ -154,9 +147,8 @@ $.testGroup("Math",
 	min2: -> $.assertEqual( $([12.1, NaN, 29.9]).min(), 12.1)
 	max1: -> $.assertEqual( $([12.1, 29.9]).max(), 29.9)
 	max2: -> $.assertEqual( $([12.1, NaN, 29.9]).max(), 29.9)
-)
 
-$.testGroup("Random",
+$.testGroup "Random",
 	random: ->
 		$.assert 0.0 < $.random() < 1.0
 	real: ->
@@ -178,10 +170,9 @@ $.testGroup("Random",
 		t = $.random.string(16)
 		$.assert r is t, "same seed produces same output"
 		$.assert r isnt s, "different seed produces different output"
-)
 
 # set up a test document, to run DOM tests against
-document.body.innerHTML = "
+document.body.innerHTML = """
 <table>
 	<tr><td>1,1</td><td>1,2</td></tr>
 	<tr><td>2,1</td><td>2,2</td></tr>
@@ -190,8 +181,8 @@ document.body.innerHTML = "
 </table>
 <div class='c'>C</div>
 <p><span>foobar</span></p>
-"
-$.testGroup("Core",
+"""
+$.testGroup "Core",
 	new1: ->
 		b = $([1,2,3])
 		$.assertEqual(b[0], 1)
@@ -289,9 +280,8 @@ $.testGroup("Core",
 	corrected_length: ->
 		$.assertEqual(Array(10).length,10)
 		$.assertEqual(Bling(10).length, 0)
-)
 
-$.testGroup("DOM",
+$.testGroup "DOM",
 	parse: ->
 		d = $.HTML.parse("<div><a></a><b></b><c></c></div>")
 		$.assertEqual( $.type(d), "node")
@@ -373,8 +363,8 @@ $.testGroup("DOM",
 	value2: -> $.assertEqual($("<input />").val().toRepr(), "$([''])")
 	value3: -> $.assertEqual($("<input type='checkbox' checked />").val().toRepr(), "$(['on'])")
 	parents: -> $.assertEqual($("td.d").parents().first().select('nodeName').toRepr(), "$(['TR', 'TABLE', 'BODY', 'HTML'])")
-	prev: -> $.assertEqual($("div.c").prev().first().select('nodeName').toRepr(), "$(['TABLE'])")
-	next: -> $.assertEqual($("div.c").next().first().select('nodeName').toRepr(), "$(['P'])")
+	prev: -> $.assertEqual($("div.c").prev().first().select('nodeName').filter(-> @ isnt "#TEXT").toRepr(), "$(['TABLE'])")
+	next: -> $.assertEqual($("div.c").next().first().select('nodeName').filter(-> @ isnt "#TEXT").toRepr(), "$(['P'])")
 	remove: ->
 		a = $("<a><b class='x'/><c class='x'/><d/></a>")
 		b = a.find(".x")
@@ -396,7 +386,6 @@ $.testGroup("DOM",
 		$.assertEqual( typeof c.a, "string")
 	toFragment: ->
 		$.assertEqual($("td").clone().toFragment().childNodes.length, 8)
-)
 
 $.testGroup "EventEmitter",
 	basic: ->
@@ -449,4 +438,38 @@ $.testGroup "TNET",
 		$.assert obj.b[1] is 3, "3"
 	basic2: ->
 		a = $()
+
+$.testGroup "StateMachine",
+	hello: ->
+		class TestMachine extends $.StateMachine
+			@STATE_TABLE = [
+				{ # 0
+					enter: ->
+						@output = "<"
+						@GO(1)
+				}
+				{ # 1
+					def: (c) -> @output += c.toUpperCase()
+					eof: @GO(2)
+				}
+				{ # 2
+					enter: -> @output += ">"
+				}
+			]
+			constructor: ->
+				super(TestMachine.STATE_TABLE)
+				@output = ""
+		m = new TestMachine()
+		$.assertEqual(m.run("hello").output, "<HELLO>")
+		$.assertEqual(m.run("hi").output, "<HI>")
+
+$.testGroup "Synth",
+	basic_node: -> $.assertEqual $.synth("style").toString(), "$([<style/>])"
+	id_node: -> $.assertEqual $.synth('style#specialId').toString(), '$([<style id="specialId"/>])'
+	class_node: -> $.assertEqual $.synth('style.specClass').toString(), '$([<style class="specClass"/>])'
+	attr_node: -> $.assertEqual $.synth('style[foo=bar]').toString(), '$([<style foo="bar"/>])'
+	combo_node: -> $.assertEqual $.synth("style[a=b].c#d").toString(), '$([<style id="d" class="c" a="b"/>])'
+	text: -> $.assertEqual $.synth("style 'text'").toString(), "$([<style>text</style>])"
+	entity1: -> $.assertEqual $.synth("style 'text&amp;stuff'").toString(), "$([<style>text&amp;stuff</style>])"
+	entity2: -> $.assertEqual $.synth("style 'text&stuff'").toString(), "$([<style>text&stuff</style>])"
 

@@ -22,10 +22,12 @@ isType = (T, o) ->
 		isType T, o.__proto__ # recursive
 inherit = (parent, obj) ->
 	if typeof parent is "function"
-		parent = parent:: # so that the obj instance will inherit all of the prototype (but _not a copy_ of it).
+		parent = parent.prototype
+	if parent.__proto__ is Object.prototype
+		parent.__proto__ = obj.__proto__
 	obj.__proto__ = parent
 	obj
-_type = (->
+_type = do ->
 	cache = {}
 	base =
 		name: 'unknown'
@@ -63,10 +65,9 @@ _type = (->
 		extend: _extend
 		is: (t, o) -> cache[t]?.match.call o, o
 		as: (t, o) -> lookup(o)[t]?(o)
-)()
-class Bling
+_pipe = do ->
 	pipes = {}
-	@pipe: (name, args) ->
+	(name, args) ->
 		p = (pipes[name] or= [])
 		if not args
 			return {
@@ -76,15 +77,17 @@ class Bling
 		for func in p
 			args = func.call @, args
 		args
+class Bling
+	default_context = if document? then document else {}
+	constructor: (selector, context = default_context) ->
+		return Bling.pipe "bling-init", [selector, context]
+	@pipe: _pipe
 	@pipe("bling-init").prepend (args) ->
 		[selector, context] = args
 		inherit Bling, inherit {
 			selector: selector
 			context: context
 		}, _type.lookup(selector).array(selector, context)
-	default_context = if document? then document else {}
-	constructor: (selector, context = default_context) ->
-		return Bling.pipe("bling-init", [selector, context])
 	@plugin: (opts, constructor) ->
 		if not constructor?
 			constructor = opts; opts = {}
@@ -103,26 +106,30 @@ class Bling
 			log "failed to load plugin: #{@name} '#{error.message}'"
 			throw error
 		@
-	qu = []
-	done = {}
-	filt = (n) ->
-		(if (typeof n) is "string" then n.split /, */ else n)
-		.filter (x) -> not (x of done)
+	dep = # private stuff for depends/provides system.
+		q: []
+		done: {}
+		filter: (n) ->
+			(if (typeof n) is "string" then n.split /, */ else n)
+			.filter (x) -> not (x of dep.done)
 	@depends: (needs, f) ->
-		if (needs = filt(needs)).length is 0 then f()
-		else qu.push (need) ->
-			((needs.splice i, 1) if ( i = needs.indexOf need ) > -1) and
-			needs.length is 0 and
-			f
+		if (needs = dep.filter needs).length is 0 then f()
+		else dep.q.push (need) ->
+			(needs.splice i, 1) if (i = needs.indexOf need) > -1
+			return (needs.length is 0 and f)
 		f
-	@provide: (needs) ->
-		for need in filt(needs)
-			done[need] = i = 0
-			while i < qu.length
-				if (f = qu[i](need)) then (qu.splice i,1; f())
+	@provide: (needs, data) ->
+		for need in dep.filter needs
+			dep.done[need] = i = 0
+			while i < dep.q.length
+				if (f = dep.q[i] need)
+					dep.q.splice i,1
+					f data
 				else i++
-		null
-	@provides: (needs, f) -> (a...) -> r=f(a...); Bling.provide(needs); r
+		data
+	@provides: (needs, f) ->
+		(args...) ->
+			Bling.provide needs, f args...
 	_type.extend
 		unknown:   { array: (o) -> [o] }
 		null:      { array: (o) -> [] }
@@ -137,7 +144,7 @@ class Bling
 		repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 Bling.prototype = []
 Bling.prototype.constructor = Bling
-(($) ->
+do ($ = Bling) ->
 	$.global = glob = if window? then window else global
 	$.plugin
 		provides: "type"
@@ -240,8 +247,8 @@ Bling.prototype.constructor = Bling
 				ret
 			distinct: (strict = true) -> @union @, strict
 			intersect: (other) -> $(x for x in @ when x in other) # another very beatiful expression
-			contains: (item, strict = true) -> ((strict and t is item) or (not strict and t == item) for t in @).reduce ((a,x) -> a or x), false
-			count: (item, strict = true) -> $(1 for t in @ when (item is undefined) or (strict and t is item) or (not strict and t == item)).sum()
+			contains: (item, strict = true) -> ((strict and t is item) or (not strict and `t == item`) for t in @).reduce ((a,x) -> a or x), false
+			count: (item, strict = true) -> $(1 for t in @ when (item is undefined) or (strict and t is item) or (not strict and `t == item`)).sum()
 			coalesce: ->
 				for i in @
 					if $.type(i) in ["array","bling"] then i = $(i).coalesce()
@@ -299,7 +306,7 @@ Bling.prototype.constructor = Bling
 					when "function" then f
 					else
 						throw new Error("unsupported type passed to filter: #{$.type(f)}")
-				$( Array::filter.call @, g )
+				$( it for it in @ when g.call(it,it) )
 			matches: (expr) -> @select('matchesSelector').call(expr)
 			querySelectorAll: (expr) ->
 				@filter("*")
@@ -354,7 +361,7 @@ Bling.prototype.constructor = Bling
 		max: -> @filter( isFinite ).reduce Math.max
 		mean: -> @sum() / @length
 		avg: -> @sum() / @length
-		sum: -> @filter( isFinite ).reduce (a) -> a + @
+		sum: -> @filter( isFinite ).reduce(((a) -> a + @), 0)
 		product: -> @filter( isFinite ).reduce (a) -> a * @
 		squares: -> @map -> @ * @
 		magnitude: -> Math.sqrt @floats().squares().sum()
@@ -478,7 +485,8 @@ Bling.prototype.constructor = Bling
 				$.extend r, { toString: -> "bound-method of #{t}.#{f.name}" }
 			memoize: (f) ->
 				cache = {}
-				(a...) -> cache[$.hash(a)] ?= f.apply @, a # BUG: skips cache if f returns null on purpose
+				extend ((a...) -> cache[$.hash(a)] ?= f.apply @, a), # BUG: skips cache if f returns null on purpose
+					stats: -> Object.keys(cache).length
 	$.plugin
 		provides: "hash"
 		depends: "type"
@@ -486,7 +494,8 @@ Bling.prototype.constructor = Bling
 		$.type.extend
 			unknown: { hash: (o) -> $.checksum $.toString(o) }
 			object:  { hash: (o) -> ($.hash(o[k]) for k of o) + $.hash(Object.keys(o)) }
-			array:   { hash: (o) -> ($.hash(i) for i in x).reduce (a,x) -> a+x }
+			array:   { hash: (o) ->
+				$.hash(Array) + ($.hash(i) for i in o).reduce (a,x) -> a+x }
 			bool:    { hash: (o) -> parseInt(1 if o) }
 		return {
 			$:
@@ -539,7 +548,7 @@ Bling.prototype.constructor = Bling
 		$: EventEmitter: $.pipe("bling-init").append (obj) ->
 			listeners = {}
 			list = (e) -> (listeners[e] or= [])
-			obj.__proto__ = {
+			inherit {
 				emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
 				addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
 				on:                 (e, h) -> @addListener e, h
@@ -547,10 +556,7 @@ Bling.prototype.constructor = Bling
 				removeAllListeners: (e) -> listeners[e] = []
 				setMaxListeners:    (n) -> # who really needs this in the core API?
 				listeners:          (e) -> list(e).slice 0
-				__proto__: obj.__proto__
-			}
-			obj
-)(Bling, @)
+			}, obj
 (($) ->
 	$.plugin
 		provides: "cartesian"
@@ -1723,7 +1729,7 @@ Bling.prototype.constructor = Bling
 (($) ->
 	$.plugin
 		provides: "unittest"
-		depends: "core"
+		depends: "core,function"
 	, ->
 		testCount = passCount = failCount = 0
 		failed = []

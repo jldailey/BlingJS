@@ -133,6 +133,7 @@ $.testGroup "Symbol",
 		Bling.symbol = "$"
 
 $.testGroup "Math",
+	sum0: -> $.assertEqual($([]).sum(), 0)
 	sum1: -> $.assertEqual($([1,2,3,4,5]).sum(), 15)
 	sum2: -> $.assertEqual($([1,2,NaN,3]).sum(), 6)
 	range1: -> $.assertEqual($.range(1,6).toRepr(), '$([1, 2, 3, 4, 5])')
@@ -170,6 +171,13 @@ $.testGroup "Random",
 		t = $.random.string(16)
 		$.assert r is t, "same seed produces same output"
 		$.assert r isnt s, "different seed produces different output"
+
+$.testGroup "Hash",
+	number: -> $.assert $.hash(42) isnt $.hash(43)
+	string: -> $.assert $.hash("foo") isnt $.hash("bar")
+	array:  -> $.assert $.hash("poop") isnt $.hash(["poop"])
+	object: -> $.assert $.hash({a:1}) isnt $.hash({a:2})
+	bling:  -> $.assert $.hash($())?
 
 # set up a test document, to run DOM tests against
 document.body.innerHTML = """
@@ -269,6 +277,7 @@ $.testGroup "Core",
 	filter3: -> $.assertArrayEqual($("*").filter("td").length, 8)
 	filter4: -> $.assertEqual($("*").filter("td").filter(".d").length, 1)
 	filter5: -> $.assertEqual($("*").filter("td").filter(".none").length, 0)
+	filter6: -> $.assertArrayEqual($(["one","two","three"]).filter(-> String(@) isnt "three"), ["one", "two"])
 	matches: -> $.assertArrayEqual($("td").matches(".d"), [false,false,false,false,false,true,false,false])
 	querySelectorAll: -> $.assertArrayEqual($("tr").querySelectorAll("td.d")[0].className, "d")
 	weave1: -> $.assertArrayEqual($([1,1,1]).weave([2,2,2]), [2,1,2,1,2,1])
@@ -363,8 +372,8 @@ $.testGroup "DOM",
 	value2: -> $.assertEqual($("<input />").val().toRepr(), "$([''])")
 	value3: -> $.assertEqual($("<input type='checkbox' checked />").val().toRepr(), "$(['on'])")
 	parents: -> $.assertEqual($("td.d").parents().first().select('nodeName').toRepr(), "$(['TR', 'TABLE', 'BODY', 'HTML'])")
-	prev: -> $.assertEqual($("div.c").prev().first().select('nodeName').filter(-> @ isnt "#TEXT").toRepr(), "$(['TABLE'])")
-	next: -> $.assertEqual($("div.c").next().first().select('nodeName').filter(-> @ isnt "#TEXT").toRepr(), "$(['P'])")
+	prev: -> $.assertEqual($("div.c").prev().first().select('nodeName').filter(-> String(@) isnt "#TEXT").toRepr(), "$(['TABLE'])")
+	next: -> $.assertEqual($("div.c").next().first().select('nodeName').filter(-> String(@) isnt "#TEXT").toRepr(), "$(['P'])")
 	remove: ->
 		a = $("<a><b class='x'/><c class='x'/><d/></a>")
 		b = a.find(".x")

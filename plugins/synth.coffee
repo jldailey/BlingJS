@@ -4,6 +4,7 @@
 	, ->
 		$: StateMachine: class StateMachine
 			constructor: (stateTable) ->
+				@debug = false
 				@reset()
 				@table = stateTable
 				Object.defineProperty @, "modeline",
@@ -142,7 +143,7 @@
 				@parent.appendChild node
 				@parent = node
 			emitText: ->
-				@parent.appendChild $.HTML.parse(@text)
+				@parent.appendChild $.type.lookup("<html>").node(@text)
 				@text = ""
 
 		return {

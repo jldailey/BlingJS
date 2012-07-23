@@ -176,8 +176,10 @@ $.testGroup "Hash",
 	number: -> $.assert $.hash(42) isnt $.hash(43)
 	string: -> $.assert $.hash("foo") isnt $.hash("bar")
 	array:  -> $.assert $.hash("poop") isnt $.hash(["poop"])
-	object: -> $.assert $.hash({a:1}) isnt $.hash({a:2})
-	bling:  -> $.assert $.hash($())?
+	array_order: -> $.assert $.hash(["a","b"]) isnt $.hash(["b","a"])
+	object: -> $.assert ($.hash a:1) isnt ($.hash a:2)
+	bling:  -> $.assert ($.hash $)?
+	bling_order: -> $.assert $.hash($(["a","b"])) isnt $.hash($(["b","a"]))
 
 # set up a test document, to run DOM tests against
 document.body.innerHTML = """
@@ -292,26 +294,24 @@ $.testGroup "Core",
 
 $.testGroup "DOM",
 	parse: ->
-		d = $.HTML.parse("<div><a></a><b></b><c></c></div>")
-		$.assertEqual( $.type(d), "node")
-		$.assertEqual( d.nodeName, "DIV")
-	stringify: ->
-		h = "<div><a/><b/><c/></div>"
-		$.assertEqual( $.HTML.stringify($.HTML.parse(h)), h)
+		d = $.HTML.parse "<div><a></a><b></b><c></c></div>"
+		$.assertEqual $.type(d), "node"
+		$.assertEqual d.nodeName, "DIV"
+	stringify: -> $.assertEqual $.HTML.stringify($.HTML.parse(h = "<div><a/><b/><c/></div>")), h
 	select_childNodes: -> $.assertEqual( $("<div><a></a><b></b><c></c></div>").select("childNodes").flatten().map($.type).toRepr(), "$(['node', 'node', 'node'])" )
 	child: -> i = 0; d = $("<div><a></a><b></b><c></c></div>"); $.assertEqual( d.select('childNodes').flatten().map( () -> d.child(i++) ).toRepr(), "$([$([<a/>]), $([<b/>]), $([<c/>])])")
 	child2: -> $.assertEqual($("tr").child(0).select('nodeName').toRepr(), "$(['TD', 'TD', 'TD', 'TD'])")
 	textData: ->
 		d = $("<div>&nbsp;</div>")
-		$.assertEqual( d.toRepr(), "$([<div>&nbsp;</div>])" )
-		t = d.child(0)
-		$.assertEqual( t.toRepr(), "$([&nbsp;])")
-		t.zap('data', '<p>')
-		$.assertEqual( d.select('innerHTML').first(), '&lt;p&gt;' )
-	escape: -> $.assertEqual($.HTML.escape("<p>"), "&lt;p&gt;")
-	dashName1: -> $.assertEqual($.dashize("fooBar"), "foo-bar")
-	dashName2: -> $.assertEqual($.dashize("FooBar"), "-foo-bar")
-	html: -> $.assertEqual($("tr").html().first(), "<td>1,1</td><td>1,2</td>")
+		$.assertEqual d.toRepr(), "$([<div>&nbsp;</div>])"
+		t = d.child 0
+		$.assertEqual t.toRepr(), "$([&nbsp;])"
+		t.zap 'data', '<p>'
+		$.assertEqual d.select('innerHTML').first(), '&lt;p&gt;'
+	escape: -> $.assertEqual $.HTML.escape("<p>"), "&lt;p&gt;"
+	dashName1: -> $.assertEqual $.dashize("fooBar"), "foo-bar"
+	dashName2: -> $.assertEqual $.dashize("FooBar"), "-foo-bar"
+	html: -> $.assertEqual $("tr").html().first(), "<td>1,1</td><td>1,2</td>"
 	append: ->
 		try
 			$.assertEqual($("tr td.d").append("<span>Hi</span>").html().first(), "3,2<span>Hi</span>")

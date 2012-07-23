@@ -139,7 +139,8 @@ class Bling
 	_type.register "bling",
 		match:  (o) -> o and isType Bling, o
 		array:  (o) -> o.toArray()
-		hash:   (o) -> o.map(Bling.hash).sum()
+		hash:   (o) ->
+			o.map(Bling.hash).reduce (a,x) -> (a*a)+x
 		string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
 		repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 Bling.prototype = []
@@ -485,8 +486,9 @@ do ($ = Bling) ->
 				$.extend r, { toString: -> "bound-method of #{t}.#{f.name}" }
 			memoize: (f) ->
 				cache = {}
-				extend ((a...) -> cache[$.hash(a)] ?= f.apply @, a), # BUG: skips cache if f returns null on purpose
+				extend ((a...) -> cache[$.hash a] ?= f.apply @, a), # BUG: skips cache if f returns null on purpose
 					stats: -> Object.keys(cache).length
+					cache: -> cache
 	$.plugin
 		provides: "hash"
 		depends: "type"
@@ -495,12 +497,12 @@ do ($ = Bling) ->
 			unknown: { hash: (o) -> $.checksum $.toString(o) }
 			object:  { hash: (o) -> ($.hash(o[k]) for k of o) + $.hash(Object.keys(o)) }
 			array:   { hash: (o) ->
-				$.hash(Array) + ($.hash(i) for i in o).reduce (a,x) -> a+x }
+				$.hash(Array) + ($.hash(i) for i in o).reduce (a,x) -> (a*a)+x }
 			bool:    { hash: (o) -> parseInt(1 if o) }
 		return {
 			$:
 				hash: (x) -> $.type.lookup(x).hash(x)
-			hash: () -> $.hash @
+			hash: -> $.hash @
 		}
 	$.plugin
 		provides: "pubsub"
@@ -1284,6 +1286,7 @@ do ($ = Bling) ->
 	, ->
 		$: StateMachine: class StateMachine
 			constructor: (stateTable) ->
+				@debug = false
 				@reset()
 				@table = stateTable
 				Object.defineProperty @, "modeline",
@@ -1417,7 +1420,7 @@ do ($ = Bling) ->
 				@parent.appendChild node
 				@parent = node
 			emitText: ->
-				@parent.appendChild $.HTML.parse(@text)
+				@parent.appendChild $.type.lookup("<html>").node(@text)
 				@text = ""
 		return {
 			$:

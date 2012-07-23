@@ -2,7 +2,7 @@
   "author": "Jesse Dailey <jesse.dailey@gmail.com>",
   "name": "bling",
   "description": "A kitchen sink in CoffeeScript.",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "homepage": "http://blingjs.com",
 	"main": "./dist/bling.js",
   "repository": {

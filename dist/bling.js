@@ -364,7 +364,9 @@
         return o.toArray();
       },
       hash: function(o) {
-        return o.map(Bling.hash).sum();
+        return o.map(Bling.hash).reduce(function(a, x) {
+          return (a * a) + x;
+        });
       },
       string: function(o) {
         return Bling.symbol + "([" + o.map(function(x) {
@@ -1359,6 +1361,9 @@
             }), {
               stats: function() {
                 return Object.keys(cache).length;
+              },
+              cache: function() {
+                return cache;
               }
             });
           }
@@ -1400,7 +1405,7 @@
               }
               return _results;
             })()).reduce(function(a, x) {
-              return a + x;
+              return (a * a) + x;
             });
           }
         },
@@ -2951,6 +2956,7 @@
           StateMachine: StateMachine = (function() {
 
             function StateMachine(stateTable) {
+              this.debug = false;
               this.reset();
               this.table = stateTable;
               Object.defineProperty(this, "modeline", {
@@ -3176,7 +3182,7 @@
         };
 
         SynthMachine.prototype.emitText = function() {
-          this.parent.appendChild($.HTML.parse(this.text));
+          this.parent.appendChild($.type.lookup("<html>").node(this.text));
           return this.text = "";
         };
 

@@ -348,8 +348,9 @@ class Bling
 		match:  (o) -> o and isType Bling, o
 		# Blings extend arrays so they convert to themselves.
 		array:  (o) -> o.toArray()
-		# Their hash is just the sum of member hashes.
-		hash:   (o) -> o.map(Bling.hash).sum()
+		# Their hash is just the sum of member hashes (order matters).
+		hash:   (o) ->
+			o.map(Bling.hash).reduce (a,x) -> (a*a)+x
 		# They have a very literal string representation.
 		string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
 		repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
@@ -971,8 +972,9 @@ do ($ = Bling) ->
 			# __$.memoize(f)__ returns a new function that caches function calls to f, based on hashing the arguments.
 			memoize: (f) ->
 				cache = {}
-				extend ((a...) -> cache[$.hash(a)] ?= f.apply @, a), # BUG: skips cache if f returns null on purpose
+				extend ((a...) -> cache[$.hash a] ?= f.apply @, a), # BUG: skips cache if f returns null on purpose
 					stats: -> Object.keys(cache).length
+					cache: -> cache
 
 	# Hash plugin
 	# -----------
@@ -985,12 +987,12 @@ do ($ = Bling) ->
 			unknown: { hash: (o) -> $.checksum $.toString(o) }
 			object:  { hash: (o) -> ($.hash(o[k]) for k of o) + $.hash(Object.keys(o)) }
 			array:   { hash: (o) ->
-				$.hash(Array) + ($.hash(i) for i in o).reduce (a,x) -> a+x }
+				$.hash(Array) + ($.hash(i) for i in o).reduce (a,x) -> (a*a)+x }
 			bool:    { hash: (o) -> parseInt(1 if o) }
 		return {
 			$:
 				hash: (x) -> $.type.lookup(x).hash(x)
-			hash: () -> $.hash @
+			hash: -> $.hash @
 		}
 
 	# Publish/Subscribe plugin

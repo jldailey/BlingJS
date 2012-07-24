@@ -66,3 +66,5 @@ clean:
 	rm -rf yuicompressor.zip yuicompressor.jar yuicompressor-$(YUI_VERSION)
 
 .PHONY: all bling clean dist site publish plugins
+
+junk: junk

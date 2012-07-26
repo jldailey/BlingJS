@@ -3482,7 +3482,7 @@
           trace: $.identity
         },
         object: {
-          trace: function(o, label, tracer) {
+          trace: function(label, o, tracer) {
             var k, _i, _len, _ref1;
             _ref1 = Object.keys(o);
             for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
@@ -3493,7 +3493,7 @@
           }
         },
         array: {
-          trace: function(o, label, tracer) {
+          trace: function(label, o, tracer) {
             var i, _i, _ref1;
             for (i = _i = 0, _ref1 = o.length; _i < _ref1; i = _i += 1) {
               o[i] = $.trace(o[i], "" + label + "[" + i + "]", tracer);
@@ -3502,27 +3502,33 @@
           }
         },
         "function": {
-          trace: function(f, label, tracer) {
+          trace: function(label, f, tracer) {
             var r;
+            label || (label = f.name);
             r = function() {
               var a;
               a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-              tracer("" + (this.name || $.type(this)) + "." + (label || f.name) + "(", a, ")");
+              tracer("" + (this.name || $.type(this)) + "." + label + "(" + ($(a).map($.toRepr).join(',')) + ")");
               return f.apply(this, a);
             };
-            tracer("Trace: " + (label || f.name) + " created.");
-            r.toString = f.toString;
+            tracer("Trace: " + label + " created.");
+            r.toString = function() {
+              return "{Trace '" + label + "' of " + (f.toString());
+            };
             return r;
           }
         }
       });
       return {
         $: {
-          trace: function(o, label, tracer) {
-            if (tracer == null) {
-              tracer = $.log;
+          trace: function(label, o, tracer) {
+            var _ref1;
+            if (!$.is("string", label)) {
+              _ref1 = [o, label], tracer = _ref1[0], o = _ref1[1];
             }
-            return $.type.lookup(o).trace(o, label, tracer);
+            tracer || (tracer = $.log);
+            label || (label = "");
+            return $.type.lookup(o).trace(label, o, tracer);
           }
         }
       };
@@ -3771,7 +3777,7 @@
           assertArrayEqual: function(a, b, label) {
             var i, _i, _ref1, _results;
             _results = [];
-            for (i = _i = 0, _ref1 = a.length; 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
+            for (i = _i = 0, _ref1 = a.length; _i < _ref1; i = _i += 1) {
               try {
                 _results.push($.assertEqual(a[i], b[i], label));
               } catch (err) {

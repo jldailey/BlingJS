@@ -1598,17 +1598,23 @@ do ($ = Bling) ->
 	, ->
 		$.type.extend
 			unknown: { trace: $.identity }
-			object:  { trace: (o, label, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
-			array:   { trace: (o, label, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length] by 1); o }
+			object:  { trace: (label, o, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
+			array:   { trace: (label, o, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length] by 1); o }
 			function:
-				trace: (f, label, tracer) ->
+				trace: (label, f, tracer) ->
+					label or= f.name
 					r = (a...) ->
-						tracer "#{@name or $.type(@)}.#{label or f.name}(", a, ")"
+						tracer "#{@name or $.type(@)}.#{label}(#{$(a).map($.toRepr).join ','})"
 						f.apply @, a
-					tracer "Trace: #{label or f.name} created."
-					r.toString = f.toString
+					tracer "Trace: #{label} created."
+					r.toString = -> "{Trace '#{label}' of #{f.toString()}"
 					r
-		return $: trace: (o, label, tracer = $.log) -> $.type.lookup(o).trace(o, label, tracer)
+		return $: trace: (label, o, tracer) ->
+			if not $.is "string", label
+				[tracer, o] = [o, label]
+			tracer or= $.log
+			label or= ""
+			$.type.lookup(o).trace(label, o, tracer)
 )(Bling)
 (($) ->
 	$.plugin
@@ -1764,10 +1770,10 @@ do ($ = Bling) ->
 			approx: (a, b, margin=.1) -> Math.abs(a - b) < margin
 			assert: (cnd, msg = "no message") -> if not cnd then throw new Error "Assertion failed: #{msg}"
 			assertEqual: (a, b, label) ->
-				if a != b
+				if a isnt b
 					throw Error "#{label or ''} (#{a?.toString()}) should equal (#{b?.toString()})"
 			assertArrayEqual: (a, b, label) ->
-				for i in [0...a.length]
+				for i in [0...a.length] by 1
 					try
 						$.assertEqual(a[i], b[i], label)
 					catch err

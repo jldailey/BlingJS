@@ -68,11 +68,11 @@ $.testGroup "Function",
 	trace: ->
 		f = -> 42
 		g = []
-		h = $.trace f, "label", (a...) ->
+		h = $.trace "label", f, (a...) ->
 			g.push a.join ''
 		f() # this will not be traced
-		h() # but this will, putting one "window.lable()" in the output
-		$.assertArrayEqual(g, [ 'Trace: label created.', 'global.label()' ])
+		h("one", "two") # but this will
+		$.assertArrayEqual(g, [ 'Trace: label created.', "global.label('one','two')" ])
 
 $.testGroup "String",
 	Px1: -> $.assertEqual($.px(100), "100px")

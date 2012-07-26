@@ -985,7 +985,7 @@ do ($ = Bling) ->
 	, ->
 		$.type.extend
 			unknown: { hash: (o) -> $.checksum $.toString(o) }
-			object:  { hash: (o) -> ($.hash(o[k]) for k of o) + $.hash(Object.keys(o)) }
+			object:  { hash: (o) -> $($.hash(o[k]) for k of o).sum() + $.hash(Object.keys(o)) }
 			array:   { hash: (o) ->
 				$.hash(Array) + ($.hash(i) for i in o).reduce (a,x) -> (a*a)+x }
 			bool:    { hash: (o) -> parseInt(1 if o) }

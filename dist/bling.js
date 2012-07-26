@@ -1383,14 +1383,14 @@
         object: {
           hash: function(o) {
             var k;
-            return ((function() {
+            return $((function() {
               var _results;
               _results = [];
               for (k in o) {
                 _results.push($.hash(o[k]));
               }
               return _results;
-            })()) + $.hash(Object.keys(o));
+            })()).sum() + $.hash(Object.keys(o));
           }
         },
         array: {

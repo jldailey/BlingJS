@@ -690,14 +690,14 @@ do ($ = Bling) ->
 					next = (a) -> -> a.shift()() if a.length
 					add: (f, n) ->
 						f.order = n + $.now
-						for i in [0..@length]
+						for i in [0..@length] by 1
 							if i is @length or @[i].order > f.order
 								@splice i,0,f
 								break
 						setTimeout next(@), n
 						@
 					cancel: (f) ->
-						for i in [0...@length]
+						for i in [0...@length] by 1
 							if @[i] == f
 								@splice i, 1
 								break
@@ -708,7 +708,8 @@ do ($ = Bling) ->
 					cancel: -> timeoutQueue.cancel(f)
 			)()
 		delay: (n, f, c=@) ->
-			inherit @, $.delay n, $.bound(c, f)
+			$.delay n, $.bound(c, f)
+			@
 )(Bling)
 (($) ->
 	if $.global.document?
@@ -1608,7 +1609,6 @@ do ($ = Bling) ->
 					r = (a...) ->
 						tracer "#{@name or $.type(@)}.#{label}(#{$(a).map($.toRepr).join ','})"
 						f.apply @, a
-					tracer "Trace: #{label} created."
 					r.toString = -> "{Trace '#{label}' of #{f.toString()}"
 					r
 		return $: trace: (label, o, tracer) ->

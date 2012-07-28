@@ -1858,7 +1858,7 @@
                 add: function(f, n) {
                   var i, _i, _ref1;
                   f.order = n + $.now;
-                  for (i = _i = 0, _ref1 = this.length; 0 <= _ref1 ? _i <= _ref1 : _i >= _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
+                  for (i = _i = 0, _ref1 = this.length; _i <= _ref1; i = _i += 1) {
                     if (i === this.length || this[i].order > f.order) {
                       this.splice(i, 0, f);
                       break;
@@ -1869,7 +1869,7 @@
                 },
                 cancel: function(f) {
                   var i, _i, _ref1;
-                  for (i = _i = 0, _ref1 = this.length; 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
+                  for (i = _i = 0, _ref1 = this.length; _i < _ref1; i = _i += 1) {
                     if (this[i] === f) {
                       this.splice(i, 1);
                       break;
@@ -1895,7 +1895,8 @@
           if (c == null) {
             c = this;
           }
-          return inherit(this, $.delay(n, $.bound(c, f)));
+          $.delay(n, $.bound(c, f));
+          return this;
         }
       };
     });
@@ -3516,7 +3517,6 @@
               tracer("" + (this.name || $.type(this)) + "." + label + "(" + ($(a).map($.toRepr).join(',')) + ")");
               return f.apply(this, a);
             };
-            tracer("Trace: " + label + " created.");
             r.toString = function() {
               return "{Trace '" + label + "' of " + (f.toString());
             };

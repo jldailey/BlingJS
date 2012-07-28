@@ -72,7 +72,7 @@ $.testGroup "Function",
 			g.push a.join ''
 		f() # this will not be traced
 		h("one", "two") # but this will
-		$.assertArrayEqual(g, [ 'Trace: label created.', "global.label('one','two')" ])
+		$.assertArrayEqual(g, [ "global.label('one','two')" ])
 
 $.testGroup "String",
 	Px1: -> $.assertEqual($.px(100), "100px")
@@ -483,4 +483,12 @@ $.testGroup "Synth",
 	text: -> $.assertEqual $.synth("style 'text'").toString(), "$([<style>text</style>])"
 	entity1: -> $.assertEqual $.synth("style 'text&amp;stuff'").toString(), "$([<style>text&amp;stuff</style>])"
 	entity2: -> $.assertEqual $.synth("style 'text&stuff'").toString(), "$([<style>text&stuff</style>])"
+
+$.testGroup "Delay",
+	delayAsync: (callback) ->
+		t = $.now
+		$.delay 100, ->
+			delta = Math.abs($.now - t) - 100
+			$.assert delta < 5, "delta too large: #{delta}"
+			callback false
 

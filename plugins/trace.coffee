@@ -21,7 +21,7 @@
 					r = (a...) ->
 						tracer "#{@name or $.type(@)}.#{label}(#{$(a).map($.toRepr).join ','})"
 						f.apply @, a
-					tracer "Trace: #{label} created."
+					# tracer "Trace: #{label} created."
 					r.toString = -> "{Trace '#{label}' of #{f.toString()}"
 					r
 		return $: trace: (label, o, tracer) ->

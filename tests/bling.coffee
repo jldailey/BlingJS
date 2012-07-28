@@ -92,7 +92,8 @@ $.testGroup "String",
 	Splice4: -> $.assertEqual($.stringSplice("foobar",0,0,"baz"), "bazfoobar")
 	Checksum1: -> $.assertEqual($.checksum("foobar"), 145425018) # test values are from python's adler32 in zlib
 	Checksum2: -> $.assertEqual($.checksum("foobarbaz"), 310051767)
-	ToString: -> $.assertEqual($([2,3,4]).toString(), "$([2, 3, 4])")
+	ToString: -> $.assertEqual $([2,3,4]).toString(), "$([2, 3, 4])"
+	ToString2: -> $.assertEqual $.toString(-> $.log), "function () { ... }"
 
 $.testGroup "Plugins",
 	new_plugin: ->

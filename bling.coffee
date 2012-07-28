@@ -816,6 +816,8 @@ do ($ = Bling) ->
 				repr:   (s) -> "'#{s}'"
 			array:  { string: (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
 			object: { string: (o) -> "{" + ("#{k}:#{$.toString(v)}" for k,v of o).join(", ") + "}" }
+			function:
+				string: (f) -> f.toString().replace(/^([^{]*){(?:.|\n|\r)*}$/, '$1{ ... }')
 			number:
 				repr:   (n) -> String(n)
 				string: (n) ->

@@ -1116,6 +1116,11 @@
             })()).join(", ") + "}";
           }
         },
+        "function": {
+          string: function(f) {
+            return f.toString().replace(/^([^{]*){(?:.|\n|\r)*}$/, '$1{ ... }');
+          }
+        },
         number: {
           repr: function(n) {
             return String(n);

@@ -1,6 +1,7 @@
 log = (a...) ->
 	try return console.log.apply console, a
 	alert a.join(", ")
+	return a[a.length-1]
 Object.keys ?= (o) -> (k for k of o)
 extend = (a, b) ->
 	return a if not b
@@ -221,16 +222,20 @@ do ($ = Bling) ->
 		return { }
 	$.plugin
 		provides: "core"
-		depends: "type"
+		depends: "string"
 	, ->
 		defineProperty $, "now",
 			get: -> +new Date
 		index = (i, o) ->
 			i += o.length while i < 0
 			Math.min i, o.length
+		baseTime = $.now
 		return {
 			$:
-				log: log
+				log: $.extend((a...) ->
+					prefix = $.padLeft String($.now - baseTime), $.log.prefixSize, '0'
+					log((if prefix.length > $.log.prefixSize then "#{baseTime = $.now}:" else "+#{prefix}:"), a...)
+				, prefixSize: 5)
 				assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 				coalesce: (a...) -> $(a).coalesce()
 			eq: (i) -> $([@[index i, @]])

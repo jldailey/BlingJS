@@ -12,7 +12,8 @@
     try {
       return console.log.apply(console, a);
     } catch (_error) {}
-    return alert(a.join(", "));
+    alert(a.join(", "));
+    return a[a.length - 1];
   };
 
   if ((_ref = Object.keys) == null) {
@@ -522,9 +523,9 @@
     });
     $.plugin({
       provides: "core",
-      depends: "type"
+      depends: "string"
     }, function() {
-      var index;
+      var baseTime, index;
       defineProperty($, "now", {
         get: function() {
           return +(new Date);
@@ -536,9 +537,17 @@
         }
         return Math.min(i, o.length);
       };
+      baseTime = $.now;
       return {
         $: {
-          log: log,
+          log: $.extend(function() {
+            var a, prefix;
+            a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+            prefix = $.padLeft(String($.now - baseTime), $.log.prefixSize, '0');
+            return log.apply(null, [(prefix.length > $.log.prefixSize ? "" + (baseTime = $.now) + ":" : "+" + prefix + ":")].concat(__slice.call(a)));
+          }, {
+            prefixSize: 5
+          }),
           assert: function(c, m) {
             if (m == null) {
               m = "";

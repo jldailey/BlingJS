@@ -487,8 +487,13 @@ $.testGroup "Synth",
 $.testGroup "Delay",
 	delayAsync: (callback) ->
 		t = $.now
-		$.delay 100, ->
-			delta = Math.abs($.now - t) - 100
+		ferry_errors = (callback, f) ->
+			return (a...) ->
+				try f(a...)
+				catch err
+					callback err
+		$.delay 1000, ferry_errors callback, ->
+			delta = Math.abs(($.now - t) - 1000)
 			$.assert delta < 5, "delta too large: #{delta}"
 			callback false
 

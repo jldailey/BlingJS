@@ -56,6 +56,17 @@
 		depends: "StateMachine"
 	, ->
 		class SynthMachine extends $.StateMachine
+			basic =
+				"#": @GO 2
+				".": @GO 3
+				"[": @GO 4
+				'"': @GO 6
+				"'": @GO 7
+				" ": @GO 8
+				",": @GO 10
+				"+": @GO 11
+				eof: @GO 13
+
 			@STATE_TABLE = [
 				{ # 0: START
 					enter: ->
@@ -63,22 +74,16 @@
 						@attrs = {}
 						@GO 1
 				},
-				{ # 1: read a tag name
-					'"': @GO(6), "'": @GO(7), "#": @GO(2), ".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
+				$.extend({ # 1: read a tag name
 					def: (c) -> @tag += c
-					eof: @GO 13
-				},
-				{ # 2: read an #id
-					".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
+				}, basic),
+				$.extend({ # 2: read an #id
 					def: (c) -> @id += c
-					eof: @GO 13
-				},
-				{ # 3: read a .class name
+				}, basic),
+				$.extend({ # 3: read a .class name
 					enter: -> @cls += " " if @cls.length > 0
-					"#": @GO(2), ".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
 					def: (c) -> @cls += c
-					eof: @GO 13
-				},
+				}, basic),
 				{ # 4: read an attribute name (left-side)
 					"=": @GO 5
 					"]": -> @attrs[@attr] = @val; @GO 1
@@ -90,60 +95,58 @@
 					def: (c) -> @val += c
 					eof: @GO 12
 				},
-				{ # 6: read d-quoted text
+				{ # 6: read double-quoted text
 					'"': @GO 8
 					def: (c) -> @text += c
 					eof: @GO 12
 				},
-				{ # 7: read s-quoted text
+				{ # 7: read single-quoted text
 					"'": @GO 8
 					def: (c) -> @text += c
 					eof: @GO 12
 				},
 				{ # 8: emit text and continue
 					enter: ->
-						@emitText()
+						@emitNode() if @tag
+						@emitText() if @text
 						@GO 0
 				},
-				{ # 9: emit node and descend
-					enter: ->
-						@emitNode()
-						@GO 0
-				},
+				{}, # 9: empty
 				{ # 10: emit node and start a new tree
 					enter: ->
 						@emitNode()
-						@parent = null
+						@cursor = null
 						@GO 0
 				},
 				{ # 11: emit node and step sideways to create a sibling
 					enter: ->
 						@emitNode()
-						@parent = @parent?.parentNode
+						@cursor = @cursor?.parentNode
 						@GO 0
 				},
 				{ # 12: ERROR
-					enter: -> $.log "Error in synth expression: #{@input}"
+					enter: -> throw new Error "Error in synth expression: #{@input}"
 				},
 				{ # 13: FINALIZE
 					enter: ->
-						@emitNode() if @tag.length
-						@emitText() if @text.length
+						@emitNode() if @tag
+						@emitText() if @text
 				}
 			]
 			constructor: ->
 				super(SynthMachine.STATE_TABLE)
-				@fragment = @parent = document.createDocumentFragment()
+				@fragment = @cursor = document.createDocumentFragment()
 			emitNode: ->
-				node = document.createElement(@tag)
-				node.id = @id or null
-				node.className = @cls or null
-				for k of @attrs
-					node.setAttribute k, @attrs[k]
-				@parent.appendChild node
-				@parent = node
+				if @tag
+					node = document.createElement @tag
+					node.id = @id or null
+					node.className = @cls or null
+					for k of @attrs
+						node.setAttribute k, @attrs[k]
+					@cursor.appendChild node
+					@cursor = node
 			emitText: ->
-				@parent.appendChild $.type.lookup("<html>").node(@text)
+				@cursor.appendChild $.type.lookup("<html>").node(@text)
 				@text = ""
 
 		return {

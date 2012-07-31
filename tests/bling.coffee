@@ -492,6 +492,6 @@ $.testGroup "Delay",
 					callback err
 		$.delay 1000, ferry_errors callback, ->
 			delta = Math.abs(($.now - t) - 1000)
-			$.assert delta < 5, "delta too large: #{delta}"
+			$.assert delta < 15, "delta too large: #{delta}"
 			callback false
 

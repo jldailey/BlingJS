@@ -13,16 +13,22 @@
 		# This is perhaps the cleanest use of the type system so far...
 		$.type.extend
 			unknown: { trace: $.identity }
-			object:  { trace: (o, label, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
-			array:   { trace: (o, label, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length] by 1); o }
+			object:  { trace: (label, o, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
+			array:   { trace: (label, o, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length] by 1); o }
 			function:
-				trace: (f, label, tracer) ->
+				trace: (label, f, tracer) ->
+					label or= f.name
 					r = (a...) ->
-						tracer "#{@name or $.type(@)}.#{label or f.name}(", a, ")"
+						tracer "#{@name or $.type(@)}.#{label}(#{$(a).map($.toRepr).join ','})"
 						f.apply @, a
-					tracer "Trace: #{label or f.name} created."
-					r.toString = f.toString
+					# tracer "Trace: #{label} created."
+					r.toString = -> "{Trace '#{label}' of #{f.toString()}"
 					r
-		return $: trace: (o, label, tracer = $.log) -> $.type.lookup(o).trace(o, label, tracer)
+		return $: trace: (label, o, tracer) ->
+			if not $.is "string", label
+				[tracer, o] = [o, label]
+			tracer or= $.log
+			label or= ""
+			$.type.lookup(o).trace(label, o, tracer)
 
 )(Bling)

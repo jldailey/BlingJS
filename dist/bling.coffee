@@ -1,6 +1,7 @@
 log = (a...) ->
 	try return console.log.apply console, a
 	alert a.join(", ")
+	return a[a.length-1]
 Object.keys ?= (o) -> (k for k of o)
 extend = (a, b) ->
 	return a if not b
@@ -221,16 +222,20 @@ do ($ = Bling) ->
 		return { }
 	$.plugin
 		provides: "core"
-		depends: "type"
+		depends: "string"
 	, ->
 		defineProperty $, "now",
 			get: -> +new Date
 		index = (i, o) ->
 			i += o.length while i < 0
 			Math.min i, o.length
+		baseTime = $.now
 		return {
 			$:
-				log: log
+				log: $.extend((a...) ->
+					prefix = $.padLeft String($.now - baseTime), $.log.prefixSize, '0'
+					log((if prefix.length > $.log.prefixSize then "#{baseTime = $.now}:" else "+#{prefix}:"), a...)
+				, prefixSize: 5)
 				assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 				coalesce: (a...) -> $(a).coalesce()
 			eq: (i) -> $([@[index i, @]])
@@ -387,6 +392,8 @@ do ($ = Bling) ->
 				repr:   (s) -> "'#{s}'"
 			array:  { string: (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
 			object: { string: (o) -> "{" + ("#{k}:#{$.toString(v)}" for k,v of o).join(", ") + "}" }
+			function:
+				string: (f) -> f.toString().replace(/^([^{]*){(?:.|\n|\r)*}$/, '$1{ ... }')
 			number:
 				repr:   (n) -> String(n)
 				string: (n) ->
@@ -495,7 +502,7 @@ do ($ = Bling) ->
 	, ->
 		$.type.extend
 			unknown: { hash: (o) -> $.checksum $.toString(o) }
-			object:  { hash: (o) -> ($.hash(o[k]) for k of o) + $.hash(Object.keys(o)) }
+			object:  { hash: (o) -> $($.hash(o[k]) for k of o).sum() + $.hash(Object.keys(o)) }
 			array:   { hash: (o) ->
 				$.hash(Array) + ($.hash(i) for i in o).reduce (a,x) -> (a*a)+x }
 			bool:    { hash: (o) -> parseInt(1 if o) }
@@ -688,14 +695,14 @@ do ($ = Bling) ->
 					next = (a) -> -> a.shift()() if a.length
 					add: (f, n) ->
 						f.order = n + $.now
-						for i in [0..@length]
+						for i in [0..@length] by 1
 							if i is @length or @[i].order > f.order
 								@splice i,0,f
 								break
 						setTimeout next(@), n
 						@
 					cancel: (f) ->
-						for i in [0...@length]
+						for i in [0...@length] by 1
 							if @[i] == f
 								@splice i, 1
 								break
@@ -706,7 +713,8 @@ do ($ = Bling) ->
 					cancel: -> timeoutQueue.cancel(f)
 			)()
 		delay: (n, f, c=@) ->
-			inherit @, $.delay n, $.bound(c, f)
+			$.delay n, $.bound(c, f)
+			@
 )(Bling)
 (($) ->
 	if $.global.document?
@@ -1598,17 +1606,22 @@ do ($ = Bling) ->
 	, ->
 		$.type.extend
 			unknown: { trace: $.identity }
-			object:  { trace: (o, label, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
-			array:   { trace: (o, label, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length] by 1); o }
+			object:  { trace: (label, o, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
+			array:   { trace: (label, o, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length] by 1); o }
 			function:
-				trace: (f, label, tracer) ->
+				trace: (label, f, tracer) ->
+					label or= f.name
 					r = (a...) ->
-						tracer "#{@name or $.type(@)}.#{label or f.name}(", a, ")"
+						tracer "#{@name or $.type(@)}.#{label}(#{$(a).map($.toRepr).join ','})"
 						f.apply @, a
-					tracer "Trace: #{label or f.name} created."
-					r.toString = f.toString
+					r.toString = -> "{Trace '#{label}' of #{f.toString()}"
 					r
-		return $: trace: (o, label, tracer = $.log) -> $.type.lookup(o).trace(o, label, tracer)
+		return $: trace: (label, o, tracer) ->
+			if not $.is "string", label
+				[tracer, o] = [o, label]
+			tracer or= $.log
+			label or= ""
+			$.type.lookup(o).trace(label, o, tracer)
 )(Bling)
 (($) ->
 	$.plugin
@@ -1764,10 +1777,10 @@ do ($ = Bling) ->
 			approx: (a, b, margin=.1) -> Math.abs(a - b) < margin
 			assert: (cnd, msg = "no message") -> if not cnd then throw new Error "Assertion failed: #{msg}"
 			assertEqual: (a, b, label) ->
-				if a != b
+				if a isnt b
 					throw Error "#{label or ''} (#{a?.toString()}) should equal (#{b?.toString()})"
 			assertArrayEqual: (a, b, label) ->
-				for i in [0...a.length]
+				for i in [0...a.length] by 1
 					try
 						$.assertEqual(a[i], b[i], label)
 					catch err

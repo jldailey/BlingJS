@@ -37,10 +37,10 @@
 			approx: (a, b, margin=.1) -> Math.abs(a - b) < margin
 			assert: (cnd, msg = "no message") -> if not cnd then throw new Error "Assertion failed: #{msg}"
 			assertEqual: (a, b, label) ->
-				if a != b
+				if a isnt b
 					throw Error "#{label or ''} (#{a?.toString()}) should equal (#{b?.toString()})"
 			assertArrayEqual: (a, b, label) ->
-				for i in [0...a.length]
+				for i in [0...a.length] by 1
 					try
 						$.assertEqual(a[i], b[i], label)
 					catch err

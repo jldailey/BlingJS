@@ -68,11 +68,11 @@ $.testGroup "Function",
 	trace: ->
 		f = -> 42
 		g = []
-		h = $.trace f, "label", (a...) ->
+		h = $.trace "label", f, (a...) ->
 			g.push a.join ''
 		f() # this will not be traced
-		h() # but this will, putting one "window.lable()" in the output
-		$.assertArrayEqual(g, [ 'Trace: label created.', 'global.label()' ])
+		h("one", "two") # but this will
+		$.assertArrayEqual(g, [ "global.label('one','two')" ])
 
 $.testGroup "String",
 	Px1: -> $.assertEqual($.px(100), "100px")
@@ -92,7 +92,8 @@ $.testGroup "String",
 	Splice4: -> $.assertEqual($.stringSplice("foobar",0,0,"baz"), "bazfoobar")
 	Checksum1: -> $.assertEqual($.checksum("foobar"), 145425018) # test values are from python's adler32 in zlib
 	Checksum2: -> $.assertEqual($.checksum("foobarbaz"), 310051767)
-	ToString: -> $.assertEqual($([2,3,4]).toString(), "$([2, 3, 4])")
+	ToString: -> $.assertEqual $([2,3,4]).toString(), "$([2, 3, 4])"
+	ToString2: -> $.assertEqual $.toString(-> $.log), "function () { ... }"
 
 $.testGroup "Plugins",
 	new_plugin: ->
@@ -178,6 +179,7 @@ $.testGroup "Hash",
 	array:  -> $.assert $.hash("poop") isnt $.hash(["poop"])
 	array_order: -> $.assert $.hash(["a","b"]) isnt $.hash(["b","a"])
 	object: -> $.assert ($.hash a:1) isnt ($.hash a:2)
+	object2: -> $.assert $.is "number", $.hash a:1
 	bling:  -> $.assert ($.hash $)?
 	bling_order: -> $.assert $.hash($(["a","b"])) isnt $.hash($(["b","a"]))
 
@@ -479,4 +481,17 @@ $.testGroup "Synth",
 	text: -> $.assertEqual $.synth("style 'text'").toString(), "$([<style>text</style>])"
 	entity1: -> $.assertEqual $.synth("style 'text&amp;stuff'").toString(), "$([<style>text&amp;stuff</style>])"
 	entity2: -> $.assertEqual $.synth("style 'text&stuff'").toString(), "$([<style>text&stuff</style>])"
+
+$.testGroup "Delay",
+	delayAsync: (callback) ->
+		t = $.now
+		ferry_errors = (callback, f) ->
+			return (a...) ->
+				try f(a...)
+				catch err
+					callback err
+		$.delay 1000, ferry_errors callback, ->
+			delta = Math.abs(($.now - t) - 1000)
+			$.assert delta < 5, "delta too large: #{delta}"
+			callback false
 

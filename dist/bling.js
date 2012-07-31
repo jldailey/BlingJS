@@ -12,7 +12,8 @@
     try {
       return console.log.apply(console, a);
     } catch (_error) {}
-    return alert(a.join(", "));
+    alert(a.join(", "));
+    return a[a.length - 1];
   };
 
   if ((_ref = Object.keys) == null) {
@@ -522,9 +523,9 @@
     });
     $.plugin({
       provides: "core",
-      depends: "type"
+      depends: "string"
     }, function() {
-      var index;
+      var baseTime, index;
       defineProperty($, "now", {
         get: function() {
           return +(new Date);
@@ -536,9 +537,17 @@
         }
         return Math.min(i, o.length);
       };
+      baseTime = $.now;
       return {
         $: {
-          log: log,
+          log: $.extend(function() {
+            var a, prefix;
+            a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+            prefix = $.padLeft(String($.now - baseTime), $.log.prefixSize, '0');
+            return log.apply(null, [(prefix.length > $.log.prefixSize ? "" + (baseTime = $.now) + ":" : "+" + prefix + ":")].concat(__slice.call(a)));
+          }, {
+            prefixSize: 5
+          }),
           assert: function(c, m) {
             if (m == null) {
               m = "";
@@ -1116,6 +1125,11 @@
             })()).join(", ") + "}";
           }
         },
+        "function": {
+          string: function(f) {
+            return f.toString().replace(/^([^{]*){(?:.|\n|\r)*}$/, '$1{ ... }');
+          }
+        },
         number: {
           repr: function(n) {
             return String(n);
@@ -1383,14 +1397,14 @@
         object: {
           hash: function(o) {
             var k;
-            return ((function() {
+            return $((function() {
               var _results;
               _results = [];
               for (k in o) {
                 _results.push($.hash(o[k]));
               }
               return _results;
-            })()) + $.hash(Object.keys(o));
+            })()).sum() + $.hash(Object.keys(o));
           }
         },
         array: {
@@ -1853,7 +1867,7 @@
                 add: function(f, n) {
                   var i, _i, _ref1;
                   f.order = n + $.now;
-                  for (i = _i = 0, _ref1 = this.length; 0 <= _ref1 ? _i <= _ref1 : _i >= _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
+                  for (i = _i = 0, _ref1 = this.length; _i <= _ref1; i = _i += 1) {
                     if (i === this.length || this[i].order > f.order) {
                       this.splice(i, 0, f);
                       break;
@@ -1864,7 +1878,7 @@
                 },
                 cancel: function(f) {
                   var i, _i, _ref1;
-                  for (i = _i = 0, _ref1 = this.length; 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
+                  for (i = _i = 0, _ref1 = this.length; _i < _ref1; i = _i += 1) {
                     if (this[i] === f) {
                       this.splice(i, 1);
                       break;
@@ -1890,7 +1904,8 @@
           if (c == null) {
             c = this;
           }
-          return inherit(this, $.delay(n, $.bound(c, f)));
+          $.delay(n, $.bound(c, f));
+          return this;
         }
       };
     });
@@ -3482,7 +3497,7 @@
           trace: $.identity
         },
         object: {
-          trace: function(o, label, tracer) {
+          trace: function(label, o, tracer) {
             var k, _i, _len, _ref1;
             _ref1 = Object.keys(o);
             for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
@@ -3493,7 +3508,7 @@
           }
         },
         array: {
-          trace: function(o, label, tracer) {
+          trace: function(label, o, tracer) {
             var i, _i, _ref1;
             for (i = _i = 0, _ref1 = o.length; _i < _ref1; i = _i += 1) {
               o[i] = $.trace(o[i], "" + label + "[" + i + "]", tracer);
@@ -3502,27 +3517,32 @@
           }
         },
         "function": {
-          trace: function(f, label, tracer) {
+          trace: function(label, f, tracer) {
             var r;
+            label || (label = f.name);
             r = function() {
               var a;
               a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-              tracer("" + (this.name || $.type(this)) + "." + (label || f.name) + "(", a, ")");
+              tracer("" + (this.name || $.type(this)) + "." + label + "(" + ($(a).map($.toRepr).join(',')) + ")");
               return f.apply(this, a);
             };
-            tracer("Trace: " + (label || f.name) + " created.");
-            r.toString = f.toString;
+            r.toString = function() {
+              return "{Trace '" + label + "' of " + (f.toString());
+            };
             return r;
           }
         }
       });
       return {
         $: {
-          trace: function(o, label, tracer) {
-            if (tracer == null) {
-              tracer = $.log;
+          trace: function(label, o, tracer) {
+            var _ref1;
+            if (!$.is("string", label)) {
+              _ref1 = [o, label], tracer = _ref1[0], o = _ref1[1];
             }
-            return $.type.lookup(o).trace(o, label, tracer);
+            tracer || (tracer = $.log);
+            label || (label = "");
+            return $.type.lookup(o).trace(label, o, tracer);
           }
         }
       };
@@ -3771,7 +3791,7 @@
           assertArrayEqual: function(a, b, label) {
             var i, _i, _ref1, _results;
             _results = [];
-            for (i = _i = 0, _ref1 = a.length; 0 <= _ref1 ? _i < _ref1 : _i > _ref1; i = 0 <= _ref1 ? ++_i : --_i) {
+            for (i = _i = 0, _ref1 = a.length; _i < _ref1; i = _i += 1) {
               try {
                 _results.push($.assertEqual(a[i], b[i], label));
               } catch (err) {

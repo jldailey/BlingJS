@@ -16,6 +16,7 @@
 log = (a...) ->
 	try return console.log.apply console, a
 	alert a.join(", ")
+	return a[a.length-1]
 
 # A shim for `Object.keys`.
 Object.keys ?= (o) -> (k for k of o)
@@ -298,7 +299,7 @@ class Bling
 			(if (typeof n) is "string" then n.split /, */ else n)
 			.filter (x) -> not (x of dep.done)
 
-	# Example: `$.depends "tag", -> console.log "hello"`
+	# Example: `$.depends "tag", -> $.log "hello"`
 	# This example will not log "hello" until `provide("tag")` is
 	# called.
 	@depends: (needs, f) ->
@@ -509,7 +510,7 @@ do ($ = Bling) ->
 	# etc.
 	$.plugin
 		provides: "core"
-		depends: "type"
+		depends: "string"
 	, ->
 
 		defineProperty $, "now",
@@ -520,9 +521,13 @@ do ($ = Bling) ->
 			i += o.length while i < 0
 			Math.min i, o.length
 
+		baseTime = $.now
 		return {
 			$:
-				log: log
+				log: $.extend((a...) ->
+					prefix = $.padLeft String($.now - baseTime), $.log.prefixSize, '0'
+					log((if prefix.length > $.log.prefixSize then "#{baseTime = $.now}:" else "+#{prefix}:"), a...)
+				, prefixSize: 5)
 				assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 				coalesce: (a...) -> $(a).coalesce()
 
@@ -820,6 +825,8 @@ do ($ = Bling) ->
 				repr:   (s) -> "'#{s}'"
 			array:  { string: (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
 			object: { string: (o) -> "{" + ("#{k}:#{$.toString(v)}" for k,v of o).join(", ") + "}" }
+			function:
+				string: (f) -> f.toString().replace(/^([^{]*){(?:.|\n|\r)*}$/, '$1{ ... }')
 			number:
 				repr:   (n) -> String(n)
 				string: (n) ->
@@ -987,7 +994,7 @@ do ($ = Bling) ->
 	, ->
 		$.type.extend
 			unknown: { hash: (o) -> $.checksum $.toString o }
-			object:  { hash: (o) -> ($.hash(o[k]) for k of o) + $.hash Object.keys o }
+			object:  { hash: (o) -> $($.hash(o[k]) for k of o).sum() + $.hash Object.keys o }
 			array:   { hash: (o) ->
 				$.hash(Array) + $($.hash(i) for i in o).reduce (a,x) -> (a*a)+x }
 			bool:    { hash: (o) -> parseInt(1 if o) }

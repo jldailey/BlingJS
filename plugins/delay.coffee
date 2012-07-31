@@ -21,14 +21,14 @@
 					next = (a) -> -> a.shift()() if a.length
 					add: (f, n) ->
 						f.order = n + $.now
-						for i in [0..@length]
+						for i in [0..@length] by 1
 							if i is @length or @[i].order > f.order
 								@splice i,0,f
 								break
 						setTimeout next(@), n
 						@
 					cancel: (f) ->
-						for i in [0...@length]
+						for i in [0...@length] by 1
 							if @[i] == f
 								@splice i, 1
 								break
@@ -47,6 +47,7 @@
 
 		# Continue with _f_ after _n_ milliseconds.
 		delay: (n, f, c=@) ->
-			inherit @, $.delay n, $.bound(c, f)
+			$.delay n, $.bound(c, f)
+			@
 
 )(Bling)

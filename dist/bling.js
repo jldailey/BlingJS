@@ -948,6 +948,22 @@
       provides: "math",
       depends: "core"
     }, function() {
+      $.type.extend({
+        bool: {
+          number: function(o) {
+            if (o) {
+              return 1;
+            } else {
+              return 0;
+            }
+          }
+        },
+        number: {
+          bool: function(o) {
+            return !!o;
+          }
+        }
+      });
       return {
         $: {
           range: function(start, end, step) {
@@ -1078,6 +1094,9 @@
           },
           repr: function(o) {
             return $.type.lookup(o).string(o);
+          },
+          number: function(o) {
+            return parseFloat(String(o));
           }
         },
         "null": {
@@ -1092,7 +1111,6 @@
         },
         string: {
           number: parseFloat,
-          string: $.identity,
           repr: function(s) {
             return "'" + s + "'";
           }
@@ -1368,18 +1386,11 @@
           memoize: function(f) {
             var cache;
             cache = {};
-            return extend((function() {
+            return function() {
               var a, _name, _ref1;
               a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
               return (_ref1 = cache[_name = $.hash(a)]) != null ? _ref1 : cache[_name] = f.apply(this, a);
-            }), {
-              stats: function() {
-                return Object.keys(cache).length;
-              },
-              cache: function() {
-                return cache;
-              }
-            });
+            };
           }
         }
       };
@@ -1410,7 +1421,7 @@
         array: {
           hash: function(o) {
             var i;
-            return $.hash(Array) + ((function() {
+            return $.hash(Array) + $((function() {
               var _i, _len, _results;
               _results = [];
               for (_i = 0, _len = o.length; _i < _len; _i++) {
@@ -3060,8 +3071,21 @@
     }, function() {
       var SynthMachine;
       SynthMachine = (function(_super) {
+        var basic;
 
         __extends(SynthMachine, _super);
+
+        basic = {
+          "#": SynthMachine.GO(2),
+          ".": SynthMachine.GO(3),
+          "[": SynthMachine.GO(4),
+          '"': SynthMachine.GO(6),
+          "'": SynthMachine.GO(7),
+          " ": SynthMachine.GO(8),
+          ",": SynthMachine.GO(10),
+          "+": SynthMachine.GO(11),
+          eof: SynthMachine.GO(13)
+        };
 
         SynthMachine.STATE_TABLE = [
           {
@@ -3070,46 +3094,24 @@
               this.attrs = {};
               return this.GO(1);
             }
-          }, {
-            '"': SynthMachine.GO(6),
-            "'": SynthMachine.GO(7),
-            "#": SynthMachine.GO(2),
-            ".": SynthMachine.GO(3),
-            "[": SynthMachine.GO(4),
-            " ": SynthMachine.GO(9),
-            "+": SynthMachine.GO(11),
-            ",": SynthMachine.GO(10),
+          }, $.extend({
             def: function(c) {
               return this.tag += c;
-            },
-            eof: SynthMachine.GO(13)
-          }, {
-            ".": SynthMachine.GO(3),
-            "[": SynthMachine.GO(4),
-            " ": SynthMachine.GO(9),
-            "+": SynthMachine.GO(11),
-            ",": SynthMachine.GO(10),
+            }
+          }, basic), $.extend({
             def: function(c) {
               return this.id += c;
-            },
-            eof: SynthMachine.GO(13)
-          }, {
+            }
+          }, basic), $.extend({
             enter: function() {
               if (this.cls.length > 0) {
                 return this.cls += " ";
               }
             },
-            "#": SynthMachine.GO(2),
-            ".": SynthMachine.GO(3),
-            "[": SynthMachine.GO(4),
-            " ": SynthMachine.GO(9),
-            "+": SynthMachine.GO(11),
-            ",": SynthMachine.GO(10),
             def: function(c) {
               return this.cls += c;
-            },
-            eof: SynthMachine.GO(13)
-          }, {
+            }
+          }, basic), {
             "=": SynthMachine.GO(5),
             "]": function() {
               this.attrs[this.attr] = this.val;
@@ -3142,37 +3144,37 @@
             eof: SynthMachine.GO(12)
           }, {
             enter: function() {
-              this.emitText();
+              if (this.tag) {
+                this.emitNode();
+              }
+              if (this.text) {
+                this.emitText();
+              }
               return this.GO(0);
             }
-          }, {
+          }, {}, {
             enter: function() {
               this.emitNode();
-              return this.GO(0);
-            }
-          }, {
-            enter: function() {
-              this.emitNode();
-              this.parent = null;
+              this.cursor = null;
               return this.GO(0);
             }
           }, {
             enter: function() {
               var _ref1;
               this.emitNode();
-              this.parent = (_ref1 = this.parent) != null ? _ref1.parentNode : void 0;
+              this.cursor = (_ref1 = this.cursor) != null ? _ref1.parentNode : void 0;
               return this.GO(0);
             }
           }, {
             enter: function() {
-              return $.log("Error in synth expression: " + this.input);
+              throw new Error("Error in synth expression: " + this.input);
             }
           }, {
             enter: function() {
-              if (this.tag.length) {
+              if (this.tag) {
                 this.emitNode();
               }
-              if (this.text.length) {
+              if (this.text) {
                 return this.emitText();
               }
             }
@@ -3181,23 +3183,25 @@
 
         function SynthMachine() {
           SynthMachine.__super__.constructor.call(this, SynthMachine.STATE_TABLE);
-          this.fragment = this.parent = document.createDocumentFragment();
+          this.fragment = this.cursor = document.createDocumentFragment();
         }
 
         SynthMachine.prototype.emitNode = function() {
           var k, node;
-          node = document.createElement(this.tag);
-          node.id = this.id || null;
-          node.className = this.cls || null;
-          for (k in this.attrs) {
-            node.setAttribute(k, this.attrs[k]);
+          if (this.tag) {
+            node = document.createElement(this.tag);
+            node.id = this.id || null;
+            node.className = this.cls || null;
+            for (k in this.attrs) {
+              node.setAttribute(k, this.attrs[k]);
+            }
+            this.cursor.appendChild(node);
+            return this.cursor = node;
           }
-          this.parent.appendChild(node);
-          return this.parent = node;
         };
 
         SynthMachine.prototype.emitText = function() {
-          this.parent.appendChild($.type.lookup("<html>").node(this.text));
+          this.cursor.appendChild($.type.lookup("<html>").node(this.text));
           return this.text = "";
         };
 

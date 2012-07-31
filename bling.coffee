@@ -754,6 +754,10 @@ do ($ = Bling) ->
 		provides: "math"
 		depends: "core"
 	, ->
+		$.type.extend
+			bool: { number: (o) -> if o then 1 else 0 }
+			number: { bool: (o) -> not not o }
+
 		$:
 			# Get an array of sequential numbers.
 			range: (start, end, step = 1) ->
@@ -806,13 +810,13 @@ do ($ = Bling) ->
 			unknown:
 				string: (o) -> o.toString?() ? String(o)
 				repr: (o) -> $.type.lookup(o).string(o)
+				number: (o) -> parseFloat String o
 			# Now, for each basic type, provide a basic `string` function.
 			# Later, more complex types will be added by plugins.
 			null: { string: -> "null" }
 			undefined: { string: -> "undefined" }
 			string:
 				number: parseFloat
-				string: $.identity
 				repr:   (s) -> "'#{s}'"
 			array:  { string: (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
 			object: { string: (o) -> "{" + ("#{k}:#{$.toString(v)}" for k,v of o).join(", ") + "}" }
@@ -972,9 +976,7 @@ do ($ = Bling) ->
 			# __$.memoize(f)__ returns a new function that caches function calls to f, based on hashing the arguments.
 			memoize: (f) ->
 				cache = {}
-				extend ((a...) -> cache[$.hash a] ?= f.apply @, a), # BUG: skips cache if f returns null on purpose
-					stats: -> Object.keys(cache).length
-					cache: -> cache
+				(a...) -> cache[$.hash a] ?= f.apply @, a # BUG: skips cache if f returns null on purpose
 
 	# Hash plugin
 	# -----------
@@ -984,10 +986,10 @@ do ($ = Bling) ->
 		depends: "type"
 	, ->
 		$.type.extend
-			unknown: { hash: (o) -> $.checksum $.toString(o) }
-			object:  { hash: (o) -> ($.hash(o[k]) for k of o) + $.hash(Object.keys(o)) }
+			unknown: { hash: (o) -> $.checksum $.toString o }
+			object:  { hash: (o) -> ($.hash(o[k]) for k of o) + $.hash Object.keys o }
 			array:   { hash: (o) ->
-				$.hash(Array) + ($.hash(i) for i in o).reduce (a,x) -> (a*a)+x }
+				$.hash(Array) + $($.hash(i) for i in o).reduce (a,x) -> (a*a)+x }
 			bool:    { hash: (o) -> parseInt(1 if o) }
 		return {
 			$:

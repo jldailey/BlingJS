@@ -52,7 +52,7 @@ $.testGroup "Type",
 		$.assert b.length is 3, "length is preserved"
 		$.assert not b.zap, "has shed bling"
 	as1: ->
-		$.log $.as "number", "1234"
+		$.assert ($.as "number", "1234") is 1234
 
 $.testGroup "Function",
 	identity1: -> $.assertEqual $.type($.identity), "function"
@@ -443,12 +443,10 @@ $.testGroup "Date",
 
 $.testGroup "TNET",
 	basic: ->
-		obj = $.TNET.parse $.TNET.stringify a:1,b:[2,3]
+		obj = $.TNET.parse $.TNET.stringify a:1,b:[2,"3"]
 		$.assert obj.a is 1, "1"
 		$.assert obj.b[0] is 2, "2"
-		$.assert obj.b[1] is 3, "3"
-	basic2: ->
-		a = $()
+		$.assert obj.b[1] is "3", "3"
 
 $.testGroup "StateMachine",
 	hello: ->
@@ -457,11 +455,11 @@ $.testGroup "StateMachine",
 				{ # 0
 					enter: ->
 						@output = "<"
-						@GO(1)
+						@GO 1
 				}
 				{ # 1
 					def: (c) -> @output += c.toUpperCase()
-					eof: @GO(2)
+					eof: @GO 2
 				}
 				{ # 2
 					enter: -> @output += ">"
@@ -470,16 +468,16 @@ $.testGroup "StateMachine",
 			constructor: ->
 				super(TestMachine.STATE_TABLE)
 				@output = ""
-		m = new TestMachine()
-		$.assertEqual(m.run("hello").output, "<HELLO>")
-		$.assertEqual(m.run("hi").output, "<HI>")
+		m = new TestMachine
+		$.assertEqual m.run("hello").output, "<HELLO>"
+		$.assertEqual m.run("hi").output, "<HI>"
 
 $.testGroup "Synth",
 	basic_node: -> $.assertEqual $.synth("style").toString(), "$([<style/>])"
 	id_node: -> $.assertEqual $.synth('style#specialId').toString(), '$([<style id="specialId"/>])'
 	class_node: -> $.assertEqual $.synth('style.specClass').toString(), '$([<style class="specClass"/>])'
 	attr_node: -> $.assertEqual $.synth('style[foo=bar]').toString(), '$([<style foo="bar"/>])'
-	combo_node: -> $.assertEqual $.synth("style[a=b].c#d").toString(), '$([<style id="d" class="c" a="b"/>])'
+	combo_node: -> $.assertEqual $.synth("style[ab=bc].cd#de").toString(), '$([<style id="de" class="cd" ab="bc"/>])'
 	text: -> $.assertEqual $.synth("style 'text'").toString(), "$([<style>text</style>])"
 	entity1: -> $.assertEqual $.synth("style 'text&amp;stuff'").toString(), "$([<style>text&amp;stuff</style>])"
 	entity2: -> $.assertEqual $.synth("style 'text&stuff'").toString(), "$([<style>text&stuff</style>])"
@@ -494,7 +492,7 @@ $.testGroup "Delay",
 					callback err
 		$.delay 1000, ferry_errors callback, ->
 			delta = Math.abs(($.now - t) - 1000)
-			$.assert delta < 5, "delta too large: #{delta}"
+			$.assert delta < 15, "delta too large: #{delta}"
 			callback false
 
 $.testGroup "Config",

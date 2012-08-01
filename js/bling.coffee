@@ -1,6 +1,7 @@
 log = (a...) ->
 	try return console.log.apply console, a
 	alert a.join(", ")
+	return a[a.length-1]
 Object.keys ?= (o) -> (k for k of o)
 extend = (a, b) ->
 	return a if not b
@@ -22,10 +23,12 @@ isType = (T, o) ->
 		isType T, o.__proto__ # recursive
 inherit = (parent, obj) ->
 	if typeof parent is "function"
-		parent = parent:: # so that the obj instance will inherit all of the prototype (but _not a copy_ of it).
+		parent = parent.prototype
+	if parent.__proto__ is Object.prototype
+		parent.__proto__ = obj.__proto__
 	obj.__proto__ = parent
 	obj
-_type = (->
+_type = do ->
 	cache = {}
 	base =
 		name: 'unknown'
@@ -34,6 +37,7 @@ _type = (->
 	register = (name, data) ->
 		order.unshift name if not (name of cache)
 		cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
+		cache[name][name] = (o) -> o
 	_extend = (name, data) ->
 		if typeof name is "string"
 			cache[name] ?= register name, {}
@@ -61,10 +65,10 @@ _type = (->
 		lookup: lookup
 		extend: _extend
 		is: (t, o) -> cache[t]?.match.call o, o
-)()
-class Bling
+		as: (t, o) -> lookup(o)[t]?(o)
+_pipe = do ->
 	pipes = {}
-	@pipe: (name, args) ->
+	(name, args) ->
 		p = (pipes[name] or= [])
 		if not args
 			return {
@@ -74,15 +78,17 @@ class Bling
 		for func in p
 			args = func.call @, args
 		args
+class Bling
+	default_context = if document? then document else {}
+	constructor: (selector, context = default_context) ->
+		return Bling.pipe "bling-init", [selector, context]
+	@pipe: _pipe
 	@pipe("bling-init").prepend (args) ->
 		[selector, context] = args
 		inherit Bling, inherit {
 			selector: selector
 			context: context
 		}, _type.lookup(selector).array(selector, context)
-	default_context = if document? then document else {}
-	constructor: (selector, context = default_context) ->
-		return Bling.pipe("bling-init", [selector, context])
 	@plugin: (opts, constructor) ->
 		if not constructor?
 			constructor = opts; opts = {}
@@ -101,26 +107,30 @@ class Bling
 			log "failed to load plugin: #{@name} '#{error.message}'"
 			throw error
 		@
-	qu = []
-	done = {}
-	filt = (n) ->
-		(if (typeof n) is "string" then n.split /, */ else n)
-		.filter (x) -> not (x of done)
+	dep = # private stuff for depends/provides system.
+		q: []
+		done: {}
+		filter: (n) ->
+			(if (typeof n) is "string" then n.split /, */ else n)
+			.filter (x) -> not (x of dep.done)
 	@depends: (needs, f) ->
-		if (needs = filt(needs)).length is 0 then f()
-		else qu.push (need) ->
-			((needs.splice i, 1) if ( i = needs.indexOf need ) > -1) and
-			needs.length is 0 and
-			f
+		if (needs = dep.filter needs).length is 0 then f()
+		else dep.q.push (need) ->
+			(needs.splice i, 1) if (i = needs.indexOf need) > -1
+			return (needs.length is 0 and f)
 		f
-	@provide: (needs) ->
-		for need in filt(needs)
-			done[need] = i = 0
-			while i < qu.length
-				if (f = qu[i](need)) then (qu.splice i,1; f())
+	@provide: (needs, data) ->
+		for need in dep.filter needs
+			dep.done[need] = i = 0
+			while i < dep.q.length
+				if (f = dep.q[i] need)
+					dep.q.splice i,1
+					f data
 				else i++
-		null
-	@provides: (needs, f) -> (a...) -> r=f(a...); Bling.provide(needs); r
+		data
+	@provides: (needs, f) ->
+		(args...) ->
+			Bling.provide needs, f args...
 	_type.extend
 		unknown:   { array: (o) -> [o] }
 		null:      { array: (o) -> [] }
@@ -130,12 +140,13 @@ class Bling
 	_type.register "bling",
 		match:  (o) -> o and isType Bling, o
 		array:  (o) -> o.toArray()
-		hash:   (o) -> o.map(Bling.hash).sum()
+		hash:   (o) ->
+			o.map(Bling.hash).reduce (a,x) -> (a*a)+x
 		string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
 		repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 Bling.prototype = []
 Bling.prototype.constructor = Bling
-(($) ->
+do ($ = Bling) ->
 	$.global = glob = if window? then window else global
 	$.plugin
 		provides: "type"
@@ -147,6 +158,7 @@ Bling.prototype.constructor = Bling
 			isType: isType
 			type: _type
 			is: _type.is
+			as: _type.as
 			isSimple: (o) -> _type(o) in ["string", "number", "bool"]
 			isEmpty: (o) -> o in ["", null, undefined]
 	$.plugin
@@ -155,11 +167,9 @@ Bling.prototype.constructor = Bling
 	, ->
 		symbol = null
 		cache = {}
-		glob.Bling = $
+		glob.Bling = Bling
 		if module?
-			module.exports =
-				$: Bling
-				Bling: Bling
+			module.exports = Bling
 		$.type.extend "bling",
 			string: (o) -> symbol + "(["+ o.map($.toString).join(", ") + "])"
 		defineProperty $, "symbol",
@@ -168,7 +178,11 @@ Bling.prototype.constructor = Bling
 				cache[symbol = v] = glob[v]
 				glob[v] = Bling
 			get: -> symbol
-		return $: symbol: "$"
+		return $:
+			symbol: "$"
+			noConflict: ->
+				Bling.symbol = "Bling"
+				return Bling
 	$.plugin ->
 		String::trimLeft or= -> @replace(/^\s+/, "")
 		String::split or= (sep) ->
@@ -208,16 +222,20 @@ Bling.prototype.constructor = Bling
 		return { }
 	$.plugin
 		provides: "core"
-		depends: "type"
+		depends: "string"
 	, ->
 		defineProperty $, "now",
 			get: -> +new Date
 		index = (i, o) ->
 			i += o.length while i < 0
 			Math.min i, o.length
+		baseTime = $.now
 		return {
 			$:
-				log: log
+				log: $.extend((a...) ->
+					prefix = $.padLeft String($.now - baseTime), $.log.prefixSize, '0'
+					log((if prefix.length > $.log.prefixSize then "#{baseTime = $.now}:" else "+#{prefix}:"), a...)
+				, prefixSize: 5)
 				assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 				coalesce: (a...) -> $(a).coalesce()
 			eq: (i) -> $([@[index i, @]])
@@ -235,8 +253,8 @@ Bling.prototype.constructor = Bling
 				ret
 			distinct: (strict = true) -> @union @, strict
 			intersect: (other) -> $(x for x in @ when x in other) # another very beatiful expression
-			contains: (item, strict = true) -> ((strict and t is item) or (not strict and t == item) for t in @).reduce ((a,x) -> a or x), false
-			count: (item, strict = true) -> $(1 for t in @ when (item is undefined) or (strict and t is item) or (not strict and t == item)).sum()
+			contains: (item, strict = true) -> ((strict and t is item) or (not strict and `t == item`) for t in @).reduce ((a,x) -> a or x), false
+			count: (item, strict = true) -> $(1 for t in @ when (item is undefined) or (strict and t is item) or (not strict and `t == item`)).sum()
 			coalesce: ->
 				for i in @
 					if $.type(i) in ["array","bling"] then i = $(i).coalesce()
@@ -294,7 +312,7 @@ Bling.prototype.constructor = Bling
 					when "function" then f
 					else
 						throw new Error("unsupported type passed to filter: #{$.type(f)}")
-				$( Array::filter.call @, g )
+				$( it for it in @ when g.call(it,it) )
 			matches: (expr) -> @select('matchesSelector').call(expr)
 			querySelectorAll: (expr) ->
 				@filter("*")
@@ -335,6 +353,9 @@ Bling.prototype.constructor = Bling
 		provides: "math"
 		depends: "core"
 	, ->
+		$.type.extend
+			bool: { number: (o) -> if o then 1 else 0 }
+			number: { bool: (o) -> not not o }
 		$:
 			range: (start, end, step = 1) ->
 				if not end? then (end = start; start = 0)
@@ -349,7 +370,7 @@ Bling.prototype.constructor = Bling
 		max: -> @filter( isFinite ).reduce Math.max
 		mean: -> @sum() / @length
 		avg: -> @sum() / @length
-		sum: -> @filter( isFinite ).reduce (a) -> a + @
+		sum: -> @filter( isFinite ).reduce(((a) -> a + @), 0)
 		product: -> @filter( isFinite ).reduce (a) -> a * @
 		squares: -> @map -> @ * @
 		magnitude: -> Math.sqrt @floats().squares().sum()
@@ -366,13 +387,16 @@ Bling.prototype.constructor = Bling
 			unknown:
 				string: (o) -> o.toString?() ? String(o)
 				repr: (o) -> $.type.lookup(o).string(o)
+				number: (o) -> parseFloat String o
 			null: { string: -> "null" }
 			undefined: { string: -> "undefined" }
 			string:
-				string: $.identity
+				number: parseFloat
 				repr:   (s) -> "'#{s}'"
 			array:  { string: (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
 			object: { string: (o) -> "{" + ("#{k}:#{$.toString(v)}" for k,v of o).join(", ") + "}" }
+			function:
+				string: (f) -> f.toString().replace(/^([^{]*){(?:.|\n|\r)*}$/, '$1{ ... }')
 			number:
 				repr:   (n) -> String(n)
 				string: (n) ->
@@ -472,20 +496,21 @@ Bling.prototype.constructor = Bling
 				$.extend r, { toString: -> "bound-method of #{t}.#{f.name}" }
 			memoize: (f) ->
 				cache = {}
-				(a...) -> cache[$.hash(a)] ?= f.apply @, a # BUG: skips cache if f returns null on purpose
+				(a...) -> cache[$.hash a] ?= f.apply @, a # BUG: skips cache if f returns null on purpose
 	$.plugin
 		provides: "hash"
 		depends: "type"
 	, ->
 		$.type.extend
-			unknown: { hash: (o) -> $.checksum $.toString(o) }
-			object:  { hash: (o) -> ($.hash(o[k]) for k of o) + $.hash(Object.keys(o)) }
-			array:   { hash: (o) -> ($.hash(i) for i in x).reduce (a,x) -> a+x }
+			unknown: { hash: (o) -> $.checksum $.toString o }
+			object:  { hash: (o) -> $($.hash(o[k]) for k of o).sum() + $.hash Object.keys o }
+			array:   { hash: (o) ->
+				$.hash(Array) + $($.hash(i) for i in o).reduce (a,x) -> (a*a)+x }
 			bool:    { hash: (o) -> parseInt(1 if o) }
 		return {
 			$:
 				hash: (x) -> $.type.lookup(x).hash(x)
-			hash: () -> $.hash @
+			hash: -> $.hash @
 		}
 	$.plugin
 		provides: "pubsub"
@@ -533,7 +558,7 @@ Bling.prototype.constructor = Bling
 		$: EventEmitter: $.pipe("bling-init").append (obj) ->
 			listeners = {}
 			list = (e) -> (listeners[e] or= [])
-			obj.__proto__ = {
+			inherit {
 				emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
 				addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
 				on:                 (e, h) -> @addListener e, h
@@ -541,10 +566,7 @@ Bling.prototype.constructor = Bling
 				removeAllListeners: (e) -> listeners[e] = []
 				setMaxListeners:    (n) -> # who really needs this in the core API?
 				listeners:          (e) -> list(e).slice 0
-				__proto__: obj.__proto__
-			}
-			obj
-)(Bling, @)
+			}, obj
 (($) ->
 	$.plugin
 		provides: "cartesian"
@@ -565,7 +587,8 @@ Bling.prototype.constructor = Bling
 	$.plugin
 		provides: 'config'
 	, ->
-		$: config: get: (name, def) -> process.env[name] ? def
+		get = (name, def) -> process.env[name] ? def
+		$: config: $.extend(get, get: get)
 )(Bling)
 (($) ->
 	$.plugin
@@ -674,14 +697,14 @@ Bling.prototype.constructor = Bling
 					next = (a) -> -> a.shift()() if a.length
 					add: (f, n) ->
 						f.order = n + $.now
-						for i in [0..@length]
+						for i in [0..@length] by 1
 							if i is @length or @[i].order > f.order
 								@splice i,0,f
 								break
 						setTimeout next(@), n
 						@
 					cancel: (f) ->
-						for i in [0...@length]
+						for i in [0...@length] by 1
 							if @[i] == f
 								@splice i, 1
 								break
@@ -692,7 +715,8 @@ Bling.prototype.constructor = Bling
 					cancel: -> timeoutQueue.cancel(f)
 			)()
 		delay: (n, f, c=@) ->
-			inherit @, $.delay n, $.bound(c, f)
+			$.delay n, $.bound(c, f)
+			@
 )(Bling)
 (($) ->
 	if $.global.document?
@@ -1272,6 +1296,7 @@ Bling.prototype.constructor = Bling
 	, ->
 		$: StateMachine: class StateMachine
 			constructor: (stateTable) ->
+				@debug = false
 				@reset()
 				@table = stateTable
 				Object.defineProperty @, "modeline",
@@ -1318,6 +1343,16 @@ Bling.prototype.constructor = Bling
 		depends: "StateMachine"
 	, ->
 		class SynthMachine extends $.StateMachine
+			basic =
+				"#": @GO 2
+				".": @GO 3
+				"[": @GO 4
+				'"': @GO 6
+				"'": @GO 7
+				" ": @GO 8
+				",": @GO 10
+				"+": @GO 11
+				eof: @GO 13
 			@STATE_TABLE = [
 				{ # 0: START
 					enter: ->
@@ -1325,22 +1360,16 @@ Bling.prototype.constructor = Bling
 						@attrs = {}
 						@GO 1
 				},
-				{ # 1: read a tag name
-					'"': @GO(6), "'": @GO(7), "#": @GO(2), ".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
+				$.extend({ # 1: read a tag name
 					def: (c) -> @tag += c
-					eof: @GO 13
-				},
-				{ # 2: read an #id
-					".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
+				}, basic),
+				$.extend({ # 2: read an #id
 					def: (c) -> @id += c
-					eof: @GO 13
-				},
-				{ # 3: read a .class name
+				}, basic),
+				$.extend({ # 3: read a .class name
 					enter: -> @cls += " " if @cls.length > 0
-					"#": @GO(2), ".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
 					def: (c) -> @cls += c
-					eof: @GO 13
-				},
+				}, basic),
 				{ # 4: read an attribute name (left-side)
 					"=": @GO 5
 					"]": -> @attrs[@attr] = @val; @GO 1
@@ -1352,60 +1381,58 @@ Bling.prototype.constructor = Bling
 					def: (c) -> @val += c
 					eof: @GO 12
 				},
-				{ # 6: read d-quoted text
+				{ # 6: read double-quoted text
 					'"': @GO 8
 					def: (c) -> @text += c
 					eof: @GO 12
 				},
-				{ # 7: read s-quoted text
+				{ # 7: read single-quoted text
 					"'": @GO 8
 					def: (c) -> @text += c
 					eof: @GO 12
 				},
 				{ # 8: emit text and continue
 					enter: ->
-						@emitText()
+						@emitNode() if @tag
+						@emitText() if @text
 						@GO 0
 				},
-				{ # 9: emit node and descend
-					enter: ->
-						@emitNode()
-						@GO 0
-				},
+				{}, # 9: empty
 				{ # 10: emit node and start a new tree
 					enter: ->
 						@emitNode()
-						@parent = null
+						@cursor = null
 						@GO 0
 				},
 				{ # 11: emit node and step sideways to create a sibling
 					enter: ->
 						@emitNode()
-						@parent = @parent?.parentNode
+						@cursor = @cursor?.parentNode
 						@GO 0
 				},
 				{ # 12: ERROR
-					enter: -> $.log "Error in synth expression: #{@input}"
+					enter: -> throw new Error "Error in synth expression: #{@input}"
 				},
 				{ # 13: FINALIZE
 					enter: ->
-						@emitNode() if @tag.length
-						@emitText() if @text.length
+						@emitNode() if @tag
+						@emitText() if @text
 				}
 			]
 			constructor: ->
 				super(SynthMachine.STATE_TABLE)
-				@fragment = @parent = document.createDocumentFragment()
+				@fragment = @cursor = document.createDocumentFragment()
 			emitNode: ->
-				node = document.createElement(@tag)
-				node.id = @id or null
-				node.className = @cls or null
-				for k of @attrs
-					node.setAttribute k, @attrs[k]
-				@parent.appendChild node
-				@parent = node
+				if @tag
+					node = document.createElement @tag
+					node.id = @id or null
+					node.className = @cls or null
+					for k of @attrs
+						node.setAttribute k, @attrs[k]
+					@cursor.appendChild node
+					@cursor = node
 			emitText: ->
-				@parent.appendChild $.HTML.parse(@text)
+				@cursor.appendChild $.type.lookup("<html>").node(@text)
 				@text = ""
 		return {
 			$:
@@ -1583,17 +1610,22 @@ Bling.prototype.constructor = Bling
 	, ->
 		$.type.extend
 			unknown: { trace: $.identity }
-			object:  { trace: (o, label, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
-			array:   { trace: (o, label, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length] by 1); o }
+			object:  { trace: (label, o, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
+			array:   { trace: (label, o, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length] by 1); o }
 			function:
-				trace: (f, label, tracer) ->
+				trace: (label, f, tracer) ->
+					label or= f.name
 					r = (a...) ->
-						tracer "#{@name or $.type(@)}.#{label or f.name}(", a, ")"
+						tracer "#{@name or $.type(@)}.#{label}(#{$(a).map($.toRepr).join ','})"
 						f.apply @, a
-					tracer "Trace: #{label or f.name} created."
-					r.toString = f.toString
+					r.toString = -> "{Trace '#{label}' of #{f.toString()}"
 					r
-		return $: trace: (o, label, tracer = $.log) -> $.type.lookup(o).trace(o, label, tracer)
+		return $: trace: (label, o, tracer) ->
+			if not $.is "string", label
+				[tracer, o] = [o, label]
+			tracer or= $.log
+			label or= ""
+			$.type.lookup(o).trace(label, o, tracer)
 )(Bling)
 (($) ->
 	$.plugin
@@ -1717,7 +1749,7 @@ Bling.prototype.constructor = Bling
 (($) ->
 	$.plugin
 		provides: "unittest"
-		depends: "core"
+		depends: "core,function"
 	, ->
 		testCount = passCount = failCount = 0
 		failed = []
@@ -1749,10 +1781,10 @@ Bling.prototype.constructor = Bling
 			approx: (a, b, margin=.1) -> Math.abs(a - b) < margin
 			assert: (cnd, msg = "no message") -> if not cnd then throw new Error "Assertion failed: #{msg}"
 			assertEqual: (a, b, label) ->
-				if a != b
+				if a isnt b
 					throw Error "#{label or ''} (#{a?.toString()}) should equal (#{b?.toString()})"
 			assertArrayEqual: (a, b, label) ->
-				for i in [0...a.length]
+				for i in [0...a.length] by 1
 					try
 						$.assertEqual(a[i], b[i], label)
 					catch err

@@ -497,3 +497,10 @@ $.testGroup "Delay",
 			$.assert delta < 5, "delta too large: #{delta}"
 			callback false
 
+$.testGroup "Config",
+	hasDefault: ->
+		$.assertEqual $.config.get("does-not-exist","default"), "default"
+	canCall: ->
+		$.assertEqual $.config("foo","default"), $.config.get("foo","default")
+		
+

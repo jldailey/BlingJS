@@ -1,7 +1,7 @@
 {
   "author": "Jesse Dailey <jesse.dailey@gmail.com>",
   "name": "bling",
-  "description": "A kitchen sink in CoffeeScript.",
+  "description": "The kitchen sink library.",
   "version": "0.0.16",
   "homepage": "http://blingjs.com",
 	"main": "./dist/bling.js",

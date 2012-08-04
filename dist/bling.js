@@ -14,7 +14,7 @@
     } catch (err) {
       alert(a.join(", "));
     }
-    return a[a.length - 1];
+    return a[Math.max(0, a.length - 1)];
   };
 
   if ((_ref = Object.keys) == null) {

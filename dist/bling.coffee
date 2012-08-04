@@ -2,7 +2,7 @@ log = (a...) ->
 	try console.log.apply console, a
 	catch err
 		alert a.join(", ")
-	return a[a.length-1]
+	return a[Math.max(0, a.length-1)]
 Object.keys ?= (o) -> (k for k of o)
 extend = (a, b) ->
 	return a if not b

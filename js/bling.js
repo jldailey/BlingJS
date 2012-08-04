@@ -10,10 +10,11 @@
     var a;
     a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
     try {
-      return console.log.apply(console, a);
-    } catch (_error) {}
-    alert(a.join(", "));
-    return a[a.length - 1];
+      console.log.apply(console, a);
+    } catch (err) {
+      alert(a.join(", "));
+    }
+    return a[Math.max(0, a.length - 1)];
   };
 
   if ((_ref = Object.keys) == null) {
@@ -134,7 +135,7 @@
     });
     register("number", {
       match: function() {
-        return isType(Number, this);
+        return (isType(Number, this)) && this !== NaN;
       }
     });
     register("bool", {
@@ -1408,7 +1409,7 @@
         object: {
           hash: function(o) {
             var k;
-            return $((function() {
+            return $.hash(Object) + $((function() {
               var _results;
               _results = [];
               for (k in o) {
@@ -1420,18 +1421,9 @@
         },
         array: {
           hash: function(o) {
-            var i;
-            return $.hash(Array) + $((function() {
-              var _i, _len, _results;
-              _results = [];
-              for (_i = 0, _len = o.length; _i < _len; _i++) {
-                i = o[_i];
-                _results.push($.hash(i));
-              }
-              return _results;
-            })()).reduce(function(a, x) {
-              return (a * a) + x;
-            });
+            return $.hash(Array) + $(o.map($.hash)).reduce(function(a, x) {
+              return (a * a) + (x | 0);
+            }, 1);
           }
         },
         bool: {

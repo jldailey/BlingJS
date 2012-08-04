@@ -1409,7 +1409,7 @@
         object: {
           hash: function(o) {
             var k;
-            return $((function() {
+            return $.hash(Object) + $((function() {
               var _results;
               _results = [];
               for (k in o) {

@@ -504,7 +504,11 @@ do ($ = Bling) ->
 	, ->
 		$.type.extend
 			unknown: { hash: (o) -> $.checksum $.toString o }
-			object:  { hash: (o) -> $($.hash(o[k]) for k of o).sum() + $.hash Object.keys o }
+			object:  { hash: (o) ->
+				$.hash(Object) +
+					$($.hash(o[k]) for k of o).sum() +
+					$.hash Object.keys o
+			}
 			array:   { hash: (o) ->
 				$.hash(Array) + $(o.map $.hash).reduce (a,x) ->
 					(a*a)+(x|0)

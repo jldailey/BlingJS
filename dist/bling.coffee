@@ -1,6 +1,7 @@
 log = (a...) ->
-	try return console.log.apply console, a
-	alert a.join(", ")
+	try console.log.apply console, a
+	catch err
+		alert a.join(", ")
 	return a[a.length-1]
 Object.keys ?= (o) -> (k for k of o)
 extend = (a, b) ->

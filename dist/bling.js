@@ -10,9 +10,10 @@
     var a;
     a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
     try {
-      return console.log.apply(console, a);
-    } catch (_error) {}
-    alert(a.join(", "));
+      console.log.apply(console, a);
+    } catch (err) {
+      alert(a.join(", "));
+    }
     return a[a.length - 1];
   };
 

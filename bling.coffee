@@ -14,8 +14,9 @@
 
 # A safe logger to use for `$.log()`.
 log = (a...) ->
-	try return console.log.apply console, a
-	alert a.join(", ")
+	try console.log.apply console, a
+	catch err
+		alert a.join(", ")
 	return a[a.length-1]
 
 # A shim for `Object.keys`.

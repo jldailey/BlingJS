@@ -54,7 +54,7 @@ _type = do ->
 	register "error",     match: -> isType 'Error', @
 	register "regexp",    match: -> isType 'RegExp', @
 	register "string",    match: -> typeof @ is "string" or isType String, @
-	register "number",    match: -> isType Number, @
+	register "number",    match: -> (isType Number, @) and @ isnt NaN
 	register "bool",      match: -> typeof @ is "boolean" or String(@) in ["true","false"]
 	register "array",     match: -> Array.isArray?(@) or isType Array, @
 	register "function",  match: -> typeof @ is "function"
@@ -506,7 +506,10 @@ do ($ = Bling) ->
 			unknown: { hash: (o) -> $.checksum $.toString o }
 			object:  { hash: (o) -> $($.hash(o[k]) for k of o).sum() + $.hash Object.keys o }
 			array:   { hash: (o) ->
-				$.hash(Array) + $($.hash(i) for i in o).reduce (a,x) -> (a*a)+x }
+				$.hash(Array) + $(o.map $.hash).reduce (a,x) ->
+					(a*a)+(x|0)
+				, 1
+			}
 			bool:    { hash: (o) -> parseInt(1 if o) }
 		return {
 			$:

@@ -179,7 +179,8 @@ $.testGroup "Hash",
 	array:  -> $.assert $.hash("poop") isnt $.hash(["poop"])
 	array_order: -> $.assert $.hash(["a","b"]) isnt $.hash(["b","a"])
 	object: -> $.assert ($.hash a:1) isnt ($.hash a:2)
-	object2: -> $.assert $.is "number", $.hash a:1
+	object2: -> $.assert isFinite $.hash a:1
+	object3: -> $.assert isFinite $.hash {}
 	bling:  -> $.assert ($.hash $)?
 	bling_order: -> $.assert $.hash($(["a","b"])) isnt $.hash($(["b","a"]))
 

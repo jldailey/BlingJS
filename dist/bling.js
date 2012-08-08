@@ -2125,6 +2125,7 @@
               case "null":
                 return this.select('innerHTML');
               case "string":
+              case "html":
                 return this.zap('innerHTML', h);
               case "bling":
                 return this.html(h.toFragment());

@@ -315,7 +315,8 @@ $.testGroup "DOM",
 	escape: -> $.assertEqual $.HTML.escape("<p>"), "&lt;p&gt;"
 	dashName1: -> $.assertEqual $.dashize("fooBar"), "foo-bar"
 	dashName2: -> $.assertEqual $.dashize("FooBar"), "-foo-bar"
-	html: -> $.assertEqual $("tr").html().first(), "<td>1,1</td><td>1,2</td>"
+	html1: -> $.assertEqual $("tr").html().first(), "<td>1,1</td><td>1,2</td>"
+	html2: -> $.assertEqual $("div").html("<span>C</span>").html().first(), "<span>C</span>"
 	append: ->
 		try
 			$.assertEqual($("tr td.d").append("<span>Hi</span>").html().first(), "3,2<span>Hi</span>")

@@ -102,7 +102,7 @@
 				html: (h) ->
 					return switch $.type h
 						when "undefined","null" then @select 'innerHTML'
-						when "string" then @zap 'innerHTML', h
+						when "string","html" then @zap 'innerHTML', h
 						when "bling" then @html h.toFragment()
 						when "node"
 							@each -> # replace all our children with the new child

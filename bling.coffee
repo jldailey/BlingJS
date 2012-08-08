@@ -985,6 +985,12 @@ do ($ = Bling) ->
 			memoize: (f) ->
 				cache = {}
 				(a...) -> cache[$.hash a] ?= f.apply @, a # BUG: skips cache if f returns null on purpose
+			# __$.E(f)__ is an "error thingie". You use it to create a wrapper for standard node style callbacks:
+			#    e = $.E (err) -> $.log err
+			#    f.readFile "foo", e (data) ->
+			E: (callback) -> (f) -> (err, data) ->
+				return f(data) unless err
+				callback err, data
 
 	# Hash plugin
 	# -----------

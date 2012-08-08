@@ -1392,6 +1392,16 @@
               a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
               return (_ref1 = cache[_name = $.hash(a)]) != null ? _ref1 : cache[_name] = f.apply(this, a);
             };
+          },
+          E: function(callback) {
+            return function(f) {
+              return function(err, data) {
+                if (!err) {
+                  return f(data);
+                }
+                return callback(err, data);
+              };
+            };
           }
         }
       };

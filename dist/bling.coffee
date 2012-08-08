@@ -498,6 +498,9 @@ do ($ = Bling) ->
 			memoize: (f) ->
 				cache = {}
 				(a...) -> cache[$.hash a] ?= f.apply @, a # BUG: skips cache if f returns null on purpose
+			E: (callback) -> (f) -> (err, data) ->
+				return f(data) unless err
+				callback err, data
 	$.plugin
 		provides: "hash"
 		depends: "type"

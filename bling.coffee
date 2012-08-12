@@ -12,12 +12,6 @@
 # ---------
 # We need a few things to get started.
 
-# A safe logger to use for `$.log()`.
-log = (a...) ->
-	try console.log.apply console, a
-	catch err
-		alert a.join(", ")
-	return a[Math.max(0, a.length-1)]
 
 # A shim for `Object.keys`.
 Object.keys ?= (o) -> (k for k of o)
@@ -526,8 +520,15 @@ do ($ = Bling) ->
 		return {
 			$:
 				log: $.extend((a...) ->
-					prefix = $.padLeft String($.now - baseTime), $.log.prefixSize, '0'
-					log((if prefix.length > $.log.prefixSize then "#{baseTime = $.now}:" else "+#{prefix}:"), a...)
+					prefix = "+#{$.padLeft String($.now - baseTime), $.log.prefixSize, '0'}:"
+					if prefix.length > $.log.prefixSize + 2
+						prefix = "#{baseTime = $.now}:"
+					if a.length and $.is "string", a[0]
+						a[0] = "#{prefix} #{a[0]}"
+					else
+						a.unshift prefix
+					console.log a...
+					return a[a.length-1] if a.length
 				, prefixSize: 5)
 				assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 				coalesce: (a...) -> $(a).coalesce()

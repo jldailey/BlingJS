@@ -2,6 +2,7 @@ require('./common')
 
 $.testGroup "Object",
 	keys: -> $.assertArrayEqual Object.keys({a: 1, b: 2}), ['a','b']
+	values: -> $.assertArrayEqual Object.values({a:1, b:2}), [1, 2]
 
 $.testGroup "Type",
 	string: -> $.assertEqual $.type(""), "string"

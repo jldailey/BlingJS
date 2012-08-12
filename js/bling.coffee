@@ -1,14 +1,7 @@
-log = (a...) ->
-	try console.log.apply console, a
-	catch err
-		alert a.join(", ")
-	return a[Math.max(0, a.length-1)]
 Object.keys ?= (o) -> (k for k of o)
+Object.values ?= (o) -> (o[k] for k of o)
 extend = (a, b) ->
-	return a if not b
-	for k of b
-		v = b[k]
-		if v? then a[k] = v
+	if b then a[k] = v for k,v of b when v?
 	a
 defineProperty = (o,name,opts) ->
 	Object.defineProperty o,name, extend({
@@ -66,7 +59,7 @@ _type = do ->
 		lookup: lookup
 		extend: _extend
 		is: (t, o) -> cache[t]?.match.call o, o
-		as: (t, o) -> lookup(o)[t]?(o)
+		as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
 _pipe = do ->
 	pipes = {}
 	(name, args) ->
@@ -234,8 +227,15 @@ do ($ = Bling) ->
 		return {
 			$:
 				log: $.extend((a...) ->
-					prefix = $.padLeft String($.now - baseTime), $.log.prefixSize, '0'
-					log((if prefix.length > $.log.prefixSize then "#{baseTime = $.now}:" else "+#{prefix}:"), a...)
+					prefix = "+#{$.padLeft String($.now - baseTime), $.log.prefixSize, '0'}:"
+					if prefix.length > $.log.prefixSize + 2
+						prefix = "#{baseTime = $.now}:"
+					if a.length and $.is "string", a[0]
+						a[0] = "#{prefix} #{a[0]}"
+					else
+						a.unshift prefix
+					console.log a...
+					return a[a.length-1] if a.length
 				, prefixSize: 5)
 				assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 				coalesce: (a...) -> $(a).coalesce()
@@ -498,6 +498,9 @@ do ($ = Bling) ->
 			memoize: (f) ->
 				cache = {}
 				(a...) -> cache[$.hash a] ?= f.apply @, a # BUG: skips cache if f returns null on purpose
+			E: (callback) -> (f) -> (err, data) ->
+				return f(data) unless err
+				callback err, data
 	$.plugin
 		provides: "hash"
 		depends: "type"
@@ -639,6 +642,10 @@ do ($ = Bling) ->
 		$.type.register "date",
 			match: (o) -> $.isType Date, o
 			array: (o) -> [o]
+			string: (o, fmt, unit) -> $.date.format o, fmt, unit
+			number: (o, unit) -> $.date.stamp o, unit
+		$.type.extend 'string', date: (o, fmt = $.date.defaultFormat) -> new Date $.date.parse o, fmt, "ms"
+		$.type.extend 'number', date: (o, unit) -> $.date.unstamp o, unit
 		adder = (key) ->
 			(stamp, delta, stamp_unit = $.date.defaultUnit) ->
 				date = $.date.unstamp(stamp, stamp_unit)
@@ -800,7 +807,7 @@ do ($ = Bling) ->
 				html: (h) ->
 					return switch $.type h
 						when "undefined","null" then @select 'innerHTML'
-						when "string" then @zap 'innerHTML', h
+						when "string","html" then @zap 'innerHTML', h
 						when "bling" then @html h.toFragment()
 						when "node"
 							@each -> # replace all our children with the new child

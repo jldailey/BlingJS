@@ -21,10 +21,7 @@ Object.values ?= (o) -> (o[k] for k of o)
 
 # A way to assign properties from `b` to `a`.
 extend = (a, b) ->
-	return a if not b
-	for k of b
-		v = b[k]
-		if v? then a[k] = v
+	if b then a[k] = v for k,v of b when v?
 	a
 
 # A wrapper for Object.defineProperty that changes the defaults.

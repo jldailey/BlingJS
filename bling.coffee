@@ -146,7 +146,7 @@ _type = do ->
 		lookup: lookup
 		extend: _extend
 		is: (t, o) -> cache[t]?.match.call o, o
-		as: (t, o) -> lookup(o)[t]?(o)
+		as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
 
 	# Example: Calling $.type directly will get you the simple name of the
 	# best match.

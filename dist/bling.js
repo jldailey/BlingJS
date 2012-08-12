@@ -3803,7 +3803,12 @@
         }
       };
       testReport = $.once(function() {
-        return $.log("Passed: " + passCount + " Failed: " + failCount + " [" + failed + "]");
+        $.log("Passed: " + passCount + " Failed: " + failCount + " [" + failed + "]");
+        if (failCount > 0) {
+          try {
+            return process.exit(failCount);
+          } catch (_error) {}
+        }
       });
       return {
         $: {

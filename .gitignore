@@ -12,3 +12,4 @@ dist/*
 js/*
 web.config
 node_modules
+tests/passing

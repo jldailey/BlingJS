@@ -98,8 +98,7 @@ class Bling
 					@[key] or= (a...) => (@::[key].apply $(a[0]), a[1...])
 				if opts.provides? then @provide opts.provides
 		catch error
-			log "failed to load plugin: #{@name} '#{error.message}'"
-			throw error
+			console.log "failed to load plugin: #{@name} #{error.message}: #{error.stack}"
 		@
 	dep = # private stuff for depends/provides system.
 		q: []
@@ -1761,7 +1760,7 @@ do ($ = Bling) ->
 			fadeDown: (speed, callback)  -> @fadeOut speed, callback, 0.0, @height().first()
 		}
 )(Bling)
-(($) ->
+do ($ = Bling) ->
 	$.plugin
 		provides: "unittest"
 		depends: "core,function"
@@ -1792,6 +1791,8 @@ do ($ = Bling) ->
 			catch err then done(err)
 		testReport = $.once ->
 			$.log "Passed: #{passCount} Failed: #{failCount} [#{failed}]"
+			if failCount > 0
+				try process.exit(failCount)
 		$:
 			approx: (a, b, margin=.1) -> Math.abs(a - b) < margin
 			assert: (cnd, msg = "no message") -> if not cnd then throw new Error "Assertion failed: #{msg}"
@@ -1816,4 +1817,3 @@ do ($ = Bling) ->
 				for i in [1...args.length]
 					$.assertEqual a, args[i]
 			return @
-)(Bling)

@@ -271,8 +271,7 @@
           }
         }
       } catch (error) {
-        log("failed to load plugin: " + this.name + " '" + error.message + "'");
-        throw error;
+        console.log("failed to load plugin: " + this.name + " " + error.message + ": " + error.stack);
       }
       return this;
     };

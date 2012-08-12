@@ -278,8 +278,7 @@ class Bling
 				# `$.provides`.
 				if opts.provides? then @provide opts.provides
 		catch error
-			log "failed to load plugin: #{@name} '#{error.message}'"
-			throw error
+			console.log "failed to load plugin: #{@name} #{error.message}: #{error.stack}"
 		@
 
 	# Code dependencies

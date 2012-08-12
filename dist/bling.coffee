@@ -98,8 +98,7 @@ class Bling
 					@[key] or= (a...) => (@::[key].apply $(a[0]), a[1...])
 				if opts.provides? then @provide opts.provides
 		catch error
-			log "failed to load plugin: #{@name} '#{error.message}'"
-			throw error
+			console.log "failed to load plugin: #{@name} #{error.message}: #{error.stack}"
 		@
 	dep = # private stuff for depends/provides system.
 		q: []

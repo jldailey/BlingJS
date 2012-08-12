@@ -16,6 +16,9 @@
 # A shim for `Object.keys`.
 Object.keys ?= (o) -> (k for k of o)
 
+# A shim for `Object.values`.
+Object.values ?= (o) -> (o[k] for k of o)
+
 # A way to assign properties from `b` to `a`.
 extend = (a, b) ->
 	return a if not b

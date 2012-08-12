@@ -443,6 +443,14 @@ $.testGroup "Date",
 			.midnight()
 			.dateFormat("HHMMSS")
 			.ints().sum(), 0
+	dateAsString: ->
+		$.assertEqual ($.as "string", new Date 1,2,3,4,5,6), "1901-03-03 09:05:06"
+	stringAsDate: ->
+		$.assertEqual ($.as "date", "1901-03-03 09:05:06").toString(), new Date(1,2,3,4,5,6).toString()
+	dateAsNumber: ->
+		$.assertEqual ($.as "number", new Date 1,2,3,4,5,6), -2172149694
+	numberAsDate: ->
+		$.assertEqual ($.as "date", -2172149694).toString(), (new Date 1,2,3,4,5,6).toString()
 
 $.testGroup "TNET",
 	basic: ->

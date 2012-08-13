@@ -46,6 +46,11 @@
 		$.type.register "date",
 			match: (o) -> $.isType Date, o
 			array: (o) -> [o]
+			string: (o, fmt, unit) -> $.date.format o, fmt, unit
+			number: (o, unit) -> $.date.stamp o, unit
+
+		$.type.extend 'string', date: (o, fmt = $.date.defaultFormat) -> new Date $.date.parse o, fmt, "ms"
+		$.type.extend 'number', date: (o, unit) -> $.date.unstamp o, unit
 
 		adder = (key) ->
 			(stamp, delta, stamp_unit = $.date.defaultUnit) ->

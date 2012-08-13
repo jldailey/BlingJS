@@ -1,4 +1,4 @@
-(($) ->
+do ($ = Bling) ->
 	$.plugin
 		provides: "unittest"
 		depends: "core,function"
@@ -32,6 +32,8 @@
 
 		testReport = $.once ->
 			$.log "Passed: #{passCount} Failed: #{failCount} [#{failed}]"
+			if failCount > 0
+				try process.exit(failCount)
 
 		$:
 			approx: (a, b, margin=.1) -> Math.abs(a - b) < margin
@@ -57,4 +59,3 @@
 				for i in [1...args.length]
 					$.assertEqual a, args[i]
 			return @
-)(Bling)

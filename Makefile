@@ -8,8 +8,10 @@ YUI_VERSION=2.4.7
 
 all: dist docs report
 
-test: dist
-	for i in tests/bling.coffee; do $(COFFEE) $$i; done
+test: dist tests/passing
+
+tests/passing:
+	$(COFFEE) tests/bling.coffee && touch tests/passing
 
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
@@ -43,6 +45,7 @@ $(DIST)/%.js: $(DIST)/%.coffee $(COFFEE)
 	$(COFFEE) -o $(DIST) -c $<
 
 $(DIST)/bling.coffee: bling.coffee $(shell ls $(PLUGINS)/*.coffee)
+	rm -f tests/passing
 	cat $^ | sed -E 's/^	*#.*$$//g' | grep -v '^ *$$' > $@
 
 yuicompressor.jar:
@@ -65,4 +68,4 @@ clean:
 	rm -rf $(DIST)/*
 	rm -rf yuicompressor.zip yuicompressor.jar yuicompressor-$(YUI_VERSION)
 
-.PHONY: all bling clean dist site publish plugins
+.PHONY: all bling clean dist site publish plugins test

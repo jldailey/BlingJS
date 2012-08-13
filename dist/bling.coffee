@@ -1,14 +1,7 @@
-log = (a...) ->
-	try console.log.apply console, a
-	catch err
-		alert a.join(", ")
-	return a[Math.max(0, a.length-1)]
 Object.keys ?= (o) -> (k for k of o)
+Object.values ?= (o) -> (o[k] for k of o)
 extend = (a, b) ->
-	return a if not b
-	for k of b
-		v = b[k]
-		if v? then a[k] = v
+	if b then a[k] = v for k,v of b when v?
 	a
 defineProperty = (o,name,opts) ->
 	Object.defineProperty o,name, extend({
@@ -66,7 +59,7 @@ _type = do ->
 		lookup: lookup
 		extend: _extend
 		is: (t, o) -> cache[t]?.match.call o, o
-		as: (t, o) -> lookup(o)[t]?(o)
+		as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
 _pipe = do ->
 	pipes = {}
 	(name, args) ->
@@ -105,8 +98,7 @@ class Bling
 					@[key] or= (a...) => (@::[key].apply $(a[0]), a[1...])
 				if opts.provides? then @provide opts.provides
 		catch error
-			log "failed to load plugin: #{@name} '#{error.message}'"
-			throw error
+			console.log "failed to load plugin: #{@name} #{error.message}: #{error.stack}"
 		@
 	dep = # private stuff for depends/provides system.
 		q: []
@@ -235,8 +227,15 @@ do ($ = Bling) ->
 			$:
 				logTime: 0
 				log: $.extend((a...) ->
-					prefix = $.padLeft String($.now - baseTime), $.log.prefixSize, '0'
-					log((if prefix.length > $.log.prefixSize then "#{baseTime = $.now}:" else "+#{prefix}:"), a...)
+					prefix = "+#{$.padLeft String($.now - baseTime), $.log.prefixSize, '0'}:"
+					if prefix.length > $.log.prefixSize + 2
+						prefix = "#{baseTime = $.now}:"
+					if a.length and $.is "string", a[0]
+						a[0] = "#{prefix} #{a[0]}"
+					else
+						a.unshift prefix
+					console.log a...
+					return a[a.length-1] if a.length
 				, prefixSize: 5)
 				assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 				coalesce: (a...) -> $(a).coalesce()
@@ -652,6 +651,10 @@ do ($ = Bling) ->
 		$.type.register "date",
 			match: (o) -> $.isType Date, o
 			array: (o) -> [o]
+			string: (o, fmt, unit) -> $.date.format o, fmt, unit
+			number: (o, unit) -> $.date.stamp o, unit
+		$.type.extend 'string', date: (o, fmt = $.date.defaultFormat) -> new Date $.date.parse o, fmt, "ms"
+		$.type.extend 'number', date: (o, unit) -> $.date.unstamp o, unit
 		adder = (key) ->
 			(stamp, delta, stamp_unit = $.date.defaultUnit) ->
 				date = $.date.unstamp(stamp, stamp_unit)
@@ -1767,7 +1770,7 @@ do ($ = Bling) ->
 			fadeDown: (speed, callback)  -> @fadeOut speed, callback, 0.0, @height().first()
 		}
 )(Bling)
-(($) ->
+do ($ = Bling) ->
 	$.plugin
 		provides: "unittest"
 		depends: "core,function"
@@ -1798,6 +1801,8 @@ do ($ = Bling) ->
 			catch err then done(err)
 		testReport = $.once ->
 			$.log "Passed: #{passCount} Failed: #{failCount} [#{failed}]"
+			if failCount > 0
+				try process.exit(failCount)
 		$:
 			approx: (a, b, margin=.1) -> Math.abs(a - b) < margin
 			assert: (cnd, msg = "no message") -> if not cnd then throw new Error "Assertion failed: #{msg}"
@@ -1822,4 +1827,3 @@ do ($ = Bling) ->
 				for i in [1...args.length]
 					$.assertEqual a, args[i]
 			return @
-)(Bling)

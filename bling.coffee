@@ -12,22 +12,16 @@
 # ---------
 # We need a few things to get started.
 
-# A safe logger to use for `$.log()`.
-log = (a...) ->
-	try console.log.apply console, a
-	catch err
-		alert a.join(", ")
-	return a[Math.max(0, a.length-1)]
 
 # A shim for `Object.keys`.
 Object.keys ?= (o) -> (k for k of o)
 
+# A shim for `Object.values`.
+Object.values ?= (o) -> (o[k] for k of o)
+
 # A way to assign properties from `b` to `a`.
 extend = (a, b) ->
-	return a if not b
-	for k of b
-		v = b[k]
-		if v? then a[k] = v
+	if b then a[k] = v for k,v of b when v?
 	a
 
 # A wrapper for Object.defineProperty that changes the defaults.
@@ -146,7 +140,7 @@ _type = do ->
 		lookup: lookup
 		extend: _extend
 		is: (t, o) -> cache[t]?.match.call o, o
-		as: (t, o) -> lookup(o)[t]?(o)
+		as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
 
 	# Example: Calling $.type directly will get you the simple name of the
 	# best match.
@@ -284,8 +278,7 @@ class Bling
 				# `$.provides`.
 				if opts.provides? then @provide opts.provides
 		catch error
-			log "failed to load plugin: #{@name} '#{error.message}'"
-			throw error
+			console.log "failed to load plugin: #{@name} #{error.message}: #{error.stack}"
 		@
 
 	# Code dependencies
@@ -526,8 +519,15 @@ do ($ = Bling) ->
 		return {
 			$:
 				log: $.extend((a...) ->
-					prefix = $.padLeft String($.now - baseTime), $.log.prefixSize, '0'
-					log((if prefix.length > $.log.prefixSize then "#{baseTime = $.now}:" else "+#{prefix}:"), a...)
+					prefix = "+#{$.padLeft String($.now - baseTime), $.log.prefixSize, '0'}:"
+					if prefix.length > $.log.prefixSize + 2
+						prefix = "#{baseTime = $.now}:"
+					if a.length and $.is "string", a[0]
+						a[0] = "#{prefix} #{a[0]}"
+					else
+						a.unshift prefix
+					console.log a...
+					return a[a.length-1] if a.length
 				, prefixSize: 5)
 				assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 				coalesce: (a...) -> $(a).coalesce()

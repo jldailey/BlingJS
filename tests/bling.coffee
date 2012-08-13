@@ -94,6 +94,7 @@ $.testGroup "String",
 	Checksum2: -> $.assertEqual($.checksum("foobarbaz"), 310051767)
 	ToString: -> $.assertEqual $([2,3,4]).toString(), "$([2, 3, 4])"
 	ToString2: -> $.assertEqual $.toString(-> $.log), "function () { ... }"
+	Truncate: -> $.assertEqual ($.stringTruncate "long string", 6), "long..."
 
 $.testGroup "Plugins",
 	new_plugin: ->

@@ -896,6 +896,17 @@ do ($ = Bling) ->
 						s = s + c
 					s
 
+				stringTruncate: (s, n, c = "...") ->
+					s = s.split(' ')
+					r = []
+					while n > 0
+						x = s.shift()
+						n -= x.length
+						if n >= 0
+							r.push x
+					r.join('') + c
+
+
 				# __$.stringCount(s,x)__ counts the number of occurences of `x` in `s`.
 				stringCount: (s, x, i = 0, n = 0) ->
 					if (j = s.indexOf x,i) > i-1

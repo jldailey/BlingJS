@@ -225,7 +225,6 @@ do ($ = Bling) ->
 		baseTime = $.now
 		return {
 			$:
-				logTime: 0
 				log: $.extend((a...) ->
 					prefix = "+#{$.padLeft String($.now - baseTime), $.log.prefixSize, '0'}:"
 					if prefix.length > $.log.prefixSize + 2

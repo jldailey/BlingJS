@@ -540,7 +540,6 @@
       baseTime = $.now;
       return {
         $: {
-          logTime: 0,
           log: $.extend(function() {
             var a, prefix;
             a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];

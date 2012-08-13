@@ -233,6 +233,7 @@ do ($ = Bling) ->
 		baseTime = $.now
 		return {
 			$:
+				logTime: 0
 				log: $.extend((a...) ->
 					prefix = $.padLeft String($.now - baseTime), $.log.prefixSize, '0'
 					log((if prefix.length > $.log.prefixSize then "#{baseTime = $.now}:" else "+#{prefix}:"), a...)
@@ -435,6 +436,15 @@ do ($ = Bling) ->
 					while s.length < n
 						s = s + c
 					s
+				stringTruncate: (s, n, c = "...") ->
+					s = s.split(' ')
+					r = []
+					while n > 0
+						x = s.shift()
+						n -= x.length
+						if n >= 0
+							r.push x
+					r.join('') + c
 				stringCount: (s, x, i = 0, n = 0) ->
 					if (j = s.indexOf x,i) > i-1
 						$.stringCount s, x, j+1, n+1
@@ -1115,7 +1125,7 @@ do ($ = Bling) ->
 		events.forEach (x) -> ret[x] = binder(x)
 		return ret
 )(Bling)
-(($) ->
+do ($ = Bling) ->
 	$.plugin ->
 		$:
 			histogram: (data, bucket_width=1, output_width=80) ->
@@ -1138,7 +1148,7 @@ do ($ = Bling) ->
 					pct = (buckets[n]*100/sum).toFixed(0)
 					ret += $.padLeft(pct+"%",3) + $.padRight(" < #{end.toFixed(2)}", 10) + ": " + $.repeat("#", buckets[n]) + "\n"
 				ret
-)(Bling)
+		histogram: -> $.histogram @
 (($) ->
 	$.plugin
 		depends: "dom"

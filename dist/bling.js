@@ -541,6 +541,7 @@
       baseTime = $.now;
       return {
         $: {
+          logTime: 0,
           log: $.extend(function() {
             var a, prefix;
             a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
@@ -1226,6 +1227,22 @@
               s = s + c;
             }
             return s;
+          },
+          stringTruncate: function(s, n, c) {
+            var r, x;
+            if (c == null) {
+              c = "...";
+            }
+            s = s.split(' ');
+            r = [];
+            while (n > 0) {
+              x = s.shift();
+              n -= x.length;
+              if (n >= 0) {
+                r.push(x);
+              }
+            }
+            return r.join('') + c;
           },
           stringCount: function(s, x, i, n) {
             var j;
@@ -2679,6 +2696,9 @@
             }
             return ret;
           }
+        },
+        histogram: function() {
+          return $.histogram(this);
         }
       };
     });

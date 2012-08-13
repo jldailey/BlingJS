@@ -1,4 +1,4 @@
-(($) ->
+do ($ = Bling) ->
 	$.plugin ->
 		$:
 			histogram: (data, bucket_width=1, output_width=80) ->
@@ -23,4 +23,4 @@
 					pct = (buckets[n]*100/sum).toFixed(0)
 					ret += $.padLeft(pct+"%",3) + $.padRight(" < #{end.toFixed(2)}", 10) + ": " + $.repeat("#", buckets[n]) + "\n"
 				ret
-)(Bling)
+		histogram: -> $.histogram @

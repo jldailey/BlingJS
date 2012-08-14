@@ -425,11 +425,6 @@
       if (typeof module !== "undefined" && module !== null) {
         module.exports = Bling;
       }
-      $.type.extend("bling", {
-        string: function(o) {
-          return symbol + "([" + o.map($.toString).join(", ") + "])";
-        }
-      });
       defineProperty($, "symbol", {
         set: function(v) {
           glob[symbol] = cache[symbol];
@@ -1097,18 +1092,30 @@
       provides: "string",
       depends: "function"
     }, function() {
+      var safer;
+      safer = function(f) {
+        return function() {
+          var a;
+          a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+          try {
+            return f.apply(null, a);
+          } catch (err) {
+            return "[Error: " + err.message + "]";
+          }
+        };
+      };
       $.type.extend({
         unknown: {
-          string: function(o) {
+          string: safer(function(o) {
             var _ref2;
             return (_ref2 = typeof o.toString === "function" ? o.toString() : void 0) != null ? _ref2 : String(o);
-          },
-          repr: function(o) {
+          }),
+          repr: safer(function(o) {
             return $.type.lookup(o).string(o);
-          },
-          number: function(o) {
+          }),
+          number: safer(function(o) {
             return parseFloat(String(o));
-          }
+          })
         },
         "null": {
           string: function() {
@@ -1121,13 +1128,13 @@
           }
         },
         string: {
-          number: parseFloat,
+          number: safer(parseFloat),
           repr: function(s) {
             return "'" + s + "'";
           }
         },
         array: {
-          string: function(a) {
+          string: safer(function(a) {
             var x;
             return "[" + ((function() {
               var _i, _len, _results;
@@ -1138,21 +1145,22 @@
               }
               return _results;
             })()).join(",") + "]";
-          }
+          })
         },
         object: {
-          string: function(o) {
-            var k, v;
-            return "{" + ((function() {
-              var _results;
-              _results = [];
-              for (k in o) {
+          string: safer(function(o) {
+            var k, ret, v;
+            ret = [];
+            for (k in o) {
+              try {
                 v = o[k];
-                _results.push("" + k + ":" + ($.toString(v)));
+              } catch (err) {
+                v = "[Error: " + err.message + "]";
               }
-              return _results;
-            })()).join(", ") + "}";
-          }
+              ret.push("" + k + ":" + v);
+            }
+            return "{" + ret.join(', ') + "}";
+          })
         },
         "function": {
           string: function(f) {
@@ -1163,7 +1171,7 @@
           repr: function(n) {
             return String(n);
           },
-          string: function(n) {
+          string: safer(function(n) {
             switch (true) {
               case n.precision != null:
                 return n.toPrecision(n.precision);
@@ -1172,7 +1180,7 @@
               default:
                 return String(n);
             }
-          }
+          })
         }
       });
       return {
@@ -1181,7 +1189,11 @@
             if (!(x != null)) {
               return "function Bling(selector, context) { [ ... ] }";
             } else {
-              return $.type.lookup(x).string(x);
+              try {
+                return $.type.lookup(x).string(x);
+              } catch (err) {
+                return "[Error: " + err.message + "]";
+              }
             }
           },
           toRepr: function(x) {

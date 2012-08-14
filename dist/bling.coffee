@@ -163,8 +163,6 @@ do ($ = Bling) ->
 		glob.Bling = Bling
 		if module?
 			module.exports = Bling
-		$.type.extend "bling",
-			string: (o) -> symbol + "(["+ o.map($.toString).join(", ") + "])"
 		defineProperty $, "symbol",
 			set: (v) ->
 				glob[symbol] = cache[symbol]
@@ -383,23 +381,36 @@ do ($ = Bling) ->
 		provides: "string"
 		depends: "function"
 	, ->
+		safer = (f) ->
+			(a...) ->
+				try return f(a...)
+				catch err then return "[Error: #{err.message}]"
 		$.type.extend
 			unknown:
-				string: (o) -> o.toString?() ? String(o)
-				repr: (o) -> $.type.lookup(o).string(o)
-				number: (o) -> parseFloat String o
+				string: safer (o) -> o.toString?() ? String(o)
+				repr: safer (o) -> $.type.lookup(o).string(o)
+				number: safer (o) -> parseFloat String o
 			null: { string: -> "null" }
 			undefined: { string: -> "undefined" }
 			string:
-				number: parseFloat
+				number: safer parseFloat
 				repr:   (s) -> "'#{s}'"
-			array:  { string: (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
-			object: { string: (o) -> "{" + ("#{k}:#{$.toString(v)}" for k,v of o).join(", ") + "}" }
+			array:  { string: safer (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
+			object: { string: safer (o) ->
+				ret = []
+				for k of o
+					try
+						v = o[k]
+					catch err
+						v = "[Error: #{err.message}]"
+					ret.push "#{k}:#{v}"
+				"{" + ret.join(', ') + "}"
+			}
 			function:
 				string: (f) -> f.toString().replace(/^([^{]*){(?:.|\n|\r)*}$/, '$1{ ... }')
 			number:
 				repr:   (n) -> String(n)
-				string: (n) ->
+				string: safer (n) ->
 					switch true
 						when n.precision? then n.toPrecision(n.precision)
 						when n.fixed? then n.toFixed(n.fixed)
@@ -408,7 +419,11 @@ do ($ = Bling) ->
 			$:
 				toString: (x) ->
 					if not x? then "function Bling(selector, context) { [ ... ] }"
-					else $.type.lookup(x).string(x)
+					else
+						try
+							$.type.lookup(x).string(x)
+						catch err
+							"[Error: #{err.message}]"
 				toRepr: (x) -> $.type.lookup(x).repr(x)
 				px: (x, delta=0) -> x? and (parseInt(x,10)+(delta|0))+"px"
 				capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")

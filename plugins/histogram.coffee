@@ -21,8 +21,8 @@ do ($ = Bling) ->
 				pct_sum = 0
 				for n in [0...len] by 1
 					end = (n+1) * bucket_width
-					pct = (buckets[n]*100/sum).toFixed(0)
+					pct = (buckets[n]*100/sum)
 					pct_sum += pct
-					ret += $.padLeft(pct_sum+"%",3) + $.padRight(" < #{end.toFixed(2)}", 10) + ": " + $.repeat("#", buckets[n]) + "\n"
+					ret += $.padLeft(pct_sum.toFixed(0)+"%",3) + $.padRight(" < #{end.toFixed(2)}", 10) + ": " + $.repeat("#", buckets[n]) + "\n"
 				ret
 		histogram: -> $.histogram @

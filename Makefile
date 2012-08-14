@@ -10,7 +10,7 @@ all: dist docs report
 
 test: dist tests/passing
 
-tests/passing:
+tests/passing: tests/bling.coffee
 	$(COFFEE) tests/bling.coffee && touch tests/passing
 
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz

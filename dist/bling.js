@@ -2734,7 +2734,7 @@
               end = (n + 1) * bucket_width;
               pct = buckets[n] * 100 / sum;
               pct_sum += pct;
-              ret += $.padLeft(pct_sum.toFixed(2) + "%", 6) + $.padRight(" < " + (end.toFixed(2)), 10) + ": " + $.repeat("#", buckets[n]) + "\n";
+              ret += $.padLeft(pct_sum.toFixed(2) + "%", 7) + $.padRight(" < " + (end.toFixed(2)), 10) + ": " + $.repeat("#", buckets[n]) + "\n";
             }
             return ret;
           }

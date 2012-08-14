@@ -421,10 +421,6 @@ do ($ = Bling) ->
 		glob.Bling = Bling
 		if module?
 			module.exports = Bling
-		# Over-ride the bling->string conversion to output the current
-		# symbol.
-		$.type.extend "bling",
-			string: (o) -> symbol + "(["+ o.map($.toString).join(", ") + "])"
 		# Define $.symbol as a dynamic property.
 		defineProperty $, "symbol",
 			set: (v) ->
@@ -811,26 +807,39 @@ do ($ = Bling) ->
 		provides: "string"
 		depends: "function"
 	, ->
+		safer = (f) ->
+			(a...) ->
+				try return f(a...)
+				catch err then return "[Error: #{err.message}]"
 		$.type.extend
 			# First, extend the base type with a default `string` function
 			unknown:
-				string: (o) -> o.toString?() ? String(o)
-				repr: (o) -> $.type.lookup(o).string(o)
-				number: (o) -> parseFloat String o
+				string: safer (o) -> o.toString?() ? String(o)
+				repr: safer (o) -> $.type.lookup(o).string(o)
+				number: safer (o) -> parseFloat String o
 			# Now, for each basic type, provide a basic `string` function.
 			# Later, more complex types will be added by plugins.
 			null: { string: -> "null" }
 			undefined: { string: -> "undefined" }
 			string:
-				number: parseFloat
+				number: safer parseFloat
 				repr:   (s) -> "'#{s}'"
-			array:  { string: (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
-			object: { string: (o) -> "{" + ("#{k}:#{$.toString(v)}" for k,v of o).join(", ") + "}" }
+			array:  { string: safer (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
+			object: { string: safer (o) ->
+				ret = []
+				for k of o
+					try
+						v = o[k]
+					catch err
+						v = "[Error: #{err.message}]"
+					ret.push "#{k}:#{v}"
+				"{" + ret.join(', ') + "}"
+			}
 			function:
 				string: (f) -> f.toString().replace(/^([^{]*){(?:.|\n|\r)*}$/, '$1{ ... }')
 			number:
 				repr:   (n) -> String(n)
-				string: (n) ->
+				string: safer (n) ->
 					switch true
 						when n.precision? then n.toPrecision(n.precision)
 						when n.fixed? then n.toFixed(n.fixed)
@@ -843,7 +852,11 @@ do ($ = Bling) ->
 				# the type system's "string" method.
 				toString: (x) ->
 					if not x? then "function Bling(selector, context) { [ ... ] }"
-					else $.type.lookup(x).string(x)
+					else
+						try
+							$.type.lookup(x).string(x)
+						catch err
+							"[Error: #{err.message}]"
 
 				# __$.toRepr(x)__ returns a a code-like view of an object, using the
 				# type system's "repr" method.

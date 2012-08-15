@@ -518,5 +518,20 @@ $.testGroup "Config",
 		$.assertEqual $.config.get("does-not-exist","default"), "default"
 	canCall: ->
 		$.assertEqual $.config("foo","default"), $.config.get("foo","default")
-		
 
+$.testGroup "Index",
+	index: ->
+		keyFunc = (obj) -> obj.a
+		c = $([ {a:1, b:2}, {a:2, b:3} ]).index(keyFunc).query a:1
+		$.assert c?, "query result should exist"
+		$.assertEqual c.b, 2
+	compoundKey: ->
+		keyFunc = (obj) -> obj.a + "-" + obj.b
+		b = $([ {a:1, b:2, c:3}, {a:2, b:2, c:4 }]).index(keyFunc)
+		c = b.query a:1,b:2
+		d = b.query a:2,b:2
+		$.assert c?, "query result should exist"
+		$.assertEqual c.c, 3
+		$.assert d?, "query result should exist"
+		$.assertEqual d.c, 4
+	failIfNoIndex: -> $([ a:1 ]).query a:1 # should throw

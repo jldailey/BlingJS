@@ -2857,6 +2857,30 @@
   })(Bling);
 
   (function($) {
+    return $.pipe('bling-init').append(function(obj) {
+      var keyMaker, map;
+      map = {};
+      keyMaker = null;
+      return $.inherit({
+        index: function(keyFunc) {
+          keyMaker = keyFunc;
+          return this.each(function(x) {
+            return map[keyFunc(x)] = x;
+          });
+        },
+        query: function(criteria) {
+          var key;
+          key = keyMaker(criteria);
+          if (key in map) {
+            return map[key];
+          }
+          return null;
+        }
+      }, obj);
+    });
+  })(Bling);
+
+  (function($) {
     return $.plugin({
       depends: "dom",
       provides: "lazy"

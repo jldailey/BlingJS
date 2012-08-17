@@ -1,4 +1,4 @@
-(($) ->
+do ($ = Bling) ->
 	$.plugin
 		provides: "sendgrid"
 		depends: "config"
@@ -25,4 +25,3 @@
 					nodemailer.sendMail mail, callback
 				else
 					callback(false) # Reply as if an email was sent
-)(Bling)

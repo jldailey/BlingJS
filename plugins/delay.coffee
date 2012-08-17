@@ -1,4 +1,4 @@
-(($) ->
+do ($ = Bling) ->
 	# Delay Plugin
 	# ------------
 	# **Q**: Since JS uses a single event loop, what happens if multiple
@@ -49,5 +49,8 @@
 		delay: (n, f, c=@) ->
 			$.delay n, $.bound(c, f)
 			@
-
-)(Bling)
+		interval: (n, f, c=@) ->
+			g = $.bound c, f
+			h = -> g(); $.delay n, h
+			$.delay n, h
+			@

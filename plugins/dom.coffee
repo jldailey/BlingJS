@@ -1,10 +1,10 @@
-(($) ->
+do ($ = Bling) ->
 	# DOM Plugin
 	# ----------
 	# Only works if there is a global document.
 	if $.global.document?
 		$.plugin
-			depends: "function"
+			depends: "function,type"
 			provides: "dom"
 		, ->
 			$.type.register "nodelist",
@@ -342,4 +342,3 @@
 						return df
 					return toNode @[0]
 			}
-)(Bling)

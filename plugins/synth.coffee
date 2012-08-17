@@ -1,4 +1,4 @@
-(($) ->
+do ($ = Bling) ->
 	$.plugin
 		provides: "StateMachine"
 	, ->
@@ -53,7 +53,7 @@
 
 	$.plugin
 		provides: "synth"
-		depends: "StateMachine"
+		depends: "StateMachine, type"
 	, ->
 		class SynthMachine extends $.StateMachine
 			basic =
@@ -161,4 +161,3 @@
 						$(s.fragment)
 		}
 
-)(Bling)

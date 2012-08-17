@@ -1,4 +1,4 @@
-(($) ->
+do ($ = Bling) ->
 
 	# Trace Plugin
 	# ------------
@@ -30,5 +30,3 @@
 			tracer or= $.log
 			label or= ""
 			$.type.lookup(o).trace(label, o, tracer)
-
-)(Bling)

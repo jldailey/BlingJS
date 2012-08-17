@@ -1,4 +1,4 @@
-(($) ->
+do ($ = Bling) ->
 
 	# Lazy Plugin
 	# -----------
@@ -17,4 +17,3 @@
 			style: (src) ->
 				lazy_load "link", { href: src, rel: "stylesheet" }
 
-)(Bling)

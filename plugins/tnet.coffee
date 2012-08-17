@@ -1,4 +1,4 @@
-(($) ->
+do ($ = Bling) ->
 	$.plugin () -> # TnetStrings plugin
 		parseOne = (data) ->
 			i = data.indexOf ":"
@@ -44,4 +44,3 @@
 					return (data.length|0) + ":" + data + type
 				parse: (x) ->
 					parseOne(x)?[0]
-)(Bling)

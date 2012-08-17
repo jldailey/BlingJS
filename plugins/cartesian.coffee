@@ -1,4 +1,4 @@
-(($) ->
+do ($ = Bling) ->
 	$.plugin
 		provides: "cartesian"
 	, ->
@@ -13,5 +13,3 @@
 					null
 				helper [], -1
 				return $(ret)
-
-)(Bling)

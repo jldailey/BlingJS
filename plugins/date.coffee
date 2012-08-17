@@ -1,6 +1,7 @@
-(($) ->
+do ($ = Bling) ->
 	$.plugin
-		provides: "date"
+		provides: 'date'
+		depends: 'type'
 	, ->
 		# the basic units of time, and their relation to milliseconds
 		[ms,s,m,h,d] = [1,1000,1000*60,1000*60*60,1000*60*60*24]
@@ -107,6 +108,4 @@
 		stamp: (unit = $.date.defaultUnit) -> @map(-> $.date.stamp @, unit)
 		dateFormat: (fmt = $.date.defaultFormat, unit = $.date.defaultUnit) -> @map(-> $.date.format @, fmt, unit)
 		dateParse: (fmt = $.date.defaultFormat, unit = $.date.defaultUnit) -> @map(-> $.date.parse @, fmt, unit)
-
-)(Bling)
 

@@ -1,4 +1,4 @@
-(($) ->
+do ($ = Bling) ->
 
 	engines = {} # a registry for different template engines
 
@@ -130,6 +130,3 @@
 		return (text, values) ->
 			text
 	)()
-
-
-)(Bling)

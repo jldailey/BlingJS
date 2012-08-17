@@ -1,4 +1,4 @@
-(($) ->
+do ($ = Bling) ->
 	# HTTP Client Plugin
 	# -----------
 	# Things like `.ajax()`, `.get()`, `$.post()`.
@@ -78,4 +78,3 @@
 					opts.method = "GET"
 					$.http(url, opts)
 		}
-)(Bling)

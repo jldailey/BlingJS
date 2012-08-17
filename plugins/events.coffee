@@ -1,4 +1,4 @@
-(($) ->
+do ($ = Bling) ->
 	# Events plugin
 	# -------------
 	# Things like `.bind('click')`, `.trigger('keyup')`, etc.
@@ -201,5 +201,4 @@
 		# add event binding/triggering shortcuts for the generic events
 		events.forEach (x) -> ret[x] = binder(x)
 		return ret
-)(Bling)
 

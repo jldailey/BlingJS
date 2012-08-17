@@ -1,4 +1,4 @@
-(($) ->
+do ($ = Bling) ->
 	# Transform plugin
 	# ----------------
 	# For accelerated animations.
@@ -155,4 +155,3 @@
 			fadeUp: (speed, callback) -> @fadeOut speed, callback, 0.0, "-"+@height().first()
 			fadeDown: (speed, callback)  -> @fadeOut speed, callback, 0.0, @height().first()
 		}
-)(Bling)

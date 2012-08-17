@@ -13,7 +13,7 @@ do ($ = Bling) ->
 				last = 0
 				(a...) ->
 					gap = $.now - last
-					if gap > n
+					if gap > ms
 						last += gap
 						return f.apply @,a
 					null
@@ -23,4 +23,4 @@ do ($ = Bling) ->
 				last = 0
 				(a...) ->
 					last += (gap = $.now - last)
-					return f.apply @,a if gap > n else null
+					return f.apply @,a if gap > ms else null

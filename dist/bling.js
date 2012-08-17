@@ -3266,7 +3266,7 @@
               var a, gap;
               a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
               gap = $.now - last;
-              if (gap > n) {
+              if (gap > ms) {
                 last += gap;
                 return f.apply(this, a);
               }
@@ -3280,7 +3280,7 @@
               var a, gap;
               a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
               last += (gap = $.now - last);
-              return f.apply(this, a(gap > n ? void 0 : null));
+              return f.apply(this, a(gap > ms ? void 0 : null));
             };
           }
         }

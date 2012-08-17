@@ -1,91 +1,16 @@
-Object.keys ?= (o) -> (k for k of o)
-Object.values ?= (o) -> (o[k] for k of o)
+Object.keys or= (o) -> (k for k of o)
+Object.values or= (o) -> (o[k] for k of o)
 extend = (a, b) ->
 	if b then a[k] = v for k,v of b when v?
 	a
-defineProperty = (o,name,opts) ->
-	Object.defineProperty o,name, extend({
-		configurable: true
-		enumerable: true
-	}, opts)
-	o
-isType = (T, o) ->
-	if not o? then T in [o,"null","undefined"]
-	else o.constructor is T or
-		o.constructor.name is T or
-		Object::toString.apply(o) is "[object #{T}]" or
-		isType T, o.__proto__ # recursive
-inherit = (parent, obj) ->
-	if typeof parent is "function"
-		parent = parent.prototype
-	if parent.__proto__ is Object.prototype
-		parent.__proto__ = obj.__proto__
-	obj.__proto__ = parent
-	obj
-_type = do ->
-	cache = {}
-	base =
-		name: 'unknown'
-		match: (o) -> true
-	order = []
-	register = (name, data) ->
-		order.unshift name if not (name of cache)
-		cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
-		cache[name][name] = (o) -> o
-	_extend = (name, data) ->
-		if typeof name is "string"
-			cache[name] ?= register name, {}
-			cache[name] = extend cache[name], data
-		else if typeof name is "object"
-			(_extend k, name[k]) for k of name
-	lookup = (obj) ->
-		for name in order
-			if cache[name]?.match.call obj, obj
-				return cache[name]
-	register "unknown",   base
-	register "object",    match: -> typeof @ is "object"
-	register "error",     match: -> isType 'Error', @
-	register "regexp",    match: -> isType 'RegExp', @
-	register "string",    match: -> typeof @ is "string" or isType String, @
-	register "number",    match: -> (isType Number, @) and @ isnt NaN
-	register "bool",      match: -> typeof @ is "boolean" or String(@) in ["true","false"]
-	register "array",     match: -> Array.isArray?(@) or isType Array, @
-	register "function",  match: -> typeof @ is "function"
-	register "global",    match: -> typeof @ is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
-	register "undefined", match: (x) -> x is undefined
-	register "null",      match: (x) -> x is null
-	return extend ((o) -> lookup(o).name),
-		register: register
-		lookup: lookup
-		extend: _extend
-		is: (t, o) -> cache[t]?.match.call o, o
-		as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
-_pipe = do ->
-	pipes = {}
-	(name, args) ->
-		p = (pipes[name] or= [])
-		if not args
-			return {
-				prepend: (obj) -> p.unshift(obj); obj
-				append: (obj) -> p.push(obj); obj
-			}
-		for func in p
-			args = func.call @, args
-		args
 class Bling
 	default_context = if document? then document else {}
 	constructor: (selector, context = default_context) ->
 		return Bling.pipe "bling-init", [selector, context]
-	@pipe: _pipe
-	@pipe("bling-init").prepend (args) ->
-		[selector, context] = args
-		inherit Bling, inherit {
-			selector: selector
-			context: context
-		}, _type.lookup(selector).array(selector, context)
 	@plugin: (opts, constructor) ->
-		if not constructor?
-			constructor = opts; opts = {}
+		if not constructor
+			constructor = opts
+			opts = {}
 		if "depends" of opts
 			return @depends opts.depends, =>
 				@plugin { provides: opts.provides }, constructor
@@ -95,12 +20,12 @@ class Bling
 				['$','name'].forEach (k) -> delete plugin[k]
 				extend @::, plugin
 				for key of plugin then do (key) =>
-					@[key] or= (a...) => (@::[key].apply $(a[0]), a[1...])
+					@[key] or= (a...) => (@::[key].apply Bling(a[0]), a[1...])
 				if opts.provides? then @provide opts.provides
 		catch error
 			console.log "failed to load plugin: #{@name} #{error.message}: #{error.stack}"
 		@
-	dep = # private stuff for depends/provides system.
+	dep =
 		q: []
 		done: {}
 		filter: (n) ->
@@ -108,9 +33,10 @@ class Bling
 			.filter (x) -> not (x of dep.done)
 	@depends: (needs, f) ->
 		if (needs = dep.filter needs).length is 0 then f()
-		else dep.q.push (need) ->
-			(needs.splice i, 1) if (i = needs.indexOf need) > -1
-			return (needs.length is 0 and f)
+		else
+			dep.q.push (need) ->
+				(needs.splice i, 1) if (i = needs.indexOf need) > -1
+				return (needs.length is 0 and f)
 		f
 	@provide: (needs, data) ->
 		for need in dep.filter needs
@@ -119,61 +45,28 @@ class Bling
 				if (f = dep.q[i] need)
 					dep.q.splice i,1
 					f data
+					i = 0 # start over in case a nested dependency removed stuff 'behind' i
 				else i++
 		data
-	@provides: (needs, f) ->
-		(args...) ->
-			Bling.provide needs, f args...
-	_type.extend
-		unknown:   { array: (o) -> [o] }
-		null:      { array: (o) -> [] }
-		undefined: { array: (o) -> [] }
-		array:     { array: (o) -> o }
-		number:    { array: (o) -> Bling.extend new Array(o), length: 0 }
-	_type.register "bling",
-		match:  (o) -> o and isType Bling, o
-		array:  (o) -> o.toArray()
-		hash:   (o) ->
-			o.map(Bling.hash).reduce (a,x) -> (a*a)+x
-		string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
-		repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 Bling.prototype = []
 Bling.prototype.constructor = Bling
+Bling.global = if window? then window else global
 do ($ = Bling) ->
-	$.global = glob = if window? then window else global
 	$.plugin
-		provides: "type"
+		provides: "cartesian"
 	, ->
 		$:
-			inherit: inherit
-			extend: extend
-			defineProperty: defineProperty
-			isType: isType
-			type: _type
-			is: _type.is
-			as: _type.as
-			isSimple: (o) -> _type(o) in ["string", "number", "bool"]
-			isEmpty: (o) -> o in ["", null, undefined]
-	$.plugin
-		provides: "symbol"
-		depends: "type"
-	, ->
-		symbol = null
-		cache = {}
-		glob.Bling = Bling
-		if module?
-			module.exports = Bling
-		defineProperty $, "symbol",
-			set: (v) ->
-				glob[symbol] = cache[symbol]
-				cache[symbol = v] = glob[v]
-				glob[v] = Bling
-			get: -> symbol
-		return $:
-			symbol: "$"
-			noConflict: ->
-				Bling.symbol = "Bling"
-				return Bling
+			cartesian: (sets...) ->
+				n = sets.length
+				ret = []
+				helper = (cur, i) ->
+					(return ret.push cur) if ++i >= n
+					for x in sets[i]
+						helper (cur.concat x), i
+					null
+				helper [], -1
+				return $(ret)
+do ($ = Bling) ->
 	$.plugin ->
 		String::trimLeft or= -> @replace(/^\s+/, "")
 		String::split or= (sep) ->
@@ -211,11 +104,19 @@ do ($ = Bling) ->
 							n.appendChild i.cloneNode true
 					return n
 		return { }
+do ($ = Bling) ->
+	$.plugin
+		provides: 'config'
+		depends: 'type'
+	, ->
+		get = (name, def) -> process.env[name] ? def
+		$: config: $.extend(get, get: get)
+do ($ = Bling) ->
 	$.plugin
 		provides: "core"
 		depends: "string"
 	, ->
-		defineProperty $, "now",
+		$.defineProperty $, "now",
 			get: -> +new Date
 		index = (i, o) ->
 			i += o.length while i < 0
@@ -347,286 +248,10 @@ do ($ = Bling) ->
 				@__proto__ = Array::
 				@ # no copies, yay?
 		}
+do ($ = Bling) ->
 	$.plugin
-		provides: "math"
-		depends: "core"
-	, ->
-		$.type.extend
-			bool: { number: (o) -> if o then 1 else 0 }
-			number: { bool: (o) -> not not o }
-		$:
-			range: (start, end, step = 1) ->
-				if not end? then (end = start; start = 0)
-				step *= -1 if end < start and step > 0 # force step to have the same sign as start->end
-				$( (start + (i*step)) for i in [0...Math.ceil( (end - start) / step )] )
-			zeros: (n) -> $( 0 for i in [0...n] )
-			ones: (n) -> $( 1 for i in [0...n] )
-		floats: -> @map parseFloat
-		ints: -> @map -> parseInt @, 10
-		px: (delta) -> @ints().map -> $.px @,delta
-		min: -> @filter( isFinite ).reduce Math.min
-		max: -> @filter( isFinite ).reduce Math.max
-		mean: -> @sum() / @length
-		avg: -> @sum() / @length
-		sum: -> @filter( isFinite ).reduce(((a) -> a + @), 0)
-		product: -> @filter( isFinite ).reduce (a) -> a * @
-		squares: -> @map -> @ * @
-		magnitude: -> Math.sqrt @floats().squares().sum()
-		scale: (r) -> @map -> r * @
-		add: (d) -> switch $.type(d)
-			when "number" then @map -> d + @
-			when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)] )
-		normalize: -> @scale(1/@magnitude())
-	$.plugin
-		provides: "string"
-		depends: "function"
-	, ->
-		safer = (f) ->
-			(a...) ->
-				try return f(a...)
-				catch err then return "[Error: #{err.message}]"
-		$.type.extend
-			unknown:
-				string: safer (o) -> o.toString?() ? String(o)
-				repr: safer (o) -> $.type.lookup(o).string(o)
-				number: safer (o) -> parseFloat String o
-			null: { string: -> "null" }
-			undefined: { string: -> "undefined" }
-			string:
-				number: safer parseFloat
-				repr:   (s) -> "'#{s}'"
-			array:  { string: safer (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
-			object: { string: safer (o) ->
-				ret = []
-				for k of o
-					try
-						v = o[k]
-					catch err
-						v = "[Error: #{err.message}]"
-					ret.push "#{k}:#{v}"
-				"{" + ret.join(', ') + "}"
-			}
-			function:
-				string: (f) -> f.toString().replace(/^([^{]*){(?:.|\n|\r)*}$/, '$1{ ... }')
-			number:
-				repr:   (n) -> String(n)
-				string: safer (n) ->
-					switch true
-						when n.precision? then n.toPrecision(n.precision)
-						when n.fixed? then n.toFixed(n.fixed)
-						else String(n)
-		return {
-			$:
-				toString: (x) ->
-					if not x? then "function Bling(selector, context) { [ ... ] }"
-					else
-						try
-							$.type.lookup(x).string(x)
-						catch err
-							"[Error: #{err.message}]"
-				toRepr: (x) -> $.type.lookup(x).repr(x)
-				px: (x, delta=0) -> x? and (parseInt(x,10)+(delta|0))+"px"
-				capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
-				dashize: (name) ->
-					ret = ""
-					for i in [0...(name?.length|0)]
-						c = name.charCodeAt i
-						if 91 > c > 64
-							c += 32
-							ret += '-'
-						ret += String.fromCharCode(c)
-					ret
-				camelize: (name) ->
-					name.split('-')
-					while (i = name?.indexOf('-')) > -1
-						name = $.stringSplice(name, i, i+2, name[i+1].toUpperCase())
-					name
-				padLeft: (s, n, c = " ") ->
-					while s.length < n
-						s = c + s
-					s
-				padRight: (s, n, c = " ") ->
-					while s.length < n
-						s = s + c
-					s
-				stringTruncate: (s, n, c = "...") ->
-					s = s.split(' ')
-					r = []
-					while n > 0
-						x = s.shift()
-						n -= x.length
-						if n >= 0
-							r.push x
-					r.join('') + c
-				stringCount: (s, x, i = 0, n = 0) ->
-					if (j = s.indexOf x,i) > i-1
-						$.stringCount s, x, j+1, n+1
-					else n
-				stringSplice: (s, i, j, n) ->
-					nn = s.length
-					end = j
-					if end < 0
-						end += nn
-					start = i
-					if start < 0
-						start += nn
-					s.substring(0,start) + n + s.substring(end)
-				checksum: (s) ->
-					a = 1; b = 0
-					for i in [0...s.length]
-						a = (a + s.charCodeAt(i)) % 65521
-						b = (b + a) % 65521
-					(b << 16) | a
-				repeat: (x, n=2) ->
-					switch true
-						when n is 1 then x
-						when n < 1 then ""
-						when $.is "string", x then x + $.repeat(x, n-1)
-						else $(x).extend $.repeat(x, n-1)
-				stringBuilder: ->
-					if $.is("global", @) then return new $.stringBuilder()
-					items = []
-					@length   = 0
-					@append   = (s) => items.push s; @length += s?.toString().length|0
-					@prepend  = (s) => items.splice 0,0,s; @length += s?.toString().length|0
-					@clear    = ( ) => ret = @toString(); items = []; @length = 0; ret
-					@toString = ( ) => items.join("")
-					@
-			toString: -> $.toString @
-			toRepr: -> $.toRepr @
-		}
-	$.plugin
-		provides: "function"
-		depends: "hash"
-	, ->
-		$:
-			identity: (o) -> o
-			not: (f) -> -> not f.apply @, arguments
-			compose: (f,g) -> (x) -> f.call(y, (y = g.call(x,x)))
-			and: (f,g) -> (x) -> g.call(@,x) and f.call(@,x)
-			once: (f, n=1) ->
-				$.defineProperty (-> (f.apply @,arguments) if n-- > 0),
-					"exhausted",
-						get: -> n <= 0
-			cycle: (f...) ->
-				i = -1
-				-> f[i = ++i % f.length].apply @, arguments
-			bound: (t, f, args = []) ->
-				if $.is "function", f.bind
-					args.splice 0, 0, t
-					r = f.bind.apply f, args
-				else
-					r = (a...) -> f.apply t, (args if args.length else a)
-				$.extend r, { toString: -> "bound-method of #{t}.#{f.name}" }
-			memoize: (f) ->
-				cache = {}
-				(a...) -> cache[$.hash a] ?= f.apply @, a # BUG: skips cache if f returns null on purpose
-			E: (callback) -> (f) -> (err, data) ->
-				return f(data) unless err
-				callback err, data
-	$.plugin
-		provides: "hash"
-		depends: "type"
-	, ->
-		$.type.extend
-			unknown: { hash: (o) -> $.checksum $.toString o }
-			object:  { hash: (o) ->
-				$.hash(Object) +
-					$($.hash(o[k]) for k of o).sum() +
-					$.hash Object.keys o
-			}
-			array:   { hash: (o) ->
-				$.hash(Array) + $(o.map $.hash).reduce (a,x) ->
-					(a*a)+(x|0)
-				, 1
-			}
-			bool:    { hash: (o) -> parseInt(1 if o) }
-		return {
-			$:
-				hash: (x) -> $.type.lookup(x).hash(x)
-			hash: -> $.hash @
-		}
-	$.plugin
-		provides: "pubsub"
-	, ->
-		subscribers = {} # a mapping of channel name to a list of subscribers
-		return {
-			$:
-				publish: (e, args...) ->
-					f.apply null, args for f in (subscribers[e] or= [])
-					args
-				publisher: (e, func) ->
-					(args...) ->
-						func.apply @, args
-						$.publish e, args
-				subscribe: (e, func) ->
-					(subscribers[e] or= []).push func
-					func
-				unsubscribe: (e, func) ->
-					if not func?
-						subscribers[e] = []
-					else
-						a = (subscribers[e] or= [])
-						if (i = a.indexOf func)  > -1
-							a.splice(i,i)
-		}
-	$.plugin
-		provides: "throttle"
-		depends: "core"
-	, ->
-		$:
-			throttle: (f,n=250,last=0) ->
-				(a...) ->
-					gap = $.now - last
-					if gap > n
-						last += gap
-						return f.apply @,a
-					null
-			debounce: (f,n=250,last=0) -> # must be a silence of n ms before f is called again
-				(a...) ->
-					last += (gap = $.now - last)
-					return f.apply @,a if gap > n else null
-	$.plugin
-		provides: "EventEmitter"
-	, ->
-		$: EventEmitter: $.pipe("bling-init").append (obj) ->
-			listeners = {}
-			list = (e) -> (listeners[e] or= [])
-			inherit {
-				emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-				addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
-				on:                 (e, h) -> @addListener e, h
-				removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
-				removeAllListeners: (e) -> listeners[e] = []
-				setMaxListeners:    (n) -> # who really needs this in the core API?
-				listeners:          (e) -> list(e).slice 0
-			}, obj
-(($) ->
-	$.plugin
-		provides: "cartesian"
-	, ->
-		$:
-			cartesian: (sets...) ->
-				n = sets.length
-				ret = []
-				helper = (cur, i) ->
-					(return ret.push cur) if ++i >= n
-					for x in sets[i]
-						helper (cur.concat x), i
-					null
-				helper [], -1
-				return $(ret)
-)(Bling)
-(($) ->
-	$.plugin
-		provides: 'config'
-	, ->
-		get = (name, def) -> process.env[name] ? def
-		$: config: $.extend(get, get: get)
-)(Bling)
-(($) ->
-	$.plugin
-		provides: "date"
+		provides: 'date'
+		depends: 'type'
 	, ->
 		[ms,s,m,h,d] = [1,1000,1000*60,1000*60*60,1000*60*60*24]
 		units = {
@@ -723,8 +348,7 @@ do ($ = Bling) ->
 		stamp: (unit = $.date.defaultUnit) -> @map(-> $.date.stamp @, unit)
 		dateFormat: (fmt = $.date.defaultFormat, unit = $.date.defaultUnit) -> @map(-> $.date.format @, fmt, unit)
 		dateParse: (fmt = $.date.defaultFormat, unit = $.date.defaultUnit) -> @map(-> $.date.parse @, fmt, unit)
-)(Bling)
-(($) ->
+do ($ = Bling) ->
 	$.plugin
 		provides: "delay"
 		depends: "function"
@@ -755,11 +379,15 @@ do ($ = Bling) ->
 		delay: (n, f, c=@) ->
 			$.delay n, $.bound(c, f)
 			@
-)(Bling)
-(($) ->
+		interval: (n, f, c=@) ->
+			g = $.bound c, f
+			h = -> g(); $.delay n, h
+			$.delay n, h
+			@
+do ($ = Bling) ->
 	if $.global.document?
 		$.plugin
-			depends: "function"
+			depends: "function,type"
 			provides: "dom"
 		, ->
 			$.type.register "nodelist",
@@ -990,8 +618,24 @@ do ($ = Bling) ->
 						return df
 					return toNode @[0]
 			}
-)(Bling)
-(($) ->
+do ($ = Bling) ->
+	$.plugin
+		provides: "EventEmitter"
+		depends: "type,pipe"
+	, ->
+		$: EventEmitter: $.pipe("bling-init").append (obj) ->
+			listeners = {}
+			list = (e) -> (listeners[e] or= [])
+			$.inherit {
+				emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
+				addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
+				on:                 (e, h) -> @addListener e, h
+				removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
+				removeAllListeners: (e) -> listeners[e] = []
+				setMaxListeners:    (n) -> # who really needs this in the core API?
+				listeners:          (e) -> list(e).slice 0
+			}, obj
+do ($ = Bling) ->
 	$.plugin
 		depends: "dom,function,core"
 		provides: "event"
@@ -1141,7 +785,59 @@ do ($ = Bling) ->
 		}
 		events.forEach (x) -> ret[x] = binder(x)
 		return ret
-)(Bling)
+do ($ = Bling) ->
+	$.plugin
+		provides: "function"
+		depends: "hash"
+	, ->
+		$:
+			identity: (o) -> o
+			not: (f) -> -> not f.apply @, arguments
+			compose: (f,g) -> (x) -> f.call(y, (y = g.call(x,x)))
+			and: (f,g) -> (x) -> g.call(@,x) and f.call(@,x)
+			once: (f, n=1) ->
+				$.defineProperty (-> (f.apply @,arguments) if n-- > 0),
+					"exhausted",
+						get: -> n <= 0
+			cycle: (f...) ->
+				i = -1
+				-> f[i = ++i % f.length].apply @, arguments
+			bound: (t, f, args = []) ->
+				if $.is "function", f.bind
+					args.splice 0, 0, t
+					r = f.bind.apply f, args
+				else
+					r = (a...) -> f.apply t, (args if args.length else a)
+				$.extend r, { toString: -> "bound-method of #{t}.#{f.name}" }
+			memoize: (f) ->
+				cache = {}
+				(a...) -> cache[$.hash a] ?= f.apply @, a # BUG: skips cache if f returns null on purpose
+			E: (callback) -> (f) -> (err, data) ->
+				return f(data) unless err
+				callback err, data
+do ($ = Bling) ->
+	$.plugin
+		provides: "hash"
+		depends: "type"
+	, ->
+		$.type.extend
+			unknown: { hash: (o) -> $.checksum $.toString o }
+			object:  { hash: (o) ->
+				$.hash(Object) +
+					$($.hash(o[k]) for k of o).sum() +
+					$.hash Object.keys o
+			}
+			array:   { hash: (o) ->
+				$.hash(Array) + $(o.map $.hash).reduce (a,x) ->
+					(a*a)+(x|0)
+				, 1
+			}
+			bool:    { hash: (o) -> parseInt(1 if o) }
+		return {
+			$:
+				hash: (x) -> $.type.lookup(x).hash(x)
+			hash: -> $.hash @
+		}
 do ($ = Bling) ->
 	$.plugin ->
 		$:
@@ -1168,7 +864,7 @@ do ($ = Bling) ->
 					ret += $.padLeft(pct_sum.toFixed(2)+"%",7) + $.padRight(" < #{end.toFixed(2)}", 10) + ": " + $.repeat("#", buckets[n]) + "\n"
 				ret
 		histogram: -> $.histogram @
-(($) ->
+do ($ = Bling) ->
 	$.plugin
 		depends: "dom"
 		provides: "http"
@@ -1230,22 +926,22 @@ do ($ = Bling) ->
 					opts.method = "GET"
 					$.http(url, opts)
 		}
-)(Bling)
 do ($ = Bling) ->
-	$.pipe('bling-init').append (obj) ->
-		map = {}
-		keyMaker = null
-		$.inherit {
-			index: (keyFunc) ->
-				keyMaker = keyFunc
-				@each (x) ->
-					map[keyFunc(x)] = x
-			query: (criteria) ->
-				key = keyMaker(criteria)
-				return map[key] if key of map
-				null
-		}, obj
-(($) ->
+	$.depends 'pipe', ->
+		$.pipe('bling-init').append (obj) ->
+			map = {}
+			keyMaker = null
+			$.inherit {
+				index: (keyFunc) ->
+					keyMaker = keyFunc
+					@each (x) ->
+						map[keyFunc(x)] = x
+				query: (criteria) ->
+					key = keyMaker(criteria)
+					return map[key] if key of map
+					null
+			}, obj
+do ($ = Bling) ->
 	$.plugin
 		depends: "dom"
 		provides: "lazy"
@@ -1257,70 +953,143 @@ do ($ = Bling) ->
 				lazy_load "script", { src: src }
 			style: (src) ->
 				lazy_load "link", { href: src, rel: "stylesheet" }
-)(Bling)
-(($) ->
-	alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split ""
-	random = (-> # Mersenne Twister algorithm, from the psuedocode on wikipedia
-		MT = new Array(624)
-		index = 0
-		init_generator = (seed) ->
-			index = 0
-			MT[0] = seed
-			for i in [1..623]
-				MT[i] = 0xFFFFFFFF & (1812433253 * (MT[i-1] ^ (MT[i-1] >>> 30)) + i)
-		
-		generate_numbers = ->
-			for i in [0..623]
-				y = ((MT[i] & 0x80000000) >>> 31) + (0x7FFFFFFF & MT[ (i+1) % 624 ])
-				MT[i] = MT[ (i+397) % 624 ] ^ (y >>> 1)
-				if (y%2) is 1
-					MT[i] = MT[i] ^ 2567483615
-		a = Math.pow(2,31)
-		b = a * 2
-		next = ->
-			if index is 0
-				generate_numbers()
-			y = MT[index] ^
-				(y >>> 11) ^
-				((y << 7) and 2636928640) ^
-				((y << 15) and 4022730752) ^
-				(y >>> 18)
-			index = (index + 1) % 624
-			(y + a) / b
-		$.defineProperty next, "seed",
-			set: (v) -> init_generator(v)
-		
-		next.seed = +new Date()
-		return $.extend next,
-			real: (min, max) ->
-				if not min?
-					[min,max] = [0,1.0]
-				if not max?
-					[min,max] = [0,min]
-				($.random() * (max - min)) + min
-			integer: (min, max) -> Math.floor $.random.real(min,max)
-			string: (len, prefix="") ->
-				prefix += $.random.element(alphabet) while prefix.length < len
-				prefix
-			coin: (balance=.5) -> $.random() <= balance
-			element: (arr) -> arr[$.random.integer(0, arr.length)]
-			gaussian: (mean=0.5, ssig=0.12) -> # paraphrased from Wikipedia
-				while true
-					u = $.random()
-					v = 1.7156 * ($.random() - 0.5)
-					x = u - 0.449871
-					y = Math.abs(v) + 0.386595
-					q = (x*x) + y*(0.19600*y-0.25472*x)
-					break unless q > 0.27597 and (q > 0.27846 or (v*v) > (-4*Math.log(u)*u*u))
-				return mean + ssig*v/u
-	)()
+do ($ = Bling) ->
 	$.plugin
-		provides: "random"
+		provides: "math"
+		depends: "core"
 	, ->
+		$.type.extend
+			bool: { number: (o) -> if o then 1 else 0 }
+			number: { bool: (o) -> not not o }
 		$:
-			random: random
-)(Bling)
-(($) ->
+			range: (start, end, step = 1) ->
+				if not end? then (end = start; start = 0)
+				step *= -1 if end < start and step > 0 # force step to have the same sign as start->end
+				$( (start + (i*step)) for i in [0...Math.ceil( (end - start) / step )] )
+			zeros: (n) -> $( 0 for i in [0...n] )
+			ones: (n) -> $( 1 for i in [0...n] )
+		floats: -> @map parseFloat
+		ints: -> @map -> parseInt @, 10
+		px: (delta) -> @ints().map -> $.px @,delta
+		min: -> @filter( isFinite ).reduce Math.min
+		max: -> @filter( isFinite ).reduce Math.max
+		mean: -> @sum() / @length
+		avg: -> @sum() / @length
+		sum: -> @filter( isFinite ).reduce(((a) -> a + @), 0)
+		product: -> @filter( isFinite ).reduce (a) -> a * @
+		squares: -> @map -> @ * @
+		magnitude: -> Math.sqrt @floats().squares().sum()
+		scale: (r) -> @map -> r * @
+		add: (d) -> switch $.type(d)
+			when "number" then @map -> d + @
+			when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)] )
+		normalize: -> @scale 1/@magnitude()
+do ($ = Bling) ->
+	$.plugin
+		provides: "pipe"
+		depends: "type"
+	, ->
+	
+		pipes = {}
+		pipe = (name, args) ->
+			p = (pipes[name] or= [])
+			if not args
+				return {
+					prepend: (obj) -> p.unshift(obj); obj
+					append: (obj) -> p.push(obj); obj
+				}
+			for func in p
+				args = func.call @, args
+			args
+		pipe("bling-init").prepend (args) ->
+			[selector, context] = args
+			$.inherit Bling, $.inherit {
+				selector: selector
+				context: context
+			}, $.type.lookup(selector).array(selector, context)
+		$: pipe: pipe
+do ($ = Bling) ->
+	$.plugin
+		provides: "pubsub"
+	, ->
+		subscribers = {} # a mapping of channel name to a list of subscribers
+		$:
+			publish: (e, args...) ->
+				f.apply null, args for f in (subscribers[e] or= [])
+				args
+			publisher: (e, func) ->
+				(args...) ->
+					$.publish e, func.apply @, args
+			subscribe: (e, func) ->
+				(subscribers[e] or= []).push func
+				func
+			unsubscribe: (e, func) ->
+				if not func?
+					subscribers[e] = []
+				else
+					a = (subscribers[e] or= [])
+					if (i = a.indexOf func)  > -1
+						a.splice(i,i)
+do ($ = Bling) ->
+	$.plugin
+		provides: 'random'
+		depends: 'type'
+	, ->
+		alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split ""
+		$: random: do -> # Mersenne Twister algorithm, from the psuedocode on wikipedia
+			MT = new Array(624)
+			index = 0
+			init_generator = (seed) ->
+				index = 0
+				MT[0] = seed
+				for i in [1..623]
+					MT[i] = 0xFFFFFFFF & (1812433253 * (MT[i-1] ^ (MT[i-1] >>> 30)) + i)
+			
+			generate_numbers = ->
+				for i in [0..623]
+					y = ((MT[i] & 0x80000000) >>> 31) + (0x7FFFFFFF & MT[ (i+1) % 624 ])
+					MT[i] = MT[ (i+397) % 624 ] ^ (y >>> 1)
+					if (y%2) is 1
+						MT[i] = MT[i] ^ 2567483615
+			a = Math.pow(2,31)
+			b = a * 2
+			next = ->
+				if index is 0
+					generate_numbers()
+				y = MT[index] ^
+					(y >>> 11) ^
+					((y << 7) and 2636928640) ^
+					((y << 15) and 4022730752) ^
+					(y >>> 18)
+				index = (index + 1) % 624
+				(y + a) / b
+			$.defineProperty next, "seed",
+				set: (v) -> init_generator(v)
+			
+			next.seed = +new Date()
+			return $.extend next,
+				real: (min, max) ->
+					if not min?
+						[min,max] = [0,1.0]
+					if not max?
+						[min,max] = [0,min]
+					($.random() * (max - min)) + min
+				integer: (min, max) -> Math.floor $.random.real(min,max)
+				string: (len, prefix="") ->
+					prefix += $.random.element(alphabet) while prefix.length < len
+					prefix
+				coin: (balance=.5) -> $.random() <= balance
+				element: (arr) -> arr[$.random.integer(0, arr.length)]
+				gaussian: (mean=0.5, ssig=0.12) -> # paraphrased from Wikipedia
+					while true
+						u = $.random()
+						v = 1.7156 * ($.random() - 0.5)
+						x = u - 0.449871
+						y = Math.abs(v) + 0.386595
+						q = (x*x) + y*(0.19600*y-0.25472*x)
+						break unless q > 0.27597 and (q > 0.27846 or (v*v) > (-4*Math.log(u)*u*u))
+					return mean + ssig*v/u
+do ($ = Bling) ->
 	$.plugin
 		provides: "sendgrid"
 		depends: "config"
@@ -1343,8 +1112,148 @@ do ($ = Bling) ->
 					nodemailer.sendMail mail, callback
 				else
 					callback(false) # Reply as if an email was sent
-)(Bling)
-(($) ->
+do ($ = Bling) ->
+	$.plugin
+		provides: "string"
+		depends: "function"
+	, ->
+		safer = (f) ->
+			(a...) ->
+				try return f(a...)
+				catch err then return "[Error: #{err.message}]"
+		$.type.extend
+			unknown:
+				string: safer (o) -> o.toString?() ? String(o)
+				repr: safer (o) -> $.type.lookup(o).string(o)
+				number: safer (o) -> parseFloat String o
+			null: { string: -> "null" }
+			undefined: { string: -> "undefined" }
+			string:
+				number: safer parseFloat
+				repr:   (s) -> "'#{s}'"
+			array:  { string: safer (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
+			object: { string: safer (o) ->
+				ret = []
+				for k of o
+					try
+						v = o[k]
+					catch err
+						v = "[Error: #{err.message}]"
+					ret.push "#{k}:#{v}"
+				"{" + ret.join(', ') + "}"
+			}
+			function:
+				string: (f) -> f.toString().replace(/^([^{]*){(?:.|\n|\r)*}$/, '$1{ ... }')
+			number:
+				repr:   (n) -> String(n)
+				string: safer (n) ->
+					switch true
+						when n.precision? then n.toPrecision(n.precision)
+						when n.fixed? then n.toFixed(n.fixed)
+						else String(n)
+		return {
+			$:
+				toString: (x) ->
+					if not x? then "function Bling(selector, context) { [ ... ] }"
+					else
+						try
+							$.type.lookup(x).string(x)
+						catch err
+							"[Error: #{err.message}]"
+				toRepr: (x) -> $.type.lookup(x).repr(x)
+				px: (x, delta=0) -> x? and (parseInt(x,10)+(delta|0))+"px"
+				capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
+				dashize: (name) ->
+					ret = ""
+					for i in [0...(name?.length|0)]
+						c = name.charCodeAt i
+						if 91 > c > 64
+							c += 32
+							ret += '-'
+						ret += String.fromCharCode(c)
+					ret
+				camelize: (name) ->
+					name.split('-')
+					while (i = name?.indexOf('-')) > -1
+						name = $.stringSplice(name, i, i+2, name[i+1].toUpperCase())
+					name
+				padLeft: (s, n, c = " ") ->
+					while s.length < n
+						s = c + s
+					s
+				padRight: (s, n, c = " ") ->
+					while s.length < n
+						s = s + c
+					s
+				stringTruncate: (s, n, c = "...") ->
+					s = s.split(' ')
+					r = []
+					while n > 0
+						x = s.shift()
+						n -= x.length
+						if n >= 0
+							r.push x
+					r.join('') + c
+				stringCount: (s, x, i = 0, n = 0) ->
+					if (j = s.indexOf x,i) > i-1
+						$.stringCount s, x, j+1, n+1
+					else n
+				stringSplice: (s, i, j, n) ->
+					nn = s.length
+					end = j
+					if end < 0
+						end += nn
+					start = i
+					if start < 0
+						start += nn
+					s.substring(0,start) + n + s.substring(end)
+				checksum: (s) ->
+					a = 1; b = 0
+					for i in [0...s.length]
+						a = (a + s.charCodeAt(i)) % 65521
+						b = (b + a) % 65521
+					(b << 16) | a
+				repeat: (x, n=2) ->
+					switch true
+						when n is 1 then x
+						when n < 1 then ""
+						when $.is "string", x then x + $.repeat(x, n-1)
+						else $(x).extend $.repeat(x, n-1)
+				stringBuilder: ->
+					if $.is("global", @) then return new $.stringBuilder()
+					items = []
+					@length   = 0
+					@append   = (s) => items.push s; @length += s?.toString().length|0
+					@prepend  = (s) => items.splice 0,0,s; @length += s?.toString().length|0
+					@clear    = ( ) => ret = @toString(); items = []; @length = 0; ret
+					@toString = ( ) => items.join("")
+					@
+			toString: -> $.toString @
+			toRepr: -> $.toRepr @
+		}
+do ($ = Bling) ->
+	$.plugin
+		provides: "symbol"
+		depends: "type"
+	, ->
+		symbol = null
+		cache = {}
+		g = $.global
+		g.Bling = Bling
+		if module?
+			module.exports = Bling
+		$.defineProperty $, "symbol",
+			set: (v) ->
+				g[symbol] = cache[symbol]
+				cache[symbol = v] = g[v]
+				g[v] = Bling
+			get: -> symbol
+		return $:
+			symbol: "$"
+			noConflict: ->
+				Bling.symbol = "Bling"
+				Bling
+do ($ = Bling) ->
 	$.plugin
 		provides: "StateMachine"
 	, ->
@@ -1394,7 +1303,7 @@ do ($ = Bling) ->
 				return @
 	$.plugin
 		provides: "synth"
-		depends: "StateMachine"
+		depends: "StateMachine, type"
 	, ->
 		class SynthMachine extends $.StateMachine
 			basic =
@@ -1498,8 +1407,7 @@ do ($ = Bling) ->
 					else
 						$(s.fragment)
 		}
-)(Bling)
-(($) ->
+do ($ = Bling) ->
 	engines = {} # a registry for different template engines
 	$.plugin () -> # Template plugin, pythonic style: %(value).2f
 		current_engine = null
@@ -1609,8 +1517,26 @@ do ($ = Bling) ->
 		return (text, values) ->
 			text
 	)()
-)(Bling)
-(($) ->
+do ($ = Bling) ->
+	$.plugin
+		provides: "throttle"
+		depends: "core"
+	, ->
+		$:
+			throttle: (ms, f) ->
+				last = 0
+				(a...) ->
+					gap = $.now - last
+					if gap > n
+						last += gap
+						return f.apply @,a
+					null
+			debounce: (ms, f) ->
+				last = 0
+				(a...) ->
+					last += (gap = $.now - last)
+					return f.apply @,a if gap > n else null
+do ($ = Bling) ->
 	$.plugin () -> # TnetStrings plugin
 		parseOne = (data) ->
 			i = data.indexOf ":"
@@ -1656,8 +1582,7 @@ do ($ = Bling) ->
 					return (data.length|0) + ":" + data + type
 				parse: (x) ->
 					parseOne(x)?[0]
-)(Bling)
-(($) ->
+do ($ = Bling) ->
 	$.plugin
 		provides: "trace"
 		depends: "function,type"
@@ -1680,8 +1605,7 @@ do ($ = Bling) ->
 			tracer or= $.log
 			label or= ""
 			$.type.lookup(o).trace(label, o, tracer)
-)(Bling)
-(($) ->
+do ($ = Bling) ->
 	$.plugin
 		depends: "dom"
 	, ->
@@ -1799,7 +1723,86 @@ do ($ = Bling) ->
 			fadeUp: (speed, callback) -> @fadeOut speed, callback, 0.0, "-"+@height().first()
 			fadeDown: (speed, callback)  -> @fadeOut speed, callback, 0.0, @height().first()
 		}
-)(Bling)
+do ($ = Bling) ->
+	$.plugin
+		provides: "type"
+	, ->
+		isType = (T, o) ->
+			if not o? then T in [o,"null","undefined"]
+			else o.constructor is T or
+				o.constructor.name is T or
+				Object::toString.apply(o) is "[object #{T}]" or
+				isType T, o.__proto__ # recursive
+		inherit = (parent, obj) ->
+			if typeof parent is "function"
+				parent = parent.prototype
+			if parent.__proto__ is Object.prototype
+				parent.__proto__ = obj.__proto__
+			obj.__proto__ = parent
+			obj
+		_type = do ->
+			cache = {}
+			base =
+				name: 'unknown'
+				match: (o) -> true
+			order = []
+			register = (name, data) ->
+				order.unshift name if not (name of cache)
+				cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
+				cache[name][name] = (o) -> o
+			_extend = (name, data) ->
+				if typeof name is "string"
+					cache[name] ?= register name, {}
+					cache[name] = extend cache[name], data
+				else if typeof name is "object"
+					(_extend k, name[k]) for k of name
+			lookup = (obj) ->
+				for name in order
+					if cache[name]?.match.call obj, obj
+						return cache[name]
+			register "unknown",   base
+			register "object",    match: -> typeof @ is "object"
+			register "error",     match: -> isType 'Error', @
+			register "regexp",    match: -> isType 'RegExp', @
+			register "string",    match: -> typeof @ is "string" or isType String, @
+			register "number",    match: -> (isType Number, @) and @ isnt NaN
+			register "bool",      match: -> typeof @ is "boolean" or String(@) in ["true","false"]
+			register "array",     match: -> Array.isArray?(@) or isType Array, @
+			register "function",  match: -> typeof @ is "function"
+			register "global",    match: -> typeof @ is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
+			register "undefined", match: (x) -> x is undefined
+			register "null",      match: (x) -> x is null
+			return extend ((o) -> lookup(o).name),
+				register: register
+				lookup: lookup
+				extend: _extend
+				is: (t, o) -> cache[t]?.match.call o, o
+				as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
+		_type.extend
+			unknown:   { array: (o) -> [o] }
+			null:      { array: (o) -> [] }
+			undefined: { array: (o) -> [] }
+			array:     { array: (o) -> o }
+			number:    { array: (o) -> Bling.extend new Array(o), length: 0 }
+		_type.register "bling",
+			match:  (o) -> o and isType Bling, o
+			array:  (o) -> o.toArray()
+			hash:   (o) -> o.map(Bling.hash).reduce (a,x) -> (a*a)+x
+			string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
+			repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
+		$:
+			inherit: inherit
+			extend: extend
+			defineProperty: (o, name, opts) ->
+				Object.defineProperty o, name, extend({ configurable: true, enumerable: true }, opts)
+				o
+			isType: isType
+			type: _type
+			is: _type.is
+			as: _type.as
+			isSimple: (o) -> _type(o) in ["string", "number", "bool"]
+			isEmpty: (o) -> o in ["", null, undefined]
+		defineProperty: (name, opts) -> @each -> $.defineProperty @, name, opts
 do ($ = Bling) ->
 	$.plugin
 		provides: "unittest"

@@ -1,3 +1,4 @@
+[![build status](https://secure.travis-ci.org/jldailey/BlingJS.png)](http://travis-ci.org/jldailey/BlingJS)
 # About
 -------
 

@@ -1,338 +1,99 @@
-###
-
-bling.js
---------
-Named after the bling symbol ($) to which it is bound by default.
-This is a jQuery-like framework, written in CoffeeScript.
-Blame: Jesse Dailey <jesse.dailey@gmail.com>
-(Copyright) 2011
-(License) released under the MIT License
-http://creativecommons.org/licenses/MIT/
-
-###
-
-if not "querySelectorAll" of document
-	alert "This browser is not supported"
-	`return`
-
-# local shortcuts
-if console and console.log
-	log = (a...) ->
-		console.log.apply(console, a)
-else
-	log = (a...) ->
-		alert a.join(", ")
-
-# constants
-COMMASEP = ", "
-EVENTSEP_RE = /,* +/
-OBJECT_RE = /\[object (\w+)\]/
-
-Bling = (selector, context = document) ->
-	type = Object.Type selector
-	if type in ["undefined", "null"]
-		set = []
-	else if type in ["array", "bling", "nodelist"]
-		set = selector
-	else if type in ["node", "window", "function"]
-		set = [ selector ]
-	else if type is "number"
-		set = new Array selector
-	else if type is "string"
-		selector = selector.trimLeft()
-		if selector[0] is "<"
-			set = [Bling.HTML.parse(selector)]
-		else if context.querySelectorAll
-			set = context.querySelectorAll(selector)
-		else
-			throw Error "invalid context: #{context} (type: #{Object.Type context})"
-	else
-		throw Error "invalid selector: #{selector} (type: #{Object.Type selector})"
-
-	# hijack the prototype of the input object
-	set.constructor = Bling
-	set.__proto__ = Bling.fn
-	set.selector = selector
-	set.context = context
-	# firefox doesn't set the .length properly when we hijack the prototype
-	set.length = set.len()
-	return set
-
-# Blings extend from arrays
-Bling.fn = new Array # a copy(!) of the Array prototype
-
-Object.Keys = (o, inherited = false) -> # Object.Keys(/o/, [/inherited/]) - get a list of key names
-	# by default, does not include properties inherited from a prototype
-	keys = []; j = 0
-	for i of o
-		if inherited or o.hasOwnProperty(i)
-			keys[j++] = i
-	keys
-
-Object.Extend = (a, b, k) -> # Object.Extend(a, b, [k]) - merge values from b into a
-	# if k is present, it should be an array of property names
-	if Object::toString.apply(k) is "[object Array]" # cant use Object.IsArray yet
-		for i of k
-			a[k[i]] = b[k[i]] unless b[k[i]] is undefined
-	else
-		for i in (k = Object.Keys(b))
-			a[i] = b[i]
+Object.keys or= (o) -> (k for k of o)
+Object.values or= (o) -> (o[k] for k of o)
+extend = (a, b) ->
+	if b then a[k] = v for k,v of b when v?
 	a
-
-Object.Extend Object,
-	Type: (o) ->
-		switch true
-			when o is undefined
-				"undefined"
-			when o is null
-				"null"
-			when Object.IsString o
-				"string"
-			when Object.IsType o, Bling
-				"bling"
-			when Object.IsArray o
-				"array"
-			when Object.IsType o, NodeList
-				"nodelist"
-			when Object.IsNumber o
-				"number"
-			when Object.IsFragment o
-				"fragment"
-			when Object.IsNode o
-				"node"
-			when Object.IsFunc o
-				"function"
-			when Object.IsType o, "RegExp"
-				"regexp"
-			when String(o) in ["true", "false"]
-				"boolean"
-			when Object.IsError o
-				"error"
-			when Object.IsObject o
-				if "setInterval" of o # same crude method that jQuery uses
-					"window"
-				else
-					"object"
-	IsType: (o,T) -> # Object.IsType(o,T) - true if object o is of type T (directly or indirectly)
-		if o == null
-			o is T
-		else if o.constructor is T
-			true
-		else if typeof T is "string"
-			o.constructor.name is T or Object::toString.apply(o).replace(OBJECT_RE, "$1") is T
-		else
-			Object.IsType o.__proto__, T # recurse through sub-classes
-	IsString: (o) -> # Object.IsString(a) - true if object a is a string
-		o? and (typeof o is "string" or Object.IsType(o, String))
-	IsNumber: (o) ->
-		o? and Object.IsType o, Number
-	IsBoolean: (o) ->
-		typeof o is "boolean"
-	IsFunc: (o) -> # Object.IsFunc(a) - true if object a is a function
-		o? and (typeof o is "function" or Object.IsType(o, Function)) and o.call?
-	IsNode: (o) -> # Object.IsNode(o) - true if object is a DOM node
-		o? and o.nodeType > 0
-	IsFragment: (o) -> # Object.IsFragment(o) - true if object is a DocumentFragment node
-		o? and o.nodeType is 11
-	IsArray: (o) -> # Object.IsArray(o) - true if object is an Array (or inherits Array)
-		o? and (Object.ToString(o) is "[object Array]" or Object.IsType(o, Array))
-	IsBling: (o) ->
-		o? and Object.IsType(o, Bling)
-	IsError: (o) ->
-		o? and o.constructor?.name is "Error"
-	IsObject: (o) -> # Object.IsObject(o) - true if a is an object
-		o? and typeof o is "object"
-	IsDefined: (o) -> # Object.IsDefined(o) - true if a is not null nor undefined
-		o?
-	Unbox: (a) -> # Object.Unbox(o) - primitive types can be 'boxed' in an object
-		if a? and Object.IsObject(a)
-			return a.toString() if Object.IsString a
-			return Number(a) if Object.IsNumber a
-		a
-	ToString: (x) ->
-		Object::toString.apply(x)
-
-Object.Extend Function,
-	Empty: () -> # the empty function
-	Bound: (f, t, args = []) -> # Function.Bound(/f/, /t/) - whenever /f/ is called, _this_ is /t/
-		if "bind" of f
-			args.splice 0, 0, t
-			r = f.bind.apply f, args
-		else
-			r = (a...) ->
-				if args.length > 0
-					a = args
-				f.apply t, args
-		r.toString = () ->
-			"bound-method of #{t}.#{f.name}"
-		r
-	Trace: (f, label, tracer = log) -> # Function.Trace(/f/, /label/) - log calls to /f/
-		r = (a...) ->
-			tracer "#{@name or Object.Type(@)}.#{label or f.name}(", a, ")"
-			f.apply @, a
-		tracer "Function.Trace: #{label or f.name} created."
-		r.toString = f.toString
-		r
-	NotNull: (x) -> x != null
-	IndexFound: (x) -> x > -1
-	ReduceAnd: (x) -> x and @
-	UpperLimit: (x) -> (y) -> Math.min(x, y)
-	LowerLimit: (x) -> (y) -> Math.max(x, y)
-	Px: (d) -> () -> Number.Px(@,d)
-
-Object.Extend Array,
-	Coalesce: (a...) ->
-		# Array.Coalesce - returns the first non-null argument
-		if Object.IsArray(a[0])
-			Array.Coalesce a[0]...
-		else
-			for i in a
-				return i if i?
-	Extend: (a, b) ->
-		j = a.length
-		for i in b
-			a[j++] = i
-		a
-
-Object.Extend Number,
-	Px: (x, d=0) ->
-		# Px(/x/, /delta/=0) - convert a number-ish x to pixels
-		x? and (parseInt(x,10)+(d|0))+"px"
-	# mappable versions of max() and min()
-	AtLeast: (x) ->
-		(y) ->
-			Math.max parseFloat(y or 0), x
-	AtMost: (x) ->
-		(y) ->
-			Math.min parseFloat(y or 0), x
-
-Object.Extend String,
-	PadLeft: (s, n, c = " ") -> # String.PadLeft(string, width, fill=" ")
-		while s.length < n
-			s = c + s
-		s
-	PadRight: (s, n, c = " ") -> # String.PadRight(string, width, fill=" ")
-		while s.length < n
-			s = s + c
-		s
-	Splice: (s, i, j, n) -> # String.Splice(string, start, end, n) - replace a substring with n
-		nn = s.length
-		end = j
-		if end < 0
-			end += nn
-		start = i
-		if start < 0
-			start += nn
-		s.substring(0,start) + n + s.substring(end)
-	Checksum: (s) -> # String.Checksum(string) - Adler32 checksum of a string
-		a = 1; b = 0
-		for i in [0...s.length]
-			a = (a + s.charCodeAt(i)) % 65521
-			b = (b + a) % 65521
-		return (b << 16) | a
-
-Object.Extend Event,
-	Cancel: (evt) ->
-		evt.stopPropagation()
-		evt.preventDefault()
-		evt.cancelBubble = true
-		evt.returnValue = false
-	,
-	Prevent: (evt) ->
-		evt.preventDefault()
-	,
-	Stop: (evt) ->
-	 evt.stopPropagation()
-	 evt.cancelBubble = true
-
-(($) -> # protected name_space
-
-	$.plugins = []
-
-	$.plugin = (constructor) ->
+class Bling
+	default_context = if document? then document else {}
+	constructor: (selector, context = default_context) ->
+		return Bling.pipe "bling-init", [selector, context]
+	@plugin: (opts, constructor) ->
+		if not constructor
+			constructor = opts
+			opts = {}
+		if "depends" of opts
+			return @depends opts.depends, =>
+				@plugin { provides: opts.provides }, constructor
 		try
-			name = constructor.name
-			plugin = constructor.call $,$
-			name = name or plugin.name
-			if not name
-				throw Error "plugin requires a 'name'"
-			$.plugins.push(name)
-			$.plugins[name] = plugin
-			delete plugin.name
-			# if a plugin defines globals, extend Bling
-			if plugin[Bling.symbol]
-				Object.Extend(Bling, plugin[Bling.symbol])
-				# clear off the globals
-				delete plugin[Bling.symbol]
-			# everything else about the plugin extends the prototype
-			Object.Extend(Bling.fn, plugin)
+			if (plugin = constructor?.call @,@)
+				extend @, plugin?.$
+				['$','name'].forEach (k) -> delete plugin[k]
+				extend @::, plugin
+				for key of plugin then do (key) =>
+					@[key] or= (a...) => (@::[key].apply Bling(a[0]), a[1...])
+				if opts.provides? then @provide opts.provides
 		catch error
-			log "failed to load plugin #{name}"
-			# log error.message
-			throw error
-
-	$.plugin () -> # Symbol - allow use of something other than $ by assigning to Bling.symbol
-		symbol = null
-		$.__defineSetter__ "symbol", (v) ->
-			if symbol of window
-				delete window[symbol]
-			symbol = v
-			window[v] = Bling
-		$.__defineGetter__ "symbol", () -> symbol
-		$.symbol = "$"
-		window["Bling"] = Bling
-
-		return {
-			name: "Symbol"
-		}
-
-	$.plugin () -> # Compat - compatibility patches
-		leftSpaces_re = /^\s+/
-		String::trimLeft = Array.Coalesce(
-			String::trimLeft,
-			() -> @replace(leftSpaces_re, "")
-		)
-
-		String::split = Array.Coalesce(
-			String::split,
-			(sep) ->
-				a = []; n = 0; i = 0
-				while (j = @indexOf sep,i) > -1
-					a[n++] = @substring(i+1,j+1)
-					i = j + 1
-				a
-		)
-
-		Array::join = Array.Coalesce(
-			Array::join,
-			(sep = '') ->
-				n = @length
-				return "" if n is 0
-				s = @[n-1]
-				while --n > 0
-					s = @[n-1] + sep + s
-				s
-		)
-
-		Element::matchesSelector = Array.Coalesce(
-			Element::webkitMatchesSelector,
-			Element::mozMatchesSelector,
+			console.log "failed to load plugin: #{@name} #{error.message}: #{error.stack}"
+		@
+	dep =
+		q: []
+		done: {}
+		filter: (n) ->
+			(if (typeof n) is "string" then n.split /, */ else n)
+			.filter (x) -> not (x of dep.done)
+	@depends: (needs, f) ->
+		if (needs = dep.filter needs).length is 0 then f()
+		else
+			dep.q.push (need) ->
+				(needs.splice i, 1) if (i = needs.indexOf need) > -1
+				return (needs.length is 0 and f)
+		f
+	@provide: (needs, data) ->
+		for need in dep.filter needs
+			dep.done[need] = i = 0
+			while i < dep.q.length
+				if (f = dep.q[i] need)
+					dep.q.splice i,1
+					f data
+					i = 0 # start over in case a nested dependency removed stuff 'behind' i
+				else i++
+		data
+Bling.prototype = []
+Bling.prototype.constructor = Bling
+Bling.global = if window? then window else global
+$ = Bling
+$.plugin
+	provides: "cartesian"
+, ->
+	$:
+		cartesian: (sets...) ->
+			n = sets.length
+			ret = []
+			helper = (cur, i) ->
+				(return ret.push cur) if ++i >= n
+				for x in sets[i]
+					helper (cur.concat x), i
+				null
+			helper [], -1
+			return $(ret)
+$.plugin ->
+	String::trimLeft or= -> @replace(/^\s+/, "")
+	String::split or= (sep) ->
+		a = []; i = 0
+		while (j = @indexOf sep,i) > -1
+			a.push @substring(i,j)
+			i = j + 1
+		a
+	String::lastIndexOf or= (s, c, i = -1) ->
+		j = -1
+		j = i while (i = s.indexOf c, i+1) > -1
+		j
+	Array::join or= (sep = '') ->
+		n = @length
+		return "" if n is 0
+		s = @[n-1]
+		while --n > 0
+			s = @[n-1] + sep + s
+		s
+	if Event?
+		Event::preventAll = () ->
+			@preventDefault()
+			@stopPropagation()
+			@cancelBubble = true
+	if Element?
+		Element::matchesSelector = Element::webkitMatchesSelector or
+			Element::mozMatchesSelector or
 			Element::matchesSelector
-		)
-
-		oldToString = Element::toString
-		Element::toString = (css_mode) ->
-			if css_mode
-				name = @nodeName.toLowerCase()
-				if @id?
-					name += "##{@id}"
-				else if @className?
-					name += ".#{@className.split(" ").join(".")}"
-				name
-			else
-				oldToString.apply @
-
-		# if cloneNode does not take a 'deep' argument, add support
 		if Element::cloneNode.length is 0
 			oldClone = Element::cloneNode
 			Element::cloneNode = (deep = false) ->
@@ -341,1426 +102,1332 @@ Object.Extend Event,
 					for i in @childNodes
 						n.appendChild i.cloneNode true
 				return n
-
-		return {
-			name: "Compat"
-		}
-
-	$.plugin () -> # Core - the functional basis for all other modules
-		class TimeoutQueue extends Array # (new TimeoutQueue).schedule(f, 10);
-			# TimeoutQueue works like setTimeout but enforces strictness on the order
-			# (still has the same basic timing inaccuracy, but will always fire
-			# callbacks in the order they were originally scheduled.)
-			constructor: () ->
-				next = () => # next() consumes the next handler on the queue
-					if @length > 0
-						@shift()() # shift AND call
-				@schedule = (f, n) => # schedule(f, n) sets f to run after n or more milliseconds
-					if not Object.IsFunc(f)
-						throw Error "function expected, got: #{typeof f}"
-					nn = @length
-					f.order = n + new Date().getTime()
-					if nn is 0 or f.order > @[nn-1].order # short-cut the common-case: f belongs after the end
-						@push(f)
-					else
-						for i in [0...nn]
-							if @[i].order > f.order
-								@splice(i, 0, f)
-								break
-					setTimeout next, n
-					return @
-				@cancel = (f) =>
-					if not Object.IsFunc(f)
-						throw Error "function expected, got #{Object.Type(f)}"
-					for i in [0...@length]
+	return { }
+$.plugin
+	provides: 'config'
+	depends: 'type'
+, ->
+	get = (name, def) -> process.env[name] ? def
+	$: config: $.extend(get, get: get)
+$.plugin
+	provides: "core"
+	depends: "string"
+, ->
+	$.defineProperty $, "now",
+		get: -> +new Date
+	index = (i, o) ->
+		i += o.length while i < 0
+		Math.min i, o.length
+	baseTime = $.now
+	return {
+		$:
+			log: $.extend((a...) ->
+				prefix = "+#{$.padLeft String($.now - baseTime), $.log.prefixSize, '0'}:"
+				if prefix.length > $.log.prefixSize + 2
+					prefix = "#{baseTime = $.now}:"
+				if a.length and $.is "string", a[0]
+					a[0] = "#{prefix} #{a[0]}"
+				else
+					a.unshift prefix
+				console.log a...
+				return a[a.length-1] if a.length
+			, prefixSize: 5)
+			assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
+			coalesce: (a...) -> $(a).coalesce()
+		eq: (i) -> $([@[index i, @]])
+		each: (f) -> (f.call(t,t) for t in @); @
+		map: (f) -> $(f.call(t,t) for t in @)
+		reduce: (f, a) ->
+			i = 0; n = @length
+			a = @[i++] if not a?
+			(a = f.call @[x], a, @[x]) for x in [i...n] by 1
+			return a
+		union: (other, strict = true) ->
+			ret = $()
+			ret.push(x) for x in @ when not ret.contains(x, strict)
+			ret.push(x) for x in other when not ret.contains(x, strict)
+			ret
+		distinct: (strict = true) -> @union @, strict
+		intersect: (other) -> $(x for x in @ when x in other) # another very beatiful expression
+		contains: (item, strict = true) -> ((strict and t is item) or (not strict and `t == item`) for t in @).reduce ((a,x) -> a or x), false
+		count: (item, strict = true) -> $(1 for t in @ when (item is undefined) or (strict and t is item) or (not strict and `t == item`)).sum()
+		coalesce: ->
+			for i in @
+				if $.type(i) in ["array","bling"] then i = $(i).coalesce()
+				if i? then return i
+			null
+		swap: (i,j) ->
+			i = index i, @
+			j = index j, @
+			if i isnt j
+				[@[i],@[j]] = [@[j],@[i]]
+			@
+		shuffle: ->
+			i = @length-1
+			while i >= 0
+				@swap --i, Math.floor(Math.random() * i)
+			@
+		select: (->
+			getter = (prop) -> -> if $.is("function",v = @[prop]) then $.bound(@,v) else v
+			select = (p) ->
+				if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
+				else @map(getter p)
+		)()
+		or: (x) -> @[i] or= x for i in [0...@length]; @
+		zap: (p, v) ->
+			i = p.lastIndexOf "."
+			if i > 0
+				head = p.substr 0,i
+				tail = p.substr i+1
+				@select(head).zap tail, v
+				return @
+			switch $.type(v)
+				when "array","bling" then @each -> @[p] = v[++i % v.length]
+				when "function" then @zap p, @select(p).map(v)
+				else @each -> @[p] = v
+			@
+		clean: (prop) -> @each -> delete @[prop]
+		take: (n = 1) ->
+			end = Math.min n, @length
+			$( @[i] for i in [0...end] )
+		skip: (n = 0) ->
+			start = Math.max 0, n|0
+			$( @[i] for i in [start...@length] )
+		first: (n = 1) -> if n is 1 then @[0] else @take(n)
+		last: (n = 1) -> if n is 1 then @[@length - 1] else @skip(@length - n)
+		slice: (start=0, end=@length) ->
+			start = index start, @
+			end = index end, @
+			$( @[i] for i in [start...end] )
+		extend: (b) -> @.push(i) for i in b; @
+		push: (b) -> Array::push.call(@, b); @
+		filter: (f) ->
+			g = switch $.type f
+				when "string" then (x) -> x.matchesSelector(f)
+				when "regexp" then (x) -> f.test(x)
+				when "function" then f
+				else
+					throw new Error("unsupported type passed to filter: #{$.type(f)}")
+			$( it for it in @ when g.call(it,it) )
+		matches: (expr) -> @select('matchesSelector').call(expr)
+		querySelectorAll: (expr) ->
+			@filter("*")
+			.reduce (a, i) ->
+				a.extend i.querySelectorAll expr
+			, $()
+		weave: (b) ->
+			c = $()
+			for i in [@length-1..0] by -1
+				c[(i*2)+1] = @[i]
+			for i in [0...b.length] by 1
+				c[i*2] = b[i]
+			c
+		fold: (f) ->
+			n = @length
+			b = $( f.call @, @[i], @[i+1] for i in [0...n-1] by 2 )
+			if (n%2) is 1
+				b.push( f.call @, @[n-1], undefined )
+			b
+		flatten: ->
+			b = $()
+			(b.push(j) for j in i) for i in @
+			b
+		call: -> @apply(null, arguments)
+		apply: (context, args) ->
+			@map -> if $.is "function", @ then @apply(context, args) else @
+		log: (label) ->
+			if label
+				$.log(label, @toString(), @length + " items")
+			else
+				$.log(@toString(), @length + " items")
+			@
+		toArray: ->
+			@__proto__ = Array::
+			@ # no copies, yay?
+	}
+$.plugin
+	provides: 'date'
+	depends: 'type'
+, ->
+	[ms,s,m,h,d] = [1,1000,1000*60,1000*60*60,1000*60*60*24]
+	units = {
+		ms, s, m, h, d,
+		sec: s
+		second: s
+		seconds: s
+		min: m
+		minute: m
+		minutes: m
+		hr: h
+		hour: h
+		hours: h
+		day: d
+		days: d
+	}
+	formats =
+		yyyy: Date::getUTCFullYear
+		mm: -> @getUTCMonth() + 1
+		dd: Date::getUTCDate
+		HH: Date::getUTCHours
+		MM: Date::getUTCMinutes
+		SS: Date::getUTCSeconds
+		MS: Date::getUTCMilliseconds
+	format_keys = Object.keys(formats).sort().reverse()
+	parsers =
+		yyyy: Date::setUTCFullYear
+		mm: (x) -> @setUTCMonth(x - 1)
+		dd: Date::setUTCDate
+		HH: Date::setUTCHours
+		MM: Date::setUTCMinutes
+		SS: Date::setUTCSeconds
+		MS: Date::setUTCMilliseconds
+	parser_keys = Object.keys(parsers).sort().reverse()
+	floor = Math.floor
+	$.type.register "date",
+		match: (o) -> $.isType Date, o
+		array: (o) -> [o]
+		string: (o, fmt, unit) -> $.date.format o, fmt, unit
+		number: (o, unit) -> $.date.stamp o, unit
+	$.type.extend 'string', date: (o, fmt = $.date.defaultFormat) -> new Date $.date.parse o, fmt, "ms"
+	$.type.extend 'number', date: (o, unit) -> $.date.unstamp o, unit
+	adder = (key) ->
+		(stamp, delta, stamp_unit = $.date.defaultUnit) ->
+			date = $.date.unstamp(stamp, stamp_unit)
+			parsers[key].call date, (formats[key].call date) + delta
+			$.date.stamp date, stamp_unit
+	$:
+		date:
+			defaultUnit: "s"
+			defaultFormat: "yyyy-mm-dd HH:MM:SS"
+			stamp: (date = new Date, unit = $.date.defaultUnit) ->
+				floor (date / units[unit])
+			unstamp: (stamp, unit = $.date.defaultUnit) ->
+				new Date floor(stamp * units[unit])
+			convert: (stamp, from = $.date.defaultUnit, to = $.date.defaultUnit) ->
+				if $.is "date", stamp then stamp = $.date.stamp(stamp, from)
+				(floor stamp * units[from] / units[to])
+			midnight: (stamp, unit = $.date.defaultUnit) ->
+				$.date.convert ($.date.convert stamp, unit, "d"), "d", unit
+			format: (stamp, fmt = $.date.defaultFormat, unit = $.date.defaultUnit) ->
+				if $.is "date", stamp then stamp = $.date.stamp(stamp, unit)
+				date = $.date.unstamp stamp, unit
+				for k in format_keys
+					fmt = fmt.replace k, ($.padLeft ""+formats[k].call(date), k.length, "0")
+				fmt
+			parse: (dateString, fmt = $.date.defaultFormat, to = $.date.defaultUnit) ->
+				date = new Date(0)
+				for i in [0...fmt.length] by 1
+					for k in parser_keys
+						if fmt.indexOf(k, i) is i
+							try
+								parsers[k].call date,
+									parseInt dateString[i...i+k.length], 10
+							catch err
+								throw new Error("Invalid date ('#{dateString}') given format mask: #{fmt} (failed at position #{i})")
+				$.date.stamp date, to
+			addMilliseconds: adder("MS")
+			addSeconds: adder("SS")
+			addMinutes: adder("MM")
+			addHours: adder("HH")
+			addDays: adder("dd")
+			addMonths: adder("mm")
+			addYears: adder("yyyy")
+			range: (from, to, interval=1, interval_unit="dd", stamp_unit = $.date.defaultUnit) ->
+				add = adder(interval_unit)
+				ret = [from]
+				while (cur = ret[ret.length-1]) < to
+					ret.push add(cur, interval, stamp_unit)
+				ret
+	midnight: (unit = $.date.defaultUnit) -> @map(-> $.date.midnight @, unit)
+	unstamp: (unit = $.date.defaultUnit) -> @map(-> $.date.unstamp @, unit)
+	stamp: (unit = $.date.defaultUnit) -> @map(-> $.date.stamp @, unit)
+	dateFormat: (fmt = $.date.defaultFormat, unit = $.date.defaultUnit) -> @map(-> $.date.format @, fmt, unit)
+	dateParse: (fmt = $.date.defaultFormat, unit = $.date.defaultUnit) -> @map(-> $.date.parse @, fmt, unit)
+$.plugin
+	provides: "delay"
+	depends: "function"
+, ->
+	$:
+		delay: (->
+			timeoutQueue = $.extend [], (->
+				next = (a) -> -> a.shift()() if a.length
+				add: (f, n) ->
+					f.order = n + $.now
+					for i in [0..@length] by 1
+						if i is @length or @[i].order > f.order
+							@splice i,0,f
+							break
+					setTimeout next(@), n
+					@
+				cancel: (f) ->
+					for i in [0...@length] by 1
 						if @[i] == f
-							@splice(i, 1)
+							@splice i, 1
 							break
-		timeoutQueue = new TimeoutQueue
-
-		getter = (prop) -> # used in .zip()
-			() ->
-				v = @[prop]
-				if Object.IsFunc v
-					return Function.Bound(v, @)
-				return v
-		zipper = (prop) -> # used in .zip()
-			i = prop.indexOf(".")
-			if i > -1
-				return @zip(prop.substr(0, i)).zip(prop.substr(i+1))
-			return @map getter(prop)
-
-		return {
-			name: 'Core'
-
-			$:
-				log: log
-				delay: (n, f) ->
-					if f
-						timeoutQueue.schedule(f, n)
-					# return an actor that can cancel
-					return { cancel: () -> timeoutQueue.cancel(f) }
-
-			eq: (i) -> # .eq(/i/) - a new set containing only the /i/th item
-				a = $([@[i]])
-				a.context = @
-				a.selector = () -> a.context.eq(i)
-				a
-
-			each: (f) -> # .each(/f/) - apply function /f/ to every item /x/ in _this_.
-				for i in @
-					f.call(i, i)
-				@
-
-			map: (f) -> # .map(/f/) - collect /f/.call(/x/, /x/) for every item /x/ in _this_.
-				a = $()
-				a.context = @
-				a.selector = () -> a.context.map(f)
-				nn = @len()
-				for i in [0...nn]
-					t = @[i]
-					try
-						a[i] = f.call t,t
-					catch err
-						a[i] = err
-				a
-
-			reduce: (f, init) ->
-				# .reduce(/f/, [/init/]) - accumulate a = /f/(a, /x/) for /x/ in _this_.
-				# along with respecting the context, we pass only the accumulation and one argument
-				# so you can use functions like Math.min directly $([1,2,3]).reduce(Math.min)
-				# this fails with the ECMA reduce, since Math.min(a,x,i,items) is NaN
-				a = init
-				t = @
-				if not init?
-					a = @[0]
-					t = @skip(1)
-				t.each () ->
-					a = f.call(@, a, @)
-				a
-
-			union: (other, strict) ->
-				# .union(/other/) - collect all /x/ from _this_ and /y/ from _other_.
-				# no duplicates, use .concat() if you want to preserve dupes
-				# 'strict' forces === comparison
-				ret = $()
-				x = i = j = 0
-				ret.context = @
-				ret.selector = () -> ret.context.union(other, strict)
-				while x = @[j++]
-					if not ret.contains(x, strict) # TODO: could speed this up by inlining contains
-						ret[i++] = x
-				j = 0
-				while x = other[j++]
-					if not ret.contains(x, strict)
-						ret[i++] = x
+					@
+			)()
+			(n, f) ->
+				if $.is("function",f) then timeoutQueue.add(f, n)
+				cancel: -> timeoutQueue.cancel(f)
+		)()
+	delay: (n, f, c=@) ->
+		$.delay n, $.bound(c, f)
+		@
+	interval: (n, f, c=@) ->
+		g = $.bound c, f
+		h = -> g(); $.delay n, h
+		$.delay n, h
+		@
+if $.global.document?
+	$.plugin
+		depends: "function,type"
+		provides: "dom"
+	, ->
+		$.type.register "nodelist",
+			match:  (o) -> o? and $.isType "NodeList", o
+			hash:   (o) -> $($.hash(i) for i in x).sum()
+			array:  $.identity
+			string: (o) -> "{Nodelist:["+$(o).select('nodeName').join(",")+"]}"
+			node:   (o) -> $(o).toFragment()
+		$.type.register "node",
+			match:  (o) -> o?.nodeType > 0
+			hash:   (o) -> $.checksum(o.nodeName) + $.hash(o.attributes) + $.checksum(o.innerHTML)
+			string: (o) -> o.toString()
+			node:   $.identity
+		$.type.register "fragment",
+			match:  (o) -> o?.nodeType is 11
+			hash:   (o) -> $($.hash(x) for x in o.childNodes).sum()
+			string: (o) -> o.toString()
+			node:   $.identity
+		$.type.register "html",
+			match:  (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
+			node:   (h) ->
+				(node = document.createElement('div')).innerHTML = h
+				if n = (childNodes = node.childNodes).length is 1
+					return node.removeChild(childNodes[0])
+				df = document.createDocumentFragment()
+				df.appendChild(node.removeChild(childNodes[0])) for i in [0...n] by 1
+				df
+			array:  (o,c) -> $.type.lookup(h = Bling.HTML.parse o).array h, c
+			string: (o) -> "'#{o}'"
+			repr:   (o) -> '"' + o + '"'
+		$.type.extend
+			unknown:  { node: -> null }
+			bling:    { node: (o) -> o.toFragment() }
+			node:     { html: (n) ->
+				d = document.createElement "div"
+				d.appendChild (n = n.cloneNode true)
+				ret = d.innerHTML
+				d.removeChild n # break links to prevent leaks
 				ret
-
-			intersect: (other) ->
-				# .intersect(/other/) - collect all /x/ that are in _this_ and _other_.
-				ret = $()
-				m = 0 # insert marker into ret
-				n = @len()
-				if Object.IsFunc other.len
-					nn = other.len()
-				else
-					nn = other.length
-				ret.context = @
-				ret.selector = () -> ret.context.intersect(other)
-				for i in [0...n]
-					for j in [0...nn]
-						if @[i] is other[j]
-							ret[m++] = @[i]
-							break
-				ret
-
-			distinct: (strict) ->
-				# .distinct() - a copy of _this_ without duplicates.
-				# 'strict' forces === comparison
-				@union(@, strict)
-
-			contains: (item, strict) ->
-				# .contains(/x/) - true if /x/ is in _this_, false otherwise.
-				# 'strict' forces === comparison
-				for t in @
-					if (strict and t is item) or (not strict and t == item)
-						return true
-				return false
-
-			count: (item, strict) ->
-				# .count(/x/) - returns how many times /x/ occurs in _this_.
-				# since we want to be able to search for null values with .count(null)
-				# but if you just call .count(), it returns the total length
-				# 'strict' forces === comparison
-				if item is undefined
-					return @len()
-				ret = 0
-				@each (t) ->
-					if (strict and t is item) or (not strict and t == item)
-						ret++
-				ret
-
-			zip: (a...) ->
-				# .zip([/p/, ...]) - collects /x/./p/ for all /x/ in _this_.
-				# recursively split names like "foo.bar"
-				# zip("foo.bar") == zip("foo").zip("bar")
-				# you can pass multiple properties, e.g.
-				# zip("foo", "bar") == [ {foo: x.foo, bar: x.bar}, ... ]
-				n = a.length
-				switch n
-					when 0
-						return $()
-					when 1
-						return zipper.call(@, a[0])
-					else # > 1
-						# if more than one argument is passed, new objects
-						# with only those properties, will be returned
-						set = {}
-						nn = @len()
-						list = $()
-						j = 0 # insert marker into list
-						# first collect a set of lists
-						for i in [0...n]
-							set[a[i]] = zipper.call(@, a[i])
-						# then convert to a list of sets
-						for i in [0...nn]
-							o = {}
-							for k of set
-								o[k] = set[k].shift() # the first property from each list
-							list[j++] = o # as a new object in the results
-						list
-
-			zap: (p, v) ->
-				# .zap(p, v) - set /x/./p/ = /v/ for all /x/ in _this_.
-				# just like zip, zap("a.b") == zip("a").zap("b")
-				# but unlike zip, you cannot assign to many /p/ at once
-				i = p.indexOf(".")
-				if i > -1 # recurse compound names
-					@zip(p.substr(0, i)).zap(p.substr(i+1), v)
-				else if Object.IsArray(v) # accept /v/ as an array of values
-					@each () ->
-						@[p] = v[++i % v.length] # i starts at -1 because of the failed indexOf
-				else # accept a scalar /v/, even if v is undefined
-					@each () ->
-						@[p] = v
-
-			zipzapmap: (p, f) -> # TODO: need a better name for this
-				# .zipzapmap(p, f) - set /x/./p/ = /f/(/x/./p/) for all /x/ in _this_.
-				v = @zip(p)
-				v = v.map(f)
-				@zap(p, v)
-
-			take: (n) ->
-				# .take([/n/]) - collect the first /n/ elements of _this_.
-				# if n >= @length, returns a shallow copy of the whole bling
-				nn = @len()
-				start = 0
-				end = Math.min n|0, nn
-				if n < 0
-					start = Math.max 0, nn+n
-					end = nn
-				a = $()
-				a.context = @
-				a.selector = () -> a.context.take(n)
-				j = 0
-				for i in [start...end]
-					a[j++] = @[i]
-				a
-
-			skip: (n = 0) ->
-				# .skip([/n/]) - collect all but the first /n/ elements of _this_.
-				# if n == 0, returns a shallow copy of the whole bling
-				start = Math.max 0, n|0
-				end = @len()
-				a = $()
-				a.context = @
-				a.selector = () -> a.context.skip(n)
-				j = 0
-				for i in [start...end]
-					a[j++] = @[i]
-				a
-
-			first: (n = 1) ->
-				# .first([/n/]) - collect the first [/n/] element[s] from _this_.
-				# if n is not passed, returns just the item (no bling)
-				if n is 1
-					@[0]
-				else
-					@take(n)
-
-			last: (n = 1) ->
-				# .last([/n/]) - collect the last [/n/] elements from _this_.
-				# if n is not passed, returns just the last item (no bling)
-				if n is 1
-					@[@len() - 1]
-				else
-					@skip(@len() - n)
-
-			slice: (start=0, end=@len()) ->
-				# .slice(/i/, [/j/]) - get a subset of _this_ including [/i/../j/-1]
-				# the j-th item will not be included - slice(0,2) will contain items 0, and 1.
-				# negative indices work like in python: -1 is the last item, -2 is second-to-last
-				# undefined start or end become 0, or @length, respectively
-				j = 0
-				n = @len()
-				start += n if start < 0
-				end += n if end < 0
-				b = $()
-				b.context = @
-				b.selector = () -> b.context.slice(start, end)
-				for i in [start...end]
-					b[j++] = @[i]
-				b
-
-			concat: (b) ->
-				# .concat(/b/) - insert all items from /b/ into _this_
-				# note: unlike union, concat allows duplicates
-				# note: also, does not create a new array, uses _this_ in-place
-				i = @len() - 1
-				j = -1
-				if Object.IsFunc b.len
-					n = b.len()
-				else
-					n = b.length
-				while j < n-1
-					@[++i] = b[++j]
-				@
-
-			push: (b) ->
-				# .push(/b/) - override Array.push to return _this_
-				Array::push.call(@, b)
-				@
-
-			filter: (f) ->
-				# .filter(/f/) - collect all /x/ from _this_ where /x/./f/(/x/) is true
-				# or if f is a selector string, collects nodes that match the selector
-				# or if f is a RegExp, collect nodes where f.test(x) is true
-				b = $()
-				b.context = @
-				b.selector = () -> b.context.filter(f)
-				switch Object.Type f
-					when "string"
-						g = (x) -> x.matchesSelector(f)
-					when "regexp"
-						g = (x) -> f.test(x)
-					when "function"
-						g = f
-					else
-						throw new Error("unsupported type passed to filter: #{Object.Type(f)}")
-				j = 0
-				for it in @
-					if g.call it, it
-						b[j++] = it
-				b
-
-			test: (regex) ->
-				# .test(/regex/) - collects regex.test(/x/) for /x/ in _this_
-				@map () ->
-					regex.test(@)
-
-			matches: (expr) ->
-				# .matches(/css/) - collects /x/.matchesSelector(/css/)
-				@zip('matchesSelector').call(expr)
-
-			querySelectorAll: (s) ->
-				@filter("*") # limit to only nodes
-				.reduce (a, i) ->
-					Array.Extend a, i.querySelectorAll(s)
-				, $()
-
-			weave: (b) ->
-				# .weave(/b/) - interleave the items of _this_ and the set _b_
-				# to produce: $([ b[i], this[i], ... ])
-				# note: the items of b come first
-				# note: if b and this are different lengths, the shorter
-				# will yield undefineds into the result
-				# the result always has 2 * max(length) items
-				nn = @len()
-				n = b.length
-				i = nn - 1
-				c = $()
-				c.context = @
-				c.selector = () -> c.context.weave(b)
-				# first spread out this, from back to front
-				for i in [nn-1..0]
-					c[(i*2)+1] = @[i]
-				# then interleave the source items, from front to back
-				for i in [0...n]
-					c[i*2] = b[i]
-				c
-
-			fold: (f) ->
-				# .fold(/f/) - collect /c/ = /f/(a,b), complement of .weave()
-				# /f/ accepts two items from the set, and returns one.
-				# .fold() will always a set with half as many items
-				# tip: use as a companion to weave.  weave two blings together,
-				# then fold them to a bling the original size
-				n = @len()
-				j = 0
-				# at least 2 items are required in the set
-				b = $()
-				b.context = @
-				b.selector = () -> b.context.fold(f)
-				for i in [0...n-1] by 2
-					b[j++] = f.call @, @[i], @[i+1]
-				# if there is an odd man out, make one last call
-				if (n%2) is 1
-					b[j++] = f.call @, @[n-1], undefined
-				b
-
-			flatten: () -> # .flatten() - collect the union of all sets in _this_
-				b = $()
-				b.context = @
-				b.selector = () -> b.context.flatten()
-				n = @len()
-				k = 0 # insert marker
-				for i in [0...n]
-					c = @[i]
-					if Object.IsFunc c.len
-						d = c.len()
-					else
-						d = c.length
-					for j in [0...d]
-						b[k++] = c[j]
-				b
-
-			call: () -> # .call([/args/]) - collect /f/([/args/]) for /f/ in _this_
-				@apply(null, arguments)
-
-			apply: (context, args) -> # .apply(/context/, [/args/]) - collect /f/.apply(/context/,/args/) for /f/ in _this_
-				@map () ->
-					if Object.IsFunc @
-						@apply(context, args)
-					else
-						@
-
-			toString: () -> # .toString() - maps toString across @
-				$.symbol + "([" + @map () ->
-					t = Object.Type(@)
-					if t in ["undefined","null","window"]
-						t
-					else
-						@toString().replace(OBJECT_RE,"$1")
-				.join(COMMASEP) + "])"
-
-			delay: (n, f) -> # .delay(/n/, /f/) -  continue with /f/ on _this_ after /n/ milliseconds
-				if f
-					timeoutQueue.schedule Function.Bound(f, @), n
-				@
-
-			log: (label) -> # .log([label]) - console.log([/label/] + /x/) for /x/ in _this_
-				n = @len()
-				if label
-					log(label, @, n + " items")
-				else
-					log(@, n + " items")
-				@
-
-			len: () -> # .len() - returns the max defined index + 1
-				i = @length
-				# scan forward to the end
-				while @[i] isnt undefined
-					i++
-				# scan back to the real end
-				while i > -1 and @[i] is undefined
-					i--
-				return i+1
-		}
-
-	$.plugin () -> # Html plugin
-		before = (a,b) -> # insert b before a
-			# create a fragment is parent node is null
+			}
+			string:
+				node:  (o) -> $(o).toFragment()
+				array: (o,c) -> c.querySelectorAll?(o)
+			function: { node: (o) -> $(o.toString()).toFragment() }
+		toFrag = (a) ->
 			if not a.parentNode?
 				df = document.createDocumentFragment()
 				df.appendChild(a)
-			a.parentNode.insertBefore b, a
-
-		after = (a,b) -> # insert b after a
-			if not a.parentNode?
-				df = document.createDocumentFragment()
-				df.appendChild(a)
-			a.parentNode.insertBefore b, a.nextSibling
-
-		toNode = (x) -> # convert nearly anything to something node-like for use in the DOM
-			switch Object.Type x
-				when "fragment" then x
-				when "node" then x
-				when "bling" then x.toFragment()
-				when "string" then $(x).toFragment()
-				when "function" then $(x.toString()).toFragment()
-				else
-					throw new Error "toNode called with invalid argument: #{x} (type: #{Object.Type x})"
-
-		escaper = null
-
-		getCSSProperty = (k) ->
-			# window.getComputedStyle is not a normal function
-			# (it doesnt support .call() so we can't use it with .map())
-			# so define something that does work properly for use in .css
-			() ->
-				window.getComputedStyle(@, null).getPropertyValue(k)
-
-		A = "A".charCodeAt(0)
-		Z = "Z".charCodeAt(0)
-		a = "a".charCodeAt(0)
-		dashName = (k) ->
-			ret = []
-			for i in [0...k.length]
-				c = k.charCodeAt i
-				if Z >= c >= A
-					c = (c - A) + a
-					ret.push "-"
-				ret.push String.fromCharCode(c)
-			return ret.join("")
-		camelName = (k) ->
-			i = k.indexOf('-')
-			while i > -1
-				k = String.Splice(k, i, i+2, k[i+1].toUpperCase())
-				i = k.indexOf('-')
-
+			a
+		before = (a,b) -> toFrag(a).parentNode.insertBefore b, a
+		after = (a,b) -> toFrag(a).parentNode.insertBefore b, a.nextSibling
+		toNode = (x) -> $.type.lookup(x).node(x)
+		escaper = false
+		parser = false
+		computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue(k)
+		getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select(p)
+		selectChain = (prop) -> -> @map (p) -> $( p while p = p[prop] )
 		return {
-			name: 'Html'
-
 			$:
-				HTML: # $.HTML.* - HTML methods similar to the global JSON object
-					parse: (h) -> # $.HTML.parse(/h/) - parse the html in string h, a Node.
-						node = document.createElement("div")
-						node.innerHTML = h
-						childNodes = node.childNodes
-						n = childNodes.length
-						if n is 1
-							return node.removeChild(childNodes[0])
-						df = document.createDocumentFragment()
-						for i in [0...n]
-							df.appendChild(node.removeChild(childNodes[0]))
-						return df
-					stringify: (n) -> # $.HTML.stringify(/n/) - the _Node_ /n/ in it's html-string form
-						switch Object.Type n
-							when "string" then n
-							when "node"
-								n = n.cloneNode(true)
-								d = document.createElement("div")
-								d.appendChild(n)
-								ret = d.innerHTML # serialize to a string
-								d.removeChild(n) # clean up to prevent leaks
-								ret
-							else "unknown type: " + Object.Type(n)
-					escape: (h) -> # $.HTML.escape(/h/) - accept html string /h/, a string with html-escapes like &amp;
+				HTML:
+					parse: (h) -> $.type.lookup(h).node(h)
+					stringify: (n) -> $.type.lookup(n).html(n)
+					escape: (h) ->
 						escaper or= $("<div>&nbsp;</div>").child(0)
-						# insert html using the text node's .data property
-						# then get escaped html from the parent's .innerHTML
-						ret = escaper.zap('data', h).zip("parentNode.innerHTML").first()
-						# clean up so escaped content isn't leaked into the DOM
+						ret = escaper.zap('data', h).select("parentNode.innerHTML").first()
 						escaper.zap('data', '')
 						ret
-				dashName: dashName
-				camelName: camelName
-
-			html: (h) -> # .html([h]) - get [or set] /x/.innerHTML for each node
-				switch Object.Type h
-					when "undefined"
-						return @zip 'innerHTML'
-					when "string"
-						return @zap 'innerHTML', h
-					when "bling"
-						return @html h.toFragment()
+			html: (h) ->
+				return switch $.type h
+					when "undefined","null" then @select 'innerHTML'
+					when "string","html" then @zap 'innerHTML', h
+					when "bling" then @html h.toFragment()
 					when "node"
-						return @each () -> # replace all our children with the new child
+						@each -> # replace all our children with the new child
 							@replaceChild @childNodes[0], h
 							while @childNodes.length > 1
 								@removeChild @childNodes[1]
-
 			append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
 				x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
-				a = @zip('appendChild')
-				a.take(1).call(x)
-				a.skip(1).each (f) ->
-					f(x.cloneNode(true)) # f is already bound to @
-				@
-
-			appendTo: (x) -> # .appendTo(/n/) - each node [or a fragment] will become the last child of n
-				$(x).append(@)
-				@
-
+				@each -> @appendChild x.cloneNode true
+			appendTo: (x) -> # .appendTo(/n/) - each node [or fragment] will become the last child of x
+				clones = @map( -> @cloneNode true)
+				i = 0
+				$(x).each -> @appendChild clones[i++]
+				clones
 			prepend: (x) -> # .prepend(/n/) - insert n [or a clone] as the first child of each node
 				if x?
 					x = toNode(x)
-					@take(1).each () ->
+					@take(1).each ->
 						before @childNodes[0], x
-					@skip(1).each () ->
+					@skip(1).each ->
 						before @childNodes[0], x.cloneNode(true)
 				@
-
-			prependTo: (x) -> # .prependTo(/n/) - each node [or a fragment] will become the first child of n
+			prependTo: (x) -> # .prependTo(/n/) - each node [or a fragment] will become the first child of x
 				if x?
 					$(x).prepend(@)
 				@
-
 			before: (x) -> # .before(/x/) - insert content x before each node
 				if x?
 					x = toNode(x)
-					@take(1).each () -> before @, x
-					@skip(1).each () -> before @, x.cloneNode(true)
+					@take(1).each -> before @, x
+					@skip(1).each -> before @, x.cloneNode(true)
 				@
-
 			after: (x) -> # .after(/n/) - insert content n after each node
 				if x?
 					x = toNode(x)
-					@take(1).each () -> after @, x
-					@skip(1).each () -> after @, x.cloneNode(true)
+					@take(1).each -> after @, x
+					@skip(1).each -> after @, x.cloneNode(true)
 				@
-
-			wrap: (parent) -> # .wrap(/p/) - p becomes the new .parentNode of each node
-				# all items of @ will become children of parent
-				# parent will take each child's position in the DOM
+			wrap: (parent) -> # .wrap(/parent/) - parent becomes the new .parentNode of each node
 				parent = toNode(parent)
-				if Object.IsFragment(parent)
-					throw new Error("cannot wrap with a fragment")
-				@map (child) ->
-					if Object.IsFragment(child)
-						parent.appendChild(child)
-					else if Object.IsNode(child)
-						p = child.parentNode
-						if not p
-							parent.appendChild(child)
-						else
-							# swap out the DOM nodes using a placeholder element
-							marker = document.createElement("dummy")
-							# put a marker in the DOM, put removed node in new parent
-							parent.appendChild( p.replaceChild(marker, child) )
-							# replace marker with new parent
-							p.replaceChild(parent, marker)
-					child
-
-			unwrap: () -> # .unwrap() - replace each node's parent with itself
-				@each () ->
+				if $.is "fragment", parent
+					throw new Error("cannot call .wrap() with a fragment as the parent")
+				@each (child) ->
+					if ($.is "fragment", child) or not child.parentNode
+						return parent.appendChild child
+					grandpa = child.parentNode
+					marker = document.createElement "dummy"
+					parent.appendChild grandpa.replaceChild marker, child
+					grandpa.replaceChild parent, marker
+			unwrap: -> # .unwrap() - replace each node's parent with itself
+				@each ->
 					if @parentNode and @parentNode.parentNode
 						@parentNode.parentNode.replaceChild(@, @parentNode)
 					else if @parentNode
 						@parentNode.removeChild(@)
-
 			replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
 				n = toNode(n)
-				b = $()
-				j = 0
-				# first node gets the real n
-				@take(1).each () ->
-					$.log "replace first"
-					@parentNode?.replaceChild(n, @)
-					b[j++] = n
-				# the rest get clones of n
-				@skip(1).each () ->
-					c = n.cloneNode(true)
-					@parentNode?.replaceChild(c, @)
-					b[j++] = c
-				# the set of inserted nodes
-				b
-
+				clones = @map(-> n.cloneNode true)
+				for i in [0...clones.length] by 1
+					@[i].parentNode?.replaceChild clones[i], @[i]
+				clones
 			attr: (a,v) -> # .attr(a, [v]) - get [or set] an /a/ttribute [/v/alue]
-				switch v
-					when undefined
-						return @zip("getAttribute").call(a, v)
-					when null
-						return @zip("removeAttribute").call(a, v)
+				return switch v
+					when undefined then @select("getAttribute").call(a, v)
+					when null then @select("removeAttribute").call(a, v)
 					else
-						@zip("setAttribute").call(a, v)
-						return @
-
+						@select("setAttribute").call(a, v)
+						@
+			data: (k, v) -> @attr "data-#{$.dashize(k)}", v
 			addClass: (x) -> # .addClass(/x/) - add x to each node's .className
-				@removeClass(x).each () ->
-					c = @className.split(" ").filter (y) ->
-						y isnt ""
-					c.push(x) # since we dont know the len, its still faster to push, rather than insert at len()
+				notempty = (y) -> y isnt ""
+				@removeClass(x).each ->
+					c = @className.split(" ").filter notempty
+					c.push(x)
 					@className = c.join " "
-
 			removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
-				notx = (y)->
-					y != x
-				@each () ->
-					@className = @className.split(" ").filter(notx).join(" ")
-
+				notx = (y) -> y != x
+				@each ->
+					c = @className.split(" ").filter(notx).join(" ")
+					if c.length is 0
+						@removeAttribute('class')
 			toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
-				notx = (y) ->
-					y != x
-				@each () ->
+				notx = (y) -> y isnt x
+				@each ->
 					cls = @className.split(" ")
+					filter = $.not $.isEmpty
 					if( cls.indexOf(x) > -1 )
-						@className = cls.filter(notx).join(" ")
+						filter = $.and notx, filter
 					else
 						cls.push(x)
-						@className = cls.join(" ")
-
+					c = cls.filter(filter).join(" ")
+					@className = c
+					if c.length is 0
+						@removeAttribute('class')
 			hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x
-				@zip('className.split').call(" ").zip('indexOf').call(x).map Function.IndexFound
-
-			text: (t) -> # .text([t]) - get [or set] each node's .innerText
+				@select('className.split').call(" ").select('indexOf').call(x).map (x) -> x > -1
+			text: (t) -> # .text([t]) - get [or set] each node's .textContent
 				return @zap('textContent', t) if t?
-				return @zip('textContent')
-
+				return @select('textContent')
 			val: (v) -> # .val([v]) - get [or set] each node's .value
 				return @zap('value', v) if v?
-				return @zip('value')
-
+				return @select('value')
 			css: (k,v) ->
-				# .css(k, [v]) - get/set css properties for each node
-				# called with string k and undefd v -> value of k
-				# called with string k and string v -> set property k = v
-				# called with object k and undefd v -> set css(x, k[x]) for x in k
-				if v? or Object.IsObject k
-					setter = @zip 'style.setProperty'
-					nn = setter.len()
-					if Object.IsObject k
-						for i of k
-							setter.call i, k[i], ""
-					else if Object.IsString v
-						setter.call k, v, ""
-					else if Object.IsArray v
-						n = Math.max v.length, nn
-						for i in [0...n]
-							setter[i%nn] k, v[i%n], ""
+				if v? or $.is "object", k
+					setter = @select 'style.setProperty'
+					if $.is "object", k then setter.call i, k[i], "" for i of k
+					else if $.is "string", v then setter.call k, v, ""
+					else if $.is "array", v
+						setter[i%nn] k, v[i%n], "" for i in [0...n = Math.max v.length, nn = setter.len()] by 1
 					return @
 				else
-					# collect the computed values
-					cv = @map getCSSProperty(k)
-					# collect the values specified directly on the node
-					ov = @zip('style').zip k
-					# weave and fold them so that object values override computed values
-					ov.weave(cv).fold (x,y) ->
-						x or y
-
+					cv = @map computeCSSProperty(k)
+					ov = @select('style').select k
+					ov.weave(cv).fold (x,y) -> x or y
 			defaultCss: (k, v) ->
-				# .defaultCss(k, [v]) - adds an inline style tag to the head for the current selector.
-				# If k is an object of k:v pairs, then no second argument is needed.
-				# Unlike css() which applies css directly to the style attribute,
-				# defaultCss() adds actual css text to the page, based on @selector,
-				# so it can still be over-ridden by external css files (such as themes)
-				# also, @selector need not match any nodes at the time of the call
 				sel = @selector
 				style = ""
-				if Object.IsString(k)
-					if Object.IsString(v)
+				if $.is "string", k
+					if $.is "string", v
 						style += "#{sel} { #{k}: #{v} } "
 					else throw Error("defaultCss requires a value with a string key")
-				else if Object.IsObject(k)
-					style += "#{sel} { "
-					style += "#{i}: #{k[i]}; " for i of k
-					style += "} "
-				$.synth("style").text(style).appendTo("head")
+				else if $.is "object", k
+					style += "#{sel} { " +
+						"#{i}: #{k[i]}; " for i of k +
+					"} "
+				$("<style></style>").text(style).appendTo("head")
 				@
-
-			empty: () -> # .empty() - remove all children
-				@html ""
-
-			rect: () -> # .rect() - collect a ClientRect for each node in @
-				@zip('getBoundingClientRect').call()
-
-			width: (w) -> # .width([/w/]) - get [or set] each node's width value
-				if w == null
-					return @rect().zip("width")
-				return @css("width", w)
-
-			height: (h) -> # .height([/h/]) - get [or set] each node's height value
-				if h == null
-					return @rect().zip("height")
-				return @css("height", h)
-
-			top: (y) -> # .top([/y/]) - get [or set] each node's top value
-				if y == null
-					return @rect().zip("top")
-				return @css("top", y)
-
-			left: (x) -> # .left([/x/]) - get [or set] each node's left value
-				if x == null
-					return @rect().zip("left")
-				return @css("left", x)
-
-			bottom: (x) -> # .bottom([/x/]) - get [or set] each node's bottom value
-				if x == null
-					return @rect().zip("bottom")
-				return @css("bottom", x)
-
-			right: (x) -> # .right([/x/]) - get [or set] each node's right value
-				if x == null
-					return @rect().zip("right")
-				return @css("right", x)
-
-			position: (x, y) -> # .position([/x/, [/y/]]) - get [or set] each node's top and left values
-				if x == null
-					return @rect()
-				# with just x, just set style.left
-				if y == null
-					return @css("left", Number.Px(x))
-				# with x and y, set style.top and style.left
-				return @css({top: Number.Px(y), left: Number.Px(x)})
-
-			center: (mode ="viewport") -> # .center([mode]) - move the elements to the center of the screen
-				# mode is one of: "viewport" (default), "horizontal" or "vertical"
-				# TODO: "viewport" should probably use window.innerHeight
-				# TODO: this is all wrong...
-				body = document.body
-				vh = body.scrollTop  + (body.clientHeight/2)
-				vw = body.scrollLeft + (body.clientWidth/2)
-				@each () ->
-					t = $(@)
-					h = t.height().floats().first()
-					w = t.width().floats().first()
-					if mode is "viewport" or mode is "horizontal"
-						x = vw - (w/2)
-					else
-						x = NaN
-					if mode is "viewport" or mode is "vertical"
-						y = vh - (h/2)
-					else
-						y = NaN
-					t.css {
-						position: "absolute",
-						left: Number.Px(x),
-						top: Number.Px(y)
-					}
-
-			scrollToCenter: () -> # .scrollToCenter() - scroll first node to center of viewport
-				document.body.scrollTop = @zip('offsetTop')[0] - (window.innerHeight / 2)
+			rect: -> @select('getBoundingClientRect').call()
+			width: getOrSetRect("width")
+			height: getOrSetRect("height")
+			top: getOrSetRect("top")
+			left: getOrSetRect("left")
+			bottom: getOrSetRect("bottom")
+			right: getOrSetRect("right")
+			position: (left, top) ->
+				switch true
+					when not left? then @rect()
+					when not top? then @css("left", $.px(left))
+					else @css({top: $.px(top), left: $.px(left)})
+			scrollToCenter: ->
+				document.body.scrollTop = @[0].offsetTop - ($.global.innerHeight / 2)
 				@
-
-			child: (n) -> # .child(/n/) - returns the /n/th childNode for each in _this_
-				@zip('childNodes').map () ->
-					i = n
-					if i < 0
-						i += @length
-					@[i]
-
-			children: () -> # .children() - collect all children of each node
-				@map () ->
-					$(@childNodes, @)
-
-			parent: () -> # .parent() - collect .parentNode from each of _this_
-				@zip('parentNode')
-
-			parents: () -> # .parents() - collects the full ancestry up to the owner
-				@map () ->
-					b = $()
-					j = 0
-					p = @
-					while p = p.parentNode
-						b[j++] = p
-					b
-
-			prev: () -> # .prev() - collects the chain of .previousSibling nodes
-				@map () ->
-					b = $()
-					j = 0
-					p = @
-					while p = p.previousSibling
-						b[j++] = p
-					b
-
-			next: () -> # .next() - collect the chain of .nextSibling nodes
-				@map () ->
-					b = $()
-					j = 0
-					p = @
-					while p = p.nextSibling
-						b[j++] = p
-					b
-
-			remove: () -> # .remove() - removes each node in _this_ from the DOM
-				@each ()->
-					if @parentNode
-						@parentNode.removeChild(@)
-
-			find: (css) -> # .find(/css/) - collect nodes matching /css/
-				@filter("*") # limit to only nodes
-					.map( () -> $(css, @) )
+			child: (n) -> @select('childNodes').map -> @[ if n < 0 then (n+@length) else n ]
+			parents: selectChain('parentNode')
+			prev: selectChain('previousSibling')
+			next: selectChain('nextSibling')
+			remove: -> @each -> @parentNode?.removeChild(@)
+			find: (css) ->
+				@filter("*")
+					.map( -> $(css, @) )
 					.flatten()
-
-			clone: (deep=true) -> # .clone(deep=true) - copies a set of DOM nodes
-				@map () ->
-					if Object.IsNode @
-						@cloneNode deep
-					else
-						null
-
-			data: (k, v) ->
-				k = "data-#{dashName(k)}"
-				$(this).attr(k, v)
-
-			toFragment: () ->
-				if @len() > 1
+			clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @
+			toFragment: ->
+				if @length > 1
 					df = document.createDocumentFragment()
-					adder = Function.Bound(df.appendChild, df)
-					@map(toNode).map adder
+					(@map toNode).map $.bound df, df.appendChild
 					return df
-				return toNode(@[0])
+				return toNode @[0]
 		}
-
-	$.plugin () -> # Math plugin
-		name: 'Maths'
+$.plugin
+	provides: "EventEmitter"
+	depends: "type,pipe"
+, ->
+	$: EventEmitter: $.pipe("bling-init").append (obj) ->
+		listeners = {}
+		list = (e) -> (listeners[e] or= [])
+		$.inherit {
+			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
+			addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
+			on:                 (e, h) -> @addListener e, h
+			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
+			removeAllListeners: (e) -> listeners[e] = []
+			setMaxListeners:    (n) -> # who really needs this in the core API?
+			listeners:          (e) -> list(e).slice 0
+		}, obj
+$.plugin
+	depends: "dom,function,core"
+	provides: "event"
+, ->
+	EVENTSEP_RE = /,* +/
+	events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
+		'load','unload','reset','submit','keyup','keydown','change',
+		'abort','cut','copy','paste','selection','drag','drop','orientationchange',
+		'touchstart','touchmove','touchend','touchcancel',
+		'gesturestart','gestureend','gesturecancel',
+		'hashchange'
+	]
+	binder = (e) -> (f) -> @bind(e, f) if $.is "function", f else @trigger(e, f)
+	register_live = (selector, context, evt, f, h) ->
+		$(context).bind(evt, h)
+			.each -> (((@__alive__ or= {})[selector] or= {})[evt] or= {})[f] = h
+	unregister_live = (selector, context, e, f) ->
+		$c = $(context)
+		$c.each ->
+			a = (@__alive__ or= {})
+			b = (a[selector] or= {})
+			c = (b[e] or= {})
+			$c.unbind(e, c[f])
+			delete c[f]
+	triggerReady = $.once ->
+		$(document).trigger("ready").unbind("ready")
+		document.removeEventListener?("DOMContentLoaded", triggerReady, false)
+		$.global.removeEventListener?("load", triggerReady, false)
+	bindReady = $.once ->
+		document.addEventListener?("DOMContentLoaded", triggerReady, false)
+		$.global.addEventListener?("load", triggerReady, false)
+	bindReady()
+	ret = {
+		bind: (e, f) ->
+			c = (e or "").split(EVENTSEP_RE)
+			h = (evt) ->
+				ret = f.apply @, arguments
+				if ret is false
+					evt.preventAll()
+				ret
+			@each -> (@addEventListener i, h, false) for i in c
+		unbind: (e, f) ->
+			c = (e or "").split EVENTSEP_RE
+			@each -> (@removeEventListener i, f, null) for i in c
+		trigger: (evt, args = {}) ->
+			args = $.extend
+				bubbles: true
+				cancelable: true
+			, args
+			for evt_i in (evt or "").split(EVENTSEP_RE)
+				if evt_i in ["click", "mousemove", "mousedown", "mouseup", "mouseover", "mouseout"] # mouse events
+					e = document.createEvent "MouseEvents"
+					args = $.extend
+						detail: 1,
+						screenX: 0,
+						screenY: 0,
+						clientX: 0,
+						clientY: 0,
+						ctrlKey: false,
+						altKey: false,
+						shiftKey: false,
+						metaKey: false,
+						button: 0,
+						relatedTarget: null
+					, args
+					e.initMouseEvent evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
+						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+						args.button, args.relatedTarget
+				else if evt_i in ["blur", "focus", "reset", "submit", "abort", "change", "load", "unload"] # UI events
+					e = document.createEvent "UIEvents"
+					e.initUIEvent evt_i, args.bubbles, args.cancelable, $.global, 1
+				else if evt_i in ["touchstart", "touchmove", "touchend", "touchcancel"] # touch events
+					e = document.createEvent "TouchEvents"
+					args = $.extend
+						detail: 1,
+						screenX: 0,
+						screenY: 0,
+						clientX: 0,
+						clientY: 0,
+						ctrlKey: false,
+						altKey: false,
+						shiftKey: false,
+						metaKey: false,
+						touches: [],
+						targetTouches: [],
+						changedTouches: [],
+						scale: 1.0,
+						rotation: 0.0
+					, args
+					e.initTouchEvent(evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
+						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+						args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
+				else if evt_i in ["gesturestart", "gestureend", "gesturecancel"] # gesture events
+					e = document.createEvent "GestureEvents"
+					args = $.extend {
+						detail: 1,
+						screenX: 0,
+						screenY: 0,
+						clientX: 0,
+						clientY: 0,
+						ctrlKey: false,
+						altKey: false,
+						shiftKey: false,
+						metaKey: false,
+						target: null,
+						scale: 1.0,
+						rotation: 0.0
+					}, args
+					e.initGestureEvent evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
+						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+						args.target, args.scale, args.rotation
+				else
+					e = document.createEvent "Events"
+					e.initEvent evt_i, args.bubbles, args.cancelable
+					try
+						e = $.extend e, args
+					catch err
+				if not e
+					continue
+				else
+					try
+						@each -> @dispatchEvent e
+					catch err
+						$.log "dispatchEvent error:", err
+			@
+		live: (e, f) ->
+			selector = @selector
+			context = @context
+			handler = (evt) ->
+				$(selector, context)
+					.intersect($(evt.target).parents().first().union($(evt.target)))
+					.each -> f.call(evt.target = @, evt)
+			register_live selector, context, e, f, handler
+			@
+		die: (e, f) ->
+			$(@context).unbind e, unregister_live(@selector, @context, e, f)
+			@
+		click: (f = {}) ->
+			if @css("cursor") in ["auto",""]
+				@css "cursor", "pointer"
+			if $.is "function", f then @bind 'click', f
+			else @trigger 'click', f
+			@
+		ready: (f) ->
+			return (f.call @) if triggerReady.exhausted
+			@bind "ready", f
+	}
+	events.forEach (x) -> ret[x] = binder(x)
+	return ret
+$.plugin
+	provides: "function"
+	depends: "hash"
+, ->
+	$:
+		identity: (o) -> o
+		not: (f) -> -> not f.apply @, arguments
+		compose: (f,g) -> (x) -> f.call(y, (y = g.call(x,x)))
+		and: (f,g) -> (x) -> g.call(@,x) and f.call(@,x)
+		once: (f, n=1) ->
+			$.defineProperty (-> (f.apply @,arguments) if n-- > 0),
+				"exhausted",
+					get: -> n <= 0
+		cycle: (f...) ->
+			i = -1
+			-> f[i = ++i % f.length].apply @, arguments
+		bound: (t, f, args = []) ->
+			if $.is "function", f.bind
+				args.splice 0, 0, t
+				r = f.bind.apply f, args
+			else
+				r = (a...) -> f.apply t, (args if args.length else a)
+			$.extend r, { toString: -> "bound-method of #{t}.#{f.name}" }
+		memoize: (f) ->
+			cache = {}
+			(a...) -> cache[$.hash a] ?= f.apply @, a # BUG: skips cache if f returns null on purpose
+		E: (callback) -> (f) -> (err, data) ->
+			return f(data) unless err
+			callback err, data
+$.plugin
+	provides: "hash"
+	depends: "type"
+, ->
+	$.type.extend
+		unknown: { hash: (o) -> $.checksum $.toString o }
+		object:  { hash: (o) ->
+			$.hash(Object) +
+				$($.hash(o[k]) for k of o).sum() +
+				$.hash Object.keys o
+		}
+		array:   { hash: (o) ->
+			$.hash(Array) + $(o.map $.hash).reduce (a,x) ->
+				(a*a)+(x|0)
+			, 1
+		}
+		bool:    { hash: (o) -> parseInt(1 if o) }
+	return {
 		$:
-			range: (start, end, step = 1) ->
-				i = start
-				if step == 0 or (step > 0 and start > end) or (step < 0 and start < end)
-					return []
-				while (start > end and i > end) or ( start < end and i < end )
-					a = i
-					i += step
-					a
-		floats: () ->
-			# .floats() - parseFloat(/x/) for /x/ in _this_
-			@map parseFloat
-
-		ints: () ->
-			# .ints() - parseInt(/x/) for /x/ in _this_
-			@map () -> parseInt @, 10
-
-		px: (delta=0) ->
-			# .px([delta]) - collect "NNpx" strings
-			@ints().map Function.Px(delta)
-
-		min: () ->
-			# .min() - select the smallest /x/ in _this_
-			@reduce (a) -> Math.min @, a
-
-		max: () ->
-			# .max() - select the largest /x/ in _this_
-			@reduce (a) -> Math.max @, a
-
-		average: () ->
-			# .average() - compute the average of all /x/ in _this_
-			@sum() / @len()
-
-		sum: () ->
-			# .sum() - add all /x/ in _this_
-			@reduce (a) -> a + @
-
-		squares: ()  ->
-			# .squares() - collect /x*x/ for each /x/ in _this_
-			@map () -> @ * @
-
-		magnitude: () ->
-			# .magnitude() - compute the vector length of _this_
-			Math.sqrt @floats().squares().sum()
-
-		scale: (r) ->
-			# .scale(/r/) - /x/ *= /r/ for /x/ in _this_
-			@map () -> r * @
-
-		normalize: () ->
-			# .normalize() - scale _this_ so that .magnitude() == 1
-			@scale(1/@magnitude())
-
-	$.plugin () -> # Events plugin
-		events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
-			'load','unload','reset','submit','keyup','keydown','change',
-			'abort','cut','copy','paste','selection','drag','drop','orientationchange',
-			'touchstart','touchmove','touchend','touchcancel',
-			'gesturestart','gestureend','gesturecancel',
-			'hashchange'
-		] # 'click' is handled specially
-
-		binder = (e) ->
-			(f = {}) ->
-				return @bind(e, f) if Object.IsFunc f
-				return @trigger(e, f)
-
-		register_live = (selector, context, e, f, h) ->
-			$(context)
-				.bind(e, h) # bind the proxy handler
-				.each () ->
-					a = (@__alive__ or= {})
-					b = (a[selector] or= {})
-					c = (b[e] or= {})
-					# make a record using the fake handler as key
-					c[f] = h
-
-		unregister_live = (selector, context, e, f) ->
-			$c = $(context)
-			$c.each () ->
-				a = (@__alive__ or= {})
-				b = (a[selector] or= {})
-				c = (b[e] or= {})
-				$c.unbind(e, c[f])
-				delete c[f]
-
-		# detect and fire the document.ready event
-		readyTriggered = 0
-		readyBound = 0
-		triggerReady = () ->
-			if not readyTriggered++
-				$(document).trigger("ready").unbind("ready")
-				document.removeEventListener?("DOMContentLoaded", triggerReady, false)
-				window.removeEventListener?("load", triggerReady, false)
-		bindReady = () ->
-			if not readyBound++
-				document.addEventListener?("DOMContentLoaded", triggerReady, false)
-				window.addEventListener?("load", triggerReady, false)
-		bindReady()
-
-		ret = {
-			name: 'Events'
-			bind: (e, f) ->
-				# .bind(e, f) - adds handler f for event type e
-				# e is a string like 'click', 'mouseover', etc.
-				# e can be comma-separated to bind multiple events at once
-				c = (e or "").split(EVENTSEP_RE)
-				h = (evt) ->
-					ret = f.apply @, arguments
-					if ret is false
-						Event.Prevent evt
-					ret
-				@each () ->
-					for i in c
-						@addEventListener i, h, false
-
-			unbind: (e, f) ->
-				# .unbind(e, [f]) - removes handler f from event e
-				# if f is not present, removes all handlers from e
-				c = (e or "").split(EVENTSEP_RE)
-				@each () ->
-					for i in c
-						@removeEventListener(i, f, null)
-
-			once: (e, f) ->
-				# .once(e, f) - adds a handler f that will be called only once
-				c = (e or "").split(EVENTSEP_RE)
-				for i in c
-					@bind i, (evt) ->
-						f.call(@, evt)
-						@removeEventListener(evt.type, arguments.callee, null)
-
-			cycle: (e, funcs...) ->
-				# .cycle(e, ...) - bind handlers for e that trigger in a cycle
-				# one call per trigger. when the last handler is executed
-				# the next trigger will call the first handler again
-				c = (e or "").split(EVENTSEP_RE)
-				nf = funcs.length
-				cycler = () ->
-					i = 0
-					(evt) ->
-						funcs[i].call(@, evt)
-						i = ++i % nf
-				for j in c
-					@bind j, cycler()
-				@
-
-			trigger: (evt, args = {}) ->
-				# .trigger(e, a) - initiates a fake event
-				# evt is the type, 'click'
-				# args is an optional mapping of properties to set,
-				#		{screenX: 10, screenY: 10}
-				# note: not all browsers support manually creating all event types
-				evts = (evt or "").split(EVENTSEP_RE)
-				args = Object.Extend {
-					bubbles: true
-					cancelable: true
-				}, args
-
-				for evt_i in evts
-					if evt_i in ["click", "mousemove", "mousedown", "mouseup", "mouseover", "mouseout"] # mouse events
-						e = document.createEvent "MouseEvents"
-						args = Object.Extend {
-							detail: 1,
-							screenX: 0,
-							screenY: 0,
-							clientX: 0,
-							clientY: 0,
-							ctrlKey: false,
-							altKey: false,
-							shiftKey: false,
-							metaKey: false,
-							button: 0,
-							relatedTarget: null
-						}, args
-						e.initMouseEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
-							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-							args.button, args.relatedTarget
-
-					else if evt_i in ["blur", "focus", "reset", "submit", "abort", "change", "load", "unload"] # UI events
-						e = document.createEvent "UIEvents"
-						e.initUIEvent evt_i, args.bubbles, args.cancelable, window, 1
-
-					else if evt_i in ["touchstart", "touchmove", "touchend", "touchcancel"] # touch events
-						e = document.createEvent "TouchEvents"
-						args = Object.Extend {
-							detail: 1,
-							screenX: 0,
-							screenY: 0,
-							clientX: 0,
-							clientY: 0,
-							ctrlKey: false,
-							altKey: false,
-							shiftKey: false,
-							metaKey: false,
-							# touch values:
-							touches: [],
-							targetTouches: [],
-							changedTouches: [],
-							scale: 1.0,
-							rotation: 0.0
-						}, args
-						e.initTouchEvent(evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
-							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-							args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
-
-					else if evt_i in ["gesturestart", "gestureend", "gesturecancel"] # gesture events
-						e = document.createEvent "GestureEvents"
-						args = Object.Extend {
-							detail: 1,
-							screenX: 0,
-							screenY: 0,
-							clientX: 0,
-							clientY: 0,
-							ctrlKey: false,
-							altKey: false,
-							shiftKey: false,
-							metaKey: false,
-							# gesture values:
-							target: null,
-							scale: 1.0,
-							rotation: 0.0
-						}, args
-						e.initGestureEvent evt_i, args.bubbles, args.cancelable, window, args.detail, args.screenX, args.screenY,
-							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-							args.target, args.scale, args.rotation
-
-					# iphone events that are not supported yet (dont know how to create yet, needs research)
-					# iphone events that we cant properly emulate (because we cant create our own Clipboard objects)
-					# iphone events that are just plain events
-					# and general events
-					# else if evt_i in ["drag", "drop", "selection", "cut", "copy", "paste", "orientationchange"]
-					else
-						e = document.createEvent "Events"
-						e.initEvent evt_i, args.bubbles, args.cancelable
-						try
-							e = Object.Extend e, args
-						catch err
-
-					if not e
-						continue
-					else
-						try
-							@each () ->
-								@dispatchEvent e
-						catch err
-							log("dispatchEvent error:",err)
-				@
-
-			live: (e, f) ->
-				# .live(e, f) - handle events for nodes that will exist in the future
-				selector = @selector
-				context = @context
-				# wrap f
-				handler = (evt) ->
-					# when event 'e' is fired
-					# re-execute the selector in the original context
-					$(selector, context)
-						# then see if the event would bubble into a match
-						.intersect($(evt.target).parents().first().union($(evt.target)))
-						# then fire the real handler 'f' on the matched nodes
-						.each () ->
-							evt.target = @
-							f.call(@, evt)
-				# bind the handler to the context
-				# record f so we can 'die' it if needed
-				register_live selector, context, e, f, handler
-				@
-
-			die: (e, f) ->
-				# die(e, [f]) - stop f [or all] from living for event e
-				selector = @selector
-				context = @context
-				h = unregister_live selector, context, e, f
-				$(context).unbind e, h
-				@
-
-			liveCycle: (e, funcs...) ->
-				# .liveCycle(e, ...) - bind each /f/ in /funcs/ to handle /e/
-				# one call per trigger. when the last handler is executed
-				# the next trigger will call the first handler again
-				i = 0
-				@live e, (evt) ->
-					funcs[i].call @, evt
-					i = ++i % funcs.length
-
-			click: (f = {}) ->
-				# .click([f]) - trigger [or bind] the 'click' event
-				# if the cursor is just default then make it look clickable
-				if @css("cursor").intersect(["auto",""]).len() > 0
-					@css "cursor", "pointer"
-				if Object.IsFunc f
-					@bind 'click', f
-				else
-					@trigger 'click', f
-
-			ready: (f = {}) ->
-				if Object.IsFunc f
-					if readyTriggered
-						f.call @
-					else
-						@bind "ready", f
-				else
-					@trigger "ready", f
-		}
-
-		# add event binding/triggering shortcuts for the generic events
-		events.forEach (x) ->
-			ret[x] = binder(x)
-		return ret
-
-	$.plugin () -> # Transform plugin, for accelerated animations
-		speeds = # constant speed names
-			"slow": 700
-			"medium": 500
-			"normal": 300
-			"fast": 100
-			"instant": 0
-			"now": 0
-		# matches all the accelerated css property names
-		accel_props_re = /(?:scale(?:3d)*|translate(?:[XYZ]|3d)*|rotate(?:[XYZ]|3d)*)/
-		updateDelay = 50 # ms to wait for DOM changes to apply
-		testStyle = document.createElement("div").style
-
-		# detect which browser's transform properties to use
-		if "WebkitTransform" of testStyle
-			transformProperty = "-webkit-transform"
-			transitionProperty = "-webkit-transition-property"
-			transitionDuration = "-webkit-transition-duration"
-			transitionTiming = "-webkit-transition-timing-function"
-		else if "MozTransform" of testStyle
-			transformProperty = "-moz-transform"
-			transitionProperty = "-moz-transition-property"
-			transitionDuration = "-moz-transition-duration"
-			transitionTiming = "-moz-transition-timing-function"
-		else if "OTransform" of testStyle
-			transformProperty = "-o-transform"
-			transitionProperty = "-o-transition-property"
-			transitionDuration = "-o-transition-duration"
-			transitionTiming = "-o-transition-timing-function"
-
-		return {
-			name: 'Transform'
-			$: {
-				duration: (speed) ->
-					# $.duration(/s/) - given a speed description (string|number), a number in milliseconds
-					d = speeds[speed]
-					return d if d?
-					return parseFloat speed
-			}
-
-			# like jquery's animate(), but using only webkit-transition/transform
-			transform: (end_css, speed, easing, callback) ->
-				# .transform(cssobject, [/speed/], [/callback/]) - animate css properties on each node
-				# animate css properties over a duration
-				# accelerated: scale, translate, rotate, scale3d,
-				# ... translateX, translateY, translateZ, translate3d,
-				# ... rotateX, rotateY, rotateZ, rotate3d
-				# easing values (strings): ease | linear | ease-in | ease-out
-				# | ease-in-out | step-start | step-end | steps(number[, start | end ])
-				# | cubic-bezier(number, number, number, number)
-
-				if Object.IsFunc(speed)
-					callback = speed
-					speed = null
-					easing = null
-				else if Object.IsFunc(easing)
-					callback = easing
-					easing = null
-				if not speed?
-					speed = "normal"
-				easing or= "ease"
-				# duration is always in milliseconds
-				duration = $.duration(speed) + "ms"
-				props = []
-				p = 0 # insert marker for props
-				# what to send to the -webkit-transform
-				trans = ""
-				# real css values to be set (end_css without the transform values)
-				css = {}
-				for i of end_css
-					# pull all the accelerated values out of end_css
-					if accel_props_re.test(i)
-						ii = end_css[i]
-						if ii.join
-							ii = $(ii).px().join(COMMASEP)
-						else if ii.toString
-							ii = ii.toString()
-						trans += " " + i + "(" + ii + ")"
-					else # stick real css values in the css dict
-						css[i] = end_css[i]
-				# make a list of the properties to be modified
-				for i of css
-					props[p++] = i
-				# and include -webkit-transform if we have transform values to set
-				if trans
-					props[p++] = transformProperty
-
-				# sets a list of properties to apply a duration to
-				css[transitionProperty] = props.join(COMMASEP)
-				# apply the same duration to each property
-				css[transitionDuration] =
-					props.map(() -> duration)
-						.join(COMMASEP)
-				# apply an easing function to each property
-				css[transitionTiming] =
-					props.map(() -> easing)
-						.join(COMMASEP)
-
-				# apply the transformation
-				if( trans )
-					css[transformProperty] = trans
-				# apply the css to the actual node
-				@css(css)
-				# queue the callback to be executed at the end of the animation
-				# WARNING: NOT EXACT!
-				@delay(duration, callback)
-
-			hide: (callback) ->
-				# .hide() - each node gets display:none
-				@each () ->
-					if @style
-						@_display = "" # stash the old display
-						if @style.display is not "none"
-							@_display = @syle.display
-						@style.display = "none"
-				.trigger("hide")
-				.delay(updateDelay, callback)
-
-			show: (callback) ->
-				# .show() - show each node
-				@each () ->
-					if @style
-						@style.display = @_display
-						delete @_display
-				.trigger("show")
-				.delay(updateDelay, callback)
-
-			toggle: (callback) ->
-				# .toggle() - show each hidden node, hide each visible one
-				@weave(@css("display"))
-					.fold (display, node) ->
-						if display is "none"
-							node.style.display = node._display or ""
-							delete node._display
-							$(node).trigger("show")
-						else
-							node._display = display
-							node.style.display = "none"
-							$(node).trigger("hide")
-						node
-					.delay(updateDelay, callback)
-
-			fadeIn: (speed, callback) ->
-				# .fadeIn() - fade each node to opacity 1.0
-				@.css('opacity','0.0')
-					.show () ->
-						@transform {
-							opacity:"1.0",
-							translate3d: [0,0,0]
-						}, speed, callback
-			fadeOut: (speed, callback, x = 0.0, y = 0.0) ->
-				# .fadeOut() - fade each node to opacity:0.0
-				@transform {
-					opacity:"0.0",
-					translate3d:[x,y,0.0]
-				}, speed, () -> @hide(callback)
-			fadeLeft: (speed, callback) ->
-				# .fadeLeft() - fadeOut and move offscreen to the left
-				@fadeOut(speed, callback, "-"+@width().first(), 0.0)
-			fadeRight: (speed, callback) ->
-				# .fadeRight() - fadeOut and move offscreen to the right
-				@fadeOut(speed, callback, @width().first(), 0.0)
-			fadeUp: (speed, callback) ->
-				# .fadeUp() - fadeOut and move off the top
-				@fadeOut(speed, callback, 0.0, "-"+@height().first())
-			fadeDown: (speed, callback)  ->
-				# .fadeDown() - fadeOut and move off the bottom
-				@fadeOut(speed, callback, 0.0, @height().first())
-		}
-
-	$.plugin () -> # HTTP Request plugin: provides wrappers for making http requests
-		formencode = (obj) -> # create &foo=bar strings from object properties
-			s = []
-			j = 0 # insert marker into s
-			o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
-			for i of o
-				s[j++] = "#{i}=#{escape o[i]}"
-			s.join("&")
-
-		{
-			name: 'Http'
-			$: { # globals
-				http: (url, opts = {}) -> # $.http(/url/, [/opts/]) - fetch /url/ using HTTP (method in /opts/)
-					xhr = new XMLHttpRequest()
-					if Object.IsFunc(opts)
-						opts = {success: Function.Bound(opts, xhr)}
-					opts = Object.Extend {
-						method: "GET"
-						data: null
-						state: Function.Empty # onreadystatechange
-						success: Function.Empty # onload
-						error: Function.Empty # onerror
-						async: true
-						timeout: 0 # milliseconds, 0 is forever
-						withCredentials: false
-						followRedirects: false
-						asBlob: false
-					}, opts
-					opts.state = Function.Bound(opts.state, xhr)
-					opts.success = Function.Bound(opts.success, xhr)
-					opts.error = Function.Bound(opts.error, xhr)
-					if opts.data and opts.method is "GET"
-						url += "?" + formencode(opts.data)
-					else if opts.data and opts.method is "POST"
-						opts.data = formencode(opts.data)
-					xhr.open(opts.method, url, opts.async)
-					xhr.withCredentials = opts.withCredentials
-					xhr.asBlob = opts.asBlob
-					xhr.timeout = opts.timeout
-					xhr.followRedirects = opts.followRedirects
-					xhr.onreadystatechange = () ->
-						if opts.state
-							opts.state()
+			hash: (x) -> $.type.lookup(x).hash(x)
+		hash: -> $.hash @
+	}
+$.plugin ->
+	$:
+		histogram: (data, bucket_width=1, output_width=80) ->
+			buckets = $()
+			len = 0
+			for x in data
+				i = Math.floor( x / bucket_width )
+				buckets[i] ?= 0
+				buckets[i] += 1
+				len = Math.max(len, i+1)
+			buckets.length = len
+			max = buckets.max()
+			buckets = buckets.map((x) -> x or 0)
+				.scale(1/max)
+				.scale(output_width)
+			sum = buckets.sum()
+			ret = ""
+			pct_sum = 0
+			for n in [0...len] by 1
+				end = (n+1) * bucket_width
+				pct = (buckets[n]*100/sum)
+				pct_sum += pct
+				ret += $.padLeft(pct_sum.toFixed(2)+"%",7) + $.padRight(" < #{end.toFixed(2)}", 10) + ": " + $.repeat("#", buckets[n]) + "\n"
+			ret
+	histogram: -> $.histogram @
+$.plugin
+	depends: "dom"
+	provides: "http"
+, ->
+	formencode = (obj) -> # create &foo=bar strings from object properties
+		o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
+		("#{i}=#{escape o[i]}" for i of o).join "&"
+	$.type.register "http",
+		match: (o) -> $.isType 'XMLHttpRequest', o
+		array: (o) -> [o]
+	return {
+		$:
+			http: (url, opts = {}) ->
+				xhr = new XMLHttpRequest()
+				if $.is "function", opts
+					opts = success: $.bound(xhr, opts)
+				opts = $.extend {
+					method: "GET"
+					data: null
+					state: $.identity # onreadystatechange
+					success: $.identity # onload
+					error: $.identity # onerror
+					async: true
+					asBlob: false
+					timeout: 0 # milliseconds, 0 is forever
+					followRedirects: false
+					withCredentials: false
+				}, opts
+				opts.state = $.bound(xhr, opts.state)
+				opts.success = $.bound(xhr, opts.success)
+				opts.error = $.bound(xhr, opts.error)
+				if opts.data and opts.method is "GET"
+					url += "?" + formencode(opts.data)
+				else if opts.data and opts.method is "POST"
+					opts.data = formencode(opts.data)
+				xhr.open(opts.method, url, opts.async)
+				xhr = $.extend xhr,
+					asBlob: opts.asBlob
+					timeout: opts.timeout
+					followRedirects: opts.followRedirects
+					withCredentials: opts.withCredentials
+					onreadystatechange: ->
+						opts.state?()
 						if xhr.readyState is 4
 							if xhr.status is 200
 								opts.success xhr.responseText
 							else
 								opts.error xhr.status, xhr.statusText
-					xhr.send opts.data
-					return $([xhr])
-
-				post: (url, opts = {}) -> # $.post(/url/, [/opts/]) - fetch /url/ with a POST request
-					if Object.IsFunc(opts)
-						opts = {success: opts}
-					opts.method = "POST"
-					$.http(url, opts)
-
-				get: (url, opts = {}) -> # $.get(/url/, [/opts/]) - fetch /url/ with a GET request
-					if( Object.IsFunc(opts) )
-						opts = {success: opts}
-					opts.method = "GET"
-					$.http(url, opts)
+				xhr.send opts.data
+				return $(xhr)
+			post: (url, opts = {}) ->
+				if $.is("function",opts)
+					opts = success: opts
+				opts.method = "POST"
+				$.http(url, opts)
+			get: (url, opts = {}) ->
+				if( $.is("function",opts) )
+					opts = success: opts
+				opts.method = "GET"
+				$.http(url, opts)
+	}
+$.depends 'pipe', ->
+	$.pipe('bling-init').append (obj) ->
+		map = {}
+		keyMaker = null
+		$.inherit {
+			index: (keyFunc) ->
+				keyMaker = keyFunc
+				@each (x) ->
+					map[keyFunc(x)] = x
+			query: (criteria) ->
+				key = keyMaker(criteria)
+				return map[key] if key of map
+				null
+		}, obj
+$.plugin
+	depends: "dom"
+	provides: "lazy"
+, ->
+	lazy_load = (elementName, props) ->
+		$("head").append $.extend document.createElement(elementName), props
+	$:
+		script: (src) ->
+			lazy_load "script", { src: src }
+		style: (src) ->
+			lazy_load "link", { href: src, rel: "stylesheet" }
+$.plugin
+	provides: "math"
+	depends: "core"
+, ->
+	$.type.extend
+		bool: { number: (o) -> if o then 1 else 0 }
+		number: { bool: (o) -> not not o }
+	$:
+		range: (start, end, step = 1) ->
+			if not end? then (end = start; start = 0)
+			step *= -1 if end < start and step > 0 # force step to have the same sign as start->end
+			$( (start + (i*step)) for i in [0...Math.ceil( (end - start) / step )] )
+		zeros: (n) -> $( 0 for i in [0...n] )
+		ones: (n) -> $( 1 for i in [0...n] )
+	floats: -> @map parseFloat
+	ints: -> @map -> parseInt @, 10
+	px: (delta) -> @ints().map -> $.px @,delta
+	min: -> @filter( isFinite ).reduce Math.min
+	max: -> @filter( isFinite ).reduce Math.max
+	mean: -> if not @length then 0 else @sum() / @length
+	avg: -> @mean()
+	sum: -> @filter( isFinite ).reduce(((a) -> a + @), 0)
+	product: -> @filter( isFinite ).reduce (a) -> a * @
+	squares: -> @map -> @ * @
+	magnitude: -> Math.sqrt @floats().squares().sum()
+	scale: (r) -> @map -> r * @
+	add: (d) -> switch $.type(d)
+		when "number" then @map -> d + @
+		when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)] )
+	normalize: -> @scale 1/@magnitude()
+$.plugin
+	provides: "pipe"
+	depends: "type"
+, ->
+	pipes = {}
+	pipe = (name, args) ->
+		p = (pipes[name] or= [])
+		if not args
+			return {
+				prepend: (obj) -> p.unshift(obj); obj
+				append: (obj) -> p.push(obj); obj
 			}
+		for func in p
+			args = func.call @, args
+		args
+	pipe("bling-init").prepend (args) ->
+		[selector, context] = args
+		$.inherit Bling, $.inherit {
+			selector: selector
+			context: context
+		}, $.type.lookup(selector).array(selector, context)
+	$: pipe: pipe
+$.plugin
+	provides: "pubsub"
+, ->
+	subscribers = {} # a mapping of channel name to a list of subscribers
+	$:
+		publish: (e, args...) ->
+			f.apply null, args for f in (subscribers[e] or= [])
+			args
+		publisher: (e, func) ->
+			(args...) ->
+				$.publish e, func.apply @, args
+		subscribe: (e, func) ->
+			(subscribers[e] or= []).push func
+			func
+		unsubscribe: (e, func) ->
+			if not func?
+				subscribers[e] = []
+			else
+				a = (subscribers[e] or= [])
+				if (i = a.indexOf func)  > -1
+					a.splice(i,i)
+$.plugin
+	provides: 'random'
+	depends: 'type'
+, ->
+	alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split ""
+	$: random: do -> # Mersenne Twister algorithm, from the psuedocode on wikipedia
+		MT = new Array(624)
+		index = 0
+		init_generator = (seed) ->
+			index = 0
+			MT[0] = seed
+			for i in [1..623]
+				MT[i] = 0xFFFFFFFF & (1812433253 * (MT[i-1] ^ (MT[i-1] >>> 30)) + i)
+		
+		generate_numbers = ->
+			for i in [0..623]
+				y = ((MT[i] & 0x80000000) >>> 31) + (0x7FFFFFFF & MT[ (i+1) % 624 ])
+				MT[i] = MT[ (i+397) % 624 ] ^ (y >>> 1)
+				if (y%2) is 1
+					MT[i] = MT[i] ^ 2567483615
+		a = Math.pow(2,31)
+		b = a * 2
+		next = ->
+			if index is 0
+				generate_numbers()
+			y = MT[index] ^
+				(y >>> 11) ^
+				((y << 7) and 2636928640) ^
+				((y << 15) and 4022730752) ^
+				(y >>> 18)
+			index = (index + 1) % 624
+			(y + a) / b
+		$.defineProperty next, "seed",
+			set: (v) -> init_generator(v)
+		
+		next.seed = +new Date()
+		return $.extend next,
+			real: (min, max) ->
+				if not min?
+					[min,max] = [0,1.0]
+				if not max?
+					[min,max] = [0,min]
+				($.random() * (max - min)) + min
+			integer: (min, max) -> Math.floor $.random.real(min,max)
+			string: (len, prefix="") ->
+				prefix += $.random.element(alphabet) while prefix.length < len
+				prefix
+			coin: (balance=.5) -> $.random() <= balance
+			element: (arr) -> arr[$.random.integer(0, arr.length)]
+			gaussian: (mean=0.5, ssig=0.12) -> # paraphrased from Wikipedia
+				while true
+					u = $.random()
+					v = 1.7156 * ($.random() - 0.5)
+					x = u - 0.449871
+					y = Math.abs(v) + 0.386595
+					q = (x*x) + y*(0.19600*y-0.25472*x)
+					break unless q > 0.27597 and (q > 0.27846 or (v*v) > (-4*Math.log(u)*u*u))
+				return mean + ssig*v/u
+$.plugin
+	provides: "sendgrid"
+	depends: "config"
+, ->
+	try
+		nodemailer = require 'nodemailer'
+	catch err
+		`return`
+	transport = nodemailer.createTransport 'SMTP',
+		service: 'SendGrid'
+		auth:
+			user: $.config.get 'SENDGRID_USERNAME'
+			pass: $.config.get 'SENDGRID_PASSWORD' # this should be set manually by 'heroku config:add SENDGRID_PASSWORD=xyz123'
+	$:
+		sendMail: (mail, callback) ->
+			mail.transport ?= transport
+			mail.from ?= $.config.get 'EMAILS_FROM'
+			mail.bcc ?= $.config.get 'EMAILS_BCC'
+			if $.config.get('SENDGRID_ENABLED', 'true') is 'true'
+				nodemailer.sendMail mail, callback
+			else
+				callback(false) # Reply as if an email was sent
+$.plugin
+	provides: "string"
+	depends: "function"
+, ->
+	safer = (f) ->
+		(a...) ->
+			try return f(a...)
+			catch err then return "[Error: #{err.message}]"
+	$.type.extend
+		unknown:
+			string: safer (o) -> o.toString?() ? String(o)
+			repr: safer (o) -> $.type.lookup(o).string(o)
+			number: safer (o) -> parseFloat String o
+		null: { string: -> "null" }
+		undefined: { string: -> "undefined" }
+		string:
+			number: safer parseFloat
+			repr:   (s) -> "'#{s}'"
+		array:  { string: safer (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
+		object: { string: safer (o) ->
+			ret = []
+			for k of o
+				try
+					v = o[k]
+				catch err
+					v = "[Error: #{err.message}]"
+				ret.push "#{k}:#{$.toString v}"
+			"{" + ret.join(', ') + "}"
 		}
-
-	$.plugin () -> # Template plugin
-		match_forward = (text, find, against, start, stop = -1) ->
-			count = 1
-			if stop < 0
-				stop = text.length + 1 + stop
-			for i in [start...stop]
-				t = text[i]
-				if t is against
-					count += 1
-				else if t is find
-					count -= 1
-				if count is 0
-					return i
-			return -1
-
-		# the regex for the format specifiers in templates (from python)
-		# splits the format piece (%.2f, etc) into [key, pad, fixed, type, remainder]
-		type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/
+		function:
+			string: (f) -> f.toString().replace(/^([^{]*){(?:.|\n|\r)*}$/, '$1{ ... }')
+		number:
+			repr:   (n) -> String(n)
+			string: safer (n) ->
+				switch true
+					when n.precision? then n.toPrecision(n.precision)
+					when n.fixed? then n.toFixed(n.fixed)
+					else String(n)
+	return {
+		$:
+			toString: (x) ->
+				if not x? then "function Bling(selector, context) { [ ... ] }"
+				else
+					try
+						$.type.lookup(x).string(x)
+					catch err
+						"[Error: #{err.message}]"
+			toRepr: (x) -> $.type.lookup(x).repr(x)
+			px: (x, delta=0) -> x? and (parseInt(x,10)+(delta|0))+"px"
+			capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
+			dashize: (name) ->
+				ret = ""
+				for i in [0...(name?.length|0)]
+					c = name.charCodeAt i
+					if 91 > c > 64
+						c += 32
+						ret += '-'
+					ret += String.fromCharCode(c)
+				ret
+			camelize: (name) ->
+				name.split('-')
+				while (i = name?.indexOf('-')) > -1
+					name = $.stringSplice(name, i, i+2, name[i+1].toUpperCase())
+				name
+			padLeft: (s, n, c = " ") ->
+				while s.length < n
+					s = c + s
+				s
+			padRight: (s, n, c = " ") ->
+				while s.length < n
+					s = s + c
+				s
+			stringTruncate: (s, n, c = "...") ->
+				s = s.split(' ')
+				r = []
+				while n > 0
+					x = s.shift()
+					n -= x.length
+					if n >= 0
+						r.push x
+				r.join('') + c
+			stringCount: (s, x, i = 0, n = 0) ->
+				if (j = s.indexOf x,i) > i-1
+					$.stringCount s, x, j+1, n+1
+				else n
+			stringSplice: (s, i, j, n) ->
+				nn = s.length
+				end = j
+				if end < 0
+					end += nn
+				start = i
+				if start < 0
+					start += nn
+				s.substring(0,start) + n + s.substring(end)
+			checksum: (s) ->
+				a = 1; b = 0
+				for i in [0...s.length]
+					a = (a + s.charCodeAt(i)) % 65521
+					b = (b + a) % 65521
+				(b << 16) | a
+			repeat: (x, n=2) ->
+				switch true
+					when n is 1 then x
+					when n < 1 then ""
+					when $.is "string", x then x + $.repeat(x, n-1)
+					else $(x).extend $.repeat(x, n-1)
+			stringBuilder: ->
+				if $.is("global", @) then return new $.stringBuilder()
+				items = []
+				@length   = 0
+				@append   = (s) => items.push s; @length += s?.toString().length|0
+				@prepend  = (s) => items.splice 0,0,s; @length += s?.toString().length|0
+				@clear    = ( ) => ret = @toString(); items = []; @length = 0; ret
+				@toString = ( ) => items.join("")
+				@
+		toString: -> $.toString @
+		toRepr: -> $.toRepr @
+	}
+$.plugin
+	provides: "symbol"
+	depends: "type"
+, ->
+	symbol = null
+	cache = {}
+	g = $.global
+	g.Bling = Bling
+	if module?
+		module.exports = Bling
+	$.defineProperty $, "symbol",
+		set: (v) ->
+			g[symbol] = cache[symbol]
+			cache[symbol = v] = g[v]
+			g[v] = Bling
+		get: -> symbol
+	return $:
+		symbol: "$"
+		noConflict: ->
+			Bling.symbol = "Bling"
+			Bling
+$.plugin
+	provides: "StateMachine"
+, ->
+	$: StateMachine: class StateMachine
+		constructor: (stateTable) ->
+			@debug = false
+			@reset()
+			@table = stateTable
+			Object.defineProperty @, "modeline",
+				get: -> @table[@_mode]
+			Object.defineProperty @, "mode",
+				set: (m) ->
+					@_lastMode = @_mode
+					@_mode = m
+					if @_mode isnt @_lastMode and @modeline? and 'enter' of @modeline
+						ret = @modeline['enter'].call @
+						while $.is("function",ret)
+							ret = ret.call @
+					m
+				get: -> @_mode
+		reset: ->
+			@_mode = null
+			@_lastMode = null
+		GO: (m) -> -> @mode = m
+		@GO: (m) -> -> @mode = m
+		
+		tick: (c) ->
+			row = @modeline
+			if not row?
+				ret = null
+			else if c of row
+				ret = row[c]
+			else if 'def' of row
+				ret = row['def']
+			while $.is "function",ret
+				ret = ret.call @, c
+			ret
+		run: (inputs) ->
+			@mode = 0
+			for c in inputs
+				ret = @tick(c)
+			if $.is "function",@modeline?.eof
+				ret = @modeline.eof.call @
+			while $.is "function",ret
+				ret = ret.call @
+			@reset()
+			return @
+$.plugin
+	provides: "synth"
+	depends: "StateMachine, type"
+, ->
+	class SynthMachine extends $.StateMachine
+		basic =
+			"#": @GO 2
+			".": @GO 3
+			"[": @GO 4
+			'"': @GO 6
+			"'": @GO 7
+			" ": @GO 8
+			",": @GO 10
+			"+": @GO 11
+			eof: @GO 13
+		@STATE_TABLE = [
+			{ # 0: START
+				enter: ->
+					@tag = @id = @cls = @attr = @val = @text = ""
+					@attrs = {}
+					@GO 1
+			},
+			$.extend({ # 1: read a tag name
+				def: (c) -> @tag += c
+			}, basic),
+			$.extend({ # 2: read an #id
+				def: (c) -> @id += c
+			}, basic),
+			$.extend({ # 3: read a .class name
+				enter: -> @cls += " " if @cls.length > 0
+				def: (c) -> @cls += c
+			}, basic),
+			{ # 4: read an attribute name (left-side)
+				"=": @GO 5
+				"]": -> @attrs[@attr] = @val; @GO 1
+				def: (c) -> @attr += c
+				eof: @GO 12
+			},
+			{ # 5: read an attribute value (right-side)
+				"]": -> @attrs[@attr] = @val; @GO 1
+				def: (c) -> @val += c
+				eof: @GO 12
+			},
+			{ # 6: read double-quoted text
+				'"': @GO 8
+				def: (c) -> @text += c
+				eof: @GO 12
+			},
+			{ # 7: read single-quoted text
+				"'": @GO 8
+				def: (c) -> @text += c
+				eof: @GO 12
+			},
+			{ # 8: emit text and continue
+				enter: ->
+					@emitNode() if @tag
+					@emitText() if @text
+					@GO 0
+			},
+			{}, # 9: empty
+			{ # 10: emit node and start a new tree
+				enter: ->
+					@emitNode()
+					@cursor = null
+					@GO 0
+			},
+			{ # 11: emit node and step sideways to create a sibling
+				enter: ->
+					@emitNode()
+					@cursor = @cursor?.parentNode
+					@GO 0
+			},
+			{ # 12: ERROR
+				enter: -> throw new Error "Error in synth expression: #{@input}"
+			},
+			{ # 13: FINALIZE
+				enter: ->
+					@emitNode() if @tag
+					@emitText() if @text
+			}
+		]
+		constructor: ->
+			super(SynthMachine.STATE_TABLE)
+			@fragment = @cursor = document.createDocumentFragment()
+		emitNode: ->
+			if @tag
+				node = document.createElement @tag
+				node.id = @id or null
+				node.className = @cls or null
+				for k of @attrs
+					node.setAttribute k, @attrs[k]
+				@cursor.appendChild node
+				@cursor = node
+		emitText: ->
+			@cursor.appendChild $.type.lookup("<html>").node(@text)
+			@text = ""
+	return {
+		$:
+			synth: (expr) ->
+				s = new SynthMachine()
+				s.run(expr)
+				if s.fragment.childNodes.length == 1
+					$(s.fragment.childNodes[0])
+				else
+					$(s.fragment)
+	}
+do ($ = Bling) ->
+	$.plugin () -> # Template plugin, pythonic style: %(value).2f
+		current_engine = null
+		engines = {}
+		template = {
+			register_engine: (name, render_func) ->
+				engines[name] = render_func
+				if not current_engine?
+					current_engine = name
+			render: (text, args) ->
+				if current_engine of engines
+					engines[current_engine](text, args)
+		}
+		template.__defineSetter__ 'engine', (v) ->
+			if not v of engines
+				throw new Error "invalid template engine: #{v} not one of #{Object.Keys(engines)}"
+			else
+				current_engine = v
+		template.__defineGetter__ 'engine', () -> current_engine
+		return {
+			name: 'Template'
+			$:
+				template: template
+		}
+	
+	$.template.register_engine 'null', (() ->
+		return (text, values) ->
+			text
+	)()
+	match_forward = (text, find, against, start, stop = -1) -> # a brace-matcher, useful in most template parsing steps
+		count = 1
+		if stop < 0
+			stop = text.length + 1 + stop
+		for i in [start...stop]
+			t = text[i]
+			if t is against
+				count += 1
+			else if t is find
+				count -= 1
+			if count is 0
+				return i
+		return -1
+	$.template.register_engine 'pythonic', (() ->
+		type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/ # '%.2f' becomes [key, pad, fixed, type, remainder]
 		chunk_re = /%[\(\/]/
-
 		compile = (text) ->
 			chunks = text.split chunk_re
 			n = chunks.length
@@ -1777,16 +1444,12 @@ Object.Extend Event,
 					return "Template syntax error: invalid type specifier starting at '#{rest}'"
 				rest = match[4]
 				ret[j++] = key
-				# the |0 operation coerces to a number,
-				# anything that doesnt map becomes 0,
-				# so "3" -> 3, "" -> 0, null -> 0, etc.
 				ret[j++] = match[1]|0
 				ret[j++] = match[2]|0
 				ret[j++] = match[3]
 				ret[j++] = rest
 			return ret
 		compile.cache = {}
-
 		render = (text, values) -> # $.render(/t/, /v/) - replace markers in string /t/ with values from /v/
 			cache = compile.cache[text] # get the cached version
 			if not cache?
@@ -1794,24 +1457,16 @@ Object.Extend Event,
 			output = [cache[0]] # the first block is always just text
 			j = 1 # insert marker into output
 			n = cache.length
-
-			# then the rest of the cache items are: [key, pad, fixed, type, text remainder] 5-lets
 			for i in [1..n-5] by 5
 				[key, pad, fixed, type, rest] = cache[i..i+4]
-				# the value to render for @ key
 				value = values[key]
-				# require the value
 				if not value?
 					value = "missing value: #{key}"
-				# format the value according to the format options
-				# currently supports 'd', 'f', and 's'
 				switch type
 					when 'd'
 						output[j++] = "" + parseInt(value, 10)
 					when 'f'
 						output[j++] = parseFloat(value).toFixed(fixed)
-					# output unsupported formats like %s strings
-					# TODO: add support for more formats
 					when 's'
 						output[j++] = "" + value
 					else
@@ -1820,277 +1475,357 @@ Object.Extend Event,
 					output[j] = String.PadLeft output[j], pad
 				output[j++] = rest
 			output.join ""
-
-		return {
-			name: 'Template'
-			$:
-				render: render
-
-			template: (defaults) ->
-				# .template([defaults]) - mark nodes as templates, add optional defaults to .render()
-				@render = (args) ->
-					# over-ride .render() to apply the defaults
-					render(@map($.HTML.stringify).join(""), Object.Extend(defaults,args))
-				@remove() # the template item itself should not be in the DOM
-
-			render: (args) ->
-				# .render(args) - replace %(var)s-type strings with values from args
-				render(@map($.HTML.stringify).join(""), args)
-		}
-	
-	$.plugin () -> # Hash plugin
-		return {
-			name: "Hash"
-			$:
-				hash: (x) -> # .hash() - return a hash-code for the set
-					h = 0
-					for i in x
-						h += switch Object.Type(i)
-							when "string" then String.Checksum(i)
-							when "number" then String.Checksum(String(i))
-							when "bling" then $.hash(i)
-							when "array" then $.hash(i)
-							when "nodelist" then $.hash(i)
-							when "object" then String.Checksum(i.toString())
-		}
-
-	$.plugin () -> # Memoize plugin, depends on Hash
-		cache = {}
-		return {
-			name: "Memoize"
-			$:
-				memoize: (f) ->
-					cache[f] = {}
-					return (a...) ->
-						h = $.hash(a)
-						m = cache[f]
-						if h of m
-							m[h]
-						else
-							m[h] = f.apply @, a
-		}
-
-	$.plugin () -> # StateMachine plugin
-		class StateMachine
-			constructor: (stateTable) ->
-				@reset()
-				@table = stateTable
-				@.__defineGetter__ "modeline", () -> @table[@_mode]
-				@.__defineSetter__ "mode", (m) ->
-					@_lastMode = @_mode
-					@_mode = m
-					if @_mode isnt @_lastMode and 'enter' of @modeline
-						ret = @modeline['enter'].call @
-						while Object.IsFunc(ret)
-							ret = ret.call @
-				@.__defineGetter__ "mode", () -> @_mode
-
-			reset: () ->
-				@_mode = null
-				@_lastMode = null
-
-			# static and instance versions of a state-changer factory
-			GO: (m) -> () -> @mode = m
-			@GO: (m) -> () -> @mode = m
-
-			run: (input) ->
-				@mode = 0
-				for c in input
-					row = @modeline
-					if c of row
-						ret = row[c]
-					else if 'def' of row
-						ret = row['def']
-					while Object.IsFunc(ret)
-						ret = ret.call @, c
-				if 'eof' of @modeline
-					ret = @modeline['eof'].call @
-				while Object.IsFunc(ret)
-					ret = ret.call @
-				@reset()
-				return @
-		return {
-			name: "StateMachine"
-			$:
-				StateMachine: StateMachine
-		}
-
-	$.plugin () -> # Synth plugin, depends on StateMachine
-
-		class SynthMachine extends $.StateMachine
+		return render
+	)()
+	$.template.register_engine 'js-eval', (() -> # work in progress...
+		class TemplateMachine extends $.StateMachine
 			@STATE_TABLE = [
-				{ # 0
+				{ # 0: START
 					enter: () ->
-						@tag = @id = @cls = @attr = @val = @text = ""
-						@attrs = {}
+						@data = []
 						@GO(1)
 				},
-				{ # 1
-					'"': @GO(6), "'": @GO(7), "#": @GO(2), ".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
-					def: (c) -> @tag += c
-					eof: @GO(13)
-				},
-				{ # 2
-					".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
-					def: (c) -> @id += c
-					eof: @GO(13)
-				},
-				{ # 3
-					enter: () -> @cls += " " if @cls.length > 0
-					"#": @GO(2), ".": @GO(3), "[": @GO(4), " ": @GO(9), "+": @GO(11), ",": @GO(10),
-					def: (c) -> @cls += c
-					eof: @GO(13)
-				},
-				{ # 4
-					"=": @GO(5)
-					"]": () -> @attrs[@attr] = @val; @GO(1)
-					def: (c) -> @attr += c
-					eof: @GO(12)
-				},
-				{ # 5
-					"]": () -> @attrs[@attr] = @val; @GO(1)
-					def: (c) -> @val += c
-					eof: @GO(12)
-				},
-				{ # 6
-					'"': @GO(8)
-					def: (c) -> @text += c
-					eof: @GO(12)
-				},
-				{ # 7
-					"'": @GO(8)
-					def: (c) -> @text += c
-					eof: @GO(12)
-				},
-				{ # 8
-					enter: () ->
-						@emitText()
-						@GO(0)
-				},
-				{ # DESCEND
-					enter: () ->
-						@emitNode()
-						@GO(0)
-				},
-				{ # RESET
-					enter: () ->
-						@emitNode()
-						@parent = null
-						@GO(0)
-				},
-				{ # SIBLING
-					enter: () ->
-						@emitNode()
-						@parent = @parent?.parentNode
-						@GO(0)
-				},
-				{ # ERROR
-					enter: () -> $.log "Error in synth expression: #{@input}"
-				},
-				{ # FINALIZE
-					enter: () ->
-						@emitNode() if @tag.length
-						@emitText() if @text.length
+				{ # 1: read anything
 				}
 			]
-			constructor: () ->
-				super(SynthMachine.STATE_TABLE)
-				@fragment = @parent = document.createDocumentFragment()
-			emitNode: () ->
-				node = document.createElement(@tag)
-				node.id = @id or null
-				node.className = @cls or null
-				for k of @attrs
-					node.setAttribute k, @attrs[k]
-				@parent.appendChild node
-				@parent = node
-			emitText: () ->
-				@parent.appendChild $.HTML.parse(@text)
-				@text = ""
-
-		synth = (expr) ->
-
-		return {
-			name: "Synth"
-			$:
-				synth: (expr) ->
-					# .synth(expr) - create DOM nodes to match a simple css expression
-					s = new SynthMachine()
-					s.run(expr)
-					if s.fragment.childNodes.length == 1
-						$(s.fragment.childNodes[0])
+			
+		return (text, values) ->
+			text
+	)()
+$.plugin
+	provides: "throttle"
+	depends: "core"
+, ->
+	$:
+		throttle: (ms, f) ->
+			last = 0
+			(a...) ->
+				gap = $.now - last
+				if gap > ms
+					last += gap
+					return f.apply @,a
+				null
+		debounce: (ms, f) ->
+			last = 0
+			(a...) ->
+				last += (gap = $.now - last)
+				return f.apply @,a if gap > ms else null
+$.plugin () -> # TnetStrings plugin
+	parseOne = (data) ->
+		i = data.indexOf ":"
+		if i > 0
+			len = parseInt data[0...i], 10
+			item = data[i+1...i+1+len]
+			type = data[i+1+len]
+			extra = data[i+len+2...]
+			item = switch type
+				when "#" then Number(item)
+				when "'" then String(item)
+				when "!" then (item is "true")
+				when "~" then null
+				when "]" then parseArray(item)
+				when "}" then parseObject(item)
+			return [item, extra]
+		return undefined
+	parseArray = (x) ->
+		data = []
+		while x.length > 0
+			[one, x] = parseOne(x)
+			data.push(one)
+		data
+	parseObject = (x) ->
+		data = {}
+		while x.length > 0
+			[key, x] = parseOne(x)
+			[value, x] = parseOne(x)
+			data[key] = value
+		data
+	$:
+		TNET:
+			stringify: (x) ->
+				[data, type] = switch $.type x
+					when "number" then [String(x), "#"]
+					when "string" then [x, "'"]
+					when "function" then [String(x), "'"]
+					when "boolean" then [String(not not x), "!"]
+					when "null" then ["", "~"]
+					when "undefined" then ["", "~"]
+					when "array" then [($.TNET.stringify(y) for y in x).join(''), "]"]
+					when "object" then [($.TNET.stringify(y)+$.TNET.stringify(x[y]) for y of x).join(''), "}"]
+				return (data.length|0) + ":" + data + type
+			parse: (x) ->
+				parseOne(x)?[0]
+$.plugin
+	provides: "trace"
+	depends: "function,type"
+, ->
+	$.type.extend
+		unknown: { trace: $.identity }
+		object:  { trace: (label, o, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
+		array:   { trace: (label, o, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length] by 1); o }
+		function:
+			trace: (label, f, tracer) ->
+				label or= f.name
+				r = (a...) ->
+					tracer "#{@name or $.type(@)}.#{label}(#{$(a).map($.toRepr).join ','})"
+					f.apply @, a
+				r.toString = -> "{Trace '#{label}' of #{f.toString()}"
+				r
+	return $: trace: (label, o, tracer) ->
+		if not $.is "string", label
+			[tracer, o] = [o, label]
+		tracer or= $.log
+		label or= ""
+		$.type.lookup(o).trace(label, o, tracer)
+$.plugin
+	depends: "dom"
+, ->
+	COMMASEP = ", "
+	speeds = # constant speed names
+		"slow": 700
+		"medium": 500
+		"normal": 300
+		"fast": 100
+		"instant": 0
+		"now": 0
+	accel_props_re = /(?:scale(?:3d)*|translate(?:[XYZ]|3d)*|rotate(?:[XYZ]|3d)*)/
+	updateDelay = 30 # ms to wait for DOM changes to apply
+	testStyle = document.createElement("div").style
+	transformProperty = "transform"
+	transitionProperty = "transition-property"
+	transitionDuration = "transition-duration"
+	transitionTiming = "transition-timing-function"
+	if "WebkitTransform" of testStyle
+		transformProperty = "-webkit-transform"
+		transitionProperty = "-webkit-transition-property"
+		transitionDuration = "-webkit-transition-duration"
+		transitionTiming = "-webkit-transition-timing-function"
+	else if "MozTransform" of testStyle
+		transformProperty = "-moz-transform"
+		transitionProperty = "-moz-transition-property"
+		transitionDuration = "-moz-transition-duration"
+		transitionTiming = "-moz-transition-timing-function"
+	else if "OTransform" of testStyle
+		transformProperty = "-o-transform"
+		transitionProperty = "-o-transition-property"
+		transitionDuration = "-o-transition-duration"
+		transitionTiming = "-o-transition-timing-function"
+	return {
+		$:
+			duration: (speed) ->
+				d = speeds[speed]
+				return d if d?
+				return parseFloat speed
+		transform: (end_css, speed, easing, callback) ->
+			if $.is("function",speed)
+				callback = speed
+				speed = easing = null
+			else if $.is("function",easing)
+				callback = easing
+				easing = null
+			speed ?= "normal"
+			easing or= "ease"
+			duration = $.duration(speed) + "ms"
+			props = []
+			trans = ""
+			css = {}
+			for i of end_css
+				if accel_props_re.test(i)
+					ii = end_css[i]
+					if ii.join
+						ii = $(ii).px().join COMMASEP
+					else if ii.toString
+						ii = ii.toString()
+					trans += " " + i + "(" + ii + ")"
+				else css[i] = end_css[i]
+			(props.push i) for i of css
+			if trans
+				props.push transformProperty
+			css[transitionProperty] = props.join COMMASEP
+			css[transitionDuration] = props.map(-> duration).join COMMASEP
+			css[transitionTiming] = props.map(-> easing).join COMMASEP
+			if trans
+				css[transformProperty] = trans
+			@css css
+			@delay duration, callback
+		hide: (callback) -> # .hide() - each node gets display:none
+			@each ->
+				if @style
+					@_display = "" # stash the old display
+					if @style.display is not "none"
+						@_display = @syle.display
+					@style.display = "none"
+			.trigger "hide"
+			.delay updateDelay, callback
+		show: (callback) -> # .show() - show each node
+			@each ->
+				if @style
+					@style.display = @_display
+					delete @_display
+			.trigger "show"
+			.delay updateDelay, callback
+		toggle: (callback) -> # .toggle() - show each hidden node, hide each visible one
+			@weave(@css("display"))
+				.fold (display, node) ->
+					if display is "none"
+						node.style.display = node._display or ""
+						delete node._display
+						$(node).trigger "show"
 					else
-						$(s.fragment)
-		}
-
-	$.plugin () -> # Pub/Sub plugin
-		subscribers = {} # a mapping of channel name to a list of subscribers
-		archive = {} # archive published events here, so they can be replayed if necessary
-		archive_limit = 1000 # maximum number of events (per type) to archive
-		archive_trim = 100 # how much to trim all at once if we go over the maximum
-
-		publish = (e, args = []) ->
-			$.log "published: #{e}", args
-			archive[e] ?= []
-			archive[e].push(args)
-			if archive[e].length > archive_limit
-				archive[e].splice(0, archive_trim)
-			for func in subscribers[e]
-				func.apply window, args
-
-		subscribe = (e, func, replay = true) ->
-			subscribers[e] ?= []
-			subscribers[e].push(func)
-			# replay the publish archive
-			if replay
-				for args in archive[e]
-					$.log "replayed: #{e}", args
-					func.apply window, args
-
-		# expose these for advanced users
-		publish.__defineSetter__ 'limit', (n) ->
-			archive_limit = n
-		publish.__defineSetter__ 'trim', (n) ->
-			archive_trim = n
-
-		return {
-			name: "PubSub"
-			$:
-				publish: publish
-				subscribe: subscribe
-		}
-
-	$.plugin () -> # LazyLoader plugin
-		create = (elementName, props) ->
-			Object.Extend document.createElement(elementName), props
-
-		lazy_load = (elementName, props) ->
-			depends = provides = null
-			n = create elementName, Object.Extend(props, {
-				onload: () ->
-					$.publish(provides) if provides != null
-			})
-			$("head").delay 10, () ->
-				if depends != null
-					$.subscribe depends, () => @append(n)
-				else
-					@append(n)
-			n = $(n)
-			Object.Extend n, {
-				depends: (tag) -> depends = elementName+"-"+tag; n
-				provides: (tag) -> provides = elementName+"-"+tag; n
-			}
-
-		return {
-			name: "LazyLoader"
-			$:
-				script: (src) ->
-					lazy_load "script", { src: src }
-				style: (src) ->
-					lazy_load "link", { href: src, rel: "stylesheet" }
-		}
-
-	$
-
-)(Bling)
-# vim: ft=coffee
+						node._display = display
+						node.style.display = "none"
+						$(node).trigger "hide"
+					node
+				.delay(updateDelay, callback)
+		fadeIn: (speed, callback) -> # .fadeIn() - fade each node to opacity 1.0
+			@.css('opacity','0.0')
+				.show ->
+					@transform {
+						opacity:"1.0",
+						translate3d: [0,0,0]
+					}, speed, callback
+		fadeOut: (speed, callback, x = 0.0, y = 0.0) -> # .fadeOut() - fade each node to opacity:0.0
+			@transform {
+				opacity:"0.0",
+				translate3d:[x,y,0.0]
+			}, speed, -> @hide(callback)
+		fadeLeft: (speed, callback) -> @fadeOut speed, callback, "-"+@width().first(), 0.0
+		fadeRight: (speed, callback) -> @fadeOut speed, callback, @width().first(), 0.0
+		fadeUp: (speed, callback) -> @fadeOut speed, callback, 0.0, "-"+@height().first()
+		fadeDown: (speed, callback)  -> @fadeOut speed, callback, 0.0, @height().first()
+	}
+$.plugin
+	provides: "type"
+, ->
+	isType = (T, o) ->
+		if not o? then T in [o,"null","undefined"]
+		else o.constructor is T or
+			o.constructor.name is T or
+			Object::toString.apply(o) is "[object #{T}]" or
+			isType T, o.__proto__ # recursive
+	inherit = (parent, obj) ->
+		if typeof parent is "function"
+			parent = parent.prototype
+		if parent.__proto__ is Object.prototype
+			parent.__proto__ = obj.__proto__
+		obj.__proto__ = parent
+		obj
+	_type = do ->
+		cache = {}
+		base =
+			name: 'unknown'
+			match: (o) -> true
+		order = []
+		register = (name, data) ->
+			order.unshift name if not (name of cache)
+			cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
+			cache[name][name] = (o) -> o
+		_extend = (name, data) ->
+			if typeof name is "string"
+				cache[name] ?= register name, {}
+				cache[name] = extend cache[name], data
+			else if typeof name is "object"
+				(_extend k, name[k]) for k of name
+		lookup = (obj) ->
+			for name in order
+				if cache[name]?.match.call obj, obj
+					return cache[name]
+		register "unknown",   base
+		register "object",    match: -> typeof @ is "object"
+		register "error",     match: -> isType 'Error', @
+		register "regexp",    match: -> isType 'RegExp', @
+		register "string",    match: -> typeof @ is "string" or isType String, @
+		register "number",    match: -> (isType Number, @) and @ isnt NaN
+		register "bool",      match: -> typeof @ is "boolean" or String(@) in ["true","false"]
+		register "array",     match: -> Array.isArray?(@) or isType Array, @
+		register "function",  match: -> typeof @ is "function"
+		register "global",    match: -> typeof @ is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
+		register "undefined", match: (x) -> x is undefined
+		register "null",      match: (x) -> x is null
+		return extend ((o) -> lookup(o).name),
+			register: register
+			lookup: lookup
+			extend: _extend
+			is: (t, o) -> cache[t]?.match.call o, o
+			as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
+	_type.extend
+		unknown:   { array: (o) -> [o] }
+		null:      { array: (o) -> [] }
+		undefined: { array: (o) -> [] }
+		array:     { array: (o) -> o }
+		number:    { array: (o) -> Bling.extend new Array(o), length: 0 }
+	_type.register "bling",
+		match:  (o) -> o and isType Bling, o
+		array:  (o) -> o.toArray()
+		hash:   (o) -> o.map(Bling.hash).reduce (a,x) -> (a*a)+x
+		string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
+		repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
+	$:
+		inherit: inherit
+		extend: extend
+		defineProperty: (o, name, opts) ->
+			Object.defineProperty o, name, extend({ configurable: true, enumerable: true }, opts)
+			o
+		isType: isType
+		type: _type
+		is: _type.is
+		as: _type.as
+		isSimple: (o) -> _type(o) in ["string", "number", "bool"]
+		isEmpty: (o) -> o in ["", null, undefined]
+	defineProperty: (name, opts) -> @each -> $.defineProperty @, name, opts
+$.plugin
+	provides: "unittest"
+	depends: "core,function"
+, ->
+	testCount = passCount = failCount = 0
+	failed = []
+	invokeTest = (group, name, func) ->
+		return if not $.is "function", func
+		_log = (msg) -> $.log "#{group}: #{name}... #{msg}"
+		shouldFail = name.toLowerCase().indexOf("fail") isnt -1
+		done = $.once (err) ->
+			testCount--
+			if (!!err isnt shouldFail)
+				_log "fail: #{err}"
+				failCount++
+				failed.push name
+			else
+				_log "pass"
+				passCount++
+				$.provide name
+		f = (done) ->
+			try func(done)
+			catch err then done(err)
+			finally
+				if name.toLowerCase().indexOf("async") is -1 then done()
+		testCount++
+		try f(done)
+		catch err then done(err)
+	testReport = $.once ->
+		$.log "Passed: #{passCount} Failed: #{failCount} [#{failed}]"
+		if failCount > 0
+			try process.exit(failCount)
+	$:
+		approx: (a, b, margin=.1) -> Math.abs(a - b) < margin
+		assert: (cnd, msg = "no message") -> if not cnd then throw new Error "Assertion failed: #{msg}"
+		assertEqual: (a, b, label) ->
+			if a isnt b
+				throw Error "#{label or ''} (#{a?.toString()}) should equal (#{b?.toString()})"
+		assertArrayEqual: (a, b, label) ->
+			for i in [0...a.length] by 1
+				try
+					$.assertEqual(a[i], b[i], label)
+				catch err
+					throw Error "#{label or ''} #{a?.toString()} should equal #{b?.toString()}"
+		testGroup: (name, funcs) ->
+			interval = setInterval (-> if testCount is 0 then clearInterval(interval); testReport()), 50
+			for k,func of funcs
+				invokeTest(name, k, func)
+	assertEqual: (args...) ->
+		if args.length > 1 # short-cut the trivial cases
+			args = args.map (x) => # call any functions passed as arguments
+				if $.is "function", x then x.call(@,@) else x
+			a = args[0]
+			for i in [1...args.length]
+				$.assertEqual a, args[i]
+		return @

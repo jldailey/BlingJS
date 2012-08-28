@@ -1,7 +1,5 @@
 do ($ = Bling) ->
 
-	engines = {} # a registry for different template engines
-
 	$.plugin () -> # Template plugin, pythonic style: %(value).2f
 		current_engine = null
 		engines = {}

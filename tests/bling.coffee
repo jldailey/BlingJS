@@ -304,6 +304,16 @@ $.testGroup "Core",
 	corrected_length: ->
 		$.assertEqual(Array(10).length,10)
 		$.assertEqual(Bling(10).length, 0)
+	keysOf1: -> $.assertArrayEqual $.keysOf({a:1,b:2}), ["a","b"]
+	keysOf2: ->
+		a = a:1
+		$.defineProperty a, "b", get: -> 2
+		$.assertArrayEqual $.keysOf(a), ["a", "b"]
+	valuesOf1: -> $.assertArrayEqual $.valuesOf({a:1,b:2}), [1,2]
+	valuesOf2: ->
+		a = a:1
+		$.defineProperty a, "b", get: -> 2
+		$.assertArrayEqual $.valuesOf(a), [1,2]
 
 $.testGroup "DOM",
 	parse: ->

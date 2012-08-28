@@ -134,6 +134,9 @@ $.plugin
 			, prefixSize: 5)
 			assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 			coalesce: (a...) -> $(a).coalesce()
+			keysOf: (o) -> $(k for k of o)
+			valuesOf: (o) -> $.keysOf(o).map (k)->
+				return try o[k] catch err then err
 		eq: (i) -> $([@[index i, @]])
 		each: (f) -> (f.call(t,t) for t in @); @
 		map: (f) -> $(f.call(t,t) for t in @)

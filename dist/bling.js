@@ -315,6 +315,26 @@
           var a;
           a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
           return $(a).coalesce();
+        },
+        keysOf: function(o) {
+          var k;
+          return $((function() {
+            var _results;
+            _results = [];
+            for (k in o) {
+              _results.push(k);
+            }
+            return _results;
+          })());
+        },
+        valuesOf: function(o) {
+          return $.keysOf(o).map(function(k) {
+            try {
+              return o[k];
+            } catch (err) {
+              return err;
+            }
+          });
         }
       },
       eq: function(i) {

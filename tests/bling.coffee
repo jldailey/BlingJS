@@ -100,6 +100,7 @@ $.testGroup "String",
 		$.defineProperty obj, 'fail',
 			get: -> throw new Error "fails"
 		$.assertEqual $.toString(obj), "{a:1, fail:[Error: fails]}"
+	ToString4: -> $.assertEqual $.toString({a:{b:1}}), "{a:{b:1}}"
 	Truncate: -> $.assertEqual ($.stringTruncate "long string", 6), "long..."
 
 $.testGroup "Plugins",
@@ -141,6 +142,7 @@ $.testGroup "Symbol",
 		Bling.symbol = "$"
 
 $.testGroup "Math",
+	avg0: -> $.assertEqual $([]).avg(), 0
 	sum0: -> $.assertEqual($([]).sum(), 0)
 	sum1: -> $.assertEqual($([1,2,3,4,5]).sum(), 15)
 	sum2: -> $.assertEqual($([1,2,NaN,3]).sum(), 6)

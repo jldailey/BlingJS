@@ -177,5 +177,5 @@ $.plugin
 		# `$.as("number", "1234")` attempt to convert types.
 		as: _type.as
 		isSimple: (o) -> _type(o) in ["string", "number", "bool"]
-		isEmpty: (o) -> o in ["", null, undefined]
+		isEmpty: (o) -> o in ["", null, undefined] or o.length is 0 or (typeof o is "object" and Object.keys(o).length is 0)
 	defineProperty: (name, opts) -> @each -> $.defineProperty @, name, opts

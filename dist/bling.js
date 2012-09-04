@@ -3806,7 +3806,7 @@
           return (_ref = _type(o)) === "string" || _ref === "number" || _ref === "bool";
         },
         isEmpty: function(o) {
-          return o === "" || o === null || o === (void 0);
+          return (o === "" || o === null || o === (void 0)) || o.length === 0 || (typeof o === "object" && Object.keys(o).length === 0);
         }
       },
       defineProperty: function(name, opts) {

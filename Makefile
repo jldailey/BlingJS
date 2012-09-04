@@ -8,10 +8,10 @@ YUI_VERSION=2.4.7
 
 all: dist docs report
 
-test: dist tests/passing
+test: dist test/passing
 
-tests/passing: tests/bling.coffee
-	$(COFFEE) tests/bling.coffee && touch tests/passing
+test/passing: test/bling.coffee
+	$(COFFEE) test/bling.coffee && touch test/passing
 
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
@@ -45,7 +45,7 @@ $(DIST)/%.js: $(DIST)/%.coffee $(COFFEE)
 	$(COFFEE) -o $(DIST) -c $<
 
 $(DIST)/bling.coffee: bling.coffee $(shell ls $(PLUGINS)/*.coffee)
-	rm -f tests/passing
+	rm -f test/passing
 	cat $^ | sed -E 's/^	*#.*$$//g' | grep -v '^ *$$' > $@
 
 yuicompressor.jar:

@@ -184,14 +184,16 @@ $.plugin
 				when "regexp" then (x) -> f.test(x)
 				# * function: `.filter (x) -> (x%2) is 1`
 				when "function" then f
-				else
-					throw new Error("unsupported type passed to filter: #{$.type(f)}")
-			# $( Array::filter.call @, g )
+				else throw new Error "unsupported argument to filter: #{$.type(f)}"
 			$( it for it in @ when g.call(it,it) )
 
 		# Get a new set of booleans, true if the node from _this_
 		# matched the CSS expression.
-		matches: (expr) -> @select('matchesSelector').call(expr)
+		matches: (expr) ->
+			switch $.type expr
+				when "string" then @select('matchesSelector').call(expr)
+				when "regexp" then @map (x) -> expr.test x
+				else throw new Error "unsupported argument to matches: #{$.type expr}"
 
 		# Each node in _this_ contributes all children matching the
 		# CSS expression to a new set.
@@ -242,7 +244,7 @@ $.plugin
 
 		# Apply every function in _this_ to _context_ with _args_.
 		apply: (context, args) ->
-			@map -> if $.is "function", @ then @apply(context, args) else @
+			@filter(-> $.is "function", @).map -> @apply(context, args)
 
 		# Log one line for each item in _this_.
 		log: (label) ->

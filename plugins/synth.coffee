@@ -85,12 +85,12 @@ $.plugin
 			}, basic),
 			{ # 4: read an attribute name (left-side)
 				"=": @GO 5
-				"]": -> @attrs[@attr] = @val; @GO 1
+				"]": -> @attrs[@attr] = @val; @attr = @val = ""; @GO 1
 				def: (c) -> @attr += c
 				eof: @GO 12
 			},
 			{ # 5: read an attribute value (right-side)
-				"]": -> @attrs[@attr] = @val; @GO 1
+				"]": -> @attrs[@attr] = @val; @attr = @val = ""; @GO 1
 				def: (c) -> @val += c
 				eof: @GO 12
 			},

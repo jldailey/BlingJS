@@ -35,7 +35,7 @@ do ($ = Bling) ->
 		count = 1
 		if stop < 0
 			stop = text.length + 1 + stop
-		for i in [start...stop]
+		for i in [start...stop] by 1
 			t = text[i]
 			if t is against
 				count += 1
@@ -55,7 +55,7 @@ do ($ = Bling) ->
 			n = chunks.length
 			ret = [chunks[0]]
 			j = 1 # insert marker into ret
-			for i in [1...n]
+			for i in [1...n] by 1
 				end = match_forward chunks[i], ')', '(', 0, -1
 				if end is -1
 					return "Template syntax error: unmatched '%(' starting at: #{chunks[i].substring(0,15)}"

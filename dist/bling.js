@@ -2145,6 +2145,7 @@
     provides: "math",
     depends: "core"
   }, function() {
+    var mean;
     $.type.extend({
       bool: {
         number: function(o) {
@@ -2226,16 +2227,14 @@
       max: function() {
         return this.filter(isFinite).reduce(Math.max);
       },
-      mean: function() {
+      mean: mean = function() {
         if (!this.length) {
           return 0;
         } else {
           return this.sum() / this.length;
         }
       },
-      avg: function() {
-        return this.mean();
-      },
+      avg: mean,
       sum: function() {
         return this.filter(isFinite).reduce((function(a) {
           return a + this;

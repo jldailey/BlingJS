@@ -30,8 +30,8 @@ $.plugin
 	# Get the largest element (defined by Math.max)
 	max: -> @filter( isFinite ).reduce Math.max
 	# Get the mean (average) of the set.
-	mean: -> if not @length then 0 else @sum() / @length
-	avg: -> @mean()
+	mean: mean = -> if not @length then 0 else @sum() / @length
+	avg: mean
 	# Get the sum of the set.
 	sum: -> @filter( isFinite ).reduce(((a) -> a + @), 0)
 	# Get the product of all items in the set.

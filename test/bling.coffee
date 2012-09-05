@@ -10,329 +10,349 @@ describe "Object", ->
 		assert typeof Object.keys is "function"
 	it "should have a values method", ->
 		assert typeof Object.values is "function"
-	describe "#keys()", ->
+	describe ".keys()", ->
 		it "should return the list of keys", ->
 			assert.deepEqual Object.keys( "a": 1, b: 2 ), ['a', 'b']
-	describe "#values()", ->
+	describe ".values()", ->
 		it "should return the list of values", ->
 			assert.deepEqual Object.values( "a": 1, b: 2 ), [1, 2]
 
-describe "$.type()", ->
-	describe "should classify", ->
-		it "'string'", -> assert.equal $.type(''), 'string'
-		it "'number'", -> assert.equal $.type(42), 'number'
-		it "'undefined'", -> assert.equal $.type(), "undefined"
-		it "'null'", -> assert.equal $.type(null), "null"
-		it "'array'", -> assert.equal $.type([]), "array"
-		it "'function'", -> assert.equal $.type(->), "function"
-		it "'bool'", -> assert.equal $.type(true), "bool"
-		it "'regexp'", -> assert.equal $.type(//), "regexp"
-		it "'window'", -> assert.equal $.type(window), "global"
-describe "$.is()", ->
-	describe "should identify", ->
-		it "'array'", -> assert $.is "array", []
-		it "'function'", -> assert $.is "function", ->
-describe "$.inherit(a,b)", ->
-	a = a: 1
-	b = b: 2
-	$.inherit a, b
-	it "should set b's __proto__ to a", ->
-		assert.equal b.__proto__, a
-	it "b should inherit properties from a", ->
-		assert.equal b.a, 1
-	it "but b should not own those properties", ->
-		assert not b.hasOwnProperty "a"
-describe "$.extend(a,b)", ->
-	a = a: 1
-	b = b: 2
-	c = $.extend a, b
-	it "should return the modified a", -> assert.equal c, a
-	it "should give a properties from b", -> assert.equal a.b, 2
-	it "should copy those properties", ->
-		a.b = 3
-		assert.equal b.b, 2
-describe "$.defineProperty()", ->
-	describe "getters", ->
-		a = {}
-		$.defineProperty a, "getter",
-			get: -> 2
-		it "should be readable", ->
-			assert.equal a.getter, 2
-		it "should not be settable", ->
-			a.getter = 3
-			assert.equal a.getter, 2
-		it "should be enumerable", ->
-			assert.notEqual -1, Object.keys(a).indexOf("getter")
-		it "should be configurable"
-	describe "setters", ->
-		a = {}
-		$.defineProperty a, "setter",
-			set: (v) ->
-		it "should be settable", ->
-			a.setter = 10
-		it "should not be gettable", ->
-			assert.equal a.setter, undefined
-		it "should be enumerable", ->
-			assert.notEqual -1, Object.keys(a).indexOf("setter")
-describe "$.isType()", ->
-	it "should compare against actual types", ->
-		assert $.isType Array, []
-	it "or against names of constructors", ->
-		assert( $.isType('Array', []) )
-	it "should work on non-builtin types", ->
-		class Foo
-		f = new Foo()
-		assert $.isType Foo, f
-describe "$.isSimple()", ->
-	describe "should accept", ->
-		it "strings", -> assert $.isSimple ""
-		it "numbers", -> assert $.isSimple 42.0
-		it "bools", -> assert( $.isSimple false )
-	describe "should reject", ->
-		it "objects", -> assert not $.isSimple {}
-		it "arrays", -> assert not $.isSimple []
-describe "$.isEmpty()", ->
-	describe "should accept", ->
-		it "empty strings", -> assert $.isEmpty ""
-		it "nulls", -> assert $.isEmpty null
-		it "undefineds", -> assert $.isEmpty undefined
-		it "empty arrays", -> assert $.isEmpty []
-		it "empty objects", -> assert $.isEmpty {}
-	describe "should reject", ->
-		it "full strings", -> assert not $.isEmpty "abc"
-		it "arrays with items", -> assert not $.isEmpty [1,2,3]
-		it "objects with keys", -> assert not $.isEmpty a:1
-describe "$.toArray()", ->
-	a = $([1,2,3])
-	b = a.toArray()
-	it "should produce an Array", ->
-		assert.equal b.constructor.name, "Array"
-	it "should preserve data", ->
-		assert.equal b[1], 2
-	it "should preserve length", ->
-		assert.equal b.length, 3
-	it "should not preserve bling functions", ->
-		assert not b.zap
-describe "$.as()", ->
-	describe "should convert", ->
-		it "strings to numbers", -> assert.equal ($.as "number", "1234"), 1234
-
-describe "$.identity", ->
-	it "should be a function", -> assert $.is "function", $.identity
-	it "should echo anything", -> assert.equal $.identity(a = {}), a
-describe "$.bound", ->
-	f = -> @value
-	a = value:'a'
-	b = value:'b'
-	it "binding to a should return a's value", ->
-		assert.equal do $.bound(a, f), 'a'
-	it "binding to b should return b's value", ->
-		assert.equal do $.bound(b, f), 'b'
-describe "$.trace", ->
-	f = -> 42
-	g = [] # an output buffer
-	h = $.trace "label", f, (a...) ->
-		g.push a.join ''
-	it "should not trace the original function", ->
-		f()
-	it "should trace the returned function", ->
-		h "one", "two" # but this will
-		assert.deepEqual g, [ "global.label('one','two')" ]
-
-describe "$.px()", ->
-	describe "converts ... to pixel strings", ->
-		it "integers", -> assert.equal $.px(100), "100px"
-		it "floats", -> assert.equal $.px(-100.0), "-100px"
-		it "negatives", -> assert.equal $.px(-100.0), "-100px"
-		it "pixel strings", -> assert.equal $.px("100.0px"), "100px"
-describe "$.padLeft()", ->
-	it "adds padding when needed", ->
-		assert.equal $.padLeft("foo", 5), "  foo"
-	it "does not add padding when not needed", ->
-		assert.equal $.padLeft("foo", 2), "foo"
-	it "does not add padding when barely not needed", ->
-		assert.equal $.padLeft("foo", 3), "foo"
-	it "can pad with non-default character", ->
-		assert.equal $.padLeft("foo", 5, "X"), "XXfoo"
-describe "$.padRight()", ->
-	it "adds padding when needed", -> assert.equal $.padRight("foo", 5), "foo  "
-	it "doesnt when not", -> assert.equal $.padRight("foo", 2), "foo"
-	it "doesnt when not", -> assert.equal $.padRight("foo", 3), "foo"
-	it "can pad with non-default character", -> assert.equal $.padRight("foo", 5, "X"), "fooXX"
-describe "$.stringSplice()", ->
-	it "should insert text", ->
-		assert.equal $.stringSplice("foobar",3,3,"baz"), "foobazbar"
-	it "should partially replace text", ->
-		assert.equal $.stringSplice("foobar",1,5,"baz"), "fbazr"
-	it "should completely replace text", ->
-		assert.equal $.stringSplice("foobar",0,6,"baz"), "baz"
-	it "should prepend text", ->
-		assert.equal $.stringSplice("foobar",0,0,"baz"), "bazfoobar"
-describe "$.checkSum()", ->
-	it "should compute the same hash as adler32", ->
-		assert.equal $.checksum("foobar"), 145425018
-	it "should not just hash the one thing", ->
-		assert.equal $.checksum("foobarbaz"), 310051767
-describe "$.toString()", ->
-	describe "should output", ->
-		it "blings", ->
-			assert.equal $([2,3,4]).toString(), "$([2, 3, 4])"
-		it "functions", ->
-			assert.equal $.toString(-> $.log), "function () { ... }"
-		it "objects", ->assert.equal $.toString({a:{b:1}}), "{a:{b:1}}"
-	it "should not fail", ->
-		obj = a: 1
-		$.defineProperty obj, 'xxx',
-			get: -> throw new Error "forbidden"
-		assert.equal $.toString(obj), "{a:1, xxx:[Error: forbidden]}"
-describe "$.stringTruncate()", ->
-	it "should truncate long strings and add ellipses", ->
-		assert.equal ($.stringTruncate "long string", 6), "long..."
-
-describe "$.plugin()", ->
-	describe "creating new plugins", ->
-		$.plugin ->
-			$:
-				testGlobal: -> 9
-			testOp: -> 42
-		it "should define new globals", ->
-			assert.equal $.testGlobal?(), 9
-		it "should define new instance methods", ->
-			assert.equal $().testOp?(), 42
-		it "should provide a default global wrapper", ->
-			assert.equal $.testOp?(), 42
-
 describe "Bling", ->
-	it "should have it's global name", ->
+	it "should have a symbol with side effects", ->
 		assert Bling?
-	it "should start with the default symbol", ->
 		assert.equal Bling.symbol, "$"
-	it "should have mapped that symbol into globals", ->
-		assert.equal global[Bling.symbol], Bling
-	it "setting it should update globals", ->
+		assert.equal global.$, Bling
 		Bling.symbol = "_"
-		assert.equal global[Bling.symbol], Bling
-	it "should preserve value history"
-###
-
-describe "Symbol", ->
-	it "exists", -> assert( Bling?, "bling should exist")
-	it "current", ->
-		Bling.assert.equal( Bling.symbol, "$" )
-		Bling.assert.equal( $, Bling )
-	it "set", ->
+		assert.equal global._, Bling
+		global.$ = "before"
+		Bling.symbol = "$"
+		assert.equal global.$, Bling
 		Bling.symbol = "_"
-		Bling.assert.equal( _, Bling )
-	it "preserve", ->
-		Bling.global.$ = "before"
+		assert.equal global.$, "before"
 		Bling.symbol = "$"
-		Bling.assert.equal(Bling.global.$, Bling)
-		Bling.symbol = "_"
-		Bling.assert.equal(Bling.global.$, "before")
-	it "reset", ->
-		Bling.symbol = "$"
-		Bling.assert.equal($, Bling)
-	it "noConflict", ->
-		Bling.global.noConflictTest = "magic"
-		Bling.symbol = "noConflictTest"
-		Bling.assert Bling.global.noConflictTest is Bling, 1
-		foo = Bling.noConflict()
-		Bling.assert Bling.symbol = "Bling", 2
-		Bling.assert Bling.global[Bling.symbol] is Bling, 3
-		Bling.assert foo is Bling, 4
-		Bling.assert Bling.global.noConflictTest is "magic", 5
-		Bling.symbol = "$"
+		assert.equal global.$, Bling
+	it "should be constructable by call (python style)", ->
+		b = Bling([1,2,3])
+		assert.equal b[0], 1
+		assert.equal b[1], 2
+		assert.equal b[2], 3
+	it "should have have the right constructor name", ->
+		assert.equal Bling([1,2]).constructor.name, "Bling"
+	describe ".type()", ->
+		describe "should classify", ->
+			it "'string'", -> assert.equal $.type(''), 'string'
+			it "'number'", -> assert.equal $.type(42), 'number'
+			it "'undefined'", -> assert.equal $.type(), "undefined"
+			it "'null'", -> assert.equal $.type(null), "null"
+			it "'array'", -> assert.equal $.type([]), "array"
+			it "'function'", -> assert.equal $.type(->), "function"
+			it "'bool'", -> assert.equal $.type(true), "bool"
+			it "'regexp'", -> assert.equal $.type(//), "regexp"
+			it "'window'", -> assert.equal $.type(window), "global"
+	describe ".is()", ->
+		describe "should identify", ->
+			it "'array'", -> assert $.is "array", []
+			it "'function'", -> assert $.is "function", ->
+	describe ".inherit(a,b)", ->
+		a = a: 1
+		b = b: 2
+		$.inherit a, b
+		it "should set b's __proto__ to a", ->
+			assert.equal b.__proto__, a
+		it "b should inherit properties from a", ->
+			assert.equal b.a, 1
+		it "but b should not own those properties", ->
+			assert not b.hasOwnProperty "a"
+	describe ".extend(a,b)", ->
+		a = a: 1
+		b = b: 2
+		c = $.extend a, b
+		it "should return the modified a", -> assert.equal c, a
+		it "should give a properties from b", -> assert.equal a.b, 2
+		it "should copy those properties", ->
+			a.b = 3
+			assert.equal b.b, 2
+	describe ".defineProperty()", ->
+		describe "getters", ->
+			a = {}
+			$.defineProperty a, "getter",
+				get: -> 2
+			it "should be readable", ->
+				assert.equal a.getter, 2
+			it "should not be settable", ->
+				a.getter = 3
+				assert.equal a.getter, 2
+			it "should be enumerable", ->
+				assert.notEqual -1, Object.keys(a).indexOf("getter")
+			it "should be configurable"
+		describe "setters", ->
+			a = {}
+			$.defineProperty a, "setter",
+				set: (v) ->
+			it "should be settable", ->
+				a.setter = 10
+			it "should not be gettable", ->
+				assert.equal a.setter, undefined
+			it "should be enumerable", ->
+				assert.notEqual -1, Object.keys(a).indexOf("setter")
+	describe ".isType()", ->
+		it "should compare against actual types", ->
+			assert $.isType Array, []
+		it "or against names of constructors", ->
+			assert( $.isType('Array', []) )
+		it "should work on non-builtin types", ->
+			class Foo
+			f = new Foo()
+			assert $.isType Foo, f
+	describe ".isSimple()", ->
+		describe "should accept", ->
+			it "strings", -> assert $.isSimple ""
+			it "numbers", -> assert $.isSimple 42.0
+			it "bools", -> assert( $.isSimple false )
+		describe "should reject", ->
+			it "objects", -> assert not $.isSimple {}
+			it "arrays", -> assert not $.isSimple []
+	describe ".isEmpty()", ->
+		describe "should accept", ->
+			it "empty strings", -> assert $.isEmpty ""
+			it "nulls", -> assert $.isEmpty null
+			it "undefineds", -> assert $.isEmpty undefined
+			it "empty arrays", -> assert $.isEmpty []
+			it "empty objects", -> assert $.isEmpty {}
+		describe "should reject", ->
+			it "full strings", -> assert not $.isEmpty "abc"
+			it "arrays with items", -> assert not $.isEmpty [1,2,3]
+			it "objects with keys", -> assert not $.isEmpty a:1
+	describe ".toArray()", ->
+		a = $([1,2,3])
+		b = a.toArray()
+		it "should produce an Array", ->
+			assert.equal b.constructor.name, "Array"
+		it "should preserve data", ->
+			assert.equal b[1], 2
+		it "should preserve length", ->
+			assert.equal b.length, 3
+		it "should not preserve bling functions", ->
+			assert not b.zap
+	describe ".as()", ->
+		describe "should convert", ->
+			it "strings to numbers", -> assert.equal ($.as "number", "1234"), 1234
+	describe ".identity", ->
+		it "should be a function", -> assert $.is "function", $.identity
+		it "should echo anything", -> assert.equal $.identity(a = {}), a
+	describe ".bound", ->
+		f = -> @value
+		a = value:'a'
+		b = value:'b'
+		it "binding to a should return a's value", ->
+			assert.equal do $.bound(a, f), 'a'
+		it "binding to b should return b's value", ->
+			assert.equal do $.bound(b, f), 'b'
+	describe ".trace", ->
+		f = -> 42
+		g = [] # an output buffer
+		h = $.trace "label", f, (a...) ->
+			g.push a.join ''
+		it "should not trace the original function", ->
+			f()
+		it "should trace the returned function", ->
+			h "one", "two" # but this will
+			assert.deepEqual g, [ "global.label('one','two')" ]
+	describe ".px()", ->
+		describe "converts ... to pixel strings", ->
+			it "integers", -> assert.equal $.px(100), "100px"
+			it "floats", -> assert.equal $.px(-100.0), "-100px"
+			it "negatives", -> assert.equal $.px(-100.0), "-100px"
+			it "pixel strings", -> assert.equal $.px("100.0px"), "100px"
+	describe ".padLeft()", ->
+		it "adds padding when needed", ->
+			assert.equal $.padLeft("foo", 5), "  foo"
+		it "does not add padding when not needed", ->
+			assert.equal $.padLeft("foo", 2), "foo"
+		it "does not add padding when barely not needed", ->
+			assert.equal $.padLeft("foo", 3), "foo"
+		it "can pad with non-default character", ->
+			assert.equal $.padLeft("foo", 5, "X"), "XXfoo"
+	describe ".padRight()", ->
+		it "adds padding when needed", -> assert.equal $.padRight("foo", 5), "foo  "
+		it "doesnt when not", -> assert.equal $.padRight("foo", 2), "foo"
+		it "doesnt when not", -> assert.equal $.padRight("foo", 3), "foo"
+		it "can pad with non-default character", -> assert.equal $.padRight("foo", 5, "X"), "fooXX"
+	describe ".stringSplice()", ->
+		it "should insert text", ->
+			assert.equal $.stringSplice("foobar",3,3,"baz"), "foobazbar"
+		it "should partially replace text", ->
+			assert.equal $.stringSplice("foobar",1,5,"baz"), "fbazr"
+		it "should completely replace text", ->
+			assert.equal $.stringSplice("foobar",0,6,"baz"), "baz"
+		it "should prepend text", ->
+			assert.equal $.stringSplice("foobar",0,0,"baz"), "bazfoobar"
+	describe ".checkSum()", ->
+		it "should compute the same hash as adler32", ->
+			assert.equal $.checksum("foobar"), 145425018
+		it "should not just hash the one thing", ->
+			assert.equal $.checksum("foobarbaz"), 310051767
+	describe ".toString()", ->
+		describe "should output", ->
+			it "blings", ->
+				assert.equal $([2,3,4]).toString(), "$([2, 3, 4])"
+			it "functions", ->
+				assert.equal $.toString(-> $.log), "function () { ... }"
+			it "objects", ->assert.equal $.toString({a:{b:1}}), "{a:{b:1}}"
+		it "should not fail", ->
+			obj = a: 1
+			$.defineProperty obj, 'xxx',
+				get: -> throw new Error "forbidden"
+			assert.equal $.toString(obj), "{a:1, xxx:[Error: forbidden]}"
+	describe ".stringTruncate()", ->
+		it "should truncate long strings and add ellipses", ->
+			assert.equal ($.stringTruncate "long string", 6), "long..."
+	describe ".plugin()", ->
+		describe "creating new plugins", ->
+			$.plugin ->
+				$:
+					testGlobal: -> 9
+				testOp: -> 42
+			it "should define new globals", ->
+				assert.equal $.testGlobal?(), 9
+			it "should define new instance methods", ->
+				assert.equal $().testOp?(), 42
+			it "should provide a default global wrapper", ->
+				assert.equal $.testOp?(), 42
+	describe ".avg()", ->
+		it "average of an empty set is 0", ->
+			assert.equal $([]).avg(), 0
+		it "should compute the average", ->
+			assert.equal $([1,2,3,4]).avg(), 2.5
+		it "should be aliased as #mean()", ->
+			assert.equal $.prototype.avg, $.prototype.mean
+	describe ".sum()", ->
+		it "should add an empty set as 0", ->
+			assert.equal $([]).sum(), 0
+		it "should compute the sum", ->
+			assert.equal $([1,2,3,4,5]).sum(), 15
+		it "should ignore non-numbers", ->
+			assert.equal($([1,2,NaN,3]).sum(), 6)
+	describe ".range(start,end)", ->
+		it "should produce a sequence of ints from start to end", ->
+			assert.equal($.range(1,6).toRepr(), '$([1, 2, 3, 4, 5])')
+		it "start is optional, defaults to 0", ->
+			assert.equal($.range(5).toRepr(), '$([0, 1, 2, 3, 4])')
+	describe ".zeros()", ->
+		it "should produce a set", ->
+			assert $.is 'bling', $.zeros 10
+		it "should produce all zeros", ->
+			assert.equal 0, $.zeros(10).sum()
+	describe ".ones()", ->
+		it "should produce a set of ones", ->
+			assert.equal $.ones(10).sum(), 10
+	describe ".floats()", ->
+		it "should convert everything to floats", ->
+			assert.equal $(["12.1","29.9"]).floats().sum(), 42
+	describe ".ints()", ->
+		it "should convert everything to ints", ->
+			assert.equal $(["12.1","29.9px"]).ints().sum(), 41
+	describe ".px()", ->
+		it "should convert everything to -px strings (for CSS)", ->
+			assert.equal $(["12.1", "29.9"]).px(2).toRepr(), "$(['14px', '31px'])"
+	describe ".min()", ->
+		it "should return the smallest item", ->
+			assert.equal $([12.1, 29.9]).min(), 12.1
+		it "should ignore non-numbers", ->
+			assert.equal( $([12.1, NaN, 29.9]).min(), 12.1)
+		it "should return 0 for an empty set?"
+	describe ".max()", ->
+		it "should return the largest item", -> assert.equal( $([12.1, 29.9]).max(), 29.9)
+		it "should ignore non-numbers", -> assert.equal( $([12.1, NaN, 29.9]).max(), 29.9)
+		it "should return Infinity for an empty set?"
 
-describe "Math", ->
-	it "avg0", -> assert.equal $([]).avg(), 0
-	it "sum0", -> assert.equal($([]).sum(), 0)
-	it "sum1", -> assert.equal($([1,2,3,4,5]).sum(), 15)
-	it "sum2", -> assert.equal($([1,2,NaN,3]).sum(), 6)
-	it "range1", -> assert.equal($.range(1,6).toRepr(), '$([1, 2, 3, 4, 5])')
-	it "range2", -> assert.equal($.range(5).toRepr(), '$([0, 1, 2, 3, 4])')
-	it "zeros1", -> assert.equal($.zeros(10).sum(), 0)
-	it "zeros2", -> assert.equal($.zeros(5).toRepr(), '$([0, 0, 0, 0, 0])')
-	it "ones", -> assert.equal($.ones(10).sum(), 10)
-	it "floats", -> assert.equal($(["12.1","29.9"]).floats().sum(), 42)
-	it "ints", -> assert.equal($(["12.1","29.9px"]).ints().sum(), 41)
-	it "px", -> assert.equal( $(["12.1", "29.9"]).px(2).toRepr(), "$(['14px', '31px'])" )
-	it "min1", -> assert.equal( $([12.1, 29.9]).min(), 12.1)
-	it "min2", -> assert.equal( $([12.1, NaN, 29.9]).min(), 12.1)
-	it "max1", -> assert.equal( $([12.1, 29.9]).max(), 29.9)
-	it "max2", -> assert.equal( $([12.1, NaN, 29.9]).max(), 29.9)
-
-describe "Random", ->
-	it "random", ->
+	describe ".random()", ->
 		assert 0.0 < $.random() < 1.0
-	it "real", ->
-		assert 10.0 < $.random.real(10,100) < 100.0
-	it "integer", ->
-		r = $.random.integer(3,9)
-		assert 3 <= r <= 9, "r is in range"
-		assert Math.floor(r) is r, "r is an integer"
-	it "string", ->
-		s = $.random.string(16)
-		assert $.type(s) is "string", "s is a string"
-		assert s.length is 16, "s has the right length"
-	it "seed", ->
-		$.random.seed = 42
-		r = $.random.string(16)
-		$.random.seed = 43
-		s = $.random.string(16)
-		$.random.seed = 42
-		t = $.random.string(16)
-		assert r is t, "same seed produces same output"
-		assert r isnt s, "different seed produces different output"
+		describe ".real()", ->
+			r = $.random.real 10,100
+			it "should produce a number", ->
+				assert $.is 'number', r
+			it "is in the range", ->
+				assert 10.0 < r < 100.0
+		describe ".integer()", ->
+			r = $.random.integer(3,9)
+			it "should be an integer", ->
+				assert.equal Math.floor(r), r
+			it "is in the range", ->
+				assert 3 <= r <= 9
+		describe ".string()", ->
+			s = $.random.string(16)
+			it "is a string", ->
+				assert $.is 'string', s
+			it "has the right length", ->
+				assert.equal s.length, 16
+		describe ".seed()", ->
+			$.random.seed = 42
+			r = $.random.string(16)
+			$.random.seed = 43
+			s = $.random.string(16)
+			$.random.seed = 42
+			t = $.random.string(16)
+			it "should produce same output for the same seed", ->
+				assert.equal r, t
+			it "should produce different output for a new seed", ->
+				assert.notEqual r, s
 
-describe "Hash", ->
-	it "number", -> assert $.hash(42) isnt $.hash(43)
-	it "string", -> assert $.hash("foo") isnt $.hash("bar")
-	it "array", -> assert $.hash("poop") isnt $.hash(["poop"])
-	it "array_order", -> assert $.hash(["a","b"]) isnt $.hash(["b","a"])
-	it "object", -> assert ($.hash a:1) isnt ($.hash a:2)
-	it "object2", -> assert isFinite $.hash a:1
-	it "object3", -> assert isFinite $.hash {}
-	it "object4", -> assert ($.hash {}) isnt ($.hash [])
-	it "bling", -> assert ($.hash $)?
-	it "bling_order", -> assert $.hash($(["a","b"])) isnt $.hash($(["b","a"]))
+	describe ".hash()", ->
+		describe "hashes any type of object", ->
+			it "number", -> assert $.hash(42) isnt $.hash(43)
+			it "string", -> assert $.hash("foo") isnt $.hash("bar")
+			it "array", -> assert $.hash("poop") isnt $.hash(["poop"])
+			it "object", -> assert ($.hash a:1) isnt ($.hash a:2)
+			it "bling", -> assert ($.hash $)?
+		describe "always produces finite hashes", ->
+			it "for objects", -> assert isFinite $.hash a:1
+			it "for empty objects", -> assert isFinite $.hash {}
+		describe "the order of elements matters", ->
+			it "in arrays", -> assert.notEqual $.hash(["a","b"]), $.hash(["b","a"])
+			it "in objects", -> assert.notEqual $.hash({}), $.hash []
+			it "in blings", -> assert.notEqual $.hash($(["a","b"])), $.hash $(["b","a"])
+	
+	describe ".pipe()", ->
+		it "is a function", ->
+			assert $.is 'function', $.pipe
+		it "returns a pipe with append/prepend", ->
+			p = $.pipe('unit-test')
+			assert $.is 'function', p.append
+			assert $.is 'function', p.prepend
+		it "computes values when called", ->
+			$.pipe('unit-test').append (x) -> x += 2
+			$.pipe('unit-test').prepend (x) -> x *= 2
+			assert.equal $.pipe('unit-test', 4), 10
+	
+	describe ".eq()", ->
+		it "selects a new set with only one element", ->
+			assert.equal $([1,2,3]).eq(1)[0], 2
+	describe ".each(f)", ->
+		it "repeats f for each element", ->
+			check = 0
+			$([1,2,3]).each -> check += 1
+			assert.equal check, 3
+	describe ".map(f)", ->
+		it "returns a new set", ->
+			a = $([1,2,3])
+			b = a.map (->)
+			assert.notEqual a,b
+		it "containing the results of f(each item)", ->
+			assert.deepEqual $([1,2,3]).map(->@*@), [1,4,9]
+	describe ".coalesce()", ->
+		it "should return the first non-null item", ->
+			assert.equal $.coalesce(null, 42, 22), 42
+		it "should accept an array as argument", ->
+			assert.equal($.coalesce([null, 14, 42]), 14)
+		it "should descend arrays if nested", ->
+			assert.equal($.coalesce([null, [null, 14], 42]), 14)
+		it "should span arrays if given multiple", ->
+			assert.equal $.coalesce([null, null], [null, [null, 14], 42]), 14
 
-# set up a test document, to run DOM tests against
-document.body.innerHTML = """
-<table>
-	<tr><td>1,1</td><td>1,2</td></tr>
-	<tr><td>2,1</td><td>2,2</td></tr>
-	<tr><td>3,1</td><td class='d'>3,2</td></tr>
-	<tr><td>4,1</td><td>4,2</td></tr>
-</table>
-<div class='c'>C</div>
-<p><span>foobar</span></p>
-"""
+
+###
 describe "Core", ->
-	it "new1", ->
-		b = $([1,2,3])
-		assert.equal(b[0], 1)
-		assert.equal(b[1], 2)
-		assert.equal(b[2], 3)
-		assert.equal(b.constructor.name, "Bling")
-	it "pipe1", ->
-		$.pipe('unit-test').append (x) -> x += 2
-		$.pipe('unit-test').prepend (x) -> x *= 2
-		assert.equal( $.pipe('unit-test', 4), 10)
-	it "eq", -> assert.equal($([1,2,3]).eq(1)[0], 2)
-	it "each", ->
-		sum = 0
-		$([1,2,3,4]).each ->
-			sum += @
-		assert.equal(sum, 10)
-	it "map", -> assert.deepEqual( $([1,2,3,4]).map( (x) -> x * x ), [1,4,9,16] )
-	it "map2", ->
-		d = [1,2,3,4,5]
-		assert.deepEqual($(d).map(-> @ * 2), [2,4,6,8,10])
-		# check that we get the same results when called twice (the original was not modified)
-		assert.deepEqual($(d).map(-> @ * 2), [2,4,6,8,10])
-	it "coalesce1", -> assert.equal($.coalesce(null, 42, 22), 42)
-	it "coalesce2", -> assert.equal($.coalesce([null, 14, 42]), 14)
-	it "coalesce3", -> assert.equal($.coalesce([null, [null, 14], 42]), 14)
 	it "reduce", -> assert.equal( $([1,2,3,4]).reduce( (a,x) -> a + x ), 10)
 	it "union", -> assert.deepEqual($([1,2,3,4]).union([2,3,4,5]), [1,2,3,4,5])
 	it "intersect", -> assert.deepEqual($([1,2,3,4]).intersect([2,3,4,5]), [2,3,4])
@@ -417,6 +437,17 @@ describe "Core", ->
 		$.defineProperty a, "b", it "get", -> 2
 		assert.deepEqual $.valuesOf(a), [1,2]
 
+# set up a test document, to run DOM tests against
+document.body.innerHTML = """
+<table>
+	<tr><td>1,1</td><td>1,2</td></tr>
+	<tr><td>2,1</td><td>2,2</td></tr>
+	<tr><td>3,1</td><td class='d'>3,2</td></tr>
+	<tr><td>4,1</td><td>4,2</td></tr>
+</table>
+<div class='c'>C</div>
+<p><span>foobar</span></p>
+"""
 describe "DOM", ->
 	it "parse", ->
 		d = $.HTML.parse "<div><a></a><b></b><c></c></div>"

@@ -960,8 +960,8 @@ $.plugin
 	px: (delta) -> @ints().map -> $.px @,delta
 	min: -> @filter( isFinite ).reduce Math.min
 	max: -> @filter( isFinite ).reduce Math.max
-	mean: -> if not @length then 0 else @sum() / @length
-	avg: -> @mean()
+	mean: mean = -> if not @length then 0 else @sum() / @length
+	avg: mean
 	sum: -> @filter( isFinite ).reduce(((a) -> a + @), 0)
 	product: -> @filter( isFinite ).reduce (a) -> a * @
 	squares: -> @map -> @ * @

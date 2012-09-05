@@ -5,13 +5,14 @@ DOCCO=./node_modules/docco/bin/docco
 DIST=dist
 PLUGINS=plugins
 YUI_VERSION=2.4.7
+MOCHA=mocha --compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R dot
 
 all: dist docs report
 
 test: dist test/passing
 
 test/passing: test/bling.coffee
-	$(COFFEE) test/bling.coffee && touch test/passing
+	$(MOCHA) test/bling.coffee && touch test/passing
 
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 

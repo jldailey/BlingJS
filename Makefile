@@ -5,7 +5,7 @@ DOCCO=./node_modules/docco/bin/docco
 DIST=dist
 PLUGINS=plugins
 YUI_VERSION=2.4.7
-MOCHA=mocha --compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R dot
+MOCHA=mocha --compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R spec
 
 all: dist docs report
 
@@ -66,6 +66,7 @@ report:
 	@cd $(DIST) && wc -c `ls *.coffee *.js *.gz | sort` | grep -v total
 
 clean:
+	rm -f test/passing
 	rm -rf $(DIST)/*
 	rm -rf yuicompressor.zip yuicompressor.jar yuicompressor-$(YUI_VERSION)
 

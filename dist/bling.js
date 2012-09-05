@@ -147,55 +147,6 @@
   $ = Bling;
 
   $.plugin({
-    provides: "EventEmitter",
-    depends: "type,pipe"
-  }, function() {
-    return {
-      $: {
-        EventEmitter: $.pipe("bling-init").append(function(obj) {
-          var list, listeners;
-          listeners = {};
-          list = function(e) {
-            return listeners[e] || (listeners[e] = []);
-          };
-          return $.inherit({
-            emit: function() {
-              var a, e, f, _i, _len, _ref;
-              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-              _ref = list(e);
-              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                f = _ref[_i];
-                f.apply(this, a);
-              }
-              return this;
-            },
-            addListener: function(e, h) {
-              list(e).push(h);
-              return this.emit('newListener', e, h);
-            },
-            on: function(e, h) {
-              return this.addListener(e, h);
-            },
-            removeListener: function(e, h) {
-              var i;
-              if ((i = list(e).indexOf(h)) > -1) {
-                return list(e).splice(i, 1);
-              }
-            },
-            removeAllListeners: function(e) {
-              return listeners[e] = [];
-            },
-            setMaxListeners: function(n) {},
-            listeners: function(e) {
-              return list(e).slice(0);
-            }
-          }, obj);
-        })
-      }
-    };
-  });
-
-  $.plugin({
     provides: "cartesian"
   }, function() {
     return {
@@ -593,7 +544,7 @@
         return $((function() {
           var _i, _results;
           _results = [];
-          for (i = _i = 0; 0 <= end ? _i < end : _i > end; i = 0 <= end ? ++_i : --_i) {
+          for (i = _i = 0; _i < end; i = _i += 1) {
             _results.push(this[i]);
           }
           return _results;
@@ -680,7 +631,7 @@
             case "function":
               return f;
             default:
-              throw new Error("unsupported type passed to filter: " + ($.type(f)));
+              throw new Error("unsupported argument to filter: " + ($.type(f)));
           }
         })();
         return $((function() {
@@ -696,7 +647,16 @@
         }).call(this));
       },
       matches: function(expr) {
-        return this.select('matchesSelector').call(expr);
+        switch ($.type(expr)) {
+          case "string":
+            return this.select('matchesSelector').call(expr);
+          case "regexp":
+            return this.map(function(x) {
+              return expr.test(x);
+            });
+          default:
+            throw new Error("unsupported argument to matches: " + ($.type(expr)));
+        }
       },
       querySelectorAll: function(expr) {
         return this.filter("*").reduce(function(a, i) {
@@ -746,12 +706,10 @@
         return this.apply(null, arguments);
       },
       apply: function(context, args) {
-        return this.map(function() {
-          if ($.is("function", this)) {
-            return this.apply(context, args);
-          } else {
-            return this;
-          }
+        return this.filter(function() {
+          return $.is("function", this);
+        }).map(function() {
+          return this.apply(context, args);
         });
       },
       log: function(label) {
@@ -1587,6 +1545,55 @@
   }
 
   $.plugin({
+    provides: "EventEmitter",
+    depends: "type,pipe"
+  }, function() {
+    return {
+      $: {
+        EventEmitter: $.pipe("bling-init").append(function(obj) {
+          var list, listeners;
+          listeners = {};
+          list = function(e) {
+            return listeners[e] || (listeners[e] = []);
+          };
+          return $.inherit({
+            emit: function() {
+              var a, e, f, _i, _len, _ref;
+              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+              _ref = list(e);
+              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                f = _ref[_i];
+                f.apply(this, a);
+              }
+              return this;
+            },
+            addListener: function(e, h) {
+              list(e).push(h);
+              return this.emit('newListener', e, h);
+            },
+            on: function(e, h) {
+              return this.addListener(e, h);
+            },
+            removeListener: function(e, h) {
+              var i;
+              if ((i = list(e).indexOf(h)) > -1) {
+                return list(e).splice(i, 1);
+              }
+            },
+            removeAllListeners: function(e) {
+              return listeners[e] = [];
+            },
+            setMaxListeners: function(n) {},
+            listeners: function(e) {
+              return list(e).slice(0);
+            }
+          }, obj);
+        })
+      }
+    };
+  });
+
+  $.plugin({
     depends: "dom,function,core",
     provides: "event"
   }, function() {
@@ -2106,9 +2113,11 @@
         },
         query: function(criteria) {
           var key;
-          key = keyMaker(criteria);
-          if (key in map) {
-            return map[key];
+          if ($.is('function', keyMaker)) {
+            key = keyMaker(criteria);
+            if (key in map) {
+              return map[key];
+            }
           }
           return null;
         }
@@ -2963,6 +2972,7 @@
           "=": SynthMachine.GO(5),
           "]": function() {
             this.attrs[this.attr] = this.val;
+            this.attr = this.val = "";
             return this.GO(1);
           },
           def: function(c) {
@@ -2972,6 +2982,7 @@
         }, {
           "]": function() {
             this.attrs[this.attr] = this.val;
+            this.attr = this.val = "";
             return this.GO(1);
           },
           def: function(c) {
@@ -3122,7 +3133,7 @@
       if (stop < 0) {
         stop = text.length + 1 + stop;
       }
-      for (i = _i = start; start <= stop ? _i < stop : _i > stop; i = start <= stop ? ++_i : --_i) {
+      for (i = _i = start; _i < stop; i = _i += 1) {
         t = text[i];
         if (t === against) {
           count += 1;
@@ -3145,7 +3156,7 @@
         n = chunks.length;
         ret = [chunks[0]];
         j = 1;
-        for (i = _i = 1; 1 <= n ? _i < n : _i > n; i = 1 <= n ? ++_i : --_i) {
+        for (i = _i = 1; _i < n; i = _i += 1) {
           end = match_forward(chunks[i], ')', '(', 0, -1);
           if (end === -1) {
             return "Template syntax error: unmatched '%(' starting at: " + (chunks[i].substring(0, 15));

@@ -53,22 +53,6 @@ Bling.prototype.constructor = Bling
 Bling.global = if window? then window else global
 $ = Bling
 $.plugin
-	provides: "EventEmitter"
-	depends: "type,pipe"
-, ->
-	$: EventEmitter: $.pipe("bling-init").append (obj) ->
-		listeners = {}
-		list = (e) -> (listeners[e] or= [])
-		$.inherit {
-			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-			addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
-			on:                 (e, h) -> @addListener e, h
-			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
-			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
-			listeners:          (e) -> list(e).slice 0
-		}, obj
-$.plugin
 	provides: "cartesian"
 , ->
 	$:
@@ -208,7 +192,7 @@ $.plugin
 		clean: (prop) -> @each -> delete @[prop]
 		take: (n = 1) ->
 			end = Math.min n, @length
-			$( @[i] for i in [0...end] )
+			$( @[i] for i in [0...end] by 1 )
 		skip: (n = 0) ->
 			start = Math.max 0, n|0
 			$( @[i] for i in [start...@length] by 1 )
@@ -225,10 +209,13 @@ $.plugin
 				when "string" then (x) -> x.matchesSelector(f)
 				when "regexp" then (x) -> f.test(x)
 				when "function" then f
-				else
-					throw new Error("unsupported type passed to filter: #{$.type(f)}")
+				else throw new Error "unsupported argument to filter: #{$.type(f)}"
 			$( it for it in @ when g.call(it,it) )
-		matches: (expr) -> @select('matchesSelector').call(expr)
+		matches: (expr) ->
+			switch $.type expr
+				when "string" then @select('matchesSelector').call(expr)
+				when "regexp" then @map (x) -> expr.test x
+				else throw new Error "unsupported argument to matches: #{$.type expr}"
 		querySelectorAll: (expr) ->
 			@filter("*")
 			.reduce (a, i) ->
@@ -253,7 +240,7 @@ $.plugin
 			b
 		call: -> @apply(null, arguments)
 		apply: (context, args) ->
-			@map -> if $.is "function", @ then @apply(context, args) else @
+			@filter(-> $.is "function", @).map -> @apply(context, args)
 		log: (label) ->
 			if label
 				$.log(label, @toString(), @length + " items")
@@ -631,6 +618,22 @@ if $.global.document?
 				return toNode @[0]
 		}
 $.plugin
+	provides: "EventEmitter"
+	depends: "type,pipe"
+, ->
+	$: EventEmitter: $.pipe("bling-init").append (obj) ->
+		listeners = {}
+		list = (e) -> (listeners[e] or= [])
+		$.inherit {
+			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
+			addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
+			on:                 (e, h) -> @addListener e, h
+			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
+			removeAllListeners: (e) -> listeners[e] = []
+			setMaxListeners:    (n) -> # who really needs this in the core API?
+			listeners:          (e) -> list(e).slice 0
+		}, obj
+$.plugin
 	depends: "dom,function,core"
 	provides: "event"
 , ->
@@ -926,8 +929,9 @@ $.depends 'pipe', ->
 				@each (x) ->
 					map[keyFunc(x)] = x
 			query: (criteria) ->
-				key = keyMaker(criteria)
-				return map[key] if key of map
+				if $.is 'function', keyMaker
+					key = keyMaker(criteria)
+					return map[key] if key of map
 				null
 		}, obj
 $.plugin
@@ -1314,12 +1318,12 @@ $.plugin
 			}, basic),
 			{ # 4: read an attribute name (left-side)
 				"=": @GO 5
-				"]": -> @attrs[@attr] = @val; @GO 1
+				"]": -> @attrs[@attr] = @val; @attr = @val = ""; @GO 1
 				def: (c) -> @attr += c
 				eof: @GO 12
 			},
 			{ # 5: read an attribute value (right-side)
-				"]": -> @attrs[@attr] = @val; @GO 1
+				"]": -> @attrs[@attr] = @val; @attr = @val = ""; @GO 1
 				def: (c) -> @val += c
 				eof: @GO 12
 			},
@@ -1419,7 +1423,7 @@ do ($ = Bling) ->
 		count = 1
 		if stop < 0
 			stop = text.length + 1 + stop
-		for i in [start...stop]
+		for i in [start...stop] by 1
 			t = text[i]
 			if t is against
 				count += 1
@@ -1436,7 +1440,7 @@ do ($ = Bling) ->
 			n = chunks.length
 			ret = [chunks[0]]
 			j = 1 # insert marker into ret
-			for i in [1...n]
+			for i in [1...n] by 1
 				end = match_forward chunks[i], ')', '(', 0, -1
 				if end is -1
 					return "Template syntax error: unmatched '%(' starting at: #{chunks[i].substring(0,15)}"

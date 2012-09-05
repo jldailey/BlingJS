@@ -8,8 +8,9 @@ $.depends 'pipe', ->
 				@each (x) ->
 					map[keyFunc(x)] = x
 			query: (criteria) ->
-				key = keyMaker(criteria)
-				return map[key] if key of map
+				if $.is 'function', keyMaker
+					key = keyMaker(criteria)
+					return map[key] if key of map
 				null
 		}, obj
 

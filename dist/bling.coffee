@@ -53,6 +53,22 @@ Bling.prototype.constructor = Bling
 Bling.global = if window? then window else global
 $ = Bling
 $.plugin
+	provides: "EventEmitter"
+	depends: "type,pipe"
+, ->
+	$: EventEmitter: $.pipe("bling-init").append (obj) ->
+		listeners = {}
+		list = (e) -> (listeners[e] or= [])
+		$.inherit {
+			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
+			addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
+			on:                 (e, h) -> @addListener e, h
+			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
+			removeAllListeners: (e) -> listeners[e] = []
+			setMaxListeners:    (n) -> # who really needs this in the core API?
+			listeners:          (e) -> list(e).slice 0
+		}, obj
+$.plugin
 	provides: "cartesian"
 , ->
 	$:
@@ -195,7 +211,7 @@ $.plugin
 			$( @[i] for i in [0...end] )
 		skip: (n = 0) ->
 			start = Math.max 0, n|0
-			$( @[i] for i in [start...@length] )
+			$( @[i] for i in [start...@length] by 1 )
 		first: (n = 1) -> if n is 1 then @[0] else @take(n)
 		last: (n = 1) -> if n is 1 then @[@length - 1] else @skip(@length - n)
 		slice: (start=0, end=@length) ->
@@ -614,22 +630,6 @@ if $.global.document?
 					return df
 				return toNode @[0]
 		}
-$.plugin
-	provides: "EventEmitter"
-	depends: "type,pipe"
-, ->
-	$: EventEmitter: $.pipe("bling-init").append (obj) ->
-		listeners = {}
-		list = (e) -> (listeners[e] or= [])
-		$.inherit {
-			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-			addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
-			on:                 (e, h) -> @addListener e, h
-			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
-			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
-			listeners:          (e) -> list(e).slice 0
-		}, obj
 $.plugin
 	depends: "dom,function,core"
 	provides: "event"

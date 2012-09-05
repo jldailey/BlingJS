@@ -349,48 +349,70 @@ describe "Bling", ->
 			assert.equal($.coalesce([null, [null, 14], 42]), 14)
 		it "should span arrays if given multiple", ->
 			assert.equal $.coalesce([null, null], [null, [null, 14], 42]), 14
-
+	describe ".reduce()", ->
+		it "applies a combiner to accumulate a single result", ->
+			assert.equal $([1,2,3,4]).reduce( (a,x) -> a + x ), 10
+	describe ".union()", ->
+		it "combines two sets, eliminating duplicates", ->
+			assert.deepEqual $([1,2,3,4]).union([2,3,4,5]), [1,2,3,4,5]
+	describe ".intersect()", ->
+		it "combines two sets, leaving only the duplicates", ->
+			assert.deepEqual($([1,2,3,4]).intersect([2,3,4,5]), [2,3,4])
+	describe ".distinct()", ->
+		it "removes duplicates from a single set", ->
+			assert.deepEqual($([1,2,2,3,4,3]).distinct(), [1,2,3,4])
+	describe ".contains()", ->
+		it "returns true if an item is found in the set", ->
+			assert $([1,2,3]).contains 3
+		it "returns false if an item is not found", ->
+			assert not $([1,2,3]).contains 4
+	describe ".count()", ->
+		it "returns the number of matching items, if given an item", ->
+			assert.equal $([1,2,2,3,4,3]).count(3), 2
+		it "returns the total count if no item is given", ->
+			assert.equal $([1,2,2,3,4,3]).count(), 6
+	
+	describe ".select()", ->
+		it "extracts values from properties of items in a set", ->
+			assert.deepEqual $([ {id:1}, {id:2}, {id:3} ]).select('id'), [1,2,3]
+		it "supports nested property names", ->
+			assert.deepEqual $([
+				{a:{b:2}},
+				{a:{b:4}},
+				{a:{b:6}}
+			]).select("a.b"), [2,4,6]
+		it "supports nesting into arrays", ->
+			assert.deepEqual $([
+				{a:[{b:3}]},
+				{a:[{b:6}]},
+				{a:[{b:9}]}
+			]).select("a.0.b"), [3,6,9]
+	
+	describe ".zap()", ->
+		it "assigns values to properties of items in a set", ->
+			assert.deepEqual $([ {id:1}, {id:2}, {id:3} ]).zap('id', 13).select('id'), [13,13,13]
+		it "supports using a function to compute the assigned values", ->
+			assert.deepEqual $([ {id:1}, {id:2}, {id:3} ]).zap('id', -> @ * 2).select('id'), [2,4,6]
+		it "supports nested property names", ->
+			assert.deepEqual $([ {sub:{id:1}}, {sub:{id:2}}, {sub:{id:3}} ]).zap('sub.id', -> @*2).select('sub.id'), [2,4,6]
+	
+	describe ".take()", ->
+		it "take0", -> assert.deepEqual $([1,2,3,4]).take(0), []
+		it "take1", -> assert.deepEqual $([1,2,3,4]).take(1), [1]
+		it "take2", -> assert.deepEqual $([1,2,3,4]).take(2), [1,2]
+		it "take3", -> assert.deepEqual $([1,2,3,4]).take(3), [1,2,3]
+		it "take4", -> assert.deepEqual $([1,2,3,4]).take(4), [1,2,3,4]
+		it "take5", -> assert.deepEqual $([1,2,3,4]).take(5), [1,2,3,4]
+	
+	describe ".skip()", ->
+		it "skip0", -> assert.deepEqual $([1,2,3,4]).skip(0), [1,2,3,4]
+		it "skip1", -> assert.deepEqual $([1,2,3,4]).skip(1), [2,3,4]
+		it "skip2", -> assert.deepEqual $([1,2,3,4]).skip(2), [3,4]
+		it "skip3", -> assert.deepEqual $([1,2,3,4]).skip(3), [4]
+		it "skip4", -> assert.deepEqual $([1,2,3,4]).skip(4), []
+		it "skip5", -> assert.deepEqual $([1,2,3,4]).skip(5), []
 
 ###
-describe "Core", ->
-	it "reduce", -> assert.equal( $([1,2,3,4]).reduce( (a,x) -> a + x ), 10)
-	it "union", -> assert.deepEqual($([1,2,3,4]).union([2,3,4,5]), [1,2,3,4,5])
-	it "intersect", -> assert.deepEqual($([1,2,3,4]).intersect([2,3,4,5]), [2,3,4])
-	it "distinct", -> assert.deepEqual($([1,2,2,3,4,3]).distinct(), [1,2,3,4])
-	it "contains1", -> assert $([1,2,3,4]).contains(3)
-	it "contains2", -> assert $(["foo","bar","baz"]).contains("bar")
-	it "count", -> assert.equal( $([1,2,2,3,4,3]).count(3), 2 )
-	it "select", -> assert.deepEqual($([ {id:1}, {id:2}, {id:3} ]).select('id'), [1,2,3])
-	it "select1", -> assert.deepEqual($([
-		{it "a", {b:2}},
-		{it "a", {b:4}},
-		{it "a", {b:6}}
-	]).select("a.b"), [2,4,6])
-	it "select2", -> assert.deepEqual($([
-		{it "a", [{b:3}]},
-		{it "a", [{b:6}]},
-		{it "a", [{b:9}]}
-	]).select("a.0.b"), [3,6,9])
-	it "select3", -> assert.deepEqual($([
-		{it "a", {b:{c:4}}},
-		{it "a", {b:{c:5}}},
-		{it "a", {b:{c:6}}}
-	]).select("a.b.c"), [4,5,6])
-	it "zap", -> assert.deepEqual($([ {id:1}, {id:2}, {id:3} ]).zap('id', 13).select('id'), [13,13,13])
-	it "zapf", -> assert.deepEqual($([ {id:1}, {id:2}, {id:3} ]).zap('id', () -> @ * 2).select('id'), [2,4,6])
-	it "zapf2", -> assert.deepEqual( $([ {sub:{id:1}}, {sub:{id:2}}, {sub:{id:3}} ]).zap('sub.id', -> @*2).select('sub.id'), [2,4,6])
-	it "take3", -> assert.deepEqual($([1,2,3,4]).take(0), [])
-	it "take4", -> assert.deepEqual($([1,2,3,4]).take(1), [1])
-	it "take5", -> assert.deepEqual($([1,2,3,4]).take(2), [1,2])
-	it "take6", -> assert.deepEqual($([1,2,3,4]).take(3), [1,2,3])
-	it "take7", -> assert.deepEqual($([1,2,3,4]).take(4), [1,2,3,4])
-	it "take8", -> assert.deepEqual($([1,2,3,4]).take(5), [1,2,3,4])
-	it "skip2", -> assert.deepEqual($([1,2,3,4]).skip(0), [1,2,3,4])
-	it "skip3", -> assert.deepEqual($([1,2,3,4]).skip(1), [2,3,4])
-	it "skip4", -> assert.deepEqual($([1,2,3,4]).skip(2), [3,4])
-	it "skip5", -> assert.deepEqual($([1,2,3,4]).skip(3), [4])
-	it "skip6", -> assert.deepEqual($([1,2,3,4]).skip(4), [])
-	it "skip7", -> assert.deepEqual($([1,2,3,4]).skip(5), [])
 	it "first1", -> assert.equal($([1,2,3,4]).first(), 1)
 	it "first2", -> assert.deepEqual($([1,2,3,4]).first(5), [1,2,3,4])
 	it "first3", -> assert.deepEqual($([1,2,3,4]).first(2), [1,2])

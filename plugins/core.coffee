@@ -147,12 +147,12 @@ $.plugin
 		# Get a new set with only the first _n_ items from _this_.
 		take: (n = 1) ->
 			end = Math.min n, @length
-			$( @[i] for i in [0...end] )
+			$( @[i] for i in [0...end] by 1 )
 
 		# Get a new set with every item except the first _n_ items.
 		skip: (n = 0) ->
 			start = Math.max 0, n|0
-			$( @[i] for i in [start...@length] )
+			$( @[i] for i in [start...@length] by 1 )
 
 		# Get the first item(s).
 		first: (n = 1) -> if n is 1 then @[0] else @take(n)

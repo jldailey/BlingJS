@@ -25,14 +25,17 @@ site: dist
 	&& cp $(DIST)/*.js.gz js \
 	&& git show master:$(DIST)/bling.coffee > js/bling.coffee \
 	&& git show master:$(DIST)/bling.js > js/bling.js \
-	&& git commit js -m "build files" || true \
+	&& sleep 1 \
+	&& git commit -a -m "build files" || true \
 	&& sleep 1 \
 	&& echo '$$.log("' `git log -1 --format="commit:%h @ %ci"` '")' > js/log-build.js \
+	&& sleep 1 \
 	&& git commit js/log-build.js --amend -m "build annotation" \
 	&& sleep 1 \
 	&& git checkout master \
 	&& sleep 1 \
 	&& git stash pop || true \
+	&& sleep 1
 	&& git status
 
 publish:

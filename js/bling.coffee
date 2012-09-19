@@ -134,6 +134,9 @@ $.plugin
 			, prefixSize: 5)
 			assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 			coalesce: (a...) -> $(a).coalesce()
+			keysOf: (o) -> $(k for k of o)
+			valuesOf: (o) -> $.keysOf(o).map (k)->
+				return try o[k] catch err then err
 		eq: (i) -> $([@[index i, @]])
 		each: (f) -> (f.call(t,t) for t in @); @
 		map: (f) -> $(f.call(t,t) for t in @)
@@ -189,10 +192,10 @@ $.plugin
 		clean: (prop) -> @each -> delete @[prop]
 		take: (n = 1) ->
 			end = Math.min n, @length
-			$( @[i] for i in [0...end] )
+			$( @[i] for i in [0...end] by 1 )
 		skip: (n = 0) ->
 			start = Math.max 0, n|0
-			$( @[i] for i in [start...@length] )
+			$( @[i] for i in [start...@length] by 1 )
 		first: (n = 1) -> if n is 1 then @[0] else @take(n)
 		last: (n = 1) -> if n is 1 then @[@length - 1] else @skip(@length - n)
 		slice: (start=0, end=@length) ->
@@ -206,10 +209,13 @@ $.plugin
 				when "string" then (x) -> x.matchesSelector(f)
 				when "regexp" then (x) -> f.test(x)
 				when "function" then f
-				else
-					throw new Error("unsupported type passed to filter: #{$.type(f)}")
+				else throw new Error "unsupported argument to filter: #{$.type(f)}"
 			$( it for it in @ when g.call(it,it) )
-		matches: (expr) -> @select('matchesSelector').call(expr)
+		matches: (expr) ->
+			switch $.type expr
+				when "string" then @select('matchesSelector').call(expr)
+				when "regexp" then @map (x) -> expr.test x
+				else throw new Error "unsupported argument to matches: #{$.type expr}"
 		querySelectorAll: (expr) ->
 			@filter("*")
 			.reduce (a, i) ->
@@ -234,7 +240,7 @@ $.plugin
 			b
 		call: -> @apply(null, arguments)
 		apply: (context, args) ->
-			@map -> if $.is "function", @ then @apply(context, args) else @
+			@filter(-> $.is "function", @).map -> @apply(context, args)
 		log: (label) ->
 			if label
 				$.log(label, @toString(), @length + " items")
@@ -923,8 +929,9 @@ $.depends 'pipe', ->
 				@each (x) ->
 					map[keyFunc(x)] = x
 			query: (criteria) ->
-				key = keyMaker(criteria)
-				return map[key] if key of map
+				if $.is 'function', keyMaker
+					key = keyMaker(criteria)
+					return map[key] if key of map
 				null
 		}, obj
 $.plugin
@@ -957,8 +964,8 @@ $.plugin
 	px: (delta) -> @ints().map -> $.px @,delta
 	min: -> @filter( isFinite ).reduce Math.min
 	max: -> @filter( isFinite ).reduce Math.max
-	mean: -> if not @length then 0 else @sum() / @length
-	avg: -> @mean()
+	mean: mean = -> if not @length then 0 else @sum() / @length
+	avg: mean
 	sum: -> @filter( isFinite ).reduce(((a) -> a + @), 0)
 	product: -> @filter( isFinite ).reduce (a) -> a * @
 	squares: -> @map -> @ * @
@@ -1311,12 +1318,12 @@ $.plugin
 			}, basic),
 			{ # 4: read an attribute name (left-side)
 				"=": @GO 5
-				"]": -> @attrs[@attr] = @val; @GO 1
+				"]": -> @attrs[@attr] = @val; @attr = @val = ""; @GO 1
 				def: (c) -> @attr += c
 				eof: @GO 12
 			},
 			{ # 5: read an attribute value (right-side)
-				"]": -> @attrs[@attr] = @val; @GO 1
+				"]": -> @attrs[@attr] = @val; @attr = @val = ""; @GO 1
 				def: (c) -> @val += c
 				eof: @GO 12
 			},
@@ -1416,7 +1423,7 @@ do ($ = Bling) ->
 		count = 1
 		if stop < 0
 			stop = text.length + 1 + stop
-		for i in [start...stop]
+		for i in [start...stop] by 1
 			t = text[i]
 			if t is against
 				count += 1
@@ -1433,7 +1440,7 @@ do ($ = Bling) ->
 			n = chunks.length
 			ret = [chunks[0]]
 			j = 1 # insert marker into ret
-			for i in [1...n]
+			for i in [1...n] by 1
 				end = match_forward chunks[i], ')', '(', 0, -1
 				if end is -1
 					return "Template syntax error: unmatched '%(' starting at: #{chunks[i].substring(0,15)}"
@@ -1771,7 +1778,7 @@ $.plugin
 		is: _type.is
 		as: _type.as
 		isSimple: (o) -> _type(o) in ["string", "number", "bool"]
-		isEmpty: (o) -> o in ["", null, undefined]
+		isEmpty: (o) -> o in ["", null, undefined] or o.length is 0 or (typeof o is "object" and Object.keys(o).length is 0)
 	defineProperty: (name, opts) -> @each -> $.defineProperty @, name, opts
 $.plugin
 	provides: "unittest"

@@ -315,6 +315,26 @@
           var a;
           a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
           return $(a).coalesce();
+        },
+        keysOf: function(o) {
+          var k;
+          return $((function() {
+            var _results;
+            _results = [];
+            for (k in o) {
+              _results.push(k);
+            }
+            return _results;
+          })());
+        },
+        valuesOf: function(o) {
+          return $.keysOf(o).map(function(k) {
+            try {
+              return o[k];
+            } catch (err) {
+              return err;
+            }
+          });
         }
       },
       eq: function(i) {
@@ -524,7 +544,7 @@
         return $((function() {
           var _i, _results;
           _results = [];
-          for (i = _i = 0; 0 <= end ? _i < end : _i > end; i = 0 <= end ? ++_i : --_i) {
+          for (i = _i = 0; _i < end; i = _i += 1) {
             _results.push(this[i]);
           }
           return _results;
@@ -539,7 +559,7 @@
         return $((function() {
           var _i, _ref, _results;
           _results = [];
-          for (i = _i = start, _ref = this.length; start <= _ref ? _i < _ref : _i > _ref; i = start <= _ref ? ++_i : --_i) {
+          for (i = _i = start, _ref = this.length; _i < _ref; i = _i += 1) {
             _results.push(this[i]);
           }
           return _results;
@@ -611,7 +631,7 @@
             case "function":
               return f;
             default:
-              throw new Error("unsupported type passed to filter: " + ($.type(f)));
+              throw new Error("unsupported argument to filter: " + ($.type(f)));
           }
         })();
         return $((function() {
@@ -627,7 +647,16 @@
         }).call(this));
       },
       matches: function(expr) {
-        return this.select('matchesSelector').call(expr);
+        switch ($.type(expr)) {
+          case "string":
+            return this.select('matchesSelector').call(expr);
+          case "regexp":
+            return this.map(function(x) {
+              return expr.test(x);
+            });
+          default:
+            throw new Error("unsupported argument to matches: " + ($.type(expr)));
+        }
       },
       querySelectorAll: function(expr) {
         return this.filter("*").reduce(function(a, i) {
@@ -677,12 +706,10 @@
         return this.apply(null, arguments);
       },
       apply: function(context, args) {
-        return this.map(function() {
-          if ($.is("function", this)) {
-            return this.apply(context, args);
-          } else {
-            return this;
-          }
+        return this.filter(function() {
+          return $.is("function", this);
+        }).map(function() {
+          return this.apply(context, args);
         });
       },
       log: function(label) {
@@ -2086,9 +2113,11 @@
         },
         query: function(criteria) {
           var key;
-          key = keyMaker(criteria);
-          if (key in map) {
-            return map[key];
+          if ($.is('function', keyMaker)) {
+            key = keyMaker(criteria);
+            if (key in map) {
+              return map[key];
+            }
           }
           return null;
         }
@@ -2125,6 +2154,7 @@
     provides: "math",
     depends: "core"
   }, function() {
+    var mean;
     $.type.extend({
       bool: {
         number: function(o) {
@@ -2206,16 +2236,14 @@
       max: function() {
         return this.filter(isFinite).reduce(Math.max);
       },
-      mean: function() {
+      mean: mean = function() {
         if (!this.length) {
           return 0;
         } else {
           return this.sum() / this.length;
         }
       },
-      avg: function() {
-        return this.mean();
-      },
+      avg: mean,
       sum: function() {
         return this.filter(isFinite).reduce((function(a) {
           return a + this;
@@ -2944,6 +2972,7 @@
           "=": SynthMachine.GO(5),
           "]": function() {
             this.attrs[this.attr] = this.val;
+            this.attr = this.val = "";
             return this.GO(1);
           },
           def: function(c) {
@@ -2953,6 +2982,7 @@
         }, {
           "]": function() {
             this.attrs[this.attr] = this.val;
+            this.attr = this.val = "";
             return this.GO(1);
           },
           def: function(c) {
@@ -3103,7 +3133,7 @@
       if (stop < 0) {
         stop = text.length + 1 + stop;
       }
-      for (i = _i = start; start <= stop ? _i < stop : _i > stop; i = start <= stop ? ++_i : --_i) {
+      for (i = _i = start; _i < stop; i = _i += 1) {
         t = text[i];
         if (t === against) {
           count += 1;
@@ -3126,7 +3156,7 @@
         n = chunks.length;
         ret = [chunks[0]];
         j = 1;
-        for (i = _i = 1; 1 <= n ? _i < n : _i > n; i = 1 <= n ? ++_i : --_i) {
+        for (i = _i = 1; _i < n; i = _i += 1) {
           end = match_forward(chunks[i], ')', '(', 0, -1);
           if (end === -1) {
             return "Template syntax error: unmatched '%(' starting at: " + (chunks[i].substring(0, 15));
@@ -3786,7 +3816,7 @@
           return (_ref = _type(o)) === "string" || _ref === "number" || _ref === "bool";
         },
         isEmpty: function(o) {
-          return o === "" || o === null || o === (void 0);
+          return (o === "" || o === null || o === (void 0)) || o.length === 0 || (typeof o === "object" && Object.keys(o).length === 0);
         }
       },
       defineProperty: function(name, opts) {

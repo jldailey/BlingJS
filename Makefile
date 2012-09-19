@@ -21,9 +21,13 @@ docs: $(DIST)/docs/bling.html
 site: dist
 	git stash save &> /dev/null \
 	&& git checkout site \
+	&& sleep 1 \
 	&& cp $(DIST)/*.js js \
+	&& sleep 1 \
 	&& cp $(DIST)/*.js.gz js \
+	&& sleep 1 \
 	&& git show master:$(DIST)/bling.coffee > js/bling.coffee \
+	&& sleep 1 \
 	&& git show master:$(DIST)/bling.js > js/bling.js \
 	&& sleep 1 \
 	&& git commit -a -m "build files" || true \
@@ -35,7 +39,7 @@ site: dist
 	&& git checkout master \
 	&& sleep 1 \
 	&& git stash pop || true \
-	&& sleep 1
+	&& sleep 1 \
 	&& git status
 
 publish:

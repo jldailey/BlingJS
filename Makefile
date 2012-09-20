@@ -1,18 +1,31 @@
 # JAVA=/usr/lib/jvm/java-6-sun/bin/java
 JAVA=$(shell which java)
-COFFEE=./node_modules/coffee-script/bin/coffee
-DOCCO=./node_modules/docco/bin/docco
+COFFEE=./node_modules/.bin/coffee
+DOCCO=./node_modules/.bin/docco
 DIST=dist
 PLUGINS=plugins
 YUI_VERSION=2.4.7
-MOCHA=mocha --compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R spec
+MOCHA=node_modules/.bin/mocha
+MOCHA_OPTS=--compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R dot
 
 all: dist report
 
 test: dist test/passing
 
-test/passing: test/bling.coffee
-	$(MOCHA) test/bling.coffee && touch test/passing
+test/passing: $(MOCHA) $(JLDOM) test/bling.coffee $(DIST)/bling.coffee
+	$(MOCHA) $(MOCHA_OPTS) test/bling.coffee && touch test/passing
+
+$(MOCHA):
+	npm install mocha
+
+$(COFFEE):
+	npm install coffee-script
+
+$(DOCCO):
+	npm install docco
+
+$(JLDOM):
+	npm install jldom
 
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
@@ -56,7 +69,6 @@ $(DIST)/%.js: $(DIST)/%.coffee $(COFFEE)
 	$(COFFEE) -o $(DIST) -c $<
 
 $(DIST)/bling.coffee: bling.coffee $(shell ls $(PLUGINS)/*.coffee)
-	rm -f test/passing
 	cat $^ | sed -E 's/^	*#.*$$//g' | grep -v '^ *$$' > $@
 
 yuicompressor.jar:
@@ -73,7 +85,7 @@ $(DIST)/docs/%.html: %.coffee $(DOCCO)
 	gzip -vf9c $< > $@
 
 report:
-	@cd $(DIST) && wc -c `ls *.coffee *.js *.gz | sort` | grep -v total
+	@cd $(DIST) && wc -c `ls *.coffee *.js *.gz | sort -n` | grep -v total
 
 clean:
 	rm -f test/passing

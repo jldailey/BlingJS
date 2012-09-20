@@ -7,7 +7,7 @@ PLUGINS=plugins
 YUI_VERSION=2.4.7
 MOCHA=mocha --compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R spec
 
-all: dist docs report
+all: dist report
 
 test: dist test/passing
 

@@ -38,15 +38,12 @@
   };
 
   Bling = (function() {
-    var default_context, dep;
+    var dep;
 
-    default_context = typeof document !== "undefined" && document !== null ? document : {};
-
-    function Bling(selector, context) {
-      if (context == null) {
-        context = default_context;
-      }
-      return Bling.pipe("bling-init", [selector, context]);
+    function Bling() {
+      var args;
+      args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+      return Bling.pipe("bling-init", args);
     }
 
     Bling.plugin = function(opts, constructor) {
@@ -145,6 +142,55 @@
   Bling.global = typeof window !== "undefined" && window !== null ? window : global;
 
   $ = Bling;
+
+  $.plugin({
+    provides: "EventEmitter",
+    depends: "type,pipe"
+  }, function() {
+    return {
+      $: {
+        EventEmitter: $.pipe("bling-init").append(function(obj) {
+          var list, listeners;
+          listeners = {};
+          list = function(e) {
+            return listeners[e] || (listeners[e] = []);
+          };
+          return $.inherit({
+            emit: function() {
+              var a, e, f, _i, _len, _ref;
+              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+              _ref = list(e);
+              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                f = _ref[_i];
+                f.apply(this, a);
+              }
+              return this;
+            },
+            addListener: function(e, h) {
+              list(e).push(h);
+              return this.emit('newListener', e, h);
+            },
+            on: function(e, h) {
+              return this.addListener(e, h);
+            },
+            removeListener: function(e, h) {
+              var i;
+              if ((i = list(e).indexOf(h)) > -1) {
+                return list(e).splice(i, 1);
+              }
+            },
+            removeAllListeners: function(e) {
+              return listeners[e] = [];
+            },
+            setMaxListeners: function(n) {},
+            listeners: function(e) {
+              return list(e).slice(0);
+            }
+          }, obj);
+        })
+      }
+    };
+  });
 
   $.plugin({
     provides: "cartesian"
@@ -1127,9 +1173,9 @@
           }
           return df;
         },
-        array: function(o, c) {
+        array: function(o) {
           var h;
-          return $.type.lookup(h = Bling.HTML.parse(o)).array(h, c);
+          return $.type.lookup(h = Bling.HTML.parse(o)).array(h);
         },
         string: function(o) {
           return "'" + o + "'";
@@ -1163,8 +1209,8 @@
           node: function(o) {
             return $(o).toFragment();
           },
-          array: function(o, c) {
-            return typeof c.querySelectorAll === "function" ? c.querySelectorAll(o) : void 0;
+          array: function(o) {
+            return typeof document.querySelectorAll === "function" ? document.querySelectorAll(o) : void 0;
           }
         },
         "function": {
@@ -1543,55 +1589,6 @@
       };
     });
   }
-
-  $.plugin({
-    provides: "EventEmitter",
-    depends: "type,pipe"
-  }, function() {
-    return {
-      $: {
-        EventEmitter: $.pipe("bling-init").append(function(obj) {
-          var list, listeners;
-          listeners = {};
-          list = function(e) {
-            return listeners[e] || (listeners[e] = []);
-          };
-          return $.inherit({
-            emit: function() {
-              var a, e, f, _i, _len, _ref;
-              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-              _ref = list(e);
-              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                f = _ref[_i];
-                f.apply(this, a);
-              }
-              return this;
-            },
-            addListener: function(e, h) {
-              list(e).push(h);
-              return this.emit('newListener', e, h);
-            },
-            on: function(e, h) {
-              return this.addListener(e, h);
-            },
-            removeListener: function(e, h) {
-              var i;
-              if ((i = list(e).indexOf(h)) > -1) {
-                return list(e).splice(i, 1);
-              }
-            },
-            removeAllListeners: function(e) {
-              return listeners[e] = [];
-            },
-            setMaxListeners: function(n) {},
-            listeners: function(e) {
-              return list(e).slice(0);
-            }
-          }, obj);
-        })
-      }
-    };
-  });
 
   $.plugin({
     depends: "dom,function,core",
@@ -2320,12 +2317,10 @@
       return args;
     };
     pipe("bling-init").prepend(function(args) {
-      var context, selector;
-      selector = args[0], context = args[1];
-      return $.inherit(Bling, $.inherit({
-        selector: selector,
-        context: context
-      }, $.type.lookup(selector).array(selector, context)));
+      if (args.length === 1) {
+        args = $.type.lookup(args[0]).array(args[0]);
+      }
+      return $.inherit(Bling, args);
     });
     return {
       $: {

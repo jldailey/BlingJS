@@ -1,10 +1,11 @@
 # JAVA=/usr/lib/jvm/java-6-sun/bin/java
 JAVA=$(shell which java)
-COFFEE=./node_modules/.bin/coffee
-DOCCO=./node_modules/.bin/docco
 DIST=dist
 PLUGINS=plugins
 YUI_VERSION=2.4.7
+COFFEE=node_modules/.bin/coffee
+DOCCO=node_modules/.bin/docco
+JLDOM=node_modules/jldom
 MOCHA=node_modules/.bin/mocha
 MOCHA_OPTS=--compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R dot
 
@@ -91,5 +92,6 @@ clean:
 	rm -f test/passing
 	rm -rf $(DIST)/*
 	rm -rf yuicompressor.zip yuicompressor.jar yuicompressor-$(YUI_VERSION)
+	rm -rf node_modules/
 
 .PHONY: all bling clean dist site publish plugins test

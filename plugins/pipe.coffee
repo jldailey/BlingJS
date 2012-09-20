@@ -32,18 +32,13 @@ $.plugin
 		args
 
 	# Create the very first pipe used by the constructor: "bling-init".
-	# This first piece of the pipe converts [selector, context] -> object;
-	# and should always be in the _middle_ (if you `prepend` onto the
-	# beginning of this pipe you should accept and return [selector, context].
-	# If you `append` onto the end, you should accept and return a bling object.
 	pipe("bling-init").prepend (args) ->
-		[selector, context] = args
-		# Classify the type of selector to get a type-instance, which is
-		# used to convert the selector and context together to an array.
-		$.inherit Bling, $.inherit {
-			selector: selector
-			context: context
-		}, $.type.lookup(selector).array(selector, context)
+		# If there was only one argument,
+		if args.length is 1
+			# Classify the type to get a type-instance.
+			# Then convert the args to an array.
+			args = $.type.lookup(args[0]).array(args[0])
+		$.inherit Bling, args
 		# Note: Uses inherit to _hijack_ the resulting array's prototype in-place.
 
 	$: pipe: pipe

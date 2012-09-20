@@ -50,12 +50,8 @@ extend = (a, b) ->
 # and as a bonus our assignment to a symbol (`$`) remains simple.
 class Bling
 
-	# Compute the default context object only once, privately, so we dont have to check
-	# during every construction.
-	default_context = if document? then document else {}
-
-	constructor: (selector, context = default_context) ->
-		return Bling.pipe "bling-init", [selector, context]
+	constructor: (args...) ->
+		return Bling.pipe "bling-init", args
 
 	# $.plugin( [ opts ], func )
 	# -----------------

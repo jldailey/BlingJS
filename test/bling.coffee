@@ -599,6 +599,18 @@ describe "Bling", ->
 			assert.equal a.listeners("smoke").length, 2
 			a.listeners("smoke").push("water")
 			assert.equal a.listeners("smoke").length, 2
+		it "can be extended with a class", ->
+			class Foo extends $.EventEmitter
+				constructor: ->
+					super @
+					@x = 1
+			f = new Foo()
+			assert.equal $.type(f.on), "function"
+			assert.equal $.type(f.x), "number"
+			flag = false
+			f.on 'event', -> flag = true
+			f.emit 'event'
+			assert.equal flag, true
 
 	describe ".date", ->
 		it "adds the 'date' type", ->

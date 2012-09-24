@@ -8,7 +8,7 @@ $.plugin
 	# faster) than the DOM event model.  With this plugin, every new
 	# bling becomes an EventEmitter automatically, or you can mix it in
 	# to any object: `$.EventEmitter(obj)`.
-	$: EventEmitter: $.pipe("bling-init").append (obj) ->
+	$: EventEmitter: $.pipe("bling-init").append (obj = Object.create(null)) ->
 		listeners = {}
 		list = (e) -> (listeners[e] or= [])
 		$.inherit {

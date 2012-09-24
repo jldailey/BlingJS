@@ -599,18 +599,32 @@ describe "Bling", ->
 			assert.equal a.listeners("smoke").length, 2
 			a.listeners("smoke").push("water")
 			assert.equal a.listeners("smoke").length, 2
-		it "can be extended with a class", ->
+		describe "class extends support", ->
 			class Foo extends $.EventEmitter
 				constructor: ->
 					super @
 					@x = 1
+				method: ->
 			f = new Foo()
-			assert.equal $.type(f.on), "function"
-			assert.equal $.type(f.x), "number"
-			flag = false
-			f.on 'event', -> flag = true
-			f.emit 'event'
-			assert.equal flag, true
+			it "gives new instances the EE interface", ->
+				assert.equal $.type(f.on), "function"
+			it "does not clobber instance methods", ->
+				assert.equal $.type(f.method), "function"
+			it "does not clobber instance properties", ->
+				assert.equal $.type(f.x), "number"
+			it "works", ->
+				flag = false
+				f.on 'event', -> flag = true
+				f.emit 'event'
+				assert.equal flag, true
+			it "does not clobber an inheritance chain", ->
+				class Bar extends Foo
+					bar: ->
+				b = new Bar()
+				assert.equal $.type(b.bar), "function"
+				assert.equal $.type(b.on), "function"
+
+
 
 	describe ".date", ->
 		it "adds the 'date' type", ->

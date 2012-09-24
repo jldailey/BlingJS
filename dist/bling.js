@@ -151,6 +151,9 @@
       $: {
         EventEmitter: $.pipe("bling-init").append(function(obj) {
           var list, listeners;
+          if (obj == null) {
+            obj = Object.create(null);
+          }
           listeners = {};
           list = function(e) {
             return listeners[e] || (listeners[e] = []);

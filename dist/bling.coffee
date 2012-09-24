@@ -55,7 +55,7 @@ $.plugin
 	provides: "EventEmitter"
 	depends: "type,pipe"
 , ->
-	$: EventEmitter: $.pipe("bling-init").append (obj) ->
+	$: EventEmitter: $.pipe("bling-init").append (obj = Object.create(null)) ->
 		listeners = {}
 		list = (e) -> (listeners[e] or= [])
 		$.inherit {

@@ -52,22 +52,6 @@ Bling.prototype.constructor = Bling
 Bling.global = if window? then window else global
 $ = Bling
 $.plugin
-	provides: "EventEmitter"
-	depends: "type,pipe"
-, ->
-	$: EventEmitter: $.pipe("bling-init").append (obj = Object.create(null)) ->
-		listeners = {}
-		list = (e) -> (listeners[e] or= [])
-		$.inherit {
-			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-			addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
-			on:                 (e, h) -> @addListener e, h
-			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
-			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
-			listeners:          (e) -> list(e).slice 0
-		}, obj
-$.plugin
 	provides: "cartesian"
 , ->
 	$:
@@ -633,6 +617,22 @@ if $.global.document?
 				return toNode @[0]
 		}
 $.plugin
+	provides: "EventEmitter"
+	depends: "type,pipe"
+, ->
+	$: EventEmitter: $.pipe("bling-init").append (obj = Object.create(null)) ->
+		listeners = {}
+		list = (e) -> (listeners[e] or= [])
+		$.inherit {
+			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
+			addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
+			on:                 (e, h) -> @addListener e, h
+			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
+			removeAllListeners: (e) -> listeners[e] = []
+			setMaxListeners:    (n) -> # who really needs this in the core API?
+			listeners:          (e) -> list(e).slice 0
+		}, obj
+$.plugin
 	depends: "dom,function,core"
 	provides: "event"
 , ->
@@ -810,6 +810,18 @@ $.plugin
 		E: (callback) -> (f) -> (err, data) ->
 			return f(data) unless err
 			callback err, data
+$.plugin
+	provides: "groupBy"
+, ->
+	groupBy: (key) ->
+		groups = {}
+		switch $.type key
+			when 'array','bling'
+				@each ->
+					c = (@[k] for k in key).join ","
+					(groups[c] or= $()).push @
+			else @each -> (groups[@[key]] or= $()).push @
+		return $.valuesOf groups
 $.plugin
 	provides: "hash"
 	depends: "type"

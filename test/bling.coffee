@@ -617,12 +617,21 @@ describe "Bling", ->
 				f.on 'event', -> flag = true
 				f.emit 'event'
 				assert.equal flag, true
-			it "does not clobber an inheritance chain", ->
-				class Bar extends Foo
-					bar: ->
-				b = new Bar()
-				assert.equal $.type(b.bar), "function"
-				assert.equal $.type(b.on), "function"
+			describe "inheritance chain", ->
+				class A extends $.EventEmitter
+					A: ->
+				class B extends A
+					B: ->
+				class C extends B
+				a = new A()
+				b = new B()
+				c = new C()
+				it "goes through one level", ->
+					assert.equal $.type(a.on), "function"
+				it "goes through two levels", ->
+					assert.equal $.type(b.on), "function"
+				it "goes through three levels", ->
+					assert.equal $.type(c.on), "function"
 
 
 

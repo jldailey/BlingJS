@@ -4,9 +4,8 @@ extend = (a, b) ->
 	if b then a[k] = v for k,v of b when v?
 	a
 class Bling
-	default_context = if document? then document else {}
-	constructor: (selector, context = default_context) ->
-		return Bling.pipe "bling-init", [selector, context]
+	constructor: (args...) ->
+		return Bling.pipe "bling-init", args
 	@plugin: (opts, constructor) ->
 		if not constructor
 			constructor = opts
@@ -414,7 +413,7 @@ if $.global.document?
 				df = document.createDocumentFragment()
 				df.appendChild(node.removeChild(childNodes[0])) for i in [0...n] by 1
 				df
-			array:  (o,c) -> $.type.lookup(h = Bling.HTML.parse o).array h, c
+			array:  (o) -> $.type.lookup(h = Bling.HTML.parse o).array h
 			string: (o) -> "'#{o}'"
 			repr:   (o) -> '"' + o + '"'
 		$.type.extend
@@ -429,28 +428,28 @@ if $.global.document?
 			}
 			string:
 				node:  (o) -> $(o).toFragment()
-				array: (o,c) -> c.querySelectorAll?(o)
+				array: (o) -> document.querySelectorAll? o
 			function: { node: (o) -> $(o.toString()).toFragment() }
 		toFrag = (a) ->
 			if not a.parentNode?
 				df = document.createDocumentFragment()
-				df.appendChild(a)
+				df.appendChild a
 			a
 		before = (a,b) -> toFrag(a).parentNode.insertBefore b, a
 		after = (a,b) -> toFrag(a).parentNode.insertBefore b, a.nextSibling
-		toNode = (x) -> $.type.lookup(x).node(x)
+		toNode = (x) -> $.type.lookup(x).node x
 		escaper = false
 		parser = false
-		computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue(k)
-		getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select(p)
+		computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
+		getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select p
 		selectChain = (prop) -> -> @map (p) -> $( p while p = p[prop] )
 		return {
 			$:
 				HTML:
-					parse: (h) -> $.type.lookup(h).node(h)
-					stringify: (n) -> $.type.lookup(n).html(n)
+					parse: (h) -> $.type.lookup(h).node h
+					stringify: (n) -> $.type.lookup(n).html n
 					escape: (h) ->
-						escaper or= $("<div>&nbsp;</div>").child(0)
+						escaper or= $("<div>&nbsp;</div>").child 0
 						ret = escaper.zap('data', h).select("parentNode.innerHTML").first()
 						escaper.zap('data', '')
 						ret
@@ -474,11 +473,11 @@ if $.global.document?
 				clones
 			prepend: (x) -> # .prepend(/n/) - insert n [or a clone] as the first child of each node
 				if x?
-					x = toNode(x)
+					x = toNode x
 					@take(1).each ->
 						before @childNodes[0], x
 					@skip(1).each ->
-						before @childNodes[0], x.cloneNode(true)
+						before @childNodes[0], x.cloneNode true
 				@
 			prependTo: (x) -> # .prependTo(/n/) - each node [or a fragment] will become the first child of x
 				if x?
@@ -486,18 +485,18 @@ if $.global.document?
 				@
 			before: (x) -> # .before(/x/) - insert content x before each node
 				if x?
-					x = toNode(x)
+					x = toNode x
 					@take(1).each -> before @, x
-					@skip(1).each -> before @, x.cloneNode(true)
+					@skip(1).each -> before @, x.cloneNode true
 				@
 			after: (x) -> # .after(/n/) - insert content n after each node
 				if x?
-					x = toNode(x)
+					x = toNode x
 					@take(1).each -> after @, x
-					@skip(1).each -> after @, x.cloneNode(true)
+					@skip(1).each -> after @, x.cloneNode true
 				@
 			wrap: (parent) -> # .wrap(/parent/) - parent becomes the new .parentNode of each node
-				parent = toNode(parent)
+				parent = toNode parent
 				if $.is "fragment", parent
 					throw new Error("cannot call .wrap() with a fragment as the parent")
 				@each (child) ->
@@ -514,7 +513,7 @@ if $.global.document?
 					else if @parentNode
 						@parentNode.removeChild(@)
 			replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
-				n = toNode(n)
+				n = toNode n
 				clones = @map(-> n.cloneNode true)
 				for i in [0...clones.length] by 1
 					@[i].parentNode?.replaceChild clones[i], @[i]
@@ -531,7 +530,7 @@ if $.global.document?
 				notempty = (y) -> y isnt ""
 				@removeClass(x).each ->
 					c = @className.split(" ").filter notempty
-					c.push(x)
+					c.push x
 					@className = c.join " "
 			removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
 				notx = (y) -> y != x
@@ -547,7 +546,7 @@ if $.global.document?
 					if( cls.indexOf(x) > -1 )
 						filter = $.and notx, filter
 					else
-						cls.push(x)
+						cls.push x
 					c = cls.filter(filter).join(" ")
 					@className = c
 					if c.length is 0
@@ -569,7 +568,7 @@ if $.global.document?
 						setter[i%nn] k, v[i%n], "" for i in [0...n = Math.max v.length, nn = setter.len()] by 1
 					return @
 				else
-					cv = @map computeCSSProperty(k)
+					cv = @map computeCSSProperty k
 					ov = @select('style').select k
 					ov.weave(cv).fold (x,y) -> x or y
 			defaultCss: (k, v) ->
@@ -621,7 +620,7 @@ $.plugin
 	provides: "EventEmitter"
 	depends: "type,pipe"
 , ->
-	$: EventEmitter: $.pipe("bling-init").append (obj) ->
+	$: EventEmitter: $.pipe("bling-init").append (obj = Object.create(null)) ->
 		listeners = {}
 		list = (e) -> (listeners[e] or= [])
 		$.inherit {
@@ -812,6 +811,18 @@ $.plugin
 			return f(data) unless err
 			callback err, data
 $.plugin
+	provides: "groupBy"
+, ->
+	groupBy: (key) ->
+		groups = {}
+		switch $.type key
+			when 'array','bling'
+				@each ->
+					c = (@[k] for k in key).join ","
+					(groups[c] or= $()).push @
+			else @each -> (groups[@[key]] or= $()).push @
+		return $.valuesOf groups
+$.plugin
 	provides: "hash"
 	depends: "type"
 , ->
@@ -959,6 +970,8 @@ $.plugin
 			$( (start + (i*step)) for i in [0...Math.ceil( (end - start) / step )] )
 		zeros: (n) -> $( 0 for i in [0...n] )
 		ones: (n) -> $( 1 for i in [0...n] )
+		deg2rad: (n) -> n * Math.PI / 180
+		rad2deg: (n) -> n * 180 / Math.PI
 	floats: -> @map parseFloat
 	ints: -> @map -> parseInt @, 10
 	px: (delta) -> @ints().map -> $.px @,delta
@@ -968,13 +981,16 @@ $.plugin
 	avg: mean
 	sum: -> @filter( isFinite ).reduce(((a) -> a + @), 0)
 	product: -> @filter( isFinite ).reduce (a) -> a * @
-	squares: -> @map -> @ * @
+	squares: -> @pow(2)
+	pow: (n) -> @map -> Math.pow @, n
 	magnitude: -> Math.sqrt @floats().squares().sum()
 	scale: (r) -> @map -> r * @
 	add: (d) -> switch $.type(d)
 		when "number" then @map -> d + @
 		when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)] )
-	normalize: -> @scale 1/@magnitude()
+	normalize: -> @scale 1 / @magnitude()
+	deg2rad: -> @filter( isFinite ).map -> @ * Math.PI / 180
+	rad2deg: -> @filter( isFinite ).map -> @ * 180 / Math.PI
 $.plugin
 	provides: "pipe"
 	depends: "type"
@@ -991,11 +1007,9 @@ $.plugin
 			args = func.call @, args
 		args
 	pipe("bling-init").prepend (args) ->
-		[selector, context] = args
-		$.inherit Bling, $.inherit {
-			selector: selector
-			context: context
-		}, $.type.lookup(selector).array(selector, context)
+		if args.length is 1
+			args = $.type.lookup(args[0]).array(args[0])
+		$.inherit Bling, args
 	$: pipe: pipe
 $.plugin
 	provides: "pubsub"

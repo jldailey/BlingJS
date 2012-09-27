@@ -38,15 +38,12 @@
   };
 
   Bling = (function() {
-    var default_context, dep;
+    var dep;
 
-    default_context = typeof document !== "undefined" && document !== null ? document : {};
-
-    function Bling(selector, context) {
-      if (context == null) {
-        context = default_context;
-      }
-      return Bling.pipe("bling-init", [selector, context]);
+    function Bling() {
+      var args;
+      args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+      return Bling.pipe("bling-init", args);
     }
 
     Bling.plugin = function(opts, constructor) {
@@ -1127,9 +1124,9 @@
           }
           return df;
         },
-        array: function(o, c) {
+        array: function(o) {
           var h;
-          return $.type.lookup(h = Bling.HTML.parse(o)).array(h, c);
+          return $.type.lookup(h = Bling.HTML.parse(o)).array(h);
         },
         string: function(o) {
           return "'" + o + "'";
@@ -1163,8 +1160,8 @@
           node: function(o) {
             return $(o).toFragment();
           },
-          array: function(o, c) {
-            return typeof c.querySelectorAll === "function" ? c.querySelectorAll(o) : void 0;
+          array: function(o) {
+            return typeof document.querySelectorAll === "function" ? document.querySelectorAll(o) : void 0;
           }
         },
         "function": {
@@ -1552,6 +1549,9 @@
       $: {
         EventEmitter: $.pipe("bling-init").append(function(obj) {
           var list, listeners;
+          if (obj == null) {
+            obj = Object.create(null);
+          }
           listeners = {};
           list = function(e) {
             return listeners[e] || (listeners[e] = []);
@@ -1899,6 +1899,41 @@
   });
 
   $.plugin({
+    provides: "groupBy"
+  }, function() {
+    return {
+      groupBy: function(key) {
+        var groups;
+        groups = {};
+        switch ($.type(key)) {
+          case 'array':
+          case 'bling':
+            this.each(function() {
+              var c, k;
+              c = ((function() {
+                var _i, _len, _results;
+                _results = [];
+                for (_i = 0, _len = key.length; _i < _len; _i++) {
+                  k = key[_i];
+                  _results.push(this[k]);
+                }
+                return _results;
+              }).call(this)).join(",");
+              return (groups[c] || (groups[c] = $())).push(this);
+            });
+            break;
+          default:
+            this.each(function() {
+              var _name;
+              return (groups[_name = this[key]] || (groups[_name] = $())).push(this);
+            });
+        }
+        return $.valuesOf(groups);
+      }
+    };
+  });
+
+  $.plugin({
     provides: "hash",
     depends: "type"
   }, function() {
@@ -2215,6 +2250,12 @@
             }
             return _results;
           })());
+        },
+        deg2rad: function(n) {
+          return n * Math.PI / 180;
+        },
+        rad2deg: function(n) {
+          return n * 180 / Math.PI;
         }
       },
       floats: function() {
@@ -2255,8 +2296,11 @@
         });
       },
       squares: function() {
+        return this.pow(2);
+      },
+      pow: function(n) {
         return this.map(function() {
-          return this * this;
+          return Math.pow(this, n);
         });
       },
       magnitude: function() {
@@ -2288,6 +2332,16 @@
       },
       normalize: function() {
         return this.scale(1 / this.magnitude());
+      },
+      deg2rad: function() {
+        return this.filter(isFinite).map(function() {
+          return this * Math.PI / 180;
+        });
+      },
+      rad2deg: function() {
+        return this.filter(isFinite).map(function() {
+          return this * 180 / Math.PI;
+        });
       }
     };
   });
@@ -2320,12 +2374,10 @@
       return args;
     };
     pipe("bling-init").prepend(function(args) {
-      var context, selector;
-      selector = args[0], context = args[1];
-      return $.inherit(Bling, $.inherit({
-        selector: selector,
-        context: context
-      }, $.type.lookup(selector).array(selector, context)));
+      if (args.length === 1) {
+        args = $.type.lookup(args[0]).array(args[0]);
+      }
+      return $.inherit(Bling, args);
     });
     return {
       $: {

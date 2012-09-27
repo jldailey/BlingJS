@@ -970,6 +970,8 @@ $.plugin
 			$( (start + (i*step)) for i in [0...Math.ceil( (end - start) / step )] )
 		zeros: (n) -> $( 0 for i in [0...n] )
 		ones: (n) -> $( 1 for i in [0...n] )
+		deg2rad: (n) -> n * Math.PI / 180
+		rad2deg: (n) -> n * 180 / Math.PI
 	floats: -> @map parseFloat
 	ints: -> @map -> parseInt @, 10
 	px: (delta) -> @ints().map -> $.px @,delta
@@ -979,13 +981,16 @@ $.plugin
 	avg: mean
 	sum: -> @filter( isFinite ).reduce(((a) -> a + @), 0)
 	product: -> @filter( isFinite ).reduce (a) -> a * @
-	squares: -> @map -> @ * @
+	squares: -> @pow(2)
+	pow: (n) -> @map -> Math.pow @, n
 	magnitude: -> Math.sqrt @floats().squares().sum()
 	scale: (r) -> @map -> r * @
 	add: (d) -> switch $.type(d)
 		when "number" then @map -> d + @
 		when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)] )
-	normalize: -> @scale 1/@magnitude()
+	normalize: -> @scale 1 / @magnitude()
+	deg2rad: -> @filter( isFinite ).map -> @ * Math.PI / 180
+	rad2deg: -> @filter( isFinite ).map -> @ * 180 / Math.PI
 $.plugin
 	provides: "pipe"
 	depends: "type"

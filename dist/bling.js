@@ -2250,6 +2250,12 @@
             }
             return _results;
           })());
+        },
+        deg2rad: function(n) {
+          return n * Math.PI / 180;
+        },
+        rad2deg: function(n) {
+          return n * 180 / Math.PI;
         }
       },
       floats: function() {
@@ -2290,8 +2296,11 @@
         });
       },
       squares: function() {
+        return this.pow(2);
+      },
+      pow: function(n) {
         return this.map(function() {
-          return this * this;
+          return Math.pow(this, n);
         });
       },
       magnitude: function() {
@@ -2323,6 +2332,16 @@
       },
       normalize: function() {
         return this.scale(1 / this.magnitude());
+      },
+      deg2rad: function() {
+        return this.filter(isFinite).map(function() {
+          return this * Math.PI / 180;
+        });
+      },
+      rad2deg: function() {
+        return this.filter(isFinite).map(function() {
+          return this * 180 / Math.PI;
+        });
       }
     };
   });

@@ -11,16 +11,18 @@ MOCHA_OPTS=--compilers coffee:coffee-script --globals document,window,Bling,$$,_
 
 all: dist report
 
-test: dist test/passing
+test: dist test/pass
 
-test/passing: $(MOCHA) $(JLDOM) test/bling.coffee $(DIST)/bling.coffee
-	$(MOCHA) $(MOCHA_OPTS) test/bling.coffee && touch test/passing
+test/pass: $(MOCHA) $(JLDOM) test/bling.coffee $(DIST)/bling.coffee
+	$(MOCHA) $(MOCHA_OPTS) test/bling.coffee && touch test/pass
 
 $(MOCHA):
 	npm install mocha
 
 $(COFFEE):
 	npm install coffee-script
+	sed -i .bak 's/path.exists/fs.exists/' node_modules/coffee-script/lib/coffee-script/command.js
+	rm -f node_modules/coffee-script/lib/coffee-script/command.js.bak
 
 $(DOCCO):
 	npm install docco
@@ -56,13 +58,6 @@ site: dist
 	&& sleep 1 \
 	&& git status
 
-publish:
-	git stash save \
-	&& git checkout site \
-	&& git push origin site \
-	&& git checkout master \
-	&& git stash pop || true
-
 $(DIST)/min.%.js: $(DIST)/%.js yuicompressor.jar
 	$(JAVA) -jar yuicompressor.jar $< -v -o $@
 
@@ -89,9 +84,9 @@ report:
 	@cd $(DIST) && wc -c `ls *.coffee *.js *.gz | sort -n` | grep -v total
 
 clean:
-	rm -f test/passing
+	rm -f test/pass
 	rm -rf $(DIST)/*
 	rm -rf yuicompressor.zip yuicompressor.jar yuicompressor-$(YUI_VERSION)
 	rm -rf node_modules/
 
-.PHONY: all bling clean dist site publish plugins test
+.PHONY: all bling clean dist site plugins test

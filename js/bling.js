@@ -38,15 +38,12 @@
   };
 
   Bling = (function() {
-    var default_context, dep;
+    var dep;
 
-    default_context = typeof document !== "undefined" && document !== null ? document : {};
-
-    function Bling(selector, context) {
-      if (context == null) {
-        context = default_context;
-      }
-      return Bling.pipe("bling-init", [selector, context]);
+    function Bling() {
+      var args;
+      args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+      return Bling.hook("bling-init", args);
     }
 
     Bling.plugin = function(opts, constructor) {
@@ -145,6 +142,58 @@
   Bling.global = typeof window !== "undefined" && window !== null ? window : global;
 
   $ = Bling;
+
+  $.plugin({
+    provides: "EventEmitter",
+    depends: "type,hook"
+  }, function() {
+    return {
+      $: {
+        EventEmitter: $.hook("bling-init").append(function(obj) {
+          var list, listeners;
+          if (obj == null) {
+            obj = Object.create(null);
+          }
+          listeners = {};
+          list = function(e) {
+            return listeners[e] || (listeners[e] = []);
+          };
+          return $.inherit({
+            emit: function() {
+              var a, e, f, _i, _len, _ref;
+              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+              _ref = list(e);
+              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                f = _ref[_i];
+                f.apply(this, a);
+              }
+              return this;
+            },
+            addListener: function(e, h) {
+              list(e).push(h);
+              return this.emit('newListener', e, h);
+            },
+            on: function(e, h) {
+              return this.addListener(e, h);
+            },
+            removeListener: function(e, h) {
+              var i;
+              if ((i = list(e).indexOf(h)) > -1) {
+                return list(e).splice(i, 1);
+              }
+            },
+            removeAllListeners: function(e) {
+              return listeners[e] = [];
+            },
+            setMaxListeners: function(n) {},
+            listeners: function(e) {
+              return list(e).slice(0);
+            }
+          }, obj);
+        })
+      }
+    };
+  });
 
   $.plugin({
     provides: "cartesian"
@@ -1127,9 +1176,9 @@
           }
           return df;
         },
-        array: function(o, c) {
+        array: function(o) {
           var h;
-          return $.type.lookup(h = Bling.HTML.parse(o)).array(h, c);
+          return $.type.lookup(h = Bling.HTML.parse(o)).array(h);
         },
         string: function(o) {
           return "'" + o + "'";
@@ -1163,8 +1212,8 @@
           node: function(o) {
             return $(o).toFragment();
           },
-          array: function(o, c) {
-            return typeof c.querySelectorAll === "function" ? c.querySelectorAll(o) : void 0;
+          array: function(o) {
+            return typeof document.querySelectorAll === "function" ? document.querySelectorAll(o) : void 0;
           }
         },
         "function": {
@@ -1545,55 +1594,6 @@
   }
 
   $.plugin({
-    provides: "EventEmitter",
-    depends: "type,pipe"
-  }, function() {
-    return {
-      $: {
-        EventEmitter: $.pipe("bling-init").append(function(obj) {
-          var list, listeners;
-          listeners = {};
-          list = function(e) {
-            return listeners[e] || (listeners[e] = []);
-          };
-          return $.inherit({
-            emit: function() {
-              var a, e, f, _i, _len, _ref;
-              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-              _ref = list(e);
-              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                f = _ref[_i];
-                f.apply(this, a);
-              }
-              return this;
-            },
-            addListener: function(e, h) {
-              list(e).push(h);
-              return this.emit('newListener', e, h);
-            },
-            on: function(e, h) {
-              return this.addListener(e, h);
-            },
-            removeListener: function(e, h) {
-              var i;
-              if ((i = list(e).indexOf(h)) > -1) {
-                return list(e).splice(i, 1);
-              }
-            },
-            removeAllListeners: function(e) {
-              return listeners[e] = [];
-            },
-            setMaxListeners: function(n) {},
-            listeners: function(e) {
-              return list(e).slice(0);
-            }
-          }, obj);
-        })
-      }
-    };
-  });
-
-  $.plugin({
     depends: "dom,function,core",
     provides: "event"
   }, function() {
@@ -1899,6 +1899,41 @@
   });
 
   $.plugin({
+    provides: "groupBy"
+  }, function() {
+    return {
+      groupBy: function(key) {
+        var groups;
+        groups = {};
+        switch ($.type(key)) {
+          case 'array':
+          case 'bling':
+            this.each(function() {
+              var c, k;
+              c = ((function() {
+                var _i, _len, _results;
+                _results = [];
+                for (_i = 0, _len = key.length; _i < _len; _i++) {
+                  k = key[_i];
+                  _results.push(this[k]);
+                }
+                return _results;
+              }).call(this)).join(",");
+              return (groups[c] || (groups[c] = $())).push(this);
+            });
+            break;
+          default:
+            this.each(function() {
+              var _name;
+              return (groups[_name = this[key]] || (groups[_name] = $())).push(this);
+            });
+        }
+        return $.valuesOf(groups);
+      }
+    };
+  });
+
+  $.plugin({
     provides: "hash",
     depends: "type"
   }, function() {
@@ -1987,6 +2022,46 @@
       },
       histogram: function() {
         return $.histogram(this);
+      }
+    };
+  });
+
+  $.plugin({
+    provides: "hook",
+    depends: "type"
+  }, function() {
+    var hook, hooks;
+    hooks = {};
+    hook = function(name, args) {
+      var func, p, _i, _len;
+      p = (hooks[name] || (hooks[name] = []));
+      if (!args) {
+        return {
+          prepend: function(obj) {
+            p.unshift(obj);
+            return obj;
+          },
+          append: function(obj) {
+            p.push(obj);
+            return obj;
+          }
+        };
+      }
+      for (_i = 0, _len = p.length; _i < _len; _i++) {
+        func = p[_i];
+        args = func.call(this, args);
+      }
+      return args;
+    };
+    hook("bling-init").prepend(function(args) {
+      if (args.length === 1) {
+        args = $.type.lookup(args[0]).array(args[0]);
+      }
+      return $.inherit(Bling, args);
+    });
+    return {
+      $: {
+        hook: hook
       }
     };
   });
@@ -2099,8 +2174,8 @@
     };
   });
 
-  $.depends('pipe', function() {
-    return $.pipe('bling-init').append(function(obj) {
+  $.depends('hook', function() {
+    return $.hook('bling-init').append(function(obj) {
       var keyMaker, map;
       map = {};
       keyMaker = null;
@@ -2215,6 +2290,12 @@
             }
             return _results;
           })());
+        },
+        deg2rad: function(n) {
+          return n * Math.PI / 180;
+        },
+        rad2deg: function(n) {
+          return n * 180 / Math.PI;
         }
       },
       floats: function() {
@@ -2255,8 +2336,11 @@
         });
       },
       squares: function() {
+        return this.pow(2);
+      },
+      pow: function(n) {
         return this.map(function() {
-          return this * this;
+          return Math.pow(this, n);
         });
       },
       magnitude: function() {
@@ -2288,48 +2372,16 @@
       },
       normalize: function() {
         return this.scale(1 / this.magnitude());
-      }
-    };
-  });
-
-  $.plugin({
-    provides: "pipe",
-    depends: "type"
-  }, function() {
-    var pipe, pipes;
-    pipes = {};
-    pipe = function(name, args) {
-      var func, p, _i, _len;
-      p = (pipes[name] || (pipes[name] = []));
-      if (!args) {
-        return {
-          prepend: function(obj) {
-            p.unshift(obj);
-            return obj;
-          },
-          append: function(obj) {
-            p.push(obj);
-            return obj;
-          }
-        };
-      }
-      for (_i = 0, _len = p.length; _i < _len; _i++) {
-        func = p[_i];
-        args = func.call(this, args);
-      }
-      return args;
-    };
-    pipe("bling-init").prepend(function(args) {
-      var context, selector;
-      selector = args[0], context = args[1];
-      return $.inherit(Bling, $.inherit({
-        selector: selector,
-        context: context
-      }, $.type.lookup(selector).array(selector, context)));
-    });
-    return {
-      $: {
-        pipe: pipe
+      },
+      deg2rad: function() {
+        return this.filter(isFinite).map(function() {
+          return this * Math.PI / 180;
+        });
+      },
+      rad2deg: function() {
+        return this.filter(isFinite).map(function() {
+          return this * 180 / Math.PI;
+        });
       }
     };
   });

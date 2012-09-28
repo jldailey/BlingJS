@@ -51,7 +51,7 @@ extend = (a, b) ->
 class Bling
 
 	constructor: (args...) ->
-		return Bling.pipe "bling-init", args
+		return Bling.hook "bling-init", args
 
 	# $.plugin( [ opts ], func )
 	# -----------------

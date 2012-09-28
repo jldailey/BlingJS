@@ -125,7 +125,7 @@ $.plugin
 		# type-instance returned from type.lookup will do more.
 	# Extending the type system
 	# First, we give the basic types the ability to turn into something
-	# array-like, for use by the constructor pipeline.
+	# array-like, for use by the constructor hook.
 	_type.extend
 		# If we don't know any better way, we just stick the
 		# thing inside a real array.

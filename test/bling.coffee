@@ -55,8 +55,10 @@ describe "Bling", ->
 
 	it "can be created from an array", ->
 		assert.deepEqual $([1,2,3]), [1,2,3]
+	it "can be created from multiple arguments", ->
+		assert.deepEqual $(1,2,3), [1,2,3]
 	it "can be created from DOM nodes", ->
-		$("td")
+		assert.equal $("td").length, 8
 
 	describe ".type()", ->
 		describe "should classify", ->
@@ -363,17 +365,17 @@ describe "Bling", ->
 			it "in objects", -> assert.notEqual $.hash({}), $.hash []
 			it "in blings", -> assert.notEqual $.hash($(["a","b"])), $.hash $(["b","a"])
 
-	describe ".pipe()", ->
+	describe ".hook()", ->
 		it "is a function", ->
-			assert $.is 'function', $.pipe
-		it "returns a pipe with append/prepend", ->
-			p = $.pipe('unit-test')
+			assert $.is 'function', $.hook
+		it "returns a hook with append/prepend", ->
+			p = $.hook('unit-test')
 			assert $.is 'function', p.append
 			assert $.is 'function', p.prepend
 		it "computes values when called", ->
-			$.pipe('unit-test').append (x) -> x += 2
-			$.pipe('unit-test').prepend (x) -> x *= 2
-			assert.equal $.pipe('unit-test', 4), 10
+			$.hook('unit-test').append (x) -> x += 2
+			$.hook('unit-test').prepend (x) -> x *= 2
+			assert.equal $.hook('unit-test', 4), 10
 
 	describe ".eq()", ->
 		it "selects a new set with only one element", ->

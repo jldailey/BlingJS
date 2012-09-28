@@ -43,7 +43,7 @@
     function Bling() {
       var args;
       args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-      return Bling.pipe("bling-init", args);
+      return Bling.hook("bling-init", args);
     }
 
     Bling.plugin = function(opts, constructor) {
@@ -145,11 +145,11 @@
 
   $.plugin({
     provides: "EventEmitter",
-    depends: "type,pipe"
+    depends: "type,hook"
   }, function() {
     return {
       $: {
-        EventEmitter: $.pipe("bling-init").append(function(obj) {
+        EventEmitter: $.hook("bling-init").append(function(obj) {
           var list, listeners;
           if (obj == null) {
             obj = Object.create(null);
@@ -1992,6 +1992,46 @@
   });
 
   $.plugin({
+    provides: "hook",
+    depends: "type"
+  }, function() {
+    var hook, hooks;
+    hooks = {};
+    hook = function(name, args) {
+      var func, p, _i, _len;
+      p = (hooks[name] || (hooks[name] = []));
+      if (!args) {
+        return {
+          prepend: function(obj) {
+            p.unshift(obj);
+            return obj;
+          },
+          append: function(obj) {
+            p.push(obj);
+            return obj;
+          }
+        };
+      }
+      for (_i = 0, _len = p.length; _i < _len; _i++) {
+        func = p[_i];
+        args = func.call(this, args);
+      }
+      return args;
+    };
+    hook("bling-init").prepend(function(args) {
+      if (args.length === 1) {
+        args = $.type.lookup(args[0]).array(args[0]);
+      }
+      return $.inherit(Bling, args);
+    });
+    return {
+      $: {
+        hook: hook
+      }
+    };
+  });
+
+  $.plugin({
     depends: "dom",
     provides: "http"
   }, function() {
@@ -2099,8 +2139,8 @@
     };
   });
 
-  $.depends('pipe', function() {
-    return $.pipe('bling-init').append(function(obj) {
+  $.depends('hook', function() {
+    return $.hook('bling-init').append(function(obj) {
       var keyMaker, map;
       map = {};
       keyMaker = null;
@@ -2288,46 +2328,6 @@
       },
       normalize: function() {
         return this.scale(1 / this.magnitude());
-      }
-    };
-  });
-
-  $.plugin({
-    provides: "pipe",
-    depends: "type"
-  }, function() {
-    var pipe, pipes;
-    pipes = {};
-    pipe = function(name, args) {
-      var func, p, _i, _len;
-      p = (pipes[name] || (pipes[name] = []));
-      if (!args) {
-        return {
-          prepend: function(obj) {
-            p.unshift(obj);
-            return obj;
-          },
-          append: function(obj) {
-            p.push(obj);
-            return obj;
-          }
-        };
-      }
-      for (_i = 0, _len = p.length; _i < _len; _i++) {
-        func = p[_i];
-        args = func.call(this, args);
-      }
-      return args;
-    };
-    pipe("bling-init").prepend(function(args) {
-      if (args.length === 1) {
-        args = $.type.lookup(args[0]).array(args[0]);
-      }
-      return $.inherit(Bling, args);
-    });
-    return {
-      $: {
-        pipe: pipe
       }
     };
   });

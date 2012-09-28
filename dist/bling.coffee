@@ -5,7 +5,7 @@ extend = (a, b) ->
 	a
 class Bling
 	constructor: (args...) ->
-		return Bling.pipe "bling-init", args
+		return Bling.hook "bling-init", args
 	@plugin: (opts, constructor) ->
 		if not constructor
 			constructor = opts
@@ -53,9 +53,9 @@ Bling.global = if window? then window else global
 $ = Bling
 $.plugin
 	provides: "EventEmitter"
-	depends: "type,pipe"
+	depends: "type,hook"
 , ->
-	$: EventEmitter: $.pipe("bling-init").append (obj = Object.create(null)) ->
+	$: EventEmitter: $.hook("bling-init").append (obj = Object.create(null)) ->
 		listeners = {}
 		list = (e) -> (listeners[e] or= [])
 		$.inherit {
@@ -858,6 +858,26 @@ $.plugin ->
 			ret
 	histogram: -> $.histogram @
 $.plugin
+	provides: "hook"
+	depends: "type"
+, ->
+	hooks = {}
+	hook = (name, args) ->
+		p = (hooks[name] or= [])
+		if not args
+			return {
+				prepend: (obj) -> p.unshift(obj); obj
+				append: (obj) -> p.push(obj); obj
+			}
+		for func in p
+			args = func.call @, args
+		args
+	hook("bling-init").prepend (args) ->
+		if args.length is 1
+			args = $.type.lookup(args[0]).array(args[0])
+		$.inherit Bling, args
+	$: hook: hook
+$.plugin
 	depends: "dom"
 	provides: "http"
 , ->
@@ -918,8 +938,8 @@ $.plugin
 				opts.method = "GET"
 				$.http(url, opts)
 	}
-$.depends 'pipe', ->
-	$.pipe('bling-init').append (obj) ->
+$.depends 'hook', ->
+	$.hook('bling-init').append (obj) ->
 		map = {}
 		keyMaker = null
 		$.inherit {
@@ -974,26 +994,6 @@ $.plugin
 		when "number" then @map -> d + @
 		when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)] )
 	normalize: -> @scale 1/@magnitude()
-$.plugin
-	provides: "pipe"
-	depends: "type"
-, ->
-	pipes = {}
-	pipe = (name, args) ->
-		p = (pipes[name] or= [])
-		if not args
-			return {
-				prepend: (obj) -> p.unshift(obj); obj
-				append: (obj) -> p.push(obj); obj
-			}
-		for func in p
-			args = func.call @, args
-		args
-	pipe("bling-init").prepend (args) ->
-		if args.length is 1
-			args = $.type.lookup(args[0]).array(args[0])
-		$.inherit Bling, args
-	$: pipe: pipe
 $.plugin
 	provides: "pubsub"
 , ->

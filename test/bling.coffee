@@ -267,7 +267,7 @@ describe "Bling", ->
 			assert.equal $([]).avg(), 0
 		it "should compute the average", ->
 			assert.equal $([1,2,3,4]).avg(), 2.5
-		it "should be aliased as #mean()", ->
+		it "should be aliased as .mean()", ->
 			assert.equal $.prototype.avg, $.prototype.mean
 
 	describe ".sum()", ->
@@ -317,6 +317,40 @@ describe "Bling", ->
 		it "should return the largest item", -> assert.equal( $([12.1, 29.9]).max(), 29.9)
 		it "should ignore non-numbers", -> assert.equal( $([12.1, NaN, 29.9]).max(), 29.9)
 		it "should return Infinity for an empty set?"
+	
+	describe ".product()", ->
+		it "computes the product of everything (like .sum() with *)", ->
+			assert.equal $(2,4,6).product(), 48
+	
+	describe ".squares()", ->
+		it "squares everything", -> assert.deepEqual $(2,4,6).squares(), [4, 16, 36]
+	
+	describe ".pow(n)", ->
+		it "maps Math.pow", -> assert.deepEqual $(2,4,6).pow(3), [8,64,6*6*6]
+	
+	describe ".magnitude()", ->
+		it "computes the vector length", -> assert.equal $(2,4,6).magnitude(), 7.483314773547883
+	
+	describe ".scale(r)", ->
+		it "mulitiplies everything by a constant factor", -> assert.deepEqual $(2,4,6).scale(3), [6,12,18]
+	
+	describe ".add(n)", ->
+		it "does vector addition (with a scalar)", ->
+			assert.deepEqual $(2,4,6).add(2), [4,6,8]
+		it "adds two vectors", ->
+			assert.deepEqual $(2,4,6).add([3,5,9]), [5,9,15]
+		it "truncates the longer vector if mis-sized", ->
+			assert.deepEqual $(2,4,6,8).add([3,5,9]), [5,9,15]
+	
+	describe ".normalize()", ->
+		it "scales so that .magnitude() is 1", -> assert.equal $(2,4,6).normalize().magnitude(), 1
+	
+	describe ".deg2rad()", ->
+		it "works as a global", -> assert.equal $.deg2rad(180), Math.PI
+		it "works on a set", -> assert.deepEqual $(0,180).deg2rad(), [0, Math.PI]
+	describe ".rad2deg()", ->
+		it "works as a global", -> assert.equal $.rad2deg(Math.PI), 180
+		it "works on a set", -> assert.deepEqual $(0,Math.PI).rad2deg(), [0, 180]
 
 	describe ".random()", ->
 		assert 0.0 < $.random() < 1.0
@@ -619,13 +653,23 @@ describe "Bling", ->
 				f.on 'event', -> flag = true
 				f.emit 'event'
 				assert.equal flag, true
-			it "does not clobber an inheritance chain", ->
-				class Bar extends Foo
-					bar: ->
-				b = new Bar()
-				assert.equal $.type(b.bar), "function"
-				assert.equal $.type(b.on), "function"
-
+			describe "inheritance chain", ->
+				class A extends $.EventEmitter
+					A: ->
+				class B extends A
+					B: ->
+				class C extends B
+					constructor: ->
+						super(@)
+				a = new A()
+				b = new B()
+				c = new C()
+				it "goes through one level", ->
+					assert.equal $.type(a.on), "function"
+				it "goes through two levels", ->
+					assert.equal $.type(b.on), "function"
+				it "goes through three levels", ->
+					assert.equal $.type(c.on), "function"
 
 
 	describe ".date", ->
@@ -775,6 +819,53 @@ describe "Bling", ->
 			compoundKeyMaker = (obj) -> obj.a + "-" + obj.b
 			a = $([{a:1,b:'b'},{a:2,b:1},{a:3,b:2,c:'c'}]).index compoundKeyMaker
 			assert.equal a.query(a:3,b:2).c, 'c'
+	
+	describe ".groupBy(key)", ->
+		objs = $([
+			{name: "a", k: 1, val: 1},
+			{name: "a", k: 1, val: 2},
+			{name: "a", k: 2, val: 3},
+			{name: "b", k: 1, val: 4},
+			{name: "c", k: 1, val: 5},
+			{ val: 6 }
+
+		])
+		it "groups objects by the key", ->
+			assert.deepEqual objs.groupBy('name'), [
+				[ {name: "a", k:1, val: 1},
+					{name: "a", k:1, val: 2},
+					{name: "a", k:2, val: 3} ],
+				[ {name: "b", k:1, val: 4} ],
+				[ {name: "c", k:1, val: 5} ],
+				[ { val: 6 } ]
+			]
+		it "can group by multiple keys", ->
+			assert.deepEqual objs.groupBy(['name','k']), [
+				[ {name: "a", k:1, val: 1},
+					{name: "a", k:1, val: 2}
+				],
+				[ {name: "a", k:2, val: 3} ], # this 'a' gets its own group
+				[ {name: "b", k:1, val: 4} ],
+				[ {name: "c", k:1, val: 5} ],
+				[ { val: 6 } ]
+			]
+
+		it "is mappable", ->
+			assert.deepEqual objs.groupBy('name').map(-> @select('val').sum()),
+				[ 6, 4, 5, 6 ]
+
+		it "is mappable to a new object", ->
+			assert.deepEqual objs.groupBy(['name','k']).map(->
+				name: @select('name').first()
+				sum: @select('val').sum()
+				k: @select('k').first()
+			),
+				[ { name: "a", sum: 3, k:1 },
+					{ name: "a", sum: 3, k:2 },
+				  { name: "b", sum: 4, k:1 },
+					{ name: "c", sum: 5, k:1 }
+					{ name: undefined, sum: 6, k:undefined }
+				]
 
 ###
 

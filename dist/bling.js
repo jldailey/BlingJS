@@ -1899,6 +1899,41 @@
   });
 
   $.plugin({
+    provides: "groupBy"
+  }, function() {
+    return {
+      groupBy: function(key) {
+        var groups;
+        groups = {};
+        switch ($.type(key)) {
+          case 'array':
+          case 'bling':
+            this.each(function() {
+              var c, k;
+              c = ((function() {
+                var _i, _len, _results;
+                _results = [];
+                for (_i = 0, _len = key.length; _i < _len; _i++) {
+                  k = key[_i];
+                  _results.push(this[k]);
+                }
+                return _results;
+              }).call(this)).join(",");
+              return (groups[c] || (groups[c] = $())).push(this);
+            });
+            break;
+          default:
+            this.each(function() {
+              var _name;
+              return (groups[_name = this[key]] || (groups[_name] = $())).push(this);
+            });
+        }
+        return $.valuesOf(groups);
+      }
+    };
+  });
+
+  $.plugin({
     provides: "hash",
     depends: "type"
   }, function() {
@@ -2255,6 +2290,12 @@
             }
             return _results;
           })());
+        },
+        deg2rad: function(n) {
+          return n * Math.PI / 180;
+        },
+        rad2deg: function(n) {
+          return n * 180 / Math.PI;
         }
       },
       floats: function() {
@@ -2295,8 +2336,11 @@
         });
       },
       squares: function() {
+        return this.pow(2);
+      },
+      pow: function(n) {
         return this.map(function() {
-          return this * this;
+          return Math.pow(this, n);
         });
       },
       magnitude: function() {
@@ -2328,6 +2372,16 @@
       },
       normalize: function() {
         return this.scale(1 / this.magnitude());
+      },
+      deg2rad: function() {
+        return this.filter(isFinite).map(function() {
+          return this * Math.PI / 180;
+        });
+      },
+      rad2deg: function() {
+        return this.filter(isFinite).map(function() {
+          return this * 180 / Math.PI;
+        });
       }
     };
   });

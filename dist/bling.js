@@ -38,7 +38,6 @@
   };
 
   Bling = (function() {
-    var dep;
 
     function Bling() {
       var args;
@@ -46,47 +45,59 @@
       return Bling.hook("bling-init", args);
     }
 
-    Bling.plugin = function(opts, constructor) {
-      var key, plugin, _fn,
-        _this = this;
-      if (!constructor) {
-        constructor = opts;
-        opts = {};
-      }
-      if ("depends" in opts) {
-        return this.depends(opts.depends, function() {
-          return _this.plugin({
-            provides: opts.provides
-          }, constructor);
-        });
-      }
-      try {
-        if ((plugin = constructor != null ? constructor.call(this, this) : void 0)) {
-          extend(this, plugin != null ? plugin.$ : void 0);
-          ['$', 'name'].forEach(function(k) {
-            return delete plugin[k];
-          });
-          extend(this.prototype, plugin);
-          _fn = function(key) {
-            return _this[key] || (_this[key] = function() {
-              var a;
-              a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-              return _this.prototype[key].apply(Bling(a[0]), a.slice(1));
-            });
-          };
-          for (key in plugin) {
-            _fn(key);
-          }
-          if (opts.provides != null) {
-            this.provide(opts.provides);
-          }
-        }
-      } catch (error) {
-        console.log("failed to load plugin: " + this.name + " " + error.message + ": " + error.stack);
-      }
-      return this;
-    };
+    return Bling;
 
+  })();
+
+  Bling.prototype = [];
+
+  Bling.prototype.constructor = Bling;
+
+  Bling.global = typeof window !== "undefined" && window !== null ? window : global;
+
+  Bling.plugin = function(opts, constructor) {
+    var key, plugin, _fn,
+      _this = this;
+    if (!constructor) {
+      constructor = opts;
+      opts = {};
+    }
+    if ("depends" in opts) {
+      return this.depends(opts.depends, function() {
+        return _this.plugin({
+          provides: opts.provides
+        }, constructor);
+      });
+    }
+    try {
+      if ((plugin = constructor != null ? constructor.call(this, this) : void 0)) {
+        extend(this, plugin != null ? plugin.$ : void 0);
+        ['$', 'name'].forEach(function(k) {
+          return delete plugin[k];
+        });
+        extend(this.prototype, plugin);
+        _fn = function(key) {
+          return _this[key] || (_this[key] = function() {
+            var a;
+            a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+            return _this.prototype[key].apply(Bling(a[0]), a.slice(1));
+          });
+        };
+        for (key in plugin) {
+          _fn(key);
+        }
+        if (opts.provides != null) {
+          this.provide(opts.provides);
+        }
+      }
+    } catch (error) {
+      console.log("failed to load plugin: " + this.name + " " + error.message + ": " + error.stack);
+    }
+    return this;
+  };
+
+  (function() {
+    var dep;
     dep = {
       q: [],
       done: {},
@@ -96,7 +107,6 @@
         });
       }
     };
-
     Bling.depends = function(needs, f) {
       if ((needs = dep.filter(needs)).length === 0) {
         f();
@@ -111,8 +121,7 @@
       }
       return f;
     };
-
-    Bling.provide = function(needs, data) {
+    return Bling.provide = function(needs, data) {
       var f, i, need, _i, _len, _ref;
       _ref = dep.filter(needs);
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
@@ -130,16 +139,7 @@
       }
       return data;
     };
-
-    return Bling;
-
   })();
-
-  Bling.prototype = [];
-
-  Bling.prototype.constructor = Bling;
-
-  Bling.global = typeof window !== "undefined" && window !== null ? window : global;
 
   $ = Bling;
 

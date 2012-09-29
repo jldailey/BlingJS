@@ -3,41 +3,45 @@ Object.values or= (o) -> (o[k] for k of o)
 extend = (a, b) ->
 	if b then a[k] = v for k,v of b when v?
 	a
-class Bling
+class Bling # extends (new Array)
 	constructor: (args...) ->
 		return Bling.hook "bling-init", args
-	@plugin: (opts, constructor) ->
-		if not constructor
-			constructor = opts
-			opts = {}
-		if "depends" of opts
-			return @depends opts.depends, =>
-				@plugin { provides: opts.provides }, constructor
-		try
-			if (plugin = constructor?.call @,@)
-				extend @, plugin?.$
-				['$','name'].forEach (k) -> delete plugin[k]
-				extend @::, plugin
-				for key of plugin then do (key) =>
-					@[key] or= (a...) => (@::[key].apply Bling(a[0]), a[1...])
-				if opts.provides? then @provide opts.provides
-		catch error
-			console.log "failed to load plugin: #{@name} #{error.message}: #{error.stack}"
-		@
+Bling.prototype = []
+Bling.prototype.constructor = Bling
+Bling.global = if window? then window else global
+Bling.plugin = (opts, constructor) ->
+	if not constructor
+		constructor = opts
+		opts = {}
+	if "depends" of opts
+		return @depends opts.depends, =>
+			@plugin { provides: opts.provides }, constructor
+	try
+		if (plugin = constructor?.call @,@)
+			extend @, plugin?.$
+			['$','name'].forEach (k) -> delete plugin[k]
+			extend @::, plugin
+			for key of plugin then do (key) =>
+				@[key] or= (a...) => (@::[key].apply Bling(a[0]), a[1...])
+			if opts.provides? then @provide opts.provides
+	catch error
+		console.log "failed to load plugin: #{@name} #{error.message}: #{error.stack}"
+	@
+do ->
 	dep =
 		q: []
 		done: {}
 		filter: (n) ->
 			(if (typeof n) is "string" then n.split /, */ else n)
 			.filter (x) -> not (x of dep.done)
-	@depends: (needs, f) ->
+	Bling.depends = (needs, f) ->
 		if (needs = dep.filter needs).length is 0 then f()
 		else
 			dep.q.push (need) ->
 				(needs.splice i, 1) if (i = needs.indexOf need) > -1
 				return (needs.length is 0 and f)
 		f
-	@provide: (needs, data) ->
+	Bling.provide = (needs, data) ->
 		for need in dep.filter needs
 			dep.done[need] = i = 0
 			while i < dep.q.length
@@ -47,9 +51,6 @@ class Bling
 					i = 0 # start over in case a nested dependency removed stuff 'behind' i
 				else i++
 		data
-Bling.prototype = []
-Bling.prototype.constructor = Bling
-Bling.global = if window? then window else global
 $ = Bling
 $.plugin
 	provides: "EventEmitter"

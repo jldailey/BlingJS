@@ -75,7 +75,7 @@ yuicompressor.jar:
 	rm -rf yuicompressor-$(YUI_VERSION)
 
 $(DIST)/docs/%.html: %.coffee $(DOCCO)
-	(cd $(DIST) && ../$(DOCCO) $<)
+	(cd $(DIST) && ../$(DOCCO) ../$<)
 
 %.gz: %
 	gzip -vf9c $< > $@

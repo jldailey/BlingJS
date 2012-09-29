@@ -22,7 +22,7 @@ $(MOCHA):
 
 $(COFFEE):
 	npm install coffee-script
-	sed -i .bak 's/path.exists/fs.exists/' node_modules/coffee-script/lib/coffee-script/command.js
+	sed -ibak -e 's/path.exists/fs.exists/' node_modules/coffee-script/lib/coffee-script/command.js
 	rm -f node_modules/coffee-script/lib/coffee-script/command.js.bak
 
 $(DOCCO):

@@ -12,7 +12,7 @@ MOCHA_OPTS=--compilers coffee:coffee-script --globals document,window,Bling,$$,_
 all: dist report
 
 test: dist test/pass
-	@echo "All tests passed last time and nothing has changed."
+	@echo "All tests are passing."
 
 test/pass: $(MOCHA) $(JLDOM) test/bling.coffee $(DIST)/bling.coffee
 	$(MOCHA) $(MOCHA_OPTS) test/bling.coffee && touch test/pass

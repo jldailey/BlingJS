@@ -1,5 +1,4 @@
 # License: MIT. Author: Jesse Dailey <jesse.dailey@gmail.com>
-# vim: ft=coffee sw=2 ts=2
 
 # Philoshopy
 # ----------
@@ -141,3 +140,4 @@ Bling.prototype.constructor = Bling
 Bling.global = if window? then window else global
 
 $ = Bling
+# vim: ft=coffee sw=2 ts=2

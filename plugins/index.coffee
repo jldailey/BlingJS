@@ -1,5 +1,5 @@
-$.depends 'pipe', ->
-	$.pipe('bling-init').append (obj) ->
+$.depends 'hook', ->
+	$.hook('bling-init').append (obj) ->
 		map = {}
 		keyMaker = null
 		$.inherit {

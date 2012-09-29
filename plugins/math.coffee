@@ -19,6 +19,8 @@ $.plugin
 		zeros: (n) -> $( 0 for i in [0...n] )
 		# Get an array of ones.
 		ones: (n) -> $( 1 for i in [0...n] )
+		deg2rad: (n) -> n * Math.PI / 180
+		rad2deg: (n) -> n * 180 / Math.PI
 	# Convert everything to a float.
 	floats: -> @map parseFloat
 	# Convert everything to an int.
@@ -37,7 +39,8 @@ $.plugin
 	# Get the product of all items in the set.
 	product: -> @filter( isFinite ).reduce (a) -> a * @
 	# Get a new set with every item squared.
-	squares: -> @map -> @ * @
+	squares: -> @pow(2)
+	pow: (n) -> @map -> Math.pow @, n
 	# Get the magnitude (vector length) of this set.
 	magnitude: -> Math.sqrt @floats().squares().sum()
 	# Get a new set, scaled by a real factor.
@@ -50,4 +53,6 @@ $.plugin
 	dot: (b) ->
 		$.sum( @[i]*b[i] for i in [0...Math.min(@length,b.length)] )
 	# Get a new vector with same direction, but magnitude equal to 1.
-	normalize: -> @scale 1/@magnitude()
+	normalize: -> @scale 1 / @magnitude()
+	deg2rad: -> @filter( isFinite ).map -> @ * Math.PI / 180
+	rad2deg: -> @filter( isFinite ).map -> @ * 180 / Math.PI

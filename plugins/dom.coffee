@@ -36,7 +36,7 @@ if $.global.document?
 				df = document.createDocumentFragment()
 				df.appendChild(node.removeChild(childNodes[0])) for i in [0...n] by 1
 				df
-			array:  (o,c) -> $.type.lookup(h = Bling.HTML.parse o).array h, c
+			array:  (o) -> $.type.lookup(h = Bling.HTML.parse o).array h
 			string: (o) -> "'#{o}'"
 			repr:   (o) -> '"' + o + '"'
 		$.type.extend
@@ -53,26 +53,26 @@ if $.global.document?
 			}
 			string:
 				node:  (o) -> $(o).toFragment()
-				array: (o,c) -> c.querySelectorAll?(o)
+				array: (o) -> document.querySelectorAll? o
 			function: { node: (o) -> $(o.toString()).toFragment() }
 
 		toFrag = (a) ->
 			if not a.parentNode?
 				df = document.createDocumentFragment()
-				df.appendChild(a)
+				df.appendChild a
 			a
 		before = (a,b) -> toFrag(a).parentNode.insertBefore b, a
 		after = (a,b) -> toFrag(a).parentNode.insertBefore b, a.nextSibling
-		toNode = (x) -> $.type.lookup(x).node(x)
+		toNode = (x) -> $.type.lookup(x).node x
 		escaper = false
 		parser = false
 
 		# window.getComputedStyle is not a normal function
 		# (it doesnt support .call() so we can't use it with .map())
 		# so define something that does work properly for use in .css
-		computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue(k)
+		computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
 
-		getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select(p)
+		getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select p
 
 		selectChain = (prop) -> -> @map (p) -> $( p while p = p[prop] )
 
@@ -83,13 +83,13 @@ if $.global.document?
 				# object, for parsing from and to HTML.
 				HTML:
 					# Parse the html in string h into a node or fragment.
-					parse: (h) -> $.type.lookup(h).node(h)
+					parse: (h) -> $.type.lookup(h).node h
 					# Convert a node or fragment to an HTML string.
-					stringify: (n) -> $.type.lookup(n).html(n)
+					stringify: (n) -> $.type.lookup(n).html n
 					# Escape html characters in _h_, so "<" becomes `&lt;`, etc.
 					escape: (h) ->
 						# Create a singleton div with a text node within it.
-						escaper or= $("<div>&nbsp;</div>").child(0)
+						escaper or= $("<div>&nbsp;</div>").child 0
 						# Insert _h_ using the text node's .data property,
 						# then get escaped html from the _parent's_ innerHTML.
 						ret = escaper.zap('data', h).select("parentNode.innerHTML").first()
@@ -121,11 +121,11 @@ if $.global.document?
 
 			prepend: (x) -> # .prepend(/n/) - insert n [or a clone] as the first child of each node
 				if x?
-					x = toNode(x)
+					x = toNode x
 					@take(1).each ->
 						before @childNodes[0], x
 					@skip(1).each ->
-						before @childNodes[0], x.cloneNode(true)
+						before @childNodes[0], x.cloneNode true
 				@
 
 			prependTo: (x) -> # .prependTo(/n/) - each node [or a fragment] will become the first child of x
@@ -135,20 +135,20 @@ if $.global.document?
 
 			before: (x) -> # .before(/x/) - insert content x before each node
 				if x?
-					x = toNode(x)
+					x = toNode x
 					@take(1).each -> before @, x
-					@skip(1).each -> before @, x.cloneNode(true)
+					@skip(1).each -> before @, x.cloneNode true
 				@
 
 			after: (x) -> # .after(/n/) - insert content n after each node
 				if x?
-					x = toNode(x)
+					x = toNode x
 					@take(1).each -> after @, x
-					@skip(1).each -> after @, x.cloneNode(true)
+					@skip(1).each -> after @, x.cloneNode true
 				@
 
 			wrap: (parent) -> # .wrap(/parent/) - parent becomes the new .parentNode of each node
-				parent = toNode(parent)
+				parent = toNode parent
 				if $.is "fragment", parent
 					throw new Error("cannot call .wrap() with a fragment as the parent")
 				@each (child) ->
@@ -170,7 +170,7 @@ if $.global.document?
 						@parentNode.removeChild(@)
 
 			replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
-				n = toNode(n)
+				n = toNode n
 				clones = @map(-> n.cloneNode true)
 				for i in [0...clones.length] by 1
 					@[i].parentNode?.replaceChild clones[i], @[i]
@@ -190,7 +190,7 @@ if $.global.document?
 				notempty = (y) -> y isnt ""
 				@removeClass(x).each ->
 					c = @className.split(" ").filter notempty
-					c.push(x)
+					c.push x
 					@className = c.join " "
 
 			removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
@@ -208,7 +208,7 @@ if $.global.document?
 					if( cls.indexOf(x) > -1 )
 						filter = $.and notx, filter
 					else
-						cls.push(x)
+						cls.push x
 					c = cls.filter(filter).join(" ")
 					@className = c
 					if c.length is 0
@@ -244,7 +244,7 @@ if $.global.document?
 				# Else, we are reading CSS properties.
 				else
 					# So, collect the full computed values.
-					cv = @map computeCSSProperty(k)
+					cv = @map computeCSSProperty k
 					# Then, collect the values specified directly on the node.
 					ov = @select('style').select k
 					# Weave and fold them so that object values override

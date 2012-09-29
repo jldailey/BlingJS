@@ -1,14 +1,15 @@
 $.plugin
 	provides: "EventEmitter"
-	depends: "type,pipe"
+	depends: "type,hook"
 , ->
 	# EventEmitter Plugin
 	# -------------------
 	# The EventEmitter interface that NodeJS uses is much simpler (and
-	# faster) than the DOM event model.  With this plugin, every new
-	# bling becomes an EventEmitter automatically, or you can mix it in
-	# to any object: `$.EventEmitter(obj)`.
-	$: EventEmitter: $.pipe("bling-init").append (obj) ->
+	# faster) than the DOM event model.  With this plugin, every new bling
+	# becomes an EventEmitter automatically, you can extend a class from it:
+	# `class Foo extends $.EventEmitter`, or you can mix it in to an instance:
+	# `obj = $.EventEmitter(obj)`.
+	$: EventEmitter: $.hook("bling-init").append (obj = Object.create(null)) ->
 		listeners = {}
 		list = (e) -> (listeners[e] or= [])
 		$.inherit {

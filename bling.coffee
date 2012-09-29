@@ -1,5 +1,4 @@
 # License: MIT. Author: Jesse Dailey <jesse.dailey@gmail.com>
-# vim: ft=coffee sw=2 ts=2
 
 # Philoshopy
 # ----------
@@ -28,13 +27,14 @@ extend = (a, b) ->
 # =====================
 # This is using coffee's class syntax, but only as a hack really.
 
-# First, we want the Bling function to have a name so that
+# First, the class syntax is the only way to get a named function,
+# and we want the Bling function to have a name so that
 # `$().constructor.name == "Bling"`, for sanity, and for easily
 # detecting a mixed-jQuery environment (we do try to play nice).
 
-# Second, the `new` operator is not great.  What it does normally is
-# make a shallow copy of the prototype to use as context and return
-# value for the constructor.
+# But, we don't really want a real class, because the `new` operator is bad.
+# What it does normally is make a shallow copy of the prototype to use as
+# context and return value for the constructor.
 
 # In that simple statement is basically the core of the JS type
 # system, and even in that one sentence there are three problems:
@@ -47,68 +47,71 @@ extend = (a, b) ->
 # flexibility in implementations.
 
 # So, the Bling constructor should not be called as `new Bling`,
-# and as a bonus our assignment to a symbol (`$`) remains simple.
-class Bling
+# rather it should be used python style: `Bling(stuff)`.
+class Bling # extends (new Array)
+	constructor: (args...) ->
+		# See: plugins/hook.coffee
+		return Bling.hook "bling-init", args
 
-	# Compute the default context object only once, privately, so we dont have to check
-	# during every construction.
-	default_context = if document? then document else {}
+# We specify an inheritance similar to `class Bling extends (new Array)`,
+# if such a thing were supported by the syntax directly.
+Bling.prototype = []
+Bling.prototype.constructor = Bling
+Bling.global = if window? then window else global
 
-	constructor: (selector, context = default_context) ->
-		return Bling.pipe "bling-init", [selector, context]
+# $.plugin( [ opts ], func )
+# -----------------
+# Each plugin function should return an object full of stuff to
+# extend the Bling prototype with.
 
-	# $.plugin( [ opts ], func )
-	# -----------------
-	# Each plugin function should return an object full of stuff to
-	# extend the Bling prototype with.
+# Example: the simplest possible plugin.
+# > `$.plugin -> echo: -> @`
 
-	# Example: the simplest possible plugin.
-	# > $.plugin -> echo: -> @
+# This defines: `$(...).echo()`.  Also, this will
+# create a default 'static' helper: `$.echo`.
 
-	# This defines: `$(...).echo()`.  Also, this will
-	# create a 'root' version if one doesnt exist: `$.echo`.
+# You can explicitly define static helpers by nesting under a `$` key:
+# > `$.plugin -> $: hello: -> "Hello!"`
 
-	# You can explicitly define root-level values by nesting things
-	# under a `$` key:
-	# > $.plugin () -> $: hello: -> "Hello!"
+Bling.plugin = (opts, constructor) ->
+	if not constructor
+		constructor = opts
+		opts = {}
 
-	# This will create `$.hello`, but not `$().hello`.
-	@plugin: (opts, constructor) ->
-		if not constructor
-			constructor = opts
-			opts = {}
+	# Support a { depends: } option as a shortcut for `$.depends`.
+	if "depends" of opts
+		return @depends opts.depends, =>
+			# Support a { provides: } option as a shortcut for `$.provides`.
+			@plugin { provides: opts.provides }, constructor
+	try
+		# We call the plugin constructor and expect that it returns an
+		# object full of things to extend either Bling or it's prototype.
+		if (plugin = constructor?.call @,@)
+			# If the plugin has a `$` key, extend the root.
+			extend @, plugin?.$
+			# Clean off keys we no longer care about: `$` and `name`. (An
+			# older version of plugin() used to require names,
+			# but we ignore them now in favor of depends/provides.
+			['$','name'].forEach (k) -> delete plugin[k]
+			# Now put everything else on the Bling prototype.
+			extend @::, plugin
+			# Finally, add static wrappers for anything that doesn't have one.
+			for key of plugin then do (key) =>
+				@[key] or= (a...) => (@::[key].apply Bling(a[0]), a[1...])
+			# Honor the { provides: } option.
+			if opts.provides? then @provide opts.provides
+	catch error
+		console.log "failed to load plugin: #{@name} #{error.message}: #{error.stack}"
+	@
 
-		# Support a { depends: } option as a shortcut for `$.depends`.
-		if "depends" of opts
-			return @depends opts.depends, =>
-				# Pass along any { provides: } options to the deferred call.
-				@plugin { provides: opts.provides }, constructor
-		try
-			# We call the plugin constructor and expect that it returns an
-			# object full of things to extend either Bling or it's prototype.
-			if (plugin = constructor?.call @,@)
-				# If the plugin has a `$` key, extend the root.
-				extend @, plugin?.$
-				# Clean off keys we no longer care about: `$` and `name`. (An
-				# older version of plugin() used to require names,
-				# but we ignore them now in favor of depends/provides.
-				['$','name'].forEach (k) -> delete plugin[k]
-				# Now put everything else on the Bling prototype.
-				extend @::, plugin
-				# Finally, add root-level wrappers for anything that doesn't
-				# have one already.
-				for key of plugin then do (key) =>
-					@[key] or= (a...) => (@::[key].apply Bling(a[0]), a[1...])
-				# Support a { provides: } option as a shortcut for
-				# `$.provides`.
-				if opts.provides? then @provide opts.provides
-		catch error
-			console.log "failed to load plugin: #{@name} #{error.message}: #{error.stack}"
-		@
+# Dependency
+# ----------
+# $.depends, $.provide, represent dependencies between functions.
 
-	# Dependency
-	# ----------
-	# $.depends, $.provide, represent dependencies between functions.
+# Example: `$.depends "tag", -> $.log "hello"`
+# This example will not log "hello" until `provide("tag")` is
+# called.
+do ->
 	dep =
 		q: []
 		done: {}
@@ -116,10 +119,7 @@ class Bling
 			(if (typeof n) is "string" then n.split /, */ else n)
 			.filter (x) -> not (x of dep.done)
 
-	# Example: `$.depends "tag", -> $.log "hello"`
-	# This example will not log "hello" until `provide("tag")` is
-	# called.
-	@depends: (needs, f) ->
+	Bling.depends = (needs, f) ->
 		if (needs = dep.filter needs).length is 0 then f()
 		else
 			dep.q.push (need) ->
@@ -127,7 +127,7 @@ class Bling
 				return (needs.length is 0 and f)
 		f
 
-	@provide: (needs, data) ->
+	Bling.provide = (needs, data) ->
 		for need in dep.filter needs
 			dep.done[need] = i = 0
 			while i < dep.q.length
@@ -138,10 +138,6 @@ class Bling
 				else i++
 		data
 
-# We specify an inheritance similar to `class Bling extends (new Array)`,
-# if such a thing were supported by the syntax directly.
-Bling.prototype = []
-Bling.prototype.constructor = Bling
-Bling.global = if window? then window else global
 
 $ = Bling
+# vim: ft=coffee sw=2 ts=2

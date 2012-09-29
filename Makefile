@@ -35,14 +35,13 @@ dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
 docs: $(DIST)/docs/bling.html
 
-site: dist
+site: dist docs
 	git stash save &> /dev/null \
 	&& git checkout site \
 	&& sleep 1 \
 	&& cp $(DIST)/*.js js \
-	&& sleep 1 \
 	&& cp $(DIST)/*.js.gz js \
-	&& sleep 1 \
+	&& cp $(DIST)/docs/* docs \
 	&& git show master:$(DIST)/bling.coffee > js/bling.coffee \
 	&& sleep 1 \
 	&& git show master:$(DIST)/bling.js > js/bling.js \

@@ -46,5 +46,8 @@ $.plugin
 	add: (d) -> switch $.type(d)
 		when "number" then @map -> d + @
 		when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)] )
+	# Compute the dot-product.
+	dot: (b) ->
+		$.sum( @[i]*b[i] for i in [0...Math.min(@length,b.length)] )
 	# Get a new vector with same direction, but magnitude equal to 1.
 	normalize: -> @scale 1/@magnitude()

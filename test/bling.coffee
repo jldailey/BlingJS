@@ -55,8 +55,8 @@ describe "Bling", ->
 
 	it "can be created from an array", ->
 		assert.deepEqual $([1,2,3]), [1,2,3]
-	it "can be created from DOM nodes", ->
-		$("td")
+	it "can be created from CSS selector", ->
+		assert.equal $("td").length, 8
 
 	describe ".type()", ->
 		describe "should classify", ->
@@ -315,6 +315,10 @@ describe "Bling", ->
 		it "should return the largest item", -> assert.equal( $([12.1, 29.9]).max(), 29.9)
 		it "should ignore non-numbers", -> assert.equal( $([12.1, NaN, 29.9]).max(), 29.9)
 		it "should return Infinity for an empty set?"
+	
+	describe ".dot()", ->
+		it "computes the dot-product", ->
+			assert.equal( $([1,2,3]).dot([4,5,6]), 4 + 10 + 18)
 
 	describe ".random()", ->
 		assert 0.0 < $.random() < 1.0

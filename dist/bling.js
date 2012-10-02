@@ -2229,7 +2229,7 @@
     provides: "math",
     depends: "core"
   }, function() {
-    var mean;
+    var mean, _By;
     $.type.extend({
       bool: {
         number: function(o) {
@@ -2246,6 +2246,30 @@
         }
       }
     });
+    _By = function(cmp) {
+      return function(field) {
+        var valueOf, x;
+        valueOf = (function() {
+          switch ($.type(field)) {
+            case "string":
+              return function(o) {
+                return o[field];
+              };
+            case "function":
+              return field;
+            default:
+              throw new Error(".maxBy first argument should be a string or function");
+          }
+        })();
+        x = this.first();
+        this.skip(1).each(function() {
+          if (cmp(valueOf(this), valueOf(x))) {
+            return x = this;
+          }
+        });
+        return x;
+      };
+    };
     return {
       $: {
         range: function(start, end, step) {
@@ -2317,6 +2341,12 @@
       max: function() {
         return this.filter(isFinite).reduce(Math.max);
       },
+      maxBy: _By(function(a, b) {
+        return a > b;
+      }),
+      minBy: _By(function(a, b) {
+        return a < b;
+      }),
       mean: mean = function() {
         if (!this.length) {
           return 0;

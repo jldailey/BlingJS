@@ -984,6 +984,17 @@ $.plugin
 	$.type.extend
 		bool: { number: (o) -> if o then 1 else 0 }
 		number: { bool: (o) -> not not o }
+	_By = (cmp) ->
+		(field) ->
+			valueOf = switch $.type field
+				when "string" then (o) -> o[field]
+				when "function" then field
+				else throw new Error ".maxBy first argument should be a string or function"
+			x = @first()
+			@skip(1).each ->
+				if cmp valueOf(@), valueOf(x)
+					x = @
+			return x
 	$:
 		range: (start, end, step = 1) ->
 			if not end? then (end = start; start = 0)
@@ -998,6 +1009,8 @@ $.plugin
 	px: (delta) -> @ints().map -> $.px @,delta
 	min: -> @filter( isFinite ).reduce Math.min
 	max: -> @filter( isFinite ).reduce Math.max
+	maxBy: _By (a,b) -> a > b
+	minBy: _By (a,b) -> a < b
 	mean: mean = -> if not @length then 0 else @sum() / @length
 	avg: mean
 	sum: -> @filter( isFinite ).reduce(((a) -> a + @), 0)

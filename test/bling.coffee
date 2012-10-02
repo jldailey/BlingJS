@@ -318,6 +318,14 @@ describe "Bling", ->
 		it "should ignore non-numbers", -> assert.equal( $([12.1, NaN, 29.9]).max(), 29.9)
 		it "should return Infinity for an empty set?"
 	
+	describe ".maxBy()", ->
+		it "should return the largest item", ->
+			assert.deepEqual $( {a:1}, {a:3}, {a:2} ).maxBy('a'), a:3
+	
+	describe ".minBy()", ->
+		it "should return the smallest item", ->
+			assert.deepEqual $( {a:3}, {a:1}, {a:2} ).minBy('a'), a:1
+	
 	describe ".product()", ->
 		it "computes the product of everything (like .sum() with *)", ->
 			assert.equal $(2,4,6).product(), 48

@@ -321,10 +321,14 @@ describe "Bling", ->
 	describe ".maxBy()", ->
 		it "should return the largest item", ->
 			assert.deepEqual $( {a:1}, {a:3}, {a:2} ).maxBy('a'), a:3
+		it "accepts a value function", ->
+			assert.deepEqual $( {a:1}, {a:3}, {a:2} ).maxBy((o) -> Math.pow(o.a,2)), a:3
 	
 	describe ".minBy()", ->
 		it "should return the smallest item", ->
 			assert.deepEqual $( {a:3}, {a:1}, {a:2} ).minBy('a'), a:1
+		it "accepts a value function", ->
+			assert.deepEqual $( {a:1}, {a:3}, {a:2} ).minBy((o) -> Math.pow(o.a,2)), a:1
 	
 	describe ".product()", ->
 		it "computes the product of everything (like .sum() with *)", ->

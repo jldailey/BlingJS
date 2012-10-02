@@ -2582,6 +2582,50 @@
   });
 
   $.plugin({
+    provides: "sortBy,sortedIndex"
+  }, function() {
+    return {
+      $: {
+        sortedIndex: function(array, item, iterator) {
+          var cmp, i, _i, _ref;
+          cmp = (function() {
+            switch ($.type(iterator)) {
+              case "string":
+                return function(a, b) {
+                  return a[iterator] - b[iterator];
+                };
+              case "function":
+                return function(a, b) {
+                  return iterator(a) - iterator(b);
+                };
+              default:
+                return function(a, b) {
+                  return a - b;
+                };
+            }
+          })();
+          for (i = _i = 0, _ref = array.length; _i < _ref; i = _i += 1) {
+            if (cmp(array[i], item) > 0) {
+              return i;
+            }
+          }
+          return array.length;
+        }
+      },
+      sortBy: function(iterator) {
+        var a, item, n, _i, _len;
+        a = $();
+        for (_i = 0, _len = this.length; _i < _len; _i++) {
+          item = this[_i];
+          n = $.sortedIndex(a, item, iterator);
+          a.splice(n, 0, item);
+        }
+        return a;
+      }
+    };
+  });
+
+  $.plugin({
     provides: "string",
     depends: "function"
   }, function() {

@@ -2400,6 +2400,17 @@
             }).call(this));
         }
       },
+      dot: function(b) {
+        var i;
+        return $.sum((function() {
+          var _i, _ref, _results;
+          _results = [];
+          for (i = _i = 0, _ref = Math.min(this.length, b.length); 0 <= _ref ? _i < _ref : _i > _ref; i = 0 <= _ref ? ++_i : --_i) {
+            _results.push(this[i] * b[i]);
+          }
+          return _results;
+        }).call(this));
+      },
       normalize: function() {
         return this.scale(1 / this.magnitude());
       },

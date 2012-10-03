@@ -1022,6 +1022,8 @@ $.plugin
 	add: (d) -> switch $.type(d)
 		when "number" then @map -> d + @
 		when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)] )
+	dot: (b) ->
+		$.sum( @[i]*b[i] for i in [0...Math.min(@length,b.length)] )
 	normalize: -> @scale 1 / @magnitude()
 	deg2rad: -> @filter( isFinite ).map -> @ * Math.PI / 180
 	rad2deg: -> @filter( isFinite ).map -> @ * 180 / Math.PI

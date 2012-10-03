@@ -53,22 +53,6 @@ do ->
 		data
 $ = Bling
 $.plugin
-	provides: "EventEmitter"
-	depends: "type,hook"
-, ->
-	$: EventEmitter: $.hook("bling-init").append (obj = Object.create(null)) ->
-		listeners = {}
-		list = (e) -> (listeners[e] or= [])
-		$.inherit {
-			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-			addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
-			on:                 (e, h) -> @addListener e, h
-			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
-			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
-			listeners:          (e) -> list(e).slice 0
-		}, obj
-$.plugin
 	provides: "cartesian"
 , ->
 	$:
@@ -634,6 +618,22 @@ if $.global.document?
 				return toNode @[0]
 		}
 $.plugin
+	provides: "EventEmitter"
+	depends: "type,hook"
+, ->
+	$: EventEmitter: $.hook("bling-init").append (obj = Object.create(null)) ->
+		listeners = {}
+		list = (e) -> (listeners[e] or= [])
+		$.inherit {
+			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
+			addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
+			on:                 (e, h) -> @addListener e, h
+			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
+			removeAllListeners: (e) -> listeners[e] = []
+			setMaxListeners:    (n) -> # who really needs this in the core API?
+			listeners:          (e) -> list(e).slice 0
+		}, obj
+$.plugin
 	depends: "dom,function,core"
 	provides: "event"
 , ->
@@ -984,6 +984,17 @@ $.plugin
 	$.type.extend
 		bool: { number: (o) -> if o then 1 else 0 }
 		number: { bool: (o) -> not not o }
+	_By = (cmp) ->
+		(field) ->
+			valueOf = switch $.type field
+				when "string" then (o) -> o[field]
+				when "function" then field
+				else throw new Error ".maxBy first argument should be a string or function"
+			x = @first()
+			@skip(1).each ->
+				if cmp valueOf(@), valueOf(x)
+					x = @
+			return x
 	$:
 		range: (start, end, step = 1) ->
 			if not end? then (end = start; start = 0)
@@ -998,6 +1009,8 @@ $.plugin
 	px: (delta) -> @ints().map -> $.px @,delta
 	min: -> @filter( isFinite ).reduce Math.min
 	max: -> @filter( isFinite ).reduce Math.max
+	maxBy: _By (a,b) -> a > b
+	minBy: _By (a,b) -> a < b
 	mean: mean = -> if not @length then 0 else @sum() / @length
 	avg: mean
 	sum: -> @filter( isFinite ).reduce(((a) -> a + @), 0)
@@ -1113,6 +1126,26 @@ $.plugin
 				nodemailer.sendMail mail, callback
 			else
 				callback(false) # Reply as if an email was sent
+$.plugin
+	provides: "sortBy,sortedIndex"
+, ->
+	$:
+		sortedIndex: (array, item, iterator) ->
+			cmp = switch $.type iterator
+				when "string" then (a,b) -> a[iterator] - b[iterator]
+				when "function" then (a,b) -> iterator(a) - iterator(b)
+				else (a,b) -> a - b
+			for i in [0...array.length] by 1 # should use a binary search for large N
+				if cmp(array[i], item) > 0
+					return i
+			return array.length
+	sortBy: (iterator) ->
+		a = $()
+		for item in @
+			n = $.sortedIndex a, item, iterator
+			a.splice n, 0, item
+		a
+		
 $.plugin
 	provides: "string"
 	depends: "function"

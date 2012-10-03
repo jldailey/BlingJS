@@ -9,6 +9,18 @@ $.plugin
 		bool: { number: (o) -> if o then 1 else 0 }
 		number: { bool: (o) -> not not o }
 
+	_By = (cmp) ->
+		(field) ->
+			valueOf = switch $.type field
+				when "string" then (o) -> o[field]
+				when "function" then field
+				else throw new Error ".maxBy first argument should be a string or function"
+			x = @first()
+			@skip(1).each ->
+				if cmp valueOf(@), valueOf(x)
+					x = @
+			return x
+
 	$:
 		# Get an array of sequential numbers.
 		range: (start, end, step = 1) ->
@@ -31,6 +43,9 @@ $.plugin
 	min: -> @filter( isFinite ).reduce Math.min
 	# Get the largest element (defined by Math.max)
 	max: -> @filter( isFinite ).reduce Math.max
+	# Get the object with the highest value in a field.
+	maxBy: _By (a,b) -> a > b
+	minBy: _By (a,b) -> a < b
 	# Get the mean (average) of the set.
 	mean: mean = -> if not @length then 0 else @sum() / @length
 	avg: mean

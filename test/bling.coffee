@@ -322,6 +322,18 @@ describe "Bling", ->
 		it "computes the dot-product", ->
 			assert.equal( $([1,2,3]).dot([4,5,6]), 4 + 10 + 18)
 
+	describe ".maxBy()", ->
+		it "should return the largest item", ->
+			assert.deepEqual $( {a:1}, {a:3}, {a:2} ).maxBy('a'), a:3
+		it "accepts a value function", ->
+			assert.deepEqual $( {a:1}, {a:3}, {a:2} ).maxBy((o) -> Math.pow(o.a,2)), a:3
+	
+	describe ".minBy()", ->
+		it "should return the smallest item", ->
+			assert.deepEqual $( {a:3}, {a:1}, {a:2} ).minBy('a'), a:1
+		it "accepts a value function", ->
+			assert.deepEqual $( {a:1}, {a:3}, {a:2} ).minBy((o) -> Math.pow(o.a,2)), a:1
+	
 	describe ".product()", ->
 		it "computes the product of everything (like .sum() with *)", ->
 			assert.equal $(2,4,6).product(), 48
@@ -870,6 +882,29 @@ describe "Bling", ->
 					{ name: "c", sum: 5, k:1 }
 					{ name: undefined, sum: 6, k:undefined }
 				]
+	
+	describe "$.sortedIndex", ->
+		it "returns the index to insert at", ->
+			assert.equal $.sortedIndex([1,2,4], 3), 2
+		it "will insert at end", ->
+			assert.equal $.sortedIndex([1,2,3], 4), 3
+		it "will insert at beginning", ->
+			assert.equal $.sortedIndex([2,3,4], 1), 0
+		it "can use a field for comparison", ->
+			assert.equal $.sortedIndex([{a:1},{a:2},{a:4}], {a:3}, 'a'), 2
+		it "can use a comparison function", ->
+			assert.equal $.sortedIndex([1,2,4], 3, null, (x)->Math.pow(x,2)), 2
+
+	describe ".sortBy(field,cmp)", ->
+		it "can sort", ->
+			assert.deepEqual $(3,1,2).sortBy(), [1,2,3]
+		it "can sort by a field", ->
+			assert.deepEqual $( {a:2}, {a:1}, {a:3} ).sortBy('a').select('a'), [1,2,3]
+		it "does NOT sort in-place", ->
+			a = $(2,3,1)
+			b = a.sortBy()
+			assert.deepEqual b, [1,2,3]
+			assert a isnt b
 
 ###
 

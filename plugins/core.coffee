@@ -79,7 +79,7 @@ $.plugin
 		# Get the first non-null item in _this_.
 		coalesce: ->
 			for i in @
-				if $.type(i) in ["array","bling"] then i = $(i).coalesce()
+				if $.is('array',i) or $.is('bling',i) then i = $(i).coalesce()
 				if i? then return i
 			null
 		# Swap item i with item j, in-place.

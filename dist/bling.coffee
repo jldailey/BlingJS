@@ -53,6 +53,22 @@ do ->
 		data
 $ = Bling
 $.plugin
+	provides: "EventEmitter"
+	depends: "type,hook"
+, ->
+	$: EventEmitter: $.hook("bling-init").append (obj = Object.create(null)) ->
+		listeners = {}
+		list = (e) -> (listeners[e] or= [])
+		$.inherit {
+			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
+			addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
+			on:                 (e, h) -> @addListener e, h
+			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
+			removeAllListeners: (e) -> listeners[e] = []
+			setMaxListeners:    (n) -> # who really needs this in the core API?
+			listeners:          (e) -> list(e).slice 0
+		}, obj
+$.plugin
 	provides: "cartesian"
 , ->
 	$:
@@ -618,22 +634,6 @@ if $.global.document?
 				return toNode @[0]
 		}
 $.plugin
-	provides: "EventEmitter"
-	depends: "type,hook"
-, ->
-	$: EventEmitter: $.hook("bling-init").append (obj = Object.create(null)) ->
-		listeners = {}
-		list = (e) -> (listeners[e] or= [])
-		$.inherit {
-			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-			addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
-			on:                 (e, h) -> @addListener e, h
-			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
-			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
-			listeners:          (e) -> list(e).slice 0
-		}, obj
-$.plugin
 	depends: "dom,function,core"
 	provides: "event"
 , ->
@@ -953,17 +953,19 @@ $.plugin
 	}
 $.depends 'hook', ->
 	$.hook('bling-init').append (obj) ->
-		map = {}
-		keyMaker = null
+		map = Object.create(null)
+		keyMakers = []
 		$.inherit {
 			index: (keyFunc) ->
-				keyMaker = keyFunc
+				if keyMakers.indexOf(keyFunc) is -1
+					keyMakers.push keyFunc
+					map[keyFunc] = Object.create(null)
 				@each (x) ->
-					map[keyFunc(x)] = x
+					map[keyFunc][keyFunc(x)] = x
 			query: (criteria) ->
-				if $.is 'function', keyMaker
+				for keyMaker in keyMakers
 					key = keyMaker(criteria)
-					return map[key] if key of map
+					return map[keyMaker][key] if key of map[keyMaker]
 				null
 		}, obj
 $.plugin

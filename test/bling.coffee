@@ -440,6 +440,21 @@ describe "Bling", ->
 			assert.notEqual a,b
 		it "containing the results of f(each item)", ->
 			assert.deepEqual $([1,2,3]).map(->@*@), [1,4,9]
+	
+	describe ".filterMap(f)", ->
+		it "works like map, but can omit some results", ->
+			assert.deepEqual $(1,2,3,4).filterMap(->
+				if @ % 2 then @*@
+				else null
+			), [1, 9]
+	
+	describe ".replaceWith", ->
+		it "copies values from array to this", ->
+			assert.deepEqual $(1,2,3,4).replaceWith([5,6,7,8]), [5,6,7,8]
+		it "does not create a new Bling", ->
+			d = $(1,2,3,4)
+			e = d.replaceWith([5,6,7])
+			assert.deepEqual d, [5,6,7,4]
 
 	describe ".coalesce()", ->
 		it "should return the first non-null item", ->

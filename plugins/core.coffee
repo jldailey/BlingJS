@@ -59,6 +59,10 @@ $.plugin
 					b.push v
 			b
 
+		replaceWith: (array) ->
+			for i in [0...array.length] by 1
+				@[i] = array[i]
+
 		# Reduce _this_ to a single value, accumulating in _a_.
 		# Example: `(a,x) -> a+x` == `(a) -> a+@`.
 		reduce: (f, a) ->

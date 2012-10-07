@@ -418,6 +418,14 @@
         }
         return b;
       },
+      replaceWith: function(array) {
+        var i, _i, _ref, _results;
+        _results = [];
+        for (i = _i = 0, _ref = array.length; _i < _ref; i = _i += 1) {
+          _results.push(this[i] = array[i]);
+        }
+        return _results;
+      },
       reduce: function(f, a) {
         var i, n, x, _i;
         i = 0;

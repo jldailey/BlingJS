@@ -167,6 +167,9 @@ $.plugin
 				if v?
 					b.push v
 			b
+		replaceWith: (array) ->
+			for i in [0...array.length] by 1
+				@[i] = array[i]
 		reduce: (f, a) ->
 			i = 0; n = @length
 			a = @[i++] if not a?

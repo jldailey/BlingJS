@@ -144,58 +144,6 @@
   $ = Bling;
 
   $.plugin({
-    provides: "EventEmitter",
-    depends: "type,hook"
-  }, function() {
-    return {
-      $: {
-        EventEmitter: $.hook("bling-init").append(function(obj) {
-          var list, listeners;
-          if (obj == null) {
-            obj = Object.create(null);
-          }
-          listeners = {};
-          list = function(e) {
-            return listeners[e] || (listeners[e] = []);
-          };
-          return $.inherit({
-            emit: function() {
-              var a, e, f, _i, _len, _ref;
-              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-              _ref = list(e);
-              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                f = _ref[_i];
-                f.apply(this, a);
-              }
-              return this;
-            },
-            addListener: function(e, h) {
-              list(e).push(h);
-              return this.emit('newListener', e, h);
-            },
-            on: function(e, h) {
-              return this.addListener(e, h);
-            },
-            removeListener: function(e, h) {
-              var i;
-              if ((i = list(e).indexOf(h)) > -1) {
-                return list(e).splice(i, 1);
-              }
-            },
-            removeAllListeners: function(e) {
-              return listeners[e] = [];
-            },
-            setMaxListeners: function(n) {},
-            listeners: function(e) {
-              return list(e).slice(0);
-            }
-          }, obj);
-        })
-      }
-    };
-  });
-
-  $.plugin({
     provides: "cartesian"
   }, function() {
     return {
@@ -1594,6 +1542,58 @@
   }
 
   $.plugin({
+    provides: "EventEmitter",
+    depends: "type,hook"
+  }, function() {
+    return {
+      $: {
+        EventEmitter: $.hook("bling-init").append(function(obj) {
+          var list, listeners;
+          if (obj == null) {
+            obj = Object.create(null);
+          }
+          listeners = {};
+          list = function(e) {
+            return listeners[e] || (listeners[e] = []);
+          };
+          return $.inherit({
+            emit: function() {
+              var a, e, f, _i, _len, _ref;
+              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+              _ref = list(e);
+              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                f = _ref[_i];
+                f.apply(this, a);
+              }
+              return this;
+            },
+            addListener: function(e, h) {
+              list(e).push(h);
+              return this.emit('newListener', e, h);
+            },
+            on: function(e, h) {
+              return this.addListener(e, h);
+            },
+            removeListener: function(e, h) {
+              var i;
+              if ((i = list(e).indexOf(h)) > -1) {
+                return list(e).splice(i, 1);
+              }
+            },
+            removeAllListeners: function(e) {
+              return listeners[e] = [];
+            },
+            setMaxListeners: function(n) {},
+            listeners: function(e) {
+              return list(e).slice(0);
+            }
+          }, obj);
+        })
+      }
+    };
+  });
+
+  $.plugin({
     depends: "dom,function,core",
     provides: "event"
   }, function() {
@@ -2229,7 +2229,7 @@
     provides: "math",
     depends: "core"
   }, function() {
-    var mean;
+    var mean, _By;
     $.type.extend({
       bool: {
         number: function(o) {
@@ -2246,6 +2246,30 @@
         }
       }
     });
+    _By = function(cmp) {
+      return function(field) {
+        var valueOf, x;
+        valueOf = (function() {
+          switch ($.type(field)) {
+            case "string":
+              return function(o) {
+                return o[field];
+              };
+            case "function":
+              return field;
+            default:
+              throw new Error(".maxBy first argument should be a string or function");
+          }
+        })();
+        x = this.first();
+        this.skip(1).each(function() {
+          if (cmp(valueOf(this), valueOf(x))) {
+            return x = this;
+          }
+        });
+        return x;
+      };
+    };
     return {
       $: {
         range: function(start, end, step) {
@@ -2317,6 +2341,12 @@
       max: function() {
         return this.filter(isFinite).reduce(Math.max);
       },
+      maxBy: _By(function(a, b) {
+        return a > b;
+      }),
+      minBy: _By(function(a, b) {
+        return a < b;
+      }),
       mean: mean = function() {
         if (!this.length) {
           return 0;
@@ -2577,6 +2607,50 @@
             return callback(false);
           }
         }
+      }
+    };
+  });
+
+  $.plugin({
+    provides: "sortBy,sortedIndex"
+  }, function() {
+    return {
+      $: {
+        sortedIndex: function(array, item, iterator) {
+          var cmp, i, _i, _ref;
+          cmp = (function() {
+            switch ($.type(iterator)) {
+              case "string":
+                return function(a, b) {
+                  return a[iterator] - b[iterator];
+                };
+              case "function":
+                return function(a, b) {
+                  return iterator(a) - iterator(b);
+                };
+              default:
+                return function(a, b) {
+                  return a - b;
+                };
+            }
+          })();
+          for (i = _i = 0, _ref = array.length; _i < _ref; i = _i += 1) {
+            if (cmp(array[i], item) > 0) {
+              return i;
+            }
+          }
+          return array.length;
+        }
+      },
+      sortBy: function(iterator) {
+        var a, item, n, _i, _len;
+        a = $();
+        for (_i = 0, _len = this.length; _i < _len; _i++) {
+          item = this[_i];
+          n = $.sortedIndex(a, item, iterator);
+          a.splice(n, 0, item);
+        }
+        return a;
       }
     };
   });

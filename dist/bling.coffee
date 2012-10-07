@@ -1037,9 +1037,15 @@ $.plugin
 	pow: (n) -> @map -> Math.pow @, n
 	magnitude: -> Math.sqrt @floats().squares().sum()
 	scale: (r) -> @map -> r * @
-	add: (d) -> switch $.type(d)
+	add: add = (d) -> switch $.type(d)
 		when "number" then @map -> d + @
 		when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)] )
+	plus: add
+	vecAdd: (v) ->
+		d = $()
+		for i in [0...@length] by 1
+			d[i] = @[i] + v[i]
+		d
 	normalize: -> @scale 1 / @magnitude()
 	deg2rad: -> @filter( isFinite ).map -> @ * Math.PI / 180
 	rad2deg: -> @filter( isFinite ).map -> @ * 180 / Math.PI

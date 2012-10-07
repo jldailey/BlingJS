@@ -2252,7 +2252,7 @@
     provides: "math",
     depends: "core"
   }, function() {
-    var mean, _By;
+    var add, mean, _By;
     $.type.extend({
       bool: {
         number: function(o) {
@@ -2404,7 +2404,7 @@
           return r * this;
         });
       },
-      add: function(d) {
+      add: add = function(d) {
         var i;
         switch ($.type(d)) {
           case "number":
@@ -2422,6 +2422,15 @@
               return _results;
             }).call(this));
         }
+      },
+      plus: add,
+      vecAdd: function(v) {
+        var d, i, _i, _ref;
+        d = $();
+        for (i = _i = 0, _ref = this.length; _i < _ref; i = _i += 1) {
+          d[i] = this[i] + v[i];
+        }
+        return d;
       },
       normalize: function() {
         return this.scale(1 / this.magnitude());

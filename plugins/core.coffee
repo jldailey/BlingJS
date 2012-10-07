@@ -45,7 +45,11 @@ $.plugin
 
 		# Get a new set with the results of calling a function of every
 		# item in _this_.
-		map: (f) -> $(f.call(t,t) for t in @)
+		map: (f) ->
+			b = $()
+			for t in @
+				b.push f.call t,t
+			b
 
 		# Reduce _this_ to a single value, accumulating in _a_.
 		# Example: `(a,x) -> a+x` == `(a) -> a+@`.

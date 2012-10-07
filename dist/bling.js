@@ -406,6 +406,18 @@
         }
         return b;
       },
+      filterMap: function(f) {
+        var b, t, v, _i, _len;
+        b = $();
+        for (_i = 0, _len = this.length; _i < _len; _i++) {
+          t = this[_i];
+          v = f.call(t, t);
+          if (v != null) {
+            b.push(v);
+          }
+        }
+        return b;
+      },
       reduce: function(f, a) {
         var i, n, x, _i;
         i = 0;
@@ -752,10 +764,12 @@
         return this.apply(null, arguments);
       },
       apply: function(context, args) {
-        return this.filter(function() {
-          return $.is("function", this);
-        }).map(function() {
-          return this.apply(context, args);
+        return this.filterMap(function() {
+          if ($.is('function', this)) {
+            return this.apply(context, args);
+          } else {
+            return null;
+          }
         });
       },
       log: function(label) {

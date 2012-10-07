@@ -160,6 +160,13 @@ $.plugin
 			for t in @
 				b.push f.call t,t
 			b
+		filterMap: (f) ->
+			b = $()
+			for t in @
+				v = f.call t,t
+				if v?
+					b.push v
+			b
 		reduce: (f, a) ->
 			i = 0; n = @length
 			a = @[i++] if not a?
@@ -260,7 +267,9 @@ $.plugin
 			b
 		call: -> @apply(null, arguments)
 		apply: (context, args) ->
-			@filter(-> $.is "function", @).map -> @apply(context, args)
+			@filterMap ->
+				if $.is 'function', @ then @apply(context, args)
+				else null
 		log: (label) ->
 			if label
 				$.log(label, @toString(), @length + " items")

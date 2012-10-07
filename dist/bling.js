@@ -398,16 +398,13 @@
         return this;
       },
       map: function(f) {
-        var t;
-        return $((function() {
-          var _i, _len, _results;
-          _results = [];
-          for (_i = 0, _len = this.length; _i < _len; _i++) {
-            t = this[_i];
-            _results.push(f.call(t, t));
-          }
-          return _results;
-        }).call(this));
+        var b, t, _i, _len;
+        b = $();
+        for (_i = 0, _len = this.length; _i < _len; _i++) {
+          t = this[_i];
+          b.push(f.call(t, t));
+        }
+        return b;
       },
       reduce: function(f, a) {
         var i, n, x, _i;

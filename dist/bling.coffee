@@ -155,7 +155,11 @@ $.plugin
 				return try o[k] catch err then err
 		eq: (i) -> $([@[index i, @]])
 		each: (f) -> (f.call(t,t) for t in @); @
-		map: (f) -> $(f.call(t,t) for t in @)
+		map: (f) ->
+			b = $()
+			for t in @
+				b.push f.call t,t
+			b
 		reduce: (f, a) ->
 			i = 0; n = @length
 			a = @[i++] if not a?

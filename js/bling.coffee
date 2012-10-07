@@ -953,17 +953,19 @@ $.plugin
 	}
 $.depends 'hook', ->
 	$.hook('bling-init').append (obj) ->
-		map = {}
-		keyMaker = null
+		map = Object.create(null)
+		keyMakers = []
 		$.inherit {
 			index: (keyFunc) ->
-				keyMaker = keyFunc
+				if keyMakers.indexOf(keyFunc) is -1
+					keyMakers.push keyFunc
+					map[keyFunc] = Object.create(null)
 				@each (x) ->
-					map[keyFunc(x)] = x
+					map[keyFunc][keyFunc(x)] = x
 			query: (criteria) ->
-				if $.is 'function', keyMaker
+				for keyMaker in keyMakers
 					key = keyMaker(criteria)
-					return map[key] if key of map
+					return map[keyMaker][key] if key of map[keyMaker]
 				null
 		}, obj
 $.plugin
@@ -984,6 +986,17 @@ $.plugin
 	$.type.extend
 		bool: { number: (o) -> if o then 1 else 0 }
 		number: { bool: (o) -> not not o }
+	_By = (cmp) ->
+		(field) ->
+			valueOf = switch $.type field
+				when "string" then (o) -> o[field]
+				when "function" then field
+				else throw new Error ".maxBy first argument should be a string or function"
+			x = @first()
+			@skip(1).each ->
+				if cmp valueOf(@), valueOf(x)
+					x = @
+			return x
 	$:
 		range: (start, end, step = 1) ->
 			if not end? then (end = start; start = 0)
@@ -998,6 +1011,8 @@ $.plugin
 	px: (delta) -> @ints().map -> $.px @,delta
 	min: -> @filter( isFinite ).reduce Math.min
 	max: -> @filter( isFinite ).reduce Math.max
+	maxBy: _By (a,b) -> a > b
+	minBy: _By (a,b) -> a < b
 	mean: mean = -> if not @length then 0 else @sum() / @length
 	avg: mean
 	sum: -> @filter( isFinite ).reduce(((a) -> a + @), 0)
@@ -1113,6 +1128,26 @@ $.plugin
 				nodemailer.sendMail mail, callback
 			else
 				callback(false) # Reply as if an email was sent
+$.plugin
+	provides: "sortBy,sortedIndex"
+, ->
+	$:
+		sortedIndex: (array, item, iterator) ->
+			cmp = switch $.type iterator
+				when "string" then (a,b) -> a[iterator] - b[iterator]
+				when "function" then (a,b) -> iterator(a) - iterator(b)
+				else (a,b) -> a - b
+			for i in [0...array.length] by 1 # should use a binary search for large N
+				if cmp(array[i], item) > 0
+					return i
+			return array.length
+	sortBy: (iterator) ->
+		a = $()
+		for item in @
+			n = $.sortedIndex a, item, iterator
+			a.splice n, 0, item
+		a
+		
 $.plugin
 	provides: "string"
 	depends: "function"

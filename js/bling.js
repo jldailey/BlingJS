@@ -2176,22 +2176,26 @@
 
   $.depends('hook', function() {
     return $.hook('bling-init').append(function(obj) {
-      var keyMaker, map;
-      map = {};
-      keyMaker = null;
+      var keyMakers, map;
+      map = Object.create(null);
+      keyMakers = [];
       return $.inherit({
         index: function(keyFunc) {
-          keyMaker = keyFunc;
+          if (keyMakers.indexOf(keyFunc) === -1) {
+            keyMakers.push(keyFunc);
+            map[keyFunc] = Object.create(null);
+          }
           return this.each(function(x) {
-            return map[keyFunc(x)] = x;
+            return map[keyFunc][keyFunc(x)] = x;
           });
         },
         query: function(criteria) {
-          var key;
-          if ($.is('function', keyMaker)) {
+          var key, keyMaker, _i, _len;
+          for (_i = 0, _len = keyMakers.length; _i < _len; _i++) {
+            keyMaker = keyMakers[_i];
             key = keyMaker(criteria);
-            if (key in map) {
-              return map[key];
+            if (key in map[keyMaker]) {
+              return map[keyMaker][key];
             }
           }
           return null;
@@ -2229,7 +2233,7 @@
     provides: "math",
     depends: "core"
   }, function() {
-    var mean;
+    var mean, _By;
     $.type.extend({
       bool: {
         number: function(o) {
@@ -2246,6 +2250,30 @@
         }
       }
     });
+    _By = function(cmp) {
+      return function(field) {
+        var valueOf, x;
+        valueOf = (function() {
+          switch ($.type(field)) {
+            case "string":
+              return function(o) {
+                return o[field];
+              };
+            case "function":
+              return field;
+            default:
+              throw new Error(".maxBy first argument should be a string or function");
+          }
+        })();
+        x = this.first();
+        this.skip(1).each(function() {
+          if (cmp(valueOf(this), valueOf(x))) {
+            return x = this;
+          }
+        });
+        return x;
+      };
+    };
     return {
       $: {
         range: function(start, end, step) {
@@ -2317,6 +2345,12 @@
       max: function() {
         return this.filter(isFinite).reduce(Math.max);
       },
+      maxBy: _By(function(a, b) {
+        return a > b;
+      }),
+      minBy: _By(function(a, b) {
+        return a < b;
+      }),
       mean: mean = function() {
         if (!this.length) {
           return 0;
@@ -2577,6 +2611,50 @@
             return callback(false);
           }
         }
+      }
+    };
+  });
+
+  $.plugin({
+    provides: "sortBy,sortedIndex"
+  }, function() {
+    return {
+      $: {
+        sortedIndex: function(array, item, iterator) {
+          var cmp, i, _i, _ref;
+          cmp = (function() {
+            switch ($.type(iterator)) {
+              case "string":
+                return function(a, b) {
+                  return a[iterator] - b[iterator];
+                };
+              case "function":
+                return function(a, b) {
+                  return iterator(a) - iterator(b);
+                };
+              default:
+                return function(a, b) {
+                  return a - b;
+                };
+            }
+          })();
+          for (i = _i = 0, _ref = array.length; _i < _ref; i = _i += 1) {
+            if (cmp(array[i], item) > 0) {
+              return i;
+            }
+          }
+          return array.length;
+        }
+      },
+      sortBy: function(iterator) {
+        var a, item, n, _i, _len;
+        a = $();
+        for (_i = 0, _len = this.length; _i < _len; _i++) {
+          item = this[_i];
+          n = $.sortedIndex(a, item, iterator);
+          a.splice(n, 0, item);
+        }
+        return a;
       }
     };
   });

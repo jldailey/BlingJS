@@ -493,10 +493,10 @@
         }).call(this)).sum();
       },
       coalesce: function() {
-        var i, _i, _len, _ref;
+        var i, _i, _len;
         for (_i = 0, _len = this.length; _i < _len; _i++) {
           i = this[_i];
-          if ((_ref = $.type(i)) === "array" || _ref === "bling") {
+          if ($.is('array', i) || $.is('bling', i)) {
             i = $(i).coalesce();
           }
           if (i != null) {

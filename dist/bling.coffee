@@ -176,7 +176,7 @@ $.plugin
 		count: (item, strict = true) -> $(1 for t in @ when (item is undefined) or (strict and t is item) or (not strict and `t == item`)).sum()
 		coalesce: ->
 			for i in @
-				if $.type(i) in ["array","bling"] then i = $(i).coalesce()
+				if $.is('array',i) or $.is('bling',i) then i = $(i).coalesce()
 				if i? then return i
 			null
 		swap: (i,j) ->

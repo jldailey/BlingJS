@@ -51,6 +51,14 @@ $.plugin
 				b.push f.call t,t
 			b
 
+		filterMap: (f) ->
+			b = $()
+			for t in @
+				v = f.call t,t
+				if v?
+					b.push v
+			b
+
 		# Reduce _this_ to a single value, accumulating in _a_.
 		# Example: `(a,x) -> a+x` == `(a) -> a+@`.
 		reduce: (f, a) ->
@@ -248,7 +256,9 @@ $.plugin
 
 		# Apply every function in _this_ to _context_ with _args_.
 		apply: (context, args) ->
-			@filter(-> $.is "function", @).map -> @apply(context, args)
+			@filterMap ->
+				if $.is 'function', @ then @apply(context, args)
+				else null
 
 		# Log one line for each item in _this_.
 		log: (label) ->

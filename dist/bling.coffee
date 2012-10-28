@@ -1137,10 +1137,21 @@ $.plugin
 				when "string" then (a,b) -> a[iterator] - b[iterator]
 				when "function" then (a,b) -> iterator(a) - iterator(b)
 				else (a,b) -> a - b
+			hi = array.length
+			lo = 0
+			while lo < hi
+				mid = (hi + lo)>>>1
+				if cmp(array[mid], item) < 0
+					lo = mid + 1
+				else
+					hi = mid
+			return lo
+			"""
 			for i in [0...array.length] by 1 # should use a binary search for large N
 				if cmp(array[i], item) > 0
 					return i
 			return array.length
+			"""
 	sortBy: (iterator) ->
 		a = $()
 		for item in @

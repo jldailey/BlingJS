@@ -2628,7 +2628,7 @@
     return {
       $: {
         sortedIndex: function(array, item, iterator) {
-          var cmp, i, _i, _ref;
+          var cmp, hi, lo, mid;
           cmp = (function() {
             switch ($.type(iterator)) {
               case "string":
@@ -2645,12 +2645,18 @@
                 };
             }
           })();
-          for (i = _i = 0, _ref = array.length; _i < _ref; i = _i += 1) {
-            if (cmp(array[i], item) > 0) {
-              return i;
+          hi = array.length;
+          lo = 0;
+          while (lo < hi) {
+            mid = (hi + lo) >>> 1;
+            if (cmp(array[mid], item) < 0) {
+              lo = mid + 1;
+            } else {
+              hi = mid;
             }
           }
-          return array.length;
+          return lo;
+          return "for i in [0...array.length] by 1 # should use a binary search for large N\n	if cmp(array[i], item) > 0\n		return i\nreturn array.length";
         }
       },
       sortBy: function(iterator) {

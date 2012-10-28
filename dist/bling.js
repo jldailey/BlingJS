@@ -2662,6 +2662,10 @@
           a.splice(n, 0, item);
         }
         return a;
+      },
+      sortedInsert: function(item, iterator) {
+        this.splice($.sortedIndex(this, item, iterator), 0, item);
+        return this;
       }
     };
   });

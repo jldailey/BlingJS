@@ -1147,6 +1147,9 @@ $.plugin
 			n = $.sortedIndex a, item, iterator
 			a.splice n, 0, item
 		a
+	sortedInsert: (item, iterator) ->
+		@splice ($.sortedIndex @, item, iterator), 0, item
+		@
 		
 $.plugin
 	provides: "string"

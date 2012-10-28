@@ -905,6 +905,14 @@ describe "Bling", ->
 			b = a.sortBy()
 			assert.deepEqual b, [1,2,3]
 			assert a isnt b
+	
+	describe ".sortedInsert(item,iterator)", ->
+		it "inserts in sorted order", ->
+			assert.deepEqual $(1,2,4).sortedInsert(3), [1,2,3,4]
+		it "can be chained", ->
+			assert.deepEqual $().sortedInsert(3).sortedInsert(1).sortedInsert(2), [1,2,3]
+		it "works on fields", ->
+			assert.deepEqual $().sortedInsert({x:1,y:2}, 'y').sortedInsert({x:2,y:1}, 'y'), [{x:2,y:1},{x:1,y:2}]
 
 ###
 

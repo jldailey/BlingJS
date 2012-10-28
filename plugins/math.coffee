@@ -61,12 +61,19 @@ $.plugin
 	# Get a new set, scaled by a real factor.
 	scale: (r) -> @map -> r * @
 	# Add this to d, get a new set.
-	add: (d) -> switch $.type(d)
+	add: add = (d) -> switch $.type(d)
 		when "number" then @map -> d + @
 		when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)] )
+	plus: add
 	# Compute the dot-product.
 	dot: (b) ->
 		$.sum( @[i]*b[i] for i in [0...Math.min(@length,b.length)] )
+	# A specialized vector addition, for when speed matters.
+	vecAdd: (v) ->
+		d = $()
+		for i in [0...@length] by 1
+			d[i] = @[i] + v[i]
+		d
 	# Get a new vector with same direction, but magnitude equal to 1.
 	normalize: -> @scale 1 / @magnitude()
 	deg2rad: -> @filter( isFinite ).map -> @ * Math.PI / 180

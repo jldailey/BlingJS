@@ -444,6 +444,21 @@ describe "Bling", ->
 			assert.notEqual a,b
 		it "containing the results of f(each item)", ->
 			assert.deepEqual $([1,2,3]).map(->@*@), [1,4,9]
+	
+	describe ".filterMap(f)", ->
+		it "works like map, but can omit some results", ->
+			assert.deepEqual $(1,2,3,4).filterMap(->
+				if @ % 2 then @*@
+				else null
+			), [1, 9]
+	
+	describe ".replaceWith", ->
+		it "copies values from array to this", ->
+			assert.deepEqual $(1,2,3,4).replaceWith([5,6,7,8]), [5,6,7,8]
+		it "does not create a new Bling", ->
+			d = $(1,2,3,4)
+			e = d.replaceWith([5,6,7])
+			assert.deepEqual d, [5,6,7,4]
 
 	describe ".coalesce()", ->
 		it "should return the first non-null item", ->
@@ -824,17 +839,37 @@ describe "Bling", ->
 
 	describe ".index(keyMaker)", ->
 		keyMaker = (obj) -> obj.a
-		it "should work", ->
+		it "creates a private index", ->
 			$([{a:1,b:2}, {a:2,b:3}]).index keyMaker
-		it "cannot query before index", ->
+		it "cannot query until index has been built", ->
 			assert.equal $([1,2,3]).query(a:1), null
-		it "can query after indexing", ->
+		it "can .query() after indexing", ->
 			a = $([{a:1,b:'b'},{a:2},{a:3}]).index keyMaker
 			assert.equal a.query(a:1).b, 'b'
 		it "can use compound keys", ->
 			compoundKeyMaker = (obj) -> obj.a + "-" + obj.b
 			a = $([{a:1,b:'b'},{a:2,b:1},{a:3,b:2,c:'c'}]).index compoundKeyMaker
 			assert.equal a.query(a:3,b:2).c, 'c'
+		describe "using more than one key maker", ->
+			keyMakerOne = (obj) -> obj.a
+			keyMakerTwo = (obj) -> obj.b
+			keyMakerThree = (obj) -> obj.a + '-' + obj.b
+			a = $([{a:1,b:'b'},{a:2,b:1},{a:3,b:2,c:'c'}])
+			it "wont hurt if you re-index by the same keyMaker", ->
+				a.index keyMakerOne
+				a.index keyMakerOne
+				assert.equal a.query(a:3).b, 2
+			it "will allow querying against a second keyMaker", ->
+				a.index keyMakerTwo
+				assert.equal a.query(a:3).b, 2
+				assert.equal a.query(b:2).a, 3
+			it "will allow querying against N keyMakers", ->
+				a.index keyMakerOne
+				a.index keyMakerTwo
+				a.index keyMakerThree
+				assert.equal a.query(a:3).b, 2
+				assert.equal a.query(b:'b').a, 1
+				assert.equal a.query({a:3,b:2}).c, 'c'
 	
 	describe ".groupBy(key)", ->
 		objs = $([
@@ -883,7 +918,7 @@ describe "Bling", ->
 					{ name: undefined, sum: 6, k:undefined }
 				]
 	
-	describe "$.sortedIndex", ->
+	describe "$.sortedIndex()", ->
 		it "returns the index to insert at", ->
 			assert.equal $.sortedIndex([1,2,4], 3), 2
 		it "will insert at end", ->

@@ -45,7 +45,23 @@ $.plugin
 
 		# Get a new set with the results of calling a function of every
 		# item in _this_.
-		map: (f) -> $(f.call(t,t) for t in @)
+		map: (f) ->
+			b = $()
+			for t in @
+				b.push f.call t,t
+			b
+
+		filterMap: (f) ->
+			b = $()
+			for t in @
+				v = f.call t,t
+				if v?
+					b.push v
+			b
+
+		replaceWith: (array) ->
+			for i in [0...array.length] by 1
+				@[i] = array[i]
 
 		# Reduce _this_ to a single value, accumulating in _a_.
 		# Example: `(a,x) -> a+x` == `(a) -> a+@`.
@@ -75,7 +91,7 @@ $.plugin
 		# Get the first non-null item in _this_.
 		coalesce: ->
 			for i in @
-				if $.type(i) in ["array","bling"] then i = $(i).coalesce()
+				if $.is('array',i) or $.is('bling',i) then i = $(i).coalesce()
 				if i? then return i
 			null
 		# Swap item i with item j, in-place.
@@ -244,7 +260,9 @@ $.plugin
 
 		# Apply every function in _this_ to _context_ with _args_.
 		apply: (context, args) ->
-			@filter(-> $.is "function", @).map -> @apply(context, args)
+			@filterMap ->
+				if $.is 'function', @ then @apply(context, args)
+				else null
 
 		# Log one line for each item in _this_.
 		log: (label) ->

@@ -1,16 +1,18 @@
 $.depends 'hook', ->
 	$.hook('bling-init').append (obj) ->
-		map = {}
-		keyMaker = null
+		map = Object.create(null)
+		keyMakers = []
 		$.inherit {
 			index: (keyFunc) ->
-				keyMaker = keyFunc
+				if keyMakers.indexOf(keyFunc) is -1
+					keyMakers.push keyFunc
+					map[keyFunc] = Object.create(null)
 				@each (x) ->
-					map[keyFunc(x)] = x
+					map[keyFunc][keyFunc(x)] = x
 			query: (criteria) ->
-				if $.is 'function', keyMaker
+				for keyMaker in keyMakers
 					key = keyMaker(criteria)
-					return map[key] if key of map
+					return map[keyMaker][key] if key of map[keyMaker]
 				null
 		}, obj
 

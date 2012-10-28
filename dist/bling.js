@@ -346,16 +346,33 @@
         return this;
       },
       map: function(f) {
-        var t;
-        return $((function() {
-          var _i, _len, _results;
-          _results = [];
-          for (_i = 0, _len = this.length; _i < _len; _i++) {
-            t = this[_i];
-            _results.push(f.call(t, t));
+        var b, t, _i, _len;
+        b = $();
+        for (_i = 0, _len = this.length; _i < _len; _i++) {
+          t = this[_i];
+          b.push(f.call(t, t));
+        }
+        return b;
+      },
+      filterMap: function(f) {
+        var b, t, v, _i, _len;
+        b = $();
+        for (_i = 0, _len = this.length; _i < _len; _i++) {
+          t = this[_i];
+          v = f.call(t, t);
+          if (v != null) {
+            b.push(v);
           }
-          return _results;
-        }).call(this));
+        }
+        return b;
+      },
+      replaceWith: function(array) {
+        var i, _i, _ref, _results;
+        _results = [];
+        for (i = _i = 0, _ref = array.length; _i < _ref; i = _i += 1) {
+          _results.push(this[i] = array[i]);
+        }
+        return _results;
       },
       reduce: function(f, a) {
         var i, n, x, _i;
@@ -444,10 +461,10 @@
         }).call(this)).sum();
       },
       coalesce: function() {
-        var i, _i, _len, _ref;
+        var i, _i, _len;
         for (_i = 0, _len = this.length; _i < _len; _i++) {
           i = this[_i];
-          if ((_ref = $.type(i)) === "array" || _ref === "bling") {
+          if ($.is('array', i) || $.is('bling', i)) {
             i = $(i).coalesce();
           }
           if (i != null) {
@@ -703,10 +720,12 @@
         return this.apply(null, arguments);
       },
       apply: function(context, args) {
-        return this.filter(function() {
-          return $.is("function", this);
-        }).map(function() {
-          return this.apply(context, args);
+        return this.filterMap(function() {
+          if ($.is('function', this)) {
+            return this.apply(context, args);
+          } else {
+            return null;
+          }
         });
       },
       log: function(label) {
@@ -2176,22 +2195,26 @@
 
   $.depends('hook', function() {
     return $.hook('bling-init').append(function(obj) {
-      var keyMaker, map;
-      map = {};
-      keyMaker = null;
+      var keyMakers, map;
+      map = Object.create(null);
+      keyMakers = [];
       return $.inherit({
         index: function(keyFunc) {
-          keyMaker = keyFunc;
+          if (keyMakers.indexOf(keyFunc) === -1) {
+            keyMakers.push(keyFunc);
+            map[keyFunc] = Object.create(null);
+          }
           return this.each(function(x) {
-            return map[keyFunc(x)] = x;
+            return map[keyFunc][keyFunc(x)] = x;
           });
         },
         query: function(criteria) {
-          var key;
-          if ($.is('function', keyMaker)) {
+          var key, keyMaker, _i, _len;
+          for (_i = 0, _len = keyMakers.length; _i < _len; _i++) {
+            keyMaker = keyMakers[_i];
             key = keyMaker(criteria);
-            if (key in map) {
-              return map[key];
+            if (key in map[keyMaker]) {
+              return map[keyMaker][key];
             }
           }
           return null;
@@ -2229,7 +2252,7 @@
     provides: "math",
     depends: "core"
   }, function() {
-    var mean, _By;
+    var add, mean, _By;
     $.type.extend({
       bool: {
         number: function(o) {
@@ -2381,7 +2404,7 @@
           return r * this;
         });
       },
-      add: function(d) {
+      add: add = function(d) {
         var i;
         switch ($.type(d)) {
           case "number":
@@ -2400,6 +2423,7 @@
             }).call(this));
         }
       },
+      plus: add,
       dot: function(b) {
         var i;
         return $.sum((function() {
@@ -2410,6 +2434,14 @@
           }
           return _results;
         }).call(this));
+      },
+      vecAdd: function(v) {
+        var d, i, _i, _ref;
+        d = $();
+        for (i = _i = 0, _ref = this.length; _i < _ref; i = _i += 1) {
+          d[i] = this[i] + v[i];
+        }
+        return d;
       },
       normalize: function() {
         return this.scale(1 / this.magnitude());
@@ -2656,7 +2688,6 @@
             }
           }
           return lo;
-          return "for i in [0...array.length] by 1 # should use a binary search for large N\n	if cmp(array[i], item) > 0\n		return i\nreturn array.length";
         }
       },
       sortBy: function(iterator) {

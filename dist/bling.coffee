@@ -139,7 +139,21 @@ $.plugin
 				return try o[k] catch err then err
 		eq: (i) -> $([@[index i, @]])
 		each: (f) -> (f.call(t,t) for t in @); @
-		map: (f) -> $(f.call(t,t) for t in @)
+		map: (f) ->
+			b = $()
+			for t in @
+				b.push f.call t,t
+			b
+		filterMap: (f) ->
+			b = $()
+			for t in @
+				v = f.call t,t
+				if v?
+					b.push v
+			b
+		replaceWith: (array) ->
+			for i in [0...array.length] by 1
+				@[i] = array[i]
 		reduce: (f, a) ->
 			i = 0; n = @length
 			a = @[i++] if not a?
@@ -156,7 +170,7 @@ $.plugin
 		count: (item, strict = true) -> $(1 for t in @ when (item is undefined) or (strict and t is item) or (not strict and `t == item`)).sum()
 		coalesce: ->
 			for i in @
-				if $.type(i) in ["array","bling"] then i = $(i).coalesce()
+				if $.is('array',i) or $.is('bling',i) then i = $(i).coalesce()
 				if i? then return i
 			null
 		swap: (i,j) ->
@@ -240,7 +254,9 @@ $.plugin
 			b
 		call: -> @apply(null, arguments)
 		apply: (context, args) ->
-			@filter(-> $.is "function", @).map -> @apply(context, args)
+			@filterMap ->
+				if $.is 'function', @ then @apply(context, args)
+				else null
 		log: (label) ->
 			if label
 				$.log(label, @toString(), @length + " items")
@@ -953,17 +969,19 @@ $.plugin
 	}
 $.depends 'hook', ->
 	$.hook('bling-init').append (obj) ->
-		map = {}
-		keyMaker = null
+		map = Object.create(null)
+		keyMakers = []
 		$.inherit {
 			index: (keyFunc) ->
-				keyMaker = keyFunc
+				if keyMakers.indexOf(keyFunc) is -1
+					keyMakers.push keyFunc
+					map[keyFunc] = Object.create(null)
 				@each (x) ->
-					map[keyFunc(x)] = x
+					map[keyFunc][keyFunc(x)] = x
 			query: (criteria) ->
-				if $.is 'function', keyMaker
+				for keyMaker in keyMakers
 					key = keyMaker(criteria)
-					return map[key] if key of map
+					return map[keyMaker][key] if key of map[keyMaker]
 				null
 		}, obj
 $.plugin
@@ -1019,11 +1037,17 @@ $.plugin
 	pow: (n) -> @map -> Math.pow @, n
 	magnitude: -> Math.sqrt @floats().squares().sum()
 	scale: (r) -> @map -> r * @
-	add: (d) -> switch $.type(d)
+	add: add = (d) -> switch $.type(d)
 		when "number" then @map -> d + @
 		when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)] )
+	plus: add
 	dot: (b) ->
 		$.sum( @[i]*b[i] for i in [0...Math.min(@length,b.length)] )
+	vecAdd: (v) ->
+		d = $()
+		for i in [0...@length] by 1
+			d[i] = @[i] + v[i]
+		d
 	normalize: -> @scale 1 / @magnitude()
 	deg2rad: -> @filter( isFinite ).map -> @ * Math.PI / 180
 	rad2deg: -> @filter( isFinite ).map -> @ * 180 / Math.PI
@@ -1146,12 +1170,6 @@ $.plugin
 				else
 					hi = mid
 			return lo
-			"""
-			for i in [0...array.length] by 1 # should use a binary search for large N
-				if cmp(array[i], item) > 0
-					return i
-			return array.length
-			"""
 	sortBy: (iterator) ->
 		a = $()
 		for item in @

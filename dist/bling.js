@@ -248,15 +248,19 @@
     provides: 'config',
     depends: 'type'
   }, function() {
-    var get;
+    var get, set;
     get = function(name, def) {
       var _ref;
       return (_ref = process.env[name]) != null ? _ref : def;
     };
+    set = function(name, val) {
+      return process.env[name] = val;
+    };
     return {
       $: {
         config: $.extend(get, {
-          get: get
+          get: get,
+          set: set
         })
       }
     };

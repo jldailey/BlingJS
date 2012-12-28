@@ -234,13 +234,19 @@ $.plugin
 			$( @[i] for i in [start...end] )
 		extend: (b) -> @.push(i) for i in b; @
 		push: (b) -> Array::push.call(@, b); @
-		filter: (f) ->
+		filter: (f, limit=@length) ->
 			g = switch $.type f
 				when "string" then (x) -> x.matchesSelector(f)
 				when "regexp" then (x) -> f.test(x)
 				when "function" then f
-				else throw new Error "unsupported argument to filter: #{$.type(f)}"
-			$( it for it in @ when g.call(it,it) )
+				else throw new Error "unsupported argument to filter: #{$.type f}"
+			a = $()
+			for it in @
+				if g.call(it,it)
+					if --limit < 0
+						break
+					a.push it
+			a
 		matches: (expr) ->
 			switch $.type expr
 				when "string" then @select('matchesSelector').call(expr)
@@ -821,9 +827,6 @@ $.plugin
 			else
 				r = (a...) -> f.apply t, (args if args.length else a)
 			$.extend r, { toString: -> "bound-method of #{t}.#{f.name}" }
-		memoize: (f) ->
-			cache = {}
-			(a...) -> cache[$.hash a] ?= f.apply @, a # BUG: skips cache if f returns null on purpose
 		E: (callback) -> (f) -> (err, data) ->
 			return f(data) unless err
 			callback err, data
@@ -1041,6 +1044,10 @@ $.plugin
 		when "number" then @map -> d + @
 		when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)] )
 	plus: add
+	minus: minus = (d) -> switch $.type d
+		when "number" then @map -> @ - d
+		when "bling","array" then $( @[i]-d[i] for i in [0...Math.min @length, d.length])
+	sub: minus
 	vecAdd: (v) ->
 		d = $()
 		for i in [0...@length] by 1
@@ -1049,6 +1056,21 @@ $.plugin
 	normalize: -> @scale 1 / @magnitude()
 	deg2rad: -> @filter( isFinite ).map -> @ * Math.PI / 180
 	rad2deg: -> @filter( isFinite ).map -> @ * 180 / Math.PI
+$.plugin
+	depends: 'function'
+	provides: 'memoize'
+, ->
+	$:
+		memoize: (opts) ->
+			if $.is 'function', opts
+				opts = f: opts
+			if not $.is 'object', opts
+				throw new Error "Argument Error: memoize requires either a function or object as first argument"
+			opts.cache or= Object.create(null)
+			opts.hash or= $.identity
+			return ->
+				opts.cache[opts.hash(arguments)] ?= opts.f.apply @, arguments
+	
 $.plugin
 	provides: "pubsub"
 , ->
@@ -1169,6 +1191,9 @@ $.plugin
 			n = $.sortedIndex a, item, iterator
 			a.splice n, 0, item
 		a
+	sortedInsert: (item, iterator) ->
+		@splice ($.sortedIndex @, item, iterator), 0, item
+		@
 		
 $.plugin
 	provides: "string"

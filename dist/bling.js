@@ -682,8 +682,11 @@
         Array.prototype.push.call(this, b);
         return this;
       },
-      filter: function(f) {
-        var g, it;
+      filter: function(f, limit) {
+        var a, g, it, _i, _len;
+        if (limit == null) {
+          limit = this.length;
+        }
         g = (function() {
           switch ($.type(f)) {
             case "string":
@@ -700,17 +703,17 @@
               throw new Error("unsupported argument to filter: " + ($.type(f)));
           }
         })();
-        return $((function() {
-          var _i, _len, _results;
-          _results = [];
-          for (_i = 0, _len = this.length; _i < _len; _i++) {
-            it = this[_i];
-            if (g.call(it, it)) {
-              _results.push(it);
+        a = $();
+        for (_i = 0, _len = this.length; _i < _len; _i++) {
+          it = this[_i];
+          if (g.call(it, it)) {
+            if (--limit < 0) {
+              break;
             }
+            a.push(it);
           }
-          return _results;
-        }).call(this));
+        }
+        return a;
       },
       matches: function(expr) {
         switch ($.type(expr)) {
@@ -1894,15 +1897,6 @@
             }
           });
         },
-        memoize: function(f) {
-          var cache;
-          cache = {};
-          return function() {
-            var a, _name, _ref;
-            a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-            return (_ref = cache[_name = $.hash(a)]) != null ? _ref : cache[_name] = f.apply(this, a);
-          };
-        },
         E: function(callback) {
           return function(f) {
             return function(err, data) {
@@ -2252,7 +2246,7 @@
     provides: "math",
     depends: "core"
   }, function() {
-    var add, mean, _By;
+    var add, mean, minus, _By;
     $.type.extend({
       bool: {
         number: function(o) {
@@ -2424,6 +2418,26 @@
         }
       },
       plus: add,
+      minus: minus = function(d) {
+        var i;
+        switch ($.type(d)) {
+          case "number":
+            return this.map(function() {
+              return this - d;
+            });
+          case "bling":
+          case "array":
+            return $((function() {
+              var _i, _ref, _results;
+              _results = [];
+              for (i = _i = 0, _ref = Math.min(this.length, d.length); 0 <= _ref ? _i < _ref : _i > _ref; i = 0 <= _ref ? ++_i : --_i) {
+                _results.push(this[i] - d[i]);
+              }
+              return _results;
+            }).call(this));
+        }
+      },
+      sub: minus,
       vecAdd: function(v) {
         var d, i, _i, _ref;
         d = $();
@@ -2444,6 +2458,32 @@
         return this.filter(isFinite).map(function() {
           return this * 180 / Math.PI;
         });
+      }
+    };
+  });
+
+  $.plugin({
+    depends: 'function',
+    provides: 'memoize'
+  }, function() {
+    return {
+      $: {
+        memoize: function(opts) {
+          if ($.is('function', opts)) {
+            opts = {
+              f: opts
+            };
+          }
+          if (!$.is('object', opts)) {
+            throw new Error("Argument Error: memoize requires either a function or object as first argument");
+          }
+          opts.cache || (opts.cache = Object.create(null));
+          opts.hash || (opts.hash = $.identity);
+          return function() {
+            var _base, _name, _ref;
+            return (_ref = (_base = opts.cache)[_name = opts.hash(arguments)]) != null ? _ref : _base[_name] = opts.f.apply(this, arguments);
+          };
+        }
       }
     };
   });
@@ -2683,6 +2723,10 @@
           a.splice(n, 0, item);
         }
         return a;
+      },
+      sortedInsert: function(item, iterator) {
+        this.splice($.sortedIndex(this, item, iterator), 0, item);
+        return this;
       }
     };
   });

@@ -57,7 +57,7 @@ describe "Bling", ->
 		assert.deepEqual $([1,2,3]), [1,2,3]
 	it "can be created from multiple arguments", ->
 		assert.deepEqual $(1,2,3), [1,2,3]
-	it "can be created from DOM nodes", ->
+	it "can be created from CSS selector", ->
 		assert.equal $("td").length, 8
 
 	describe ".type()", ->
@@ -318,6 +318,10 @@ describe "Bling", ->
 		it "should ignore non-numbers", -> assert.equal( $([12.1, NaN, 29.9]).max(), 29.9)
 		it "should return Infinity for an empty set?"
 	
+	describe ".dot()", ->
+		it "computes the dot-product", ->
+			assert.equal( $([1,2,3]).dot([4,5,6]), 4 + 10 + 18)
+
 	describe ".maxBy()", ->
 		it "should return the largest item", ->
 			assert.deepEqual $( {a:1}, {a:3}, {a:2} ).maxBy('a'), a:3
@@ -950,6 +954,14 @@ describe "Bling", ->
 			b = a.sortBy()
 			assert.deepEqual b, [1,2,3]
 			assert a isnt b
+	
+	describe ".sortedInsert(item,iterator)", ->
+		it "inserts in sorted order", ->
+			assert.deepEqual $(1,2,4).sortedInsert(3), [1,2,3,4]
+		it "can be chained", ->
+			assert.deepEqual $().sortedInsert(3).sortedInsert(1).sortedInsert(2), [1,2,3]
+		it "works on fields", ->
+			assert.deepEqual $().sortedInsert({x:1,y:2}, 'y').sortedInsert({x:2,y:1}, 'y'), [{x:2,y:1},{x:1,y:2}]
 
 ###
 

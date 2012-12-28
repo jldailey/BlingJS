@@ -65,10 +65,14 @@ $.plugin
 		when "number" then @map -> d + @
 		when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)] )
 	plus: add
+	# Vector substraction
 	minus: minus = (d) -> switch $.type d
 		when "number" then @map -> @ - d
 		when "bling","array" then $( @[i]-d[i] for i in [0...Math.min @length, d.length])
 	sub: minus
+	# Compute the dot-product.
+	dot: (b) ->
+		$.sum( @[i]*b[i] for i in [0...Math.min(@length,b.length)] )
 	# A specialized vector addition, for when speed matters.
 	vecAdd: (v) ->
 		d = $()

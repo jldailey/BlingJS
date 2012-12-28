@@ -124,7 +124,8 @@ $.plugin
 	depends: 'type'
 , ->
 	get = (name, def) -> process.env[name] ? def
-	$: config: $.extend(get, get: get)
+	set = (name, val) -> process.env[name] = val
+	$: config: $.extend(get, {get: get, set: set})
 $.plugin
 	provides: "core"
 	depends: "string"
@@ -1048,6 +1049,8 @@ $.plugin
 		when "number" then @map -> @ - d
 		when "bling","array" then $( @[i]-d[i] for i in [0...Math.min @length, d.length])
 	sub: minus
+	dot: (b) ->
+		$.sum( @[i]*b[i] for i in [0...Math.min(@length,b.length)] )
 	vecAdd: (v) ->
 		d = $()
 		for i in [0...@length] by 1
@@ -1158,19 +1161,29 @@ $.plugin
 		nodemailer = require 'nodemailer'
 	catch err
 		`return`
-	transport = nodemailer.createTransport 'SMTP',
-		service: 'SendGrid'
-		auth:
-			user: $.config.get 'SENDGRID_USERNAME'
-			pass: $.config.get 'SENDGRID_PASSWORD' # this should be set manually by 'heroku config:add SENDGRID_PASSWORD=xyz123'
+	transport = null
+	openTransport = ->
+		transport or= nodemailer.createTransport 'SMTP',
+			service: 'SendGrid'
+			auth:
+				user: $.config.get 'SENDGRID_USERNAME'
+				pass: $.config.get 'SENDGRID_PASSWORD' # this should be set manually by 'heroku config:add SENDGRID_PASSWORD=xyz123'
+	closeTransport = ->
+		transport?.close()
+		transport = null
 	$:
 		sendMail: (mail, callback) ->
-			mail.transport ?= transport
+			mail.transport ?= openTransport()
 			mail.from ?= $.config.get 'EMAILS_FROM'
 			mail.bcc ?= $.config.get 'EMAILS_BCC'
 			if $.config.get('SENDGRID_ENABLED', 'true') is 'true'
-				nodemailer.sendMail mail, callback
+				nodemailer.sendMail mail, (err) ->
+					if mail.close
+						closeTransport()
+					callback(err)
 			else
+				if mail.close
+					closeTransport()
 				callback(false) # Reply as if an email was sent
 $.plugin
 	provides: "sortBy,sortedIndex"
@@ -1181,10 +1194,15 @@ $.plugin
 				when "string" then (a,b) -> a[iterator] - b[iterator]
 				when "function" then (a,b) -> iterator(a) - iterator(b)
 				else (a,b) -> a - b
-			for i in [0...array.length] by 1 # should use a binary search for large N
-				if cmp(array[i], item) > 0
-					return i
-			return array.length
+			hi = array.length
+			lo = 0
+			while lo < hi
+				mid = (hi + lo)>>>1
+				if cmp(array[mid], item) < 0
+					lo = mid + 1
+				else
+					hi = mid
+			return lo
 	sortBy: (iterator) ->
 		a = $()
 		for item in @

@@ -300,15 +300,19 @@
     provides: 'config',
     depends: 'type'
   }, function() {
-    var get;
+    var get, set;
     get = function(name, def) {
       var _ref;
       return (_ref = process.env[name]) != null ? _ref : def;
     };
+    set = function(name, val) {
+      return process.env[name] = val;
+    };
     return {
       $: {
         config: $.extend(get, {
-          get: get
+          get: get,
+          set: set
         })
       }
     };
@@ -2438,6 +2442,17 @@
         }
       },
       sub: minus,
+      dot: function(b) {
+        var i;
+        return $.sum((function() {
+          var _i, _ref, _results;
+          _results = [];
+          for (i = _i = 0, _ref = Math.min(this.length, b.length); 0 <= _ref ? _i < _ref : _i > _ref; i = 0 <= _ref ? ++_i : --_i) {
+            _results.push(this[i] * b[i]);
+          }
+          return _results;
+        }).call(this));
+      },
       vecAdd: function(v) {
         var d, i, _i, _ref;
         d = $();
@@ -2646,26 +2661,35 @@
     provides: "sendgrid",
     depends: "config"
   }, function() {
-    var nodemailer, transport;
+    var closeTransport, nodemailer, openTransport, transport;
     try {
       nodemailer = require('nodemailer');
     } catch (err) {
       return;
 
     }
-    transport = nodemailer.createTransport('SMTP', {
-      service: 'SendGrid',
-      auth: {
-        user: $.config.get('SENDGRID_USERNAME'),
-        pass: $.config.get('SENDGRID_PASSWORD')
+    transport = null;
+    openTransport = function() {
+      return transport || (transport = nodemailer.createTransport('SMTP', {
+        service: 'SendGrid',
+        auth: {
+          user: $.config.get('SENDGRID_USERNAME'),
+          pass: $.config.get('SENDGRID_PASSWORD')
+        }
+      }));
+    };
+    closeTransport = function() {
+      if (transport != null) {
+        transport.close();
       }
-    });
+      return transport = null;
+    };
     return {
       $: {
         sendMail: function(mail, callback) {
           var _ref, _ref1, _ref2;
           if ((_ref = mail.transport) == null) {
-            mail.transport = transport;
+            mail.transport = openTransport();
           }
           if ((_ref1 = mail.from) == null) {
             mail.from = $.config.get('EMAILS_FROM');
@@ -2674,8 +2698,16 @@
             mail.bcc = $.config.get('EMAILS_BCC');
           }
           if ($.config.get('SENDGRID_ENABLED', 'true') === 'true') {
-            return nodemailer.sendMail(mail, callback);
+            return nodemailer.sendMail(mail, function(err) {
+              if (mail.close) {
+                closeTransport();
+              }
+              return callback(err);
+            });
           } else {
+            if (mail.close) {
+              closeTransport();
+            }
             return callback(false);
           }
         }
@@ -2689,7 +2721,7 @@
     return {
       $: {
         sortedIndex: function(array, item, iterator) {
-          var cmp, i, _i, _ref;
+          var cmp, hi, lo, mid;
           cmp = (function() {
             switch ($.type(iterator)) {
               case "string":
@@ -2706,12 +2738,17 @@
                 };
             }
           })();
-          for (i = _i = 0, _ref = array.length; _i < _ref; i = _i += 1) {
-            if (cmp(array[i], item) > 0) {
-              return i;
+          hi = array.length;
+          lo = 0;
+          while (lo < hi) {
+            mid = (hi + lo) >>> 1;
+            if (cmp(array[mid], item) < 0) {
+              lo = mid + 1;
+            } else {
+              hi = mid;
             }
           }
-          return array.length;
+          return lo;
         }
       },
       sortBy: function(iterator) {

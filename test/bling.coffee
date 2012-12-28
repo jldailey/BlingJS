@@ -353,6 +353,17 @@ describe "Bling", ->
 			assert.deepEqual $(2,4,6).add([3,5,9]), [5,9,15]
 		it "truncates the longer vector if mis-sized", ->
 			assert.deepEqual $(2,4,6,8).add([3,5,9]), [5,9,15]
+		it "is also known as .plus()", ->
+			assert.deepEqual $(2,4,6).plus(2), [4,6,8]
+	describe ".sub(n)", ->
+		it "does vector addition (with a scalar)", ->
+			assert.deepEqual $(2,4,6).sub(2), [0,2,4]
+		it "adds two vectors", ->
+			assert.deepEqual $(2,4,6).sub([3,5,9]), [-1,-1,-3]
+		it "truncates the longer vector if mis-sized", ->
+			assert.deepEqual $(2,4,6,8).sub([3,5,9]), [-1,-1,-3]
+		it "is also known as .minus()", ->
+			assert.deepEqual $(2,4,6).minus(2), [0,2,4]
 	
 	describe ".normalize()", ->
 		it "scales so that .magnitude() is 1", -> assert.equal $(2,4,6).normalize().magnitude(), 1
@@ -573,6 +584,9 @@ describe "Bling", ->
 		it "can chain DOM filters", -> assert.equal $("*").filter("td").filter(".d").length, 1
 		it "filters might remove all nodes", -> assert.equal $("*").filter("td").filter(".none").length, 0
 		it "filters DOM nodes by CSS selector", -> assert.deepEqual $("*").filter("td").length, 8
+		it "supports an optional limit", -> assert.deepEqual $(["foo","bar","baz"]).filter(/^b/, 0), []
+		it "supports an optional limit", -> assert.deepEqual $(["foo","bar","baz"]).filter(/^b/, 1), ["bar"]
+		it "supports an optional limit", -> assert.deepEqual $(["foo","bar","baz"]).filter(/^b/, 2), ["bar","baz"]
 
 	describe ".matches()", ->
 		describe "supports", ->

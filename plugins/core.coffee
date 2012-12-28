@@ -191,7 +191,7 @@ $.plugin
 
 		# Get a new set containing only items that match _f_. _f_ can be
 		# any of:
-		filter: (f) ->
+		filter: (f, limit=@length) ->
 			# The argument _f_ can be any of:
 			g = switch $.type f
 				# * selector string: `.filter("td.selected")`
@@ -200,8 +200,14 @@ $.plugin
 				when "regexp" then (x) -> f.test(x)
 				# * function: `.filter (x) -> (x%2) is 1`
 				when "function" then f
-				else throw new Error "unsupported argument to filter: #{$.type(f)}"
-			$( it for it in @ when g.call(it,it) )
+				else throw new Error "unsupported argument to filter: #{$.type f}"
+			a = $()
+			for it in @
+				if g.call(it,it)
+					if --limit < 0
+						break
+					a.push it
+			a
 
 		# Get a new set of booleans, true if the node from _this_
 		# matched the CSS expression.

@@ -300,15 +300,19 @@
     provides: 'config',
     depends: 'type'
   }, function() {
-    var get;
+    var get, set;
     get = function(name, def) {
       var _ref;
       return (_ref = process.env[name]) != null ? _ref : def;
     };
+    set = function(name, val) {
+      return process.env[name] = val;
+    };
     return {
       $: {
         config: $.extend(get, {
-          get: get
+          get: get,
+          set: set
         })
       }
     };
@@ -398,16 +402,33 @@
         return this;
       },
       map: function(f) {
-        var t;
-        return $((function() {
-          var _i, _len, _results;
-          _results = [];
-          for (_i = 0, _len = this.length; _i < _len; _i++) {
-            t = this[_i];
-            _results.push(f.call(t, t));
+        var b, t, _i, _len;
+        b = $();
+        for (_i = 0, _len = this.length; _i < _len; _i++) {
+          t = this[_i];
+          b.push(f.call(t, t));
+        }
+        return b;
+      },
+      filterMap: function(f) {
+        var b, t, v, _i, _len;
+        b = $();
+        for (_i = 0, _len = this.length; _i < _len; _i++) {
+          t = this[_i];
+          v = f.call(t, t);
+          if (v != null) {
+            b.push(v);
           }
-          return _results;
-        }).call(this));
+        }
+        return b;
+      },
+      replaceWith: function(array) {
+        var i, _i, _ref, _results;
+        _results = [];
+        for (i = _i = 0, _ref = array.length; _i < _ref; i = _i += 1) {
+          _results.push(this[i] = array[i]);
+        }
+        return _results;
       },
       reduce: function(f, a) {
         var i, n, x, _i;
@@ -496,10 +517,10 @@
         }).call(this)).sum();
       },
       coalesce: function() {
-        var i, _i, _len, _ref;
+        var i, _i, _len;
         for (_i = 0, _len = this.length; _i < _len; _i++) {
           i = this[_i];
-          if ((_ref = $.type(i)) === "array" || _ref === "bling") {
+          if ($.is('array', i) || $.is('bling', i)) {
             i = $(i).coalesce();
           }
           if (i != null) {
@@ -665,8 +686,11 @@
         Array.prototype.push.call(this, b);
         return this;
       },
-      filter: function(f) {
-        var g, it;
+      filter: function(f, limit) {
+        var a, g, it, _i, _len;
+        if (limit == null) {
+          limit = this.length;
+        }
         g = (function() {
           switch ($.type(f)) {
             case "string":
@@ -683,17 +707,17 @@
               throw new Error("unsupported argument to filter: " + ($.type(f)));
           }
         })();
-        return $((function() {
-          var _i, _len, _results;
-          _results = [];
-          for (_i = 0, _len = this.length; _i < _len; _i++) {
-            it = this[_i];
-            if (g.call(it, it)) {
-              _results.push(it);
+        a = $();
+        for (_i = 0, _len = this.length; _i < _len; _i++) {
+          it = this[_i];
+          if (g.call(it, it)) {
+            if (--limit < 0) {
+              break;
             }
+            a.push(it);
           }
-          return _results;
-        }).call(this));
+        }
+        return a;
       },
       matches: function(expr) {
         switch ($.type(expr)) {
@@ -755,10 +779,12 @@
         return this.apply(null, arguments);
       },
       apply: function(context, args) {
-        return this.filter(function() {
-          return $.is("function", this);
-        }).map(function() {
-          return this.apply(context, args);
+        return this.filterMap(function() {
+          if ($.is('function', this)) {
+            return this.apply(context, args);
+          } else {
+            return null;
+          }
         });
       },
       log: function(label) {
@@ -1875,15 +1901,6 @@
             }
           });
         },
-        memoize: function(f) {
-          var cache;
-          cache = {};
-          return function() {
-            var a, _name, _ref;
-            a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-            return (_ref = cache[_name = $.hash(a)]) != null ? _ref : cache[_name] = f.apply(this, a);
-          };
-        },
         E: function(callback) {
           return function(f) {
             return function(err, data) {
@@ -2233,7 +2250,7 @@
     provides: "math",
     depends: "core"
   }, function() {
-    var mean, _By;
+    var add, mean, sub, _By;
     $.type.extend({
       bool: {
         number: function(o) {
@@ -2385,7 +2402,7 @@
           return r * this;
         });
       },
-      add: function(d) {
+      add: add = function(d) {
         var i;
         switch ($.type(d)) {
           case "number":
@@ -2404,6 +2421,38 @@
             }).call(this));
         }
       },
+      plus: add,
+      sub: sub = function(d) {
+        var i;
+        switch ($.type(d)) {
+          case "number":
+            return this.map(function() {
+              return this - d;
+            });
+          case "bling":
+          case "array":
+            return $((function() {
+              var _i, _ref, _results;
+              _results = [];
+              for (i = _i = 0, _ref = Math.min(this.length, d.length); 0 <= _ref ? _i < _ref : _i > _ref; i = 0 <= _ref ? ++_i : --_i) {
+                _results.push(this[i] - d[i]);
+              }
+              return _results;
+            }).call(this));
+        }
+      },
+      minus: sub,
+      dot: function(b) {
+        var i;
+        return $.sum((function() {
+          var _i, _ref, _results;
+          _results = [];
+          for (i = _i = 0, _ref = Math.min(this.length, b.length); 0 <= _ref ? _i < _ref : _i > _ref; i = 0 <= _ref ? ++_i : --_i) {
+            _results.push(this[i] * b[i]);
+          }
+          return _results;
+        }).call(this));
+      },
       normalize: function() {
         return this.scale(1 / this.magnitude());
       },
@@ -2416,6 +2465,32 @@
         return this.filter(isFinite).map(function() {
           return this * 180 / Math.PI;
         });
+      }
+    };
+  });
+
+  $.plugin({
+    depends: 'function',
+    provides: 'memoize'
+  }, function() {
+    return {
+      $: {
+        memoize: function(opts) {
+          if ($.is('function', opts)) {
+            opts = {
+              f: opts
+            };
+          }
+          if (!$.is('object', opts)) {
+            throw new Error("Argument Error: memoize requires either a function or object as first argument");
+          }
+          opts.cache || (opts.cache = Object.create(null));
+          opts.hash || (opts.hash = $.identity);
+          return function() {
+            var _base, _name, _ref;
+            return (_ref = (_base = opts.cache)[_name = opts.hash(arguments)]) != null ? _ref : _base[_name] = opts.f.apply(this, arguments);
+          };
+        }
       }
     };
   });
@@ -2578,26 +2653,35 @@
     provides: "sendgrid",
     depends: "config"
   }, function() {
-    var nodemailer, transport;
+    var closeTransport, nodemailer, openTransport, transport;
     try {
       nodemailer = require('nodemailer');
     } catch (err) {
       return;
 
     }
-    transport = nodemailer.createTransport('SMTP', {
-      service: 'SendGrid',
-      auth: {
-        user: $.config.get('SENDGRID_USERNAME'),
-        pass: $.config.get('SENDGRID_PASSWORD')
+    transport = null;
+    openTransport = function() {
+      return transport || (transport = nodemailer.createTransport('SMTP', {
+        service: 'SendGrid',
+        auth: {
+          user: $.config.get('SENDGRID_USERNAME'),
+          pass: $.config.get('SENDGRID_PASSWORD')
+        }
+      }));
+    };
+    closeTransport = function() {
+      if (transport != null) {
+        transport.close();
       }
-    });
+      return transport = null;
+    };
     return {
       $: {
         sendMail: function(mail, callback) {
           var _ref, _ref1, _ref2;
           if ((_ref = mail.transport) == null) {
-            mail.transport = transport;
+            mail.transport = openTransport();
           }
           if ((_ref1 = mail.from) == null) {
             mail.from = $.config.get('EMAILS_FROM');
@@ -2606,8 +2690,16 @@
             mail.bcc = $.config.get('EMAILS_BCC');
           }
           if ($.config.get('SENDGRID_ENABLED', 'true') === 'true') {
-            return nodemailer.sendMail(mail, callback);
+            return nodemailer.sendMail(mail, function(err) {
+              if (mail.close) {
+                closeTransport();
+              }
+              return callback(err);
+            });
           } else {
+            if (mail.close) {
+              closeTransport();
+            }
             return callback(false);
           }
         }
@@ -2621,7 +2713,7 @@
     return {
       $: {
         sortedIndex: function(array, item, iterator) {
-          var cmp, i, _i, _ref;
+          var cmp, hi, lo, mid;
           cmp = (function() {
             switch ($.type(iterator)) {
               case "string":
@@ -2638,12 +2730,17 @@
                 };
             }
           })();
-          for (i = _i = 0, _ref = array.length; _i < _ref; i = _i += 1) {
-            if (cmp(array[i], item) > 0) {
-              return i;
+          hi = array.length;
+          lo = 0;
+          while (lo < hi) {
+            mid = (hi + lo) >>> 1;
+            if (cmp(array[mid], item) < 0) {
+              lo = mid + 1;
+            } else {
+              hi = mid;
             }
           }
-          return array.length;
+          return lo;
         }
       },
       sortBy: function(iterator) {
@@ -2655,6 +2752,10 @@
           a.splice(n, 0, item);
         }
         return a;
+      },
+      sortedInsert: function(item, iterator) {
+        this.splice($.sortedIndex(this, item, iterator), 0, item);
+        return this;
       }
     };
   });

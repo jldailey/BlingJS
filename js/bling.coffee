@@ -124,7 +124,8 @@ $.plugin
 	depends: 'type'
 , ->
 	get = (name, def) -> process.env[name] ? def
-	$: config: $.extend(get, get: get)
+	set = (name, val) -> process.env[name] = val
+	$: config: $.extend(get, {get: get, set: set})
 $.plugin
 	provides: "core"
 	depends: "string"
@@ -155,7 +156,21 @@ $.plugin
 				return try o[k] catch err then err
 		eq: (i) -> $([@[index i, @]])
 		each: (f) -> (f.call(t,t) for t in @); @
-		map: (f) -> $(f.call(t,t) for t in @)
+		map: (f) ->
+			b = $()
+			for t in @
+				b.push f.call t,t
+			b
+		filterMap: (f) ->
+			b = $()
+			for t in @
+				v = f.call t,t
+				if v?
+					b.push v
+			b
+		replaceWith: (array) ->
+			for i in [0...array.length] by 1
+				@[i] = array[i]
 		reduce: (f, a) ->
 			i = 0; n = @length
 			a = @[i++] if not a?
@@ -172,7 +187,7 @@ $.plugin
 		count: (item, strict = true) -> $(1 for t in @ when (item is undefined) or (strict and t is item) or (not strict and `t == item`)).sum()
 		coalesce: ->
 			for i in @
-				if $.type(i) in ["array","bling"] then i = $(i).coalesce()
+				if $.is('array',i) or $.is('bling',i) then i = $(i).coalesce()
 				if i? then return i
 			null
 		swap: (i,j) ->
@@ -220,13 +235,19 @@ $.plugin
 			$( @[i] for i in [start...end] )
 		extend: (b) -> @.push(i) for i in b; @
 		push: (b) -> Array::push.call(@, b); @
-		filter: (f) ->
+		filter: (f, limit=@length) ->
 			g = switch $.type f
 				when "string" then (x) -> x.matchesSelector(f)
 				when "regexp" then (x) -> f.test(x)
 				when "function" then f
-				else throw new Error "unsupported argument to filter: #{$.type(f)}"
-			$( it for it in @ when g.call(it,it) )
+				else throw new Error "unsupported argument to filter: #{$.type f}"
+			a = $()
+			for it in @
+				if g.call(it,it)
+					if --limit < 0
+						break
+					a.push it
+			a
 		matches: (expr) ->
 			switch $.type expr
 				when "string" then @select('matchesSelector').call(expr)
@@ -256,7 +277,9 @@ $.plugin
 			b
 		call: -> @apply(null, arguments)
 		apply: (context, args) ->
-			@filter(-> $.is "function", @).map -> @apply(context, args)
+			@filterMap ->
+				if $.is 'function', @ then @apply(context, args)
+				else null
 		log: (label) ->
 			if label
 				$.log(label, @toString(), @length + " items")
@@ -805,9 +828,6 @@ $.plugin
 			else
 				r = (a...) -> f.apply t, (args if args.length else a)
 			$.extend r, { toString: -> "bound-method of #{t}.#{f.name}" }
-		memoize: (f) ->
-			cache = {}
-			(a...) -> cache[$.hash a] ?= f.apply @, a # BUG: skips cache if f returns null on purpose
 		E: (callback) -> (f) -> (err, data) ->
 			return f(data) unless err
 			callback err, data
@@ -1021,12 +1041,34 @@ $.plugin
 	pow: (n) -> @map -> Math.pow @, n
 	magnitude: -> Math.sqrt @floats().squares().sum()
 	scale: (r) -> @map -> r * @
-	add: (d) -> switch $.type(d)
+	add: add = (d) -> switch $.type(d)
 		when "number" then @map -> d + @
 		when "bling","array" then $( @[i]+d[i] for i in [0...Math.min(@length,d.length)] )
+	plus: add
+	sub: sub = (d) -> switch $.type d
+		when "number" then @map -> @ - d
+		when "bling","array" then $( @[i]-d[i] for i in [0...Math.min @length, d.length])
+	minus: sub
+	dot: (b) ->
+		$.sum( @[i]*b[i] for i in [0...Math.min(@length,b.length)] )
 	normalize: -> @scale 1 / @magnitude()
 	deg2rad: -> @filter( isFinite ).map -> @ * Math.PI / 180
 	rad2deg: -> @filter( isFinite ).map -> @ * 180 / Math.PI
+$.plugin
+	depends: 'function'
+	provides: 'memoize'
+, ->
+	$:
+		memoize: (opts) ->
+			if $.is 'function', opts
+				opts = f: opts
+			if not $.is 'object', opts
+				throw new Error "Argument Error: memoize requires either a function or object as first argument"
+			opts.cache or= Object.create(null)
+			opts.hash or= $.identity
+			return ->
+				opts.cache[opts.hash(arguments)] ?= opts.f.apply @, arguments
+	
 $.plugin
 	provides: "pubsub"
 , ->
@@ -1114,19 +1156,29 @@ $.plugin
 		nodemailer = require 'nodemailer'
 	catch err
 		`return`
-	transport = nodemailer.createTransport 'SMTP',
-		service: 'SendGrid'
-		auth:
-			user: $.config.get 'SENDGRID_USERNAME'
-			pass: $.config.get 'SENDGRID_PASSWORD' # this should be set manually by 'heroku config:add SENDGRID_PASSWORD=xyz123'
+	transport = null
+	openTransport = ->
+		transport or= nodemailer.createTransport 'SMTP',
+			service: 'SendGrid'
+			auth:
+				user: $.config.get 'SENDGRID_USERNAME'
+				pass: $.config.get 'SENDGRID_PASSWORD' # this should be set manually by 'heroku config:add SENDGRID_PASSWORD=xyz123'
+	closeTransport = ->
+		transport?.close()
+		transport = null
 	$:
 		sendMail: (mail, callback) ->
-			mail.transport ?= transport
+			mail.transport ?= openTransport()
 			mail.from ?= $.config.get 'EMAILS_FROM'
 			mail.bcc ?= $.config.get 'EMAILS_BCC'
 			if $.config.get('SENDGRID_ENABLED', 'true') is 'true'
-				nodemailer.sendMail mail, callback
+				nodemailer.sendMail mail, (err) ->
+					if mail.close
+						closeTransport()
+					callback(err)
 			else
+				if mail.close
+					closeTransport()
 				callback(false) # Reply as if an email was sent
 $.plugin
 	provides: "sortBy,sortedIndex"
@@ -1137,16 +1189,24 @@ $.plugin
 				when "string" then (a,b) -> a[iterator] - b[iterator]
 				when "function" then (a,b) -> iterator(a) - iterator(b)
 				else (a,b) -> a - b
-			for i in [0...array.length] by 1 # should use a binary search for large N
-				if cmp(array[i], item) > 0
-					return i
-			return array.length
+			hi = array.length
+			lo = 0
+			while lo < hi
+				mid = (hi + lo)>>>1
+				if cmp(array[mid], item) < 0
+					lo = mid + 1
+				else
+					hi = mid
+			return lo
 	sortBy: (iterator) ->
 		a = $()
 		for item in @
 			n = $.sortedIndex a, item, iterator
 			a.splice n, 0, item
 		a
+	sortedInsert: (item, iterator) ->
+		@splice ($.sortedIndex @, item, iterator), 0, item
+		@
 		
 $.plugin
 	provides: "string"

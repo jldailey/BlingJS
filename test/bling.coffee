@@ -321,6 +321,19 @@ describe "Bling", ->
 	describe ".dot()", ->
 		it "computes the dot-product", ->
 			assert.equal( $([1,2,3]).dot([4,5,6]), 4 + 10 + 18)
+	
+	describe ".angle()", ->
+		it "computes the angle between vectors", ->
+			assert.equal( $(0,1,0).angle($ 1,0,0), $.deg2rad 90 )
+			assert.equal( $(1,0,0).angle($ 1,0,0), $.deg2rad 0 )
+		it "does not convert NaN to zero", ->
+			assert not isFinite $(0,0,0).angle($ 0,0,0)
+	
+	describe ".cross()", ->
+		it "computes the cross product of two vectors", ->
+			assert.deepEqual( $(0,1,0).cross($ 1,0,0), [0,0,-1] )
+		it "preserves order/direction", ->
+			assert.deepEqual( $(1,0,0).cross($ 0,1,0), [0,0,1] )
 
 	describe ".maxBy()", ->
 		it "should return the largest item", ->

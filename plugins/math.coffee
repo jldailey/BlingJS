@@ -73,6 +73,13 @@ $.plugin
 	# Compute the dot-product.
 	dot: (b) ->
 		$.sum( @[i]*b[i] for i in [0...Math.min(@length,b.length)] )
+	# Compute theta (the angle between two vectors)
+	angle: (b) -> Math.acos (@dot(b) / (@magnitude() * b.magnitude()))
+	# Compute the vector cross-product.
+	cross: (b) ->
+		$ @[1]*b[2] - @[2]*b[1],
+			@[2]*b[0] - @[0]*b[2],
+			@[0]*b[1] - @[1]*b[0]
 	# Get a new vector with same direction, but magnitude equal to 1.
 	normalize: -> @scale 1 / @magnitude()
 	deg2rad: -> @filter( isFinite ).map -> @ * Math.PI / 180

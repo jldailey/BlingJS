@@ -1051,6 +1051,11 @@ $.plugin
 	minus: sub
 	dot: (b) ->
 		$.sum( @[i]*b[i] for i in [0...Math.min(@length,b.length)] )
+	angle: (b) -> Math.acos (@dot(b) / (@magnitude() * b.magnitude()))
+	cross: (b) ->
+		$ @[1]*b[2] - @[2]*b[1],
+			@[2]*b[0] - @[0]*b[2],
+			@[0]*b[1] - @[1]*b[0]
 	normalize: -> @scale 1 / @magnitude()
 	deg2rad: -> @filter( isFinite ).map -> @ * Math.PI / 180
 	rad2deg: -> @filter( isFinite ).map -> @ * 180 / Math.PI

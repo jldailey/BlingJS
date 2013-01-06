@@ -2453,6 +2453,12 @@
           return _results;
         }).call(this));
       },
+      angle: function(b) {
+        return Math.acos(this.dot(b) / (this.magnitude() * b.magnitude()));
+      },
+      cross: function(b) {
+        return $(this[1] * b[2] - this[2] * b[1], this[2] * b[0] - this[0] * b[2], this[0] * b[1] - this[1] * b[0]);
+      },
       normalize: function() {
         return this.scale(1 / this.magnitude());
       },

@@ -97,6 +97,11 @@ describe "Bling", ->
 		it "should copy those properties", ->
 			a.b = 3
 			assert.equal b.b, 2
+		it "can extend many b's at once", ->
+			d = d: 1
+			$.extend d, { e: 2 }, { f: 3 }
+			assert.equal d.e, 2
+			assert.equal d.f, 3
 
 	describe ".defineProperty()", ->
 		describe "getters", ->

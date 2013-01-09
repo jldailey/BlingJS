@@ -423,6 +423,19 @@ describe "Bling", ->
 				assert.equal r, t
 			it "should produce different output for a new seed", ->
 				assert.notEqual r, s
+		describe ".dice()", ->
+			it "rolls multiple dice", ->
+				for i in [0...100]
+					roll = $.random.dice(2,8)
+					assert $.is 'bling', roll
+					assert.equal roll.length, 2
+					for r in roll
+						assert 1 <= r <= 8
+
+		describe ".die()", ->
+			it "rolls one die", ->
+				for i in [0...100]
+					assert 0 < $.random.die(6) < 7
 
 	describe ".hash()", ->
 		describe "hashes any type of object", ->

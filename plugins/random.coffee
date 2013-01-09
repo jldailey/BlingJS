@@ -42,19 +42,19 @@ $.plugin
 		next.seed = +new Date()
 
 		return $.extend next,
-			real: (min, max) ->
+			real: real = (min, max) ->
 				if not min?
 					[min,max] = [0,1.0]
 				if not max?
 					[min,max] = [0,min]
 				($.random() * (max - min)) + min
-			integer: (min, max) -> Math.floor $.random.real(min,max)
-			string: (len, prefix="") ->
+			integer: integer = (min, max) -> Math.floor $.random.real(min,max)
+			string: string = (len, prefix="") ->
 				prefix += $.random.element(alphabet) while prefix.length < len
 				prefix
-			coin: (balance=.5) -> $.random() <= balance
-			element: (arr) -> arr[$.random.integer(0, arr.length)]
-			gaussian: (mean=0.5, ssig=0.12) -> # paraphrased from Wikipedia
+			coin: coin = (balance=.5) -> $.random() <= balance
+			element: element = (arr) -> arr[$.random.integer(0, arr.length)]
+			gaussian: gaussian = (mean=0.5, ssig=0.12) -> # paraphrased from Wikipedia
 				while true
 					u = $.random()
 					v = 1.7156 * ($.random() - 0.5)
@@ -63,4 +63,8 @@ $.plugin
 					q = (x*x) + y*(0.19600*y-0.25472*x)
 					break unless q > 0.27597 and (q > 0.27846 or (v*v) > (-4*Math.log(u)*u*u))
 				return mean + ssig*v/u
+			dice: dice = (n, faces) -> # a 2d8 is dice(2,8)
+				$( die(faces) for _ in [0...n] by 1 )
+			die: die = (faces) ->
+				$.random.integer(1,faces+1)
 

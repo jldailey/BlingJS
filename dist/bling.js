@@ -575,7 +575,14 @@
         return this;
       },
       zap: function(p, v) {
-        var head, i, tail;
+        var head, i, k, tail;
+        if (($.is('object', p)) && !(v != null)) {
+          for (k in p) {
+            v = p[k];
+            this.zap(k, v);
+          }
+          return this;
+        }
         i = p.lastIndexOf(".");
         if (i > 0) {
           head = p.substr(0, i);

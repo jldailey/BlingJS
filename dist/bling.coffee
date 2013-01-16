@@ -209,7 +209,6 @@ $.plugin
 		)()
 		or: (x) -> @[i] or= x for i in [0...@length]; @
 		zap: (p, v) ->
-			
 			if ($.is 'object', p) and not v?
 				@zap(k,v) for k,v of p
 				return @

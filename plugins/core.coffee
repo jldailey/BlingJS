@@ -132,6 +132,11 @@ $.plugin
 			# that `select` uses. It does this by using `select`
 			# internally.
 
+			# Optionally, accepts .zap({ width: 10, height: 20 });
+			if ($.is 'object', p) and not v?
+				@zap(k,v) for k,v of p
+				return @
+
 			# Find the last "." in `p` so we can split into a head (to
 			# send to `select`) and a tail (a simple value to assign to).
 			i = p.lastIndexOf "."

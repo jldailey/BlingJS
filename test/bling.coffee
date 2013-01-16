@@ -559,6 +559,10 @@ describe "Bling", ->
 		it "supports nested property names", ->
 			assert.deepEqual $([ {sub:{id:1}}, {sub:{id:2}}, {sub:{id:3}} ]).zap('sub.id', -> @*2).select('sub.id'), [2,4,6]
 
+		it "can be given an object of key/value pairs to zap", ->
+			assert.deepEqual $( {a: 1}, {a: 2}, {a: 3} ).zap({b: 2, c: 3}),
+				[ {a:1,b:2,c:3}, {a:2,b:2,c:3}, {a:3,b:2,c:3} ]
+
 	describe ".take()", ->
 		it "take0", -> assert.deepEqual $([1,2,3,4]).take(0), []
 		it "take1", -> assert.deepEqual $([1,2,3,4]).take(1), [1]

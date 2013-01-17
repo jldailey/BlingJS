@@ -2018,9 +2018,8 @@
           }
           buckets = $();
           len = 0;
-          n = data.length;
           min = Infinity;
-          mean = Infinity;
+          mean = 0;
           max = 0;
           sum = 0;
           for (_i = 0, _len = data.length; _i < _len; _i++) {
@@ -2036,7 +2035,7 @@
             len = Math.max(len, i + 1);
           }
           buckets.length = len;
-          mean = sum / n;
+          mean = sum / data.length;
           buckets = buckets.map(function(x) {
             return x || 0;
           }).scale(buckets.max()).scale(output_width);
@@ -2049,7 +2048,7 @@
             pct_sum += pct;
             ret += $.padLeft(pct_sum.toFixed(2) + "%", 7) + $.padRight(" < " + (end.toFixed(2)), 10) + ": " + $.repeat("#", buckets[n]) + "\n";
           }
-          return ret + ("\nN: " + n + " Min: " + min + " Max: " + max + " Mean: " + mean);
+          return ret + ("\nN: " + data.length + " Min: " + min + " Max: " + max + " Mean: " + mean);
         }
       },
       histogram: function() {

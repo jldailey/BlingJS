@@ -1,7 +1,8 @@
 Object.keys or= (o) -> (k for k of o)
 Object.values or= (o) -> (o[k] for k of o)
-extend = (a, b) ->
-	if b then a[k] = v for k,v of b when v?
+extend = (a, b...) ->
+	for obj in b when obj
+		a[k] = v for k,v of obj # when v?
 	a
 class Bling # extends (new Array)
 	constructor: (args...) ->

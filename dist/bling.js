@@ -2011,7 +2011,7 @@
     return {
       $: {
         histogram: function(data, bucket_width, output_width) {
-          var buckets, end, i, len, max, mean, min, n, pct, pct_sum, ret, sum, x, _i, _j, _len, _ref;
+          var buckets, end, i, len, m, max, mean, min, n, pct, pct_sum, ret, sum, total, x, _i, _j, _len, _ref;
           if (bucket_width == null) {
             bucket_width = 1;
           }
@@ -2023,12 +2023,12 @@
           min = Infinity;
           mean = 0;
           max = 0;
-          sum = 0;
+          total = 0;
           for (_i = 0, _len = data.length; _i < _len; _i++) {
             x = data[_i];
             min = Math.min(x, min);
             max = Math.max(x, max);
-            sum += x;
+            total += x;
             i = Math.floor(x / bucket_width);
             if ((_ref = buckets[i]) == null) {
               buckets[i] = 0;
@@ -2037,10 +2037,11 @@
             len = Math.max(len, i + 1);
           }
           buckets.length = len;
-          mean = sum / data.length;
+          mean = total / data.length;
+          m = buckets.max();
           buckets = buckets.map(function(x) {
             return x || 0;
-          }).scale(buckets.max()).scale(output_width);
+          }).scale(m).scale(output_width);
           sum = buckets.sum();
           ret = "";
           pct_sum = 0;

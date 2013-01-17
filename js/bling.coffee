@@ -871,7 +871,7 @@ $.plugin
 	}
 $.plugin ->
 	$:
-		histogram: (data, bucket_width=1, output_width=80) ->
+		histogram: (data, bucket_width=1, output_width=60) ->
 			buckets = $()
 			len = 0
 			min = Infinity
@@ -883,14 +883,16 @@ $.plugin ->
 				max = Math.max x, max
 				total += x
 				i = Math.floor( x / bucket_width )
-				buckets[i] ?= 0
-				buckets[i] += 1
+				if i of buckets
+					buckets[i] += 1
+				else
+					buckets[i] = 1
 				len = Math.max(len, i+1)
 			buckets.length = len
 			mean = total / data.length
 			m = buckets.max()
-			buckets = buckets.map((x) -> x or 0)
-				.scale(m)
+			buckets = buckets.or(0)
+				.scale(1/m)
 				.scale(output_width)
 			sum = buckets.sum()
 			ret = ""
@@ -902,7 +904,7 @@ $.plugin ->
 				ret += $.padLeft(pct_sum.toFixed(2)+"%",7) +
 					$.padRight(" < #{end.toFixed(2)}", 10) +
 					": " + $.repeat("#", buckets[n]) + "\n"
-			ret + "\nN: #{data.length} Min: #{min} Max: #{max} Mean: #{mean}"
+			ret + "N: #{data.length} Min: #{min.toFixed(2)} Max: #{max.toFixed(2)} Mean: #{mean.toFixed(2)}"
 	histogram: -> $.histogram @
 $.plugin
 	provides: "hook"

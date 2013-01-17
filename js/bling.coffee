@@ -209,6 +209,9 @@ $.plugin
 		)()
 		or: (x) -> @[i] or= x for i in [0...@length]; @
 		zap: (p, v) ->
+			if ($.is 'object', p) and not v?
+				@zap(k,v) for k,v of p
+				return @
 			i = p.lastIndexOf "."
 			if i > 0
 				head = p.substr 0,i
@@ -1051,6 +1054,11 @@ $.plugin
 	minus: sub
 	dot: (b) ->
 		$.sum( @[i]*b[i] for i in [0...Math.min(@length,b.length)] )
+	angle: (b) -> Math.acos (@dot(b) / (@magnitude() * b.magnitude()))
+	cross: (b) ->
+		$ @[1]*b[2] - @[2]*b[1],
+			@[2]*b[0] - @[0]*b[2],
+			@[0]*b[1] - @[1]*b[0]
 	normalize: -> @scale 1 / @magnitude()
 	deg2rad: -> @filter( isFinite ).map -> @ * Math.PI / 180
 	rad2deg: -> @filter( isFinite ).map -> @ * 180 / Math.PI
@@ -1127,19 +1135,19 @@ $.plugin
 		
 		next.seed = +new Date()
 		return $.extend next,
-			real: (min, max) ->
+			real: real = (min, max) ->
 				if not min?
 					[min,max] = [0,1.0]
 				if not max?
 					[min,max] = [0,min]
 				($.random() * (max - min)) + min
-			integer: (min, max) -> Math.floor $.random.real(min,max)
-			string: (len, prefix="") ->
+			integer: integer = (min, max) -> Math.floor $.random.real(min,max)
+			string: string = (len, prefix="") ->
 				prefix += $.random.element(alphabet) while prefix.length < len
 				prefix
-			coin: (balance=.5) -> $.random() <= balance
-			element: (arr) -> arr[$.random.integer(0, arr.length)]
-			gaussian: (mean=0.5, ssig=0.12) -> # paraphrased from Wikipedia
+			coin: coin = (balance=.5) -> $.random() <= balance
+			element: element = (arr) -> arr[$.random.integer(0, arr.length)]
+			gaussian: gaussian = (mean=0.5, ssig=0.12) -> # paraphrased from Wikipedia
 				while true
 					u = $.random()
 					v = 1.7156 * ($.random() - 0.5)
@@ -1148,6 +1156,10 @@ $.plugin
 					q = (x*x) + y*(0.19600*y-0.25472*x)
 					break unless q > 0.27597 and (q > 0.27846 or (v*v) > (-4*Math.log(u)*u*u))
 				return mean + ssig*v/u
+			dice: dice = (n, faces) -> # a 2d8 is dice(2,8)
+				$( die(faces) for _ in [0...n] by 1 )
+			die: die = (faces) ->
+				$.random.integer(1,faces+1)
 $.plugin
 	provides: "sendgrid"
 	depends: "config"

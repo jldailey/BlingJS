@@ -575,7 +575,14 @@
         return this;
       },
       zap: function(p, v) {
-        var head, i, tail;
+        var head, i, k, tail;
+        if (($.is('object', p)) && !(v != null)) {
+          for (k in p) {
+            v = p[k];
+            this.zap(k, v);
+          }
+          return this;
+        }
         i = p.lastIndexOf(".");
         if (i > 0) {
           head = p.substr(0, i);
@@ -2453,6 +2460,12 @@
           return _results;
         }).call(this));
       },
+      angle: function(b) {
+        return Math.acos(this.dot(b) / (this.magnitude() * b.magnitude()));
+      },
+      cross: function(b) {
+        return $(this[1] * b[2] - this[2] * b[1], this[2] * b[0] - this[0] * b[2], this[0] * b[1] - this[1] * b[0]);
+      },
       normalize: function() {
         return this.scale(1 / this.magnitude());
       },
@@ -2547,7 +2560,7 @@
     return {
       $: {
         random: (function() {
-          var MT, a, b, generate_numbers, index, init_generator, next;
+          var MT, a, b, coin, dice, die, element, gaussian, generate_numbers, index, init_generator, integer, next, real, string;
           MT = new Array(624);
           index = 0;
           init_generator = function(seed) {
@@ -2592,7 +2605,7 @@
           });
           next.seed = +new Date();
           return $.extend(next, {
-            real: function(min, max) {
+            real: real = function(min, max) {
               var _ref, _ref1;
               if (!(min != null)) {
                 _ref = [0, 1.0], min = _ref[0], max = _ref[1];
@@ -2602,10 +2615,10 @@
               }
               return ($.random() * (max - min)) + min;
             },
-            integer: function(min, max) {
+            integer: integer = function(min, max) {
               return Math.floor($.random.real(min, max));
             },
-            string: function(len, prefix) {
+            string: string = function(len, prefix) {
               if (prefix == null) {
                 prefix = "";
               }
@@ -2614,16 +2627,16 @@
               }
               return prefix;
             },
-            coin: function(balance) {
+            coin: coin = function(balance) {
               if (balance == null) {
                 balance = .5;
               }
               return $.random() <= balance;
             },
-            element: function(arr) {
+            element: element = function(arr) {
               return arr[$.random.integer(0, arr.length)];
             },
-            gaussian: function(mean, ssig) {
+            gaussian: gaussian = function(mean, ssig) {
               var q, u, v, x, y;
               if (mean == null) {
                 mean = 0.5;
@@ -2642,6 +2655,20 @@
                 }
               }
               return mean + ssig * v / u;
+            },
+            dice: dice = function(n, faces) {
+              var _;
+              return $((function() {
+                var _i, _results;
+                _results = [];
+                for (_ = _i = 0; _i < n; _ = _i += 1) {
+                  _results.push(die(faces));
+                }
+                return _results;
+              })());
+            },
+            die: die = function(faces) {
+              return $.random.integer(1, faces + 1);
             }
           });
         })()

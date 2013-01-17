@@ -997,6 +997,19 @@ describe "Bling", ->
 			assert.deepEqual $().sortedInsert(3).sortedInsert(1).sortedInsert(2), [1,2,3]
 		it "works on fields", ->
 			assert.deepEqual $().sortedInsert({x:1,y:2}, 'y').sortedInsert({x:2,y:1}, 'y'), [{x:2,y:1},{x:1,y:2}]
+	
+	describe ".histogram(data)", ->
+		it "draws a histogram", ->
+	
+	describe ".repeat(x, n)", ->
+		it "can repeat strings", ->
+			assert.equal $.repeat("abc", 3), "abcabcabc"
+		it "does not crash with large N", ->
+			assert.equal $.repeat("a", 99999).length, 99999
+		it "can repeat objects", ->
+			assert.deepEqual $.repeat({a:1}, 3),
+				[ {a:1}, {a:1}, {a:1} ]
+
 
 ###
 

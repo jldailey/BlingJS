@@ -149,8 +149,8 @@ $.plugin
 				switch true
 					when n is 1 then x
 					when n < 1 then ""
-					when $.is "string", x then x + $.repeat(x, n-1)
-					else $(x).extend $.repeat(x, n-1)
+					when $.is "string", x then $.zeros(n).map(-> x).join('')
+					else $.zeros(n).map(-> x)
 
 			# Return a string-builder, which uses arrays to defer all string
 			# concatenation until you call `builder.toString()`.

@@ -877,19 +877,20 @@ $.plugin ->
 			min = Infinity
 			mean = 0
 			max = 0
-			sum = 0
+			total = 0
 			for x in data
 				min = Math.min x, min
 				max = Math.max x, max
-				sum += x
+				total += x
 				i = Math.floor( x / bucket_width )
 				buckets[i] ?= 0
 				buckets[i] += 1
 				len = Math.max(len, i+1)
 			buckets.length = len
-			mean = sum / data.length
+			mean = total / data.length
+			m = buckets.max()
 			buckets = buckets.map((x) -> x or 0)
-				.scale(buckets.max())
+				.scale(m)
 				.scale(output_width)
 			sum = buckets.sum()
 			ret = ""
@@ -898,7 +899,9 @@ $.plugin ->
 				end = (n+1) * bucket_width
 				pct = (buckets[n]*100/sum)
 				pct_sum += pct
-				ret += $.padLeft(pct_sum.toFixed(2)+"%",7) + $.padRight(" < #{end.toFixed(2)}", 10) + ": " + $.repeat("#", buckets[n]) + "\n"
+				ret += $.padLeft(pct_sum.toFixed(2)+"%",7) +
+					$.padRight(" < #{end.toFixed(2)}", 10) +
+					": " + $.repeat("#", buckets[n]) + "\n"
 			ret + "\nN: #{data.length} Min: #{min} Max: #{max} Mean: #{mean}"
 	histogram: -> $.histogram @
 $.plugin
@@ -1332,8 +1335,8 @@ $.plugin
 				switch true
 					when n is 1 then x
 					when n < 1 then ""
-					when $.is "string", x then x + $.repeat(x, n-1)
-					else $(x).extend $.repeat(x, n-1)
+					when $.is "string", x then $.zeros(n).map(-> x).join('')
+					else $.zeros(n).map(-> x)
 			stringBuilder: ->
 				if $.is("global", @) then return new $.stringBuilder()
 				items = []

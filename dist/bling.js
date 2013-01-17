@@ -2011,12 +2011,12 @@
     return {
       $: {
         histogram: function(data, bucket_width, output_width) {
-          var buckets, end, i, len, m, max, mean, min, n, pct, pct_sum, ret, sum, total, x, _i, _j, _len, _ref;
+          var buckets, end, i, len, m, max, mean, min, n, pct, pct_sum, ret, sum, total, x, _i, _j, _len;
           if (bucket_width == null) {
             bucket_width = 1;
           }
           if (output_width == null) {
-            output_width = 80;
+            output_width = 60;
           }
           buckets = $();
           len = 0;
@@ -2030,18 +2030,17 @@
             max = Math.max(x, max);
             total += x;
             i = Math.floor(x / bucket_width);
-            if ((_ref = buckets[i]) == null) {
-              buckets[i] = 0;
+            if (i in buckets) {
+              buckets[i] += 1;
+            } else {
+              buckets[i] = 1;
             }
-            buckets[i] += 1;
             len = Math.max(len, i + 1);
           }
           buckets.length = len;
           mean = total / data.length;
           m = buckets.max();
-          buckets = buckets.map(function(x) {
-            return x || 0;
-          }).scale(m).scale(output_width);
+          buckets = buckets.or(0).scale(1 / m).scale(output_width);
           sum = buckets.sum();
           ret = "";
           pct_sum = 0;
@@ -2051,7 +2050,7 @@
             pct_sum += pct;
             ret += $.padLeft(pct_sum.toFixed(2) + "%", 7) + $.padRight(" < " + (end.toFixed(2)), 10) + ": " + $.repeat("#", buckets[n]) + "\n";
           }
-          return ret + ("\nN: " + data.length + " Min: " + min + " Max: " + max + " Mean: " + mean);
+          return ret + ("N: " + data.length + " Min: " + (min.toFixed(2)) + " Max: " + (max.toFixed(2)) + " Mean: " + (mean.toFixed(2)));
         }
       },
       histogram: function() {

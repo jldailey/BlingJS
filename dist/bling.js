@@ -1602,7 +1602,7 @@
         },
         find: function(css) {
           return this.filter("*").map(function() {
-            return $(css, this);
+            return this.querySelectorAll(css);
           }).flatten();
         },
         clone: function(deep) {

@@ -700,7 +700,8 @@ $.plugin
 				if ret is false
 					evt.preventAll()
 				ret
-			@each -> (@addEventListener i, h, false) for i in c
+			@each ->
+				(@addEventListener i, h, false) for i in c
 		unbind: (e, f) ->
 			c = (e or "").split EVENTSEP_RE
 			@each -> (@removeEventListener i, f, null) for i in c
@@ -777,26 +778,24 @@ $.plugin
 					try
 						e = $.extend e, args
 					catch err
+						$.log "Error in dispatch: ", err
 				if not e
 					continue
 				else
 					try
-						@each -> @dispatchEvent e
+						@each ->
+							@dispatchEvent e
 					catch err
 						$.log "dispatchEvent error:", err
 			@
-		live: (e, f) ->
-			selector = @selector
-			context = @context
-			handler = (evt) ->
-				$(selector, context)
+		delegate: (selector, e, f) ->
+			context = @
+			register_live selector, context, e, f, (evt) ->
+				context.find(selector)
 					.intersect($(evt.target).parents().first().union($(evt.target)))
 					.each -> f.call(evt.target = @, evt)
-			register_live selector, context, e, f, handler
-			@
-		die: (e, f) ->
-			$(@context).unbind e, unregister_live(@selector, @context, e, f)
-			@
+		undelegate: (selector, e, f) ->
+			@unbind e, unregister_live selector, @, e, f
 		click: (f = {}) ->
 			if @css("cursor") in ["auto",""]
 				@css "cursor", "pointer"

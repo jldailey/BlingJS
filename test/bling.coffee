@@ -1014,7 +1014,6 @@ describe "Bling", ->
 				[ {a:1}, {a:1}, {a:1} ]
 
 
-###
 
 describe "DOM", ->
 	it "parse", ->
@@ -1102,16 +1101,16 @@ describe "DOM", ->
 	it "remove", ->
 		a = $("<a><b class='x'/><c class='x'/><d/></a>")
 		b = a.find(".x")
-			.assert.equal(2, -> @length)
-			.assert.equal("$(['B', 'C'])", -> @select('nodeName').toRepr())
-			.remove()
-			.assert.equal("$([null, null])", -> @select('parentNode').toRepr() )
+		assert.equal b.length, 2
+		assert.deepEqual b.select('nodeName'), ['B', 'C']
+		b.remove()
+		assert.deepEqual b.select('parentNode'), [null, null]
 		assert.equal a.toRepr(), '$([<a><d/></a>])'
 	it "find", ->
 		a = $("<a><b class='x'/><c class='x'/><d/></a>")
 			.find(".x")
-			.assert.equal(2, -> @length)
-			.assert.equal("$(['B', 'C'])", -> @select('nodeName').toRepr())
+		assert.equal a.length, 2
+		assert.deepEqual a.select('nodeName'), ['B', 'C']
 	it "clone", ->
 		c = $("div.c").clone()[0]
 		d = $("div.c")[0]
@@ -1120,5 +1119,3 @@ describe "DOM", ->
 		assert.equal( typeof c.a, "string")
 	it "toFragment", ->
 		assert.equal($("td").clone().toFragment().childNodes.length, 8)
-
-###

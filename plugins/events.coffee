@@ -53,7 +53,8 @@ $.plugin
 				if ret is false
 					evt.preventAll()
 				ret
-			@each -> (@addEventListener i, h, false) for i in c
+			@each ->
+				(@addEventListener i, h, false) for i in c
 
 		# __.unbind(e, [f])__ remove handler[s] for event _e_. If _f_ is
 		# not passed, then remove all handlers.
@@ -147,38 +148,30 @@ $.plugin
 					try
 						e = $.extend e, args
 					catch err
+						$.log "Error in dispatch: ", err
 
 				if not e
 					continue
 				else
 					try
-						@each -> @dispatchEvent e
+						@each ->
+							@dispatchEvent e
 					catch err
 						$.log "dispatchEvent error:", err
 			@
 
-		# __.live(e, f)__ bind _f_ to handle events for nodes that will exist in the future.
-		live: (e, f) ->
-			selector = @selector
-			context = @context
-			# Create a wrapper for _f_.
-			handler = (evt) ->
-				# The wrapper will:
+		# __.delegate(selector, e, f)__ bind _f_ to handle event _e_ for child nodes that will exist in the future
+		delegate: (selector, e, f) ->
+			context = @
+			register_live selector, context, e, f, (evt) ->
 				# Re-execute the selector in the original context.
-				$(selector, context)
+				context.find(selector)
 					# See if the event would bubble up into a match.
 					.intersect($(evt.target).parents().first().union($(evt.target)))
 					# Then fire the real _f_ on the nodes that really matched.
 					.each -> f.call(evt.target = @, evt)
-			# Register _f_ and it's wrapper, so we can find it later if we need to `die`.
-			register_live selector, context, e, f, handler
-			@
-
-		# __.die(e, [f])__ remove _f_ [or all handlers] that are living
-		# for event _e_.
-		die: (e, f) ->
-			$(@context).unbind e, unregister_live(@selector, @context, e, f)
-			@
+		undelegate: (selector, e, f) ->
+			@unbind e, unregister_live selector, @, e, f
 
 		# __.click([f])__ triggers the 'click' event but also sets a
 		# default clickable appearance.

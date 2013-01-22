@@ -1781,7 +1781,7 @@
             try {
               e = $.extend(e, args);
             } catch (err) {
-
+              $.log("Error in dispatch: ", err);
             }
           }
           if (!e) {
@@ -1798,21 +1798,17 @@
         }
         return this;
       },
-      live: function(e, f) {
-        var context, handler, selector;
-        selector = this.selector;
-        context = this.context;
-        handler = function(evt) {
-          return $(selector, context).intersect($(evt.target).parents().first().union($(evt.target))).each(function() {
+      delegate: function(selector, e, f) {
+        var context;
+        context = this;
+        return register_live(selector, context, e, f, function(evt) {
+          return context.find(selector).intersect($(evt.target).parents().first().union($(evt.target))).each(function() {
             return f.call(evt.target = this, evt);
           });
-        };
-        register_live(selector, context, e, f, handler);
-        return this;
+        });
       },
-      die: function(e, f) {
-        $(this.context).unbind(e, unregister_live(this.selector, this.context, e, f));
-        return this;
+      undelegate: function(selector, e, f) {
+        return this.unbind(e, unregister_live(selector, this, e, f));
       },
       click: function(f) {
         var _ref;

@@ -6,7 +6,7 @@ $.plugin
 	# Hooks are one way to make extensible code that I am playing with.
 	# Each hook is a method, that fronts for a list of methods.
 	# You can add new methods to either end. To execute the whole hook,
-	# you just call it.
+	# you just call it with arguments.
 
 	# Add a method to a hook:
 	# > `$.hook("amplify").append (x) -> x+1`

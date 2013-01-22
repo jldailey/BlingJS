@@ -1013,8 +1013,6 @@ describe "Bling", ->
 			assert.deepEqual $.repeat({a:1}, 3),
 				[ {a:1}, {a:1}, {a:1} ]
 
-
-
 describe "DOM", ->
 	it "parse", ->
 		d = $.HTML.parse "<div><a></a><b></b><c></c></div>"
@@ -1119,3 +1117,23 @@ describe "DOM", ->
 		assert.equal( typeof c.a, "string")
 	it "toFragment", ->
 		assert.equal($("td").clone().toFragment().childNodes.length, 8)
+	describe "Events", ->
+		it ".bind/trigger()", ->
+			pass = false
+			td = $("td").take(1).bind 'dummy', (evt) ->
+				pass = (evt.type is 'dummy')
+			td.trigger 'dummy'
+			assert pass
+		it ".un/delegate()", ->
+			counter = 0
+			cb = (evt) -> counter += 1
+			$("table").delegate "td.d", "dummy", cb
+			$("table td.d").trigger "dummy"
+			$("table td").take(1).trigger "dummy"
+			assert.equal counter, 1
+			$("table td").trigger "dummy"
+			assert.equal counter, 2
+			$("table").undelegate "td.d", "dummy", cb
+			$("table td").trigger "dummy"
+			assert.equal counter, 2
+

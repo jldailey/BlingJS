@@ -325,7 +325,7 @@ if $.global.document?
 				# Filter the input set to only DOM nodes.
 				@filter("*")
 					# Use each node as the context for creation of a new bling.
-					.map( -> $(css, @) )
+					.map( -> @querySelectorAll css )
 					# Flatten all the blings into a single set.
 					.flatten()
 

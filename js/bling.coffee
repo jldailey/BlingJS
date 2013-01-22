@@ -650,7 +650,7 @@ if $.global.document?
 			remove: -> @each -> @parentNode?.removeChild(@)
 			find: (css) ->
 				@filter("*")
-					.map( -> $(css, @) )
+					.map( -> @querySelectorAll css )
 					.flatten()
 			clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @
 			toFragment: ->

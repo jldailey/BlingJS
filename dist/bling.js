@@ -1130,6 +1130,143 @@
     };
   });
 
+  $.plugin({
+    depends: 'hook,synth,delay',
+    provides: 'dialog'
+  }, function() {
+    var createDialog, getContent;
+    $('head style.dialog').remove();
+    $('head style.dialog').remove();
+    $.synth('style.dialog "\
+		.dialog {\
+				position: absolute;\
+				background: white;\
+				border: 4px solid blue;\
+				border-radius: 10px;\
+				padding: 6px;\
+		}\
+		.dialog > .title {\
+				padding: 6px 0 4px 0;\
+				margin: 0 0 6px 0;\
+				font-size: 22px;\
+				line-height: 32px;\
+				text-align: center;\
+				border-bottom: 1px solid #eaeaea;\
+		}\
+		.dialog > .title > .cancel {\
+				float: right;\
+				width: 32px;\
+				height: 32px;\
+				border: 1px solid red;\
+				font-size: 22px;\
+				font-weight: bold;\
+				font-family: arial, helvetica;\
+		}\
+		.dialog > .content {\
+			text-align: center;\
+		}\
+		.modal {\
+			position: absolute;\
+			background: rgba(0,0,0,0.4);\
+		}\
+	"').appendTo("head");
+    getContent = function(type, stuff) {
+      switch (type) {
+        case "synth":
+          return $.synth(stuff);
+        case "html":
+          return $.HTML.parse(stuff);
+        case "text":
+          return document.createTextNode(stuff);
+      }
+    };
+    createDialog = function(opts) {
+      var contentNode, modal, titleNode;
+      modal = $.synth("div.modal#" + opts.id + " div.dialog h1.title button.cancel 'X' ++ div.content").appendTo("body").delegate(".cancel", "click", function(evt) {
+        return opts.cancel(modal);
+      }).delegate(".ok", "click", function(evt) {
+        return opts.ok(modal);
+      });
+      contentNode = modal.find('div.dialog > div.content');
+      contentNode.append(getContent(opts.contentType, opts.content));
+      titleNode = modal.find('div.dialog > h1.title');
+      titleNode.append(getContent(opts.titleType, opts.title));
+      return modal.fitOver(opts.parent).show().select('childNodes.0').centerOn(modal);
+    };
+    return {
+      $: {
+        dialog: function(opts) {
+          var defaults;
+          defaults = {
+            id: "dialog-" + $.random.string(4),
+            parent: "body",
+            title: "Untitled Dialog",
+            titleType: "text",
+            content: "span 'Dialog Content'",
+            contentType: "synth",
+            ok: function(modal) {
+              return modal.remove();
+            },
+            cancel: function(modal) {
+              return modal.remove();
+            }
+          };
+          return createDialog($.extend(defaults, opts));
+        }
+      },
+      fitOver: function(elem) {
+        var rect;
+        if (elem == null) {
+          elem = window;
+        }
+        if (elem === window) {
+          rect = {
+            width: window.innerWidth,
+            height: window.innerHeight,
+            top: 0,
+            left: 0
+          };
+        } else {
+          rect = $(elem).rect().first();
+        }
+        return this.css({
+          position: 'absolute',
+          width: $.px(rect.width),
+          height: $.px(rect.height),
+          top: $.px(rect.top),
+          left: $.px(rect.left)
+        });
+      },
+      centerOn: function(elem) {
+        var left, target, top;
+        if (elem == null) {
+          elem = window;
+        }
+        if (elem === window) {
+          target = {
+            width: window.innerWidth,
+            height: window.innerHeight,
+            top: 0,
+            left: 0
+          };
+        } else {
+          target = $(elem).rect().first();
+        }
+        top = target.top + target.height / 2;
+        left = target.left + target.width / 2;
+        return this.each(function() {
+          var dialog, rect;
+          dialog = $(this);
+          rect = dialog.rect().first();
+          return dialog.css({
+            top: $.px(top - (rect.height / 2)),
+            left: $.px(left - (rect.width / 2))
+          });
+        });
+      }
+    };
+  });
+
   if ($.global.document != null) {
     $.plugin({
       depends: "function,type",
@@ -1561,7 +1698,21 @@
           return this;
         },
         rect: function() {
-          return this.select('getBoundingClientRect').call();
+          return this.map(function(item) {
+            switch (item) {
+              case window:
+                return {
+                  width: window.innerWidth,
+                  height: window.innerHeight,
+                  top: 0,
+                  left: 0,
+                  right: window.innerWidth,
+                  bottom: window.innerHeight
+                };
+              default:
+                return item.getBoundingClientRect();
+            }
+          });
         },
         width: getOrSetRect("width"),
         height: getOrSetRect("height"),
@@ -3804,7 +3955,7 @@
         return this.delay(duration, callback);
       },
       hide: function(callback) {
-        return this.each(function() {
+        this.each(function() {
           if (this.style) {
             this._display = "";
             if (this.style.display === !"none") {
@@ -3812,15 +3963,23 @@
             }
             return this.style.display = "none";
           }
-        }).trigger("hide".delay(updateDelay, callback));
+        }).trigger("hide");
+        if (callback) {
+          this.delay(updateDelay, callback);
+        }
+        return this;
       },
       show: function(callback) {
-        return this.each(function() {
+        this.each(function() {
           if (this.style) {
             this.style.display = this._display;
             return delete this._display;
           }
-        }).trigger("show".delay(updateDelay, callback));
+        }).trigger("show");
+        if (callback) {
+          this.delay(updateDelay, callback);
+        }
+        return this;
       },
       toggle: function(callback) {
         return this.weave(this.css("display")).fold(function(display, node) {

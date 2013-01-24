@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>BlingJS UI Tests</title>
+		<script src="../dist/bling.js"></script>
+	</head>
+	<body>
+		<script type="text/javascript">
+			var d = $.dialog({
+				title: "Steal This Message",
+				content: "span 'The contents of this message will self-destruct...' + " +
+				"button.ok 'OK'",
+				parent: window
+			}).css({
+				width: "400px"
+			})
+		</script>
+	</body>
+</html>

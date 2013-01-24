@@ -2,6 +2,8 @@ dom = require("jldom")
 dom.registerGlobals(global)
 global.document = dom.createDocument()
 global.window = global
+window.innerWidth = 1234
+window.innerHeight = 321
 require "../dist/bling.js"
 assert = require 'assert'
 # set up a test document, to run DOM tests against
@@ -1117,6 +1119,21 @@ describe "DOM", ->
 		assert.equal( typeof c.a, "string")
 	it "toFragment", ->
 		assert.equal($("td").clone().toFragment().childNodes.length, 8)
+	describe ".rect()", ->
+		it "returns a ClientRect for each DOM node", ->
+			assert.deepEqual $("td").take(2)
+				.rect().map(-> $.isType "ClientRect", @),
+				[true,true]
+		it "will shim in a fake rect for the window", ->
+			assert.deepEqual $(window).rect().first(), {
+				width: window.innerWidth
+				height: window.innerHeight
+				top: 0
+				left: 0
+				right: window.innerWidth
+				bottom: window.innerHeight
+			}
+		
 	describe "Events", ->
 		it ".bind/trigger()", ->
 			pass = false

@@ -269,7 +269,16 @@ if $.global.document?
 				@
 
 			# Get a bounding-box for each item.
-			rect: -> @select('getBoundingClientRect').call()
+			rect: -> @map (item) -> switch item
+				when window then {
+					width: window.innerWidth
+					height: window.innerHeight
+					top: 0
+					left: 0
+					right: window.innerWidth
+					bottom: window.innerHeight
+				}
+				else item.getBoundingClientRect()
 
 			# Get [or set] each item's width.
 			width: getOrSetRect("width")

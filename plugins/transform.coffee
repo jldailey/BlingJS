@@ -112,16 +112,20 @@ $.plugin
 					if @style.display is not "none"
 						@_display = @syle.display
 					@style.display = "none"
-			.trigger "hide"
-			.delay updateDelay, callback
+			.trigger("hide")
+			if callback
+				@delay updateDelay, callback
+			@
 
 		show: (callback) -> # .show() - show each node
 			@each ->
 				if @style
 					@style.display = @_display
 					delete @_display
-			.trigger "show"
-			.delay updateDelay, callback
+			.trigger("show")
+			if callback
+				@delay updateDelay, callback
+			@
 
 		toggle: (callback) -> # .toggle() - show each hidden node, hide each visible one
 			@weave(@css("display"))

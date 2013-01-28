@@ -438,11 +438,28 @@ describe "Bling", ->
 					assert.equal roll.length, 2
 					for r in roll
 						assert 1 <= r <= 8
-
 		describe ".die()", ->
 			it "rolls one die", ->
 				for i in [0...100]
 					assert 0 < $.random.die(6) < 7
+		describe ".element()", ->
+			it "chooses a random element", ->
+				sum = 0
+				elems = [1,2,3]
+				e = $.random.element elems
+				assert e in elems
+				elems = [0,1]
+				for i in [0..1000]
+					sum += $.random.element elems
+				assert Math.abs(sum - 500) < 50
+			it "accepts weights", ->
+				sum = 0
+				elems = [0,1]
+				weights = [6,4]
+				for i in [0..1000]
+					sum += $.random.element elems, weights
+				assert Math.abs(sum - 400) < 50
+
 
 	describe ".hash()", ->
 		describe "hashes any type of object", ->

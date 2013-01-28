@@ -1272,7 +1272,17 @@ $.plugin
 				prefix += $.random.element(alphabet) while prefix.length < len
 				prefix
 			coin: coin = (balance=.5) -> $.random() <= balance
-			element: element = (arr) -> arr[$.random.integer(0, arr.length)]
+			element: (arr, weights) ->
+				if weights?
+					w = $(weights)
+					w = w.scale(1.0/w.sum())
+					i = 0
+					sorted = $(arr).map((x) -> {v: x, w: w[i++] }).sortBy (x) -> -x.w
+					r = $.random.real(0.00001,.999999) # never exactly 0.0 or 1.0
+					sum = 0
+					for item in sorted
+						return item.v if (sum += item.w) >= r
+				return arr[$.random.integer 0, arr.length]
 			gaussian: gaussian = (mean=0.5, ssig=0.12) -> # paraphrased from Wikipedia
 				while true
 					u = $.random()

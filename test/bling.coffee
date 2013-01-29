@@ -330,7 +330,7 @@ describe "Bling", ->
 			assert.equal( $([1,2,3]).dot([4,5,6]), 4 + 10 + 18)
 	
 	describe ".angle()", ->
-		it "computes the angle between vectors", ->
+		it "computes the angle between vectors (in radians)", ->
 			assert.equal( $(0,1,0).angle($ 1,0,0), $.deg2rad 90 )
 			assert.equal( $(1,0,0).angle($ 1,0,0), $.deg2rad 0 )
 		it "does not convert NaN to zero", ->
@@ -1040,7 +1040,9 @@ describe "Bling", ->
 		it "converts between units", ->
 			assert.equal $.units.convertTo('cm', '300in'), "762cm"
 		it "can find non-trivial conversions through inferrence", ->
-			assert.equal $.units.convertTo('px', '.1yd'), "343.59341445955624px"
+			assert.equal $.units.convertTo('px', '.1yd'), "345.5831355429855px"
+		it "simply adds a unit to un-suffixed numbers", ->
+			assert.equal $.units.convertTo('px', '10.1'), '10.1px'
 
 describe "DOM", ->
 	it "parse", ->

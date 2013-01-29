@@ -82,7 +82,7 @@ Bling.plugin = (opts, constructor) ->
 	# Support a { depends: } option as a shortcut for `$.depends`.
 	if "depends" of opts
 		return @depends opts.depends, =>
-			# Support a { provides: } option as a shortcut for `$.provides`.
+			# Pass along the { provides: } option.
 			@plugin { provides: opts.provides }, constructor
 	try
 		# We call the plugin constructor and expect that it returns an
@@ -90,12 +90,10 @@ Bling.plugin = (opts, constructor) ->
 		if (plugin = constructor?.call @,@)
 			# If the plugin has a `$` key, extend the root.
 			extend @, plugin?.$
-			# Clean off keys we no longer care about: `$` and `name`. (An
-			# older version of plugin() used to require names,
-			# but we ignore them now in favor of depends/provides.
-			['$','name'].forEach (k) -> delete plugin[k]
-			# Now put everything else on the Bling prototype.
-			extend @::, plugin
+			# Clear off the static stuff.
+			delete plugin.$
+			# What remains extends the Bling prototype.
+			extend @prototype, plugin
 			# Finally, add static wrappers for anything that doesn't have one.
 			for key of plugin then do (key) =>
 				@[key] or= (a...) => (@::[key].apply Bling(a[0]), a[1...])
@@ -112,33 +110,30 @@ Bling.plugin = (opts, constructor) ->
 # Example: `$.depends "tag", -> $.log "hello"`
 # This example will not log "hello" until `provide("tag")` is
 # called.
-do ->
-	dep =
-		q: []
-		done: {}
-		filter: (n) ->
-			(if (typeof n) is "string" then n.split /, */ else n)
-			.filter (x) -> not (x of dep.done)
+extend Bling, do ->
+	waiting = []
+	complete = {}
+	incomplete = (n) ->
+		(if (typeof n) is "string" then n.split /, */ else n)
+		.filter (x) -> not (x of complete)
 
-	Bling.depends = (needs, f) ->
-		if (needs = dep.filter needs).length is 0 then f()
+	depends: (needs, func) ->
+		if (needs = incomplete needs).length is 0 then func()
 		else
-			dep.q.push (need) ->
+			waiting.push (need) ->
 				(needs.splice i, 1) if (i = needs.indexOf need) > -1
-				return (needs.length is 0 and f)
-		f
-
-	Bling.provide = (needs, data) ->
-		for need in dep.filter needs
-			dep.done[need] = i = 0
-			while i < dep.q.length
-				if (f = dep.q[i] need)
-					dep.q.splice i,1
-					f data
+				return (needs.length is 0 and func)
+		func
+	provide: (needs, data) ->
+		for need in incomplete needs
+			complete[need] = i = 0
+			while i < waiting.length
+				if (func = waiting[i] need)
+					waiting.splice i,1
+					func data
 					i = 0 # start over in case a nested dependency removed stuff 'behind' i
 				else i++
 		data
-
 
 $ = Bling
 # vim: ft=coffee sw=2 ts=2

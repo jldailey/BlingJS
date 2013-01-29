@@ -1031,6 +1031,16 @@ describe "Bling", ->
 		it "can repeat objects", ->
 			assert.deepEqual $.repeat({a:1}, 3),
 				[ {a:1}, {a:1}, {a:1} ]
+	
+	describe ".units", ->
+		it "handles strings with unit-suffixed numbers", ->
+			assert.equal $.type("34px"), "units"
+		it "does not handle strings with numbers alone", ->
+			assert.notEqual $.type("34"), "units"
+		it "converts between units", ->
+			assert.equal $.units.convertTo('cm', '300in'), "762cm"
+		it "can find non-trivial conversions through inferrence", ->
+			assert.equal $.units.convertTo('px', '.1yd'), "343.59341445955624px"
 
 describe "DOM", ->
 	it "parse", ->

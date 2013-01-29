@@ -87,8 +87,10 @@ Bling.plugin = (opts, constructor) ->
 	try
 		# We call the plugin constructor and expect that it returns an
 		# object full of things to extend either Bling or it's prototype.
-		if (plugin = constructor?.call @,@)
-			# If the plugin has a `$` key, extend the root.
+		if typeof (plugin = constructor?.call @,@) is "object"
+			# Record that this plugin loaded.
+			(Bling.plugin[opts.provides ? ""] or= []).push plugin
+			# If the plugin has a `$` key, extend the root with static items.
 			extend @, plugin?.$
 			# Clear off the static stuff.
 			delete plugin.$
@@ -136,4 +138,3 @@ extend Bling, do ->
 		data
 
 $ = Bling
-# vim: ft=coffee sw=2 ts=2

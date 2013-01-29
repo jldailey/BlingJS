@@ -1,4 +1,7 @@
-$.plugin () -> # TnetStrings plugin
+$.plugin
+	depends: 'type'
+	provides: 'TNET'
+, -> # TnetStrings plugin
 	parseOne = (data) ->
 		i = data.indexOf ":"
 		if i > 0

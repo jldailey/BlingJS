@@ -3716,7 +3716,10 @@
     };
   });
 
-  $.plugin(function() {
+  $.plugin({
+    depends: 'type',
+    provides: 'TNET'
+  }, function() {
     var parseArray, parseObject, parseOne;
     parseOne = function(data) {
       var extra, i, item, len, type;
@@ -4270,6 +4273,197 @@
       defineProperty: function(name, opts) {
         return this.each(function() {
           return $.defineProperty(this, name, opts);
+        });
+      }
+    };
+  });
+
+  $.plugin({
+    depends: 'math',
+    provides: 'units'
+  }, function() {
+    var UNIT_RE, conv, convertUnits, fillIdentityConversions, fillInferredConversions, makeUnitRegex, parseUnits, setConversion, trick, units;
+    units = ["px", "pt", "pc", "em", "%", "in", "cm", "mm", "ex", "lb", "kg", "yd", "ft", "m"];
+    UNIT_RE = null;
+    (makeUnitRegex = function() {
+      return UNIT_RE = new RegExp("(\\d+\\.*\\d*)(" + (units.join('|')) + ")");
+    })();
+    parseUnits = function(s) {
+      if (UNIT_RE.test(s)) {
+        return UNIT_RE.exec(s)[2];
+      }
+      return null;
+    };
+    conv = function(a, b) {
+      if (a in conv) {
+        if (b in conv[a]) {
+          return conv[a][b]();
+        }
+      }
+      return 0;
+    };
+    trick = function(x) {
+      return function() {
+        return x;
+      };
+    };
+    fillIdentityConversions = function() {
+      var a, b, ident, _i, _len, _results;
+      _results = [];
+      for (_i = 0, _len = units.length; _i < _len; _i++) {
+        a = units[_i];
+        conv[a] || (conv[a] = {});
+        _results.push((function() {
+          var _j, _len1, _results1;
+          _results1 = [];
+          for (_j = 0, _len1 = units.length; _j < _len1; _j++) {
+            b = units[_j];
+            if (!(b in conv[a])) {
+              ident = a === b || a === "" || b === "";
+              if (ident) {
+                _results1.push(conv[a][b] = trick(+ident));
+              } else {
+                _results1.push(void 0);
+              }
+            } else {
+              _results1.push(void 0);
+            }
+          }
+          return _results1;
+        })());
+      }
+      return _results;
+    };
+    fillInferredConversions = function() {
+      var a, b, c, inferred, _i, _j, _k, _len, _len1, _len2;
+      inferred = 1;
+      while (inferred > 0) {
+        inferred = 0;
+        for (_i = 0, _len = units.length; _i < _len; _i++) {
+          a = units[_i];
+          if (a === '') {
+            continue;
+          }
+          for (_j = 0, _len1 = units.length; _j < _len1; _j++) {
+            b = units[_j];
+            if (b === '') {
+              continue;
+            }
+            if ((!conv(a, b)) && (conv(b, a))) {
+              conv[a] || (conv[a] = {});
+              conv[a][b] = trick(1.0 / conv(b, a));
+              inferred += 1;
+            }
+            for (_k = 0, _len2 = units.length; _k < _len2; _k++) {
+              c = units[_k];
+              if (c === '') {
+                continue;
+              }
+              if ((conv(a, b)) && (conv(b, c)) && (!conv(a, c))) {
+                conv[a] || (conv[a] = {});
+                conv[a][c] = trick(conv(a, b) * conv(b, c));
+                inferred += 1;
+              }
+            }
+          }
+        }
+      }
+      return null;
+    };
+    setConversion = function(from, to, f) {
+      conv[from] || (conv[from] = {});
+      conv[from][to] = f;
+      if (units.indexOf(from) === -1) {
+        units.push(from);
+      }
+      if (units.indexOf(to) === -1) {
+        units.push(to);
+      }
+      makeUnitRegex();
+      fillIdentityConversions();
+      return fillInferredConversions();
+    };
+    setConversion('in', 'pt', function() {
+      return 72;
+    });
+    setConversion('in', 'px', function() {
+      return 96;
+    });
+    setConversion('in', 'cm', function() {
+      return 2.54;
+    });
+    setConversion('m', 'ft', function() {
+      return 3.3;
+    });
+    setConversion('yd', 'ft', function() {
+      return 3;
+    });
+    setConversion('pc', 'pt', function() {
+      return 12;
+    });
+    setConversion('cm', 'mm', function() {
+      return 10;
+    });
+    setConversion('m', 'cm', function() {
+      return 100;
+    });
+    setConversion('em', 'px', function() {
+      var w, x;
+      w = 0;
+      try {
+        x = $("<span style='font-size:1em;visibility:hidden'>x</span>").appendTo("body");
+        w = x.width().first();
+        x.remove();
+      } catch (_error) {}
+      return w;
+    });
+    setConversion('ex', 'px', function() {
+      var w, x;
+      w = 0;
+      try {
+        x = $("<span style='font-size:1ex;visibility:hidden'>x</span>").appendTo("body");
+        w = x.width().first();
+        x.remove();
+      } catch (_error) {}
+      return w;
+    });
+    setConversion('ex', 'em', function() {
+      return 2;
+    });
+    convertUnits = function(number, unit) {
+      var _ref;
+      return parseFloat(number) * ((_ref = conv[parseUnits(number)]) != null ? _ref[unit]() : void 0) + unit;
+    };
+    $.type.register("units", {
+      match: function(x) {
+        return typeof x === "string" && UNIT_RE.test(x);
+      },
+      number: function(x) {
+        return parseFloat(x);
+      },
+      string: function(x) {
+        return "'" + x + "'";
+      }
+    });
+    return {
+      $: {
+        units: {
+          set: setConversion,
+          get: conv,
+          convertTo: function(to, obj) {
+            return convertUnits(obj, to);
+          }
+        }
+      },
+      convertTo: function(to) {
+        return this.map(function(x) {
+          return convertUnits(x, to);
+        });
+      },
+      unitMap: function(f) {
+        return this.map(function(x) {
+          var n;
+          return f.call((n = parseFloat(x)), n) + parseUnits(x);
         });
       }
     };

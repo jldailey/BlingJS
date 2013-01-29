@@ -1775,7 +1775,10 @@ $.plugin
 			(a...) ->
 				last += (gap = $.now - last)
 				return f.apply @,a if gap > ms else null
-$.plugin () -> # TnetStrings plugin
+$.plugin
+	depends: 'type'
+	provides: 'TNET'
+, -> # TnetStrings plugin
 	parseOne = (data) ->
 		i = data.indexOf ":"
 		if i > 0
@@ -2042,6 +2045,100 @@ $.plugin
 		isSimple: (o) -> _type(o) in ["string", "number", "bool"]
 		isEmpty: (o) -> o in ["", null, undefined] or o.length is 0 or (typeof o is "object" and Object.keys(o).length is 0)
 	defineProperty: (name, opts) -> @each -> $.defineProperty @, name, opts
+$.plugin
+	depends: 'math'
+	provides: 'units'
+, ->
+	units = ["px","pt","pc","em","%","in","cm","mm","ex","lb","kg","yd","ft","m"]
+	UNIT_RE = null
+	do makeUnitRegex = -> UNIT_RE = new RegExp "(\\d+\\.*\\d*)(#{units.join '|'})"
+	parseUnits = (s) ->
+		if UNIT_RE.test(s)
+			return UNIT_RE.exec(s)[2]
+		null
+	conv = (a,b) ->
+		if a of conv
+			if b of conv[a]
+				return conv[a][b]()
+		0
+	trick = (x) -> -> x # evaluate expression x now, return the final value later on request
+	fillIdentityConversions = ->
+		for a in units
+			conv[a] or= {}
+			for b in units
+				unless b of conv[a]
+					ident = a is b or a is "" or b is ""
+					if ident
+						conv[a][b] = trick +ident
+	fillInferredConversions = ->
+		inferred = 1
+		while inferred > 0
+			inferred = 0
+			for a in units
+				continue if a is ''
+				for b in units
+					continue if b is ''
+					if (not conv a,b) and (conv b,a)
+						conv[a] or= {}
+						conv[a][b] = trick 1.0/conv(b,a)
+						inferred += 1
+					for c in units
+						continue if c is ''
+						if (conv a,b) and (conv b,c) and (not conv a,c)
+							conv[a] or= {}
+							conv[a][c] = trick conv(a,b) * conv(b,c)
+							inferred += 1
+		null
+	setConversion = (from, to, f) ->
+		conv[from] or= {}
+		conv[from][to] = f
+		if units.indexOf(from) is -1
+			units.push from
+		if units.indexOf(to) is -1
+			units.push to
+		makeUnitRegex()
+		fillIdentityConversions()
+		fillInferredConversions()
+	setConversion 'in', 'pt', -> 72
+	setConversion 'in', 'px', -> 96
+	setConversion 'in', 'cm', -> 2.54
+	setConversion 'm', 'ft', -> 3.3
+	setConversion 'yd', 'ft', -> 3
+	setConversion 'pc', 'pt', -> 12
+	setConversion 'cm', 'mm', -> 10
+	setConversion 'm', 'cm', -> 100
+	setConversion 'em', 'px', ->
+		w = 0
+		try
+			x = $("<span style='font-size:1em;visibility:hidden'>x</span>").appendTo("body")
+			w = x.width().first()
+			x.remove()
+		w
+	setConversion 'ex', 'px', ->
+		w = 0
+		try
+			x = $("<span style='font-size:1ex;visibility:hidden'>x</span>").appendTo("body")
+			w = x.width().first()
+			x.remove()
+		w
+	setConversion 'ex', 'em', -> 2
+	
+	convertUnits = (number, unit) -> parseFloat(number) * conv[parseUnits(number)]?[unit]() + unit
+	$.type.register "units",
+		match: (x) -> typeof x is "string" and UNIT_RE.test(x)
+		number: (x) -> parseFloat(x)
+		string: (x) -> "'#{x}'"
+	{
+		$:
+			units:
+				set: setConversion
+				get: conv
+				convertTo: (to, obj) -> convertUnits(obj, to)
+		convertTo: (to) -> @map (x) -> convertUnits(x, to)
+		unitMap: (f) ->
+			@map (x) ->
+				f.call((n = parseFloat x), n) + parseUnits x
+	}
 $.plugin
 	provides: "unittest"
 	depends: "core,function"

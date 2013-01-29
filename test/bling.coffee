@@ -1040,9 +1040,12 @@ describe "Bling", ->
 		it "converts between units", ->
 			assert.equal $.units.convertTo('cm', '300in'), "762cm"
 		it "can find non-trivial conversions through inferrence", ->
-			assert.equal $.units.convertTo('px', '.1yd'), "345.5831355429855px"
+			assert.equal $.units.convertTo('px', '.1yd'), "345.58313554298553px"
 		it "simply adds a unit to un-suffixed numbers", ->
 			assert.equal $.units.convertTo('px', '10.1'), '10.1px'
+		it "does not crash on bad numbers", ->
+			assert not isFinite $.units.convertTo('px', Infinity)
+			assert not isFinite $.units.convertTo('px', NaN)
 
 describe "DOM", ->
 	it "parse", ->

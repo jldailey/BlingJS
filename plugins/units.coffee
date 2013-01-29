@@ -20,38 +20,23 @@ $.plugin
 			return UNIT_RE.exec(s)[2]
 		""
 
-	# Conversion rates between units, for better comparisons.
+	# The core conversion routine:
 	conv = (a,b) ->
 		if a of conv
 			if b of conv[a]
 				return conv[a][b]()
 		0
-	trick = (x) -> -> x # evaluate expression x now, return the final value later on request
-	fillIdentityConversions = ->
-		# sets a<->a and a<->"" converters to 1.0
-		for a in units
-			conv[a] or= {}
-			for b in units
-				unless b of conv[a]
-					ident = a is b or a is "" or b is ""
-					if ident
-						conv[a][b] = trick +ident
-	fillInferredConversions = ->
-		inferred = 1
-		while inferred > 0
-			inferred = 0
-			for a in units when a isnt ''
-				for b in units when b isnt ''
-					if (not conv a,b) and (conv b,a)
-						conv[a] or= {}
-						conv[a][b] = trick 1.0/conv(b,a)
-						inferred += 1
-					for c in units when c isnt ''
-						if (conv a,b) and (conv b,c) and (not conv a,c)
-							conv[a] or= {}
-							conv[a][c] = trick conv(a,b) * conv(b,c)
-							inferred += 1
-		null
+
+	# A locker is a function for returning a fixed value, 
+	# `locker <expression>` evaluates the expression and returns the result later.
+	locker = (x) -> -> x
+
+	# Compute any conversions that we can figure out programmatically (identity, inverses, inference)
+	fillConversions = ->
+		# For now, this is just a stub, because we don't want the initial setup calls to do any of this
+		# Right after all the initial conversions are set, we put the real code back in
+
+
 	setConversion = (from, to, f) ->
 		conv[from] or= {}
 		conv[from][to] = f
@@ -60,8 +45,8 @@ $.plugin
 		if units.indexOf(to) is -1
 			units.push to
 		makeUnitRegex()
-		fillIdentityConversions()
-		fillInferredConversions()
+		fillConversions()
+
 	setConversion 'pc', 'pt', -> 12
 	setConversion 'in', 'pt', -> 72
 	setConversion 'in', 'px', -> 96
@@ -87,6 +72,9 @@ $.plugin
 		w
 	setConversion 'ex', 'em', -> 2
 	setConversion 'rad', 'deg', -> 57.3
+	setConversion 's', 'sec', -> 1
+	setConversion 's', 'ms', -> 1000
+	setConversion 'ms', 'ns', -> 1000000
 	setConversion 'min', 'sec', -> 60
 	setConversion 'hr', 'min', -> 60
 	setConversion 'hr', 'hour', -> 1
@@ -102,8 +90,39 @@ $.plugin
 	setConversion 'lb', 'g', -> 453.6
 	setConversion 'lb', 'oz', -> 16
 
+	# Now fill in the conversions, and assign the reference back so further calls to setConversion will do the exhaustive fill.
+	do fillConversions = ->
+		# set up all the identity conversions (self to self, or to unitless)
+		conv[''] = {}
+		one = locker 1.0
+		for a in units
+			conv[a] or= {}
+			conv[a][a] = conv[a][''] = conv[''][a] = one
 
-	convertUnits = (number, unit) -> parseFloat(number) * conv[parseUnits(number)]?[unit]() + unit
+		# set up all inverse and inference conversions (exhaustively)
+		infered = 1
+		while infered > 0
+			infered = 0
+			for a in units when a isnt ''
+				conv[a] or= {}
+				for b in units when b isnt ''
+					if (not conv a,b) and (conv b,a)
+						conv[a][b] = locker 1.0/conv(b,a)
+						infered += 1
+					for c in units when c isnt ''
+						if (conv a,b) and (conv b,c) and (not conv a,c)
+							conv[a][c] = locker conv(a,b) * conv(b,c)
+							infered += 1
+		null
+
+
+	convertNumber = (number, unit) ->
+		f = parseFloat(number)
+		u = parseUnits(number)
+		c = conv[u]?[unit]()
+		unless isFinite(c) and isFinite(f)
+			return number
+		"#{f * c}#{unit}"
 
 
 	$.type.register "units",
@@ -116,8 +135,8 @@ $.plugin
 			units:
 				set: setConversion
 				get: conv
-				convertTo: (to, obj) -> convertUnits(obj, to)
-		convertTo: (to) -> @map (x) -> convertUnits(x, to)
+				convertTo: (unit, obj) -> convertNumber(obj, unit)
+		convertTo: (unit) -> @map (x) -> convertNumber(x, unit)
 		unitMap: (f) ->
 			@map (x) ->
 				f.call((n = parseFloat x), n) + parseUnits x

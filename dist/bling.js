@@ -58,7 +58,7 @@
   Bling.global = typeof window !== "undefined" && window !== null ? window : global;
 
   Bling.plugin = function(opts, constructor) {
-    var key, plugin, _fn,
+    var key, plugin, _base, _fn, _name, _ref,
       _this = this;
     if (!constructor) {
       constructor = opts;
@@ -72,11 +72,10 @@
       });
     }
     try {
-      if ((plugin = constructor != null ? constructor.call(this, this) : void 0)) {
+      if (typeof (plugin = constructor != null ? constructor.call(this, this) : void 0) === "object") {
+        ((_base = Bling.plugin)[_name = (_ref = opts.provides) != null ? _ref : ""] || (_base[_name] = [])).push(plugin);
         extend(this, plugin != null ? plugin.$ : void 0);
-        ['$', 'name'].forEach(function(k) {
-          return delete plugin[k];
-        });
+        delete plugin.$;
         extend(this.prototype, plugin);
         _fn = function(key) {
           return _this[key] || (_this[key] = function() {
@@ -98,50 +97,50 @@
     return this;
   };
 
-  (function() {
-    var dep;
-    dep = {
-      q: [],
-      done: {},
-      filter: function(n) {
-        return ((typeof n) === "string" ? n.split(/, */) : n).filter(function(x) {
-          return !(x in dep.done);
-        });
-      }
+  extend(Bling, (function() {
+    var complete, incomplete, waiting;
+    waiting = [];
+    complete = {};
+    incomplete = function(n) {
+      return ((typeof n) === "string" ? n.split(/, */) : n).filter(function(x) {
+        return !(x in complete);
+      });
     };
-    Bling.depends = function(needs, f) {
-      if ((needs = dep.filter(needs)).length === 0) {
-        f();
-      } else {
-        dep.q.push(function(need) {
-          var i;
-          if ((i = needs.indexOf(need)) > -1) {
-            needs.splice(i, 1);
-          }
-          return needs.length === 0 && f;
-        });
-      }
-      return f;
-    };
-    return Bling.provide = function(needs, data) {
-      var f, i, need, _i, _len, _ref;
-      _ref = dep.filter(needs);
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        need = _ref[_i];
-        dep.done[need] = i = 0;
-        while (i < dep.q.length) {
-          if ((f = dep.q[i](need))) {
-            dep.q.splice(i, 1);
-            f(data);
-            i = 0;
-          } else {
-            i++;
+    return {
+      depends: function(needs, func) {
+        if ((needs = incomplete(needs)).length === 0) {
+          func();
+        } else {
+          waiting.push(function(need) {
+            var i;
+            if ((i = needs.indexOf(need)) > -1) {
+              needs.splice(i, 1);
+            }
+            return needs.length === 0 && func;
+          });
+        }
+        return func;
+      },
+      provide: function(needs, data) {
+        var func, i, need, _i, _len, _ref;
+        _ref = incomplete(needs);
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          need = _ref[_i];
+          complete[need] = i = 0;
+          while (i < waiting.length) {
+            if ((func = waiting[i](need))) {
+              waiting.splice(i, 1);
+              func(data);
+              i = 0;
+            } else {
+              i++;
+            }
           }
         }
+        return data;
       }
-      return data;
     };
-  })();
+  })());
 
   $ = Bling;
 

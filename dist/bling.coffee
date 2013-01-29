@@ -18,37 +18,37 @@ Bling.plugin = (opts, constructor) ->
 		return @depends opts.depends, =>
 			@plugin { provides: opts.provides }, constructor
 	try
-		if (plugin = constructor?.call @,@)
+		if typeof (plugin = constructor?.call @,@) is "object"
+			(Bling.plugin[opts.provides ? ""] or= []).push plugin
 			extend @, plugin?.$
-			['$','name'].forEach (k) -> delete plugin[k]
-			extend @::, plugin
+			delete plugin.$
+			extend @prototype, plugin
 			for key of plugin then do (key) =>
 				@[key] or= (a...) => (@::[key].apply Bling(a[0]), a[1...])
 			if opts.provides? then @provide opts.provides
 	catch error
 		console.log "failed to load plugin: #{@name} #{error.message}: #{error.stack}"
 	@
-do ->
-	dep =
-		q: []
-		done: {}
-		filter: (n) ->
-			(if (typeof n) is "string" then n.split /, */ else n)
-			.filter (x) -> not (x of dep.done)
-	Bling.depends = (needs, f) ->
-		if (needs = dep.filter needs).length is 0 then f()
+extend Bling, do ->
+	waiting = []
+	complete = {}
+	incomplete = (n) ->
+		(if (typeof n) is "string" then n.split /, */ else n)
+		.filter (x) -> not (x of complete)
+	depends: (needs, func) ->
+		if (needs = incomplete needs).length is 0 then func()
 		else
-			dep.q.push (need) ->
+			waiting.push (need) ->
 				(needs.splice i, 1) if (i = needs.indexOf need) > -1
-				return (needs.length is 0 and f)
-		f
-	Bling.provide = (needs, data) ->
-		for need in dep.filter needs
-			dep.done[need] = i = 0
-			while i < dep.q.length
-				if (f = dep.q[i] need)
-					dep.q.splice i,1
-					f data
+				return (needs.length is 0 and func)
+		func
+	provide: (needs, data) ->
+		for need in incomplete needs
+			complete[need] = i = 0
+			while i < waiting.length
+				if (func = waiting[i] need)
+					waiting.splice i,1
+					func data
 					i = 0 # start over in case a nested dependency removed stuff 'behind' i
 				else i++
 		data

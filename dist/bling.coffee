@@ -204,9 +204,25 @@ $.plugin
 			@
 		select: (->
 			getter = (prop) -> -> if $.is("function",v = @[prop]) then $.bound(@,v) else v
-			select = (p) ->
+			selectOne = (p) ->
 				if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
 				else @map(getter p)
+			selectMany = (a...) ->
+				n = @length
+				lists = Object.create(null)
+				for p in a
+					lists[p] = @select(p)
+				i = 0
+				@map ->
+					obj = Object.create(null)
+					for p of lists
+						obj[$(p.split '.').last()] = lists[p][i]
+					i++
+					obj
+			->
+				switch arguments.length
+					when 1 then selectOne.apply @, arguments
+					when 2 then selectMany.apply @, arguments
 		)()
 		or: (x) -> @[i] or= x for i in [0...@length]; @
 		zap: (p, v) ->

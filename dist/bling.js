@@ -548,7 +548,7 @@
         return this;
       },
       select: (function() {
-        var getter, select;
+        var getter, selectMany, selectOne;
         getter = function(prop) {
           return function() {
             var v;
@@ -559,12 +559,40 @@
             }
           };
         };
-        return select = function(p) {
+        selectOne = function(p) {
           var i;
           if ((i = p.indexOf('.')) > -1) {
             return this.select(p.substr(0, i)).select(p.substr(i + 1));
           } else {
             return this.map(getter(p));
+          }
+        };
+        selectMany = function() {
+          var a, i, lists, n, p, _i, _len;
+          a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+          n = this.length;
+          lists = Object.create(null);
+          for (_i = 0, _len = a.length; _i < _len; _i++) {
+            p = a[_i];
+            lists[p] = this.select(p);
+          }
+          i = 0;
+          return this.map(function() {
+            var obj;
+            obj = Object.create(null);
+            for (p in lists) {
+              obj[$(p.split('.')).last()] = lists[p][i];
+            }
+            i++;
+            return obj;
+          });
+        };
+        return function() {
+          switch (arguments.length) {
+            case 1:
+              return selectOne.apply(this, arguments);
+            case 2:
+              return selectMany.apply(this, arguments);
           }
         };
       })(),

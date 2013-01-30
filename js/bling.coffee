@@ -204,9 +204,25 @@ $.plugin
 			@
 		select: (->
 			getter = (prop) -> -> if $.is("function",v = @[prop]) then $.bound(@,v) else v
-			select = (p) ->
+			selectOne = (p) ->
 				if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
 				else @map(getter p)
+			selectMany = (a...) ->
+				n = @length
+				lists = Object.create(null)
+				for p in a
+					lists[p] = @select(p)
+				i = 0
+				@map ->
+					obj = Object.create(null)
+					for p of lists
+						obj[$(p.split '.').last()] = lists[p][i]
+					i++
+					obj
+			->
+				switch arguments.length
+					when 1 then selectOne.apply @, arguments
+					when 2 then selectMany.apply @, arguments
 		)()
 		or: (x) -> @[i] or= x for i in [0...@length]; @
 		zap: (p, v) ->
@@ -432,7 +448,6 @@ $.plugin
 	provides: 'dialog'
 , ->
 	$('head style.dialog').remove()
-	$('head style.dialog').remove()
 	$.synth('style.dialog "
 		.dialog {
 				position: absolute;
@@ -475,11 +490,12 @@ $.plugin
 	createDialog = (opts) ->
 		modal = $.synth("div.modal##{opts.id} div.dialog h1.title button.cancel 'X' ++ div.content")
 			.appendTo("body") # append ourselves to the DOM so we start functioning as nodes
+			.click((evt) -> opts.cancel(modal))
 			.delegate(".cancel", "click", (evt) -> opts.cancel(modal)) # all class='cancel' and class='ok' nodes are bound to
 			.delegate(".ok", "click", (evt) -> opts.ok(modal))
-		contentNode = modal.find('div.dialog > div.content')
+		contentNode = modal.find('.dialog > .content')
 		contentNode.append getContent opts.contentType, opts.content
-		titleNode = modal.find('div.dialog > h1.title')
+		titleNode = modal.find('.dialog > .title')
 		titleNode.append getContent opts.titleType, opts.title
 		modal.fitOver(opts.parent) # position the modal to mask the parent
 			.show()
@@ -523,8 +539,8 @@ $.plugin
 					left: 0
 			else
 				target = $(elem).rect().first()
-			top = target.top + target.height / 2
-			left = target.left + target.width / 2
+			top = target.height / 2
+			left = target.width / 2
 			@each ->
 				dialog = $ @
 				rect = dialog.rect().first()

@@ -1135,7 +1135,6 @@
   }, function() {
     var createDialog, getContent;
     $('head style.dialog').remove();
-    $('head style.dialog').remove();
     $.synth('style.dialog "\
 		.dialog {\
 				position: absolute;\
@@ -1181,14 +1180,16 @@
     };
     createDialog = function(opts) {
       var contentNode, modal, titleNode;
-      modal = $.synth("div.modal#" + opts.id + " div.dialog h1.title button.cancel 'X' ++ div.content").appendTo("body").delegate(".cancel", "click", function(evt) {
+      modal = $.synth("div.modal#" + opts.id + " div.dialog h1.title button.cancel 'X' ++ div.content").appendTo("body").click(function(evt) {
+        return opts.cancel(modal);
+      }).delegate(".cancel", "click", function(evt) {
         return opts.cancel(modal);
       }).delegate(".ok", "click", function(evt) {
         return opts.ok(modal);
       });
-      contentNode = modal.find('div.dialog > div.content');
+      contentNode = modal.find('.dialog > .content');
       contentNode.append(getContent(opts.contentType, opts.content));
-      titleNode = modal.find('div.dialog > h1.title');
+      titleNode = modal.find('.dialog > .title');
       titleNode.append(getContent(opts.titleType, opts.title));
       return modal.fitOver(opts.parent).show().select('childNodes.0').centerOn(modal);
     };
@@ -1251,8 +1252,8 @@
         } else {
           target = $(elem).rect().first();
         }
-        top = target.top + target.height / 2;
-        left = target.left + target.width / 2;
+        top = target.height / 2;
+        left = target.width / 2;
         return this.each(function() {
           var dialog, rect;
           dialog = $(this);

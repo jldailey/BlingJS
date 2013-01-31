@@ -2067,12 +2067,18 @@ $.plugin
 , ->
 	units = $ ["px","pt","pc","em","%","in","cm","mm","ex","lb","kg","yd","ft","m", ""]
 	UNIT_RE = null
-	do makeUnitRegex = -> UNIT_RE = new RegExp "(\\d+\\.*\\d*)(#{units.filter(/.+/).join '|'})"
+	do makeUnitRegex = ->
+		joined = units.filter(/.+/).join '|'
+		UNIT_RE = new RegExp "(\\d+\\.*\\d*)((?:#{joined})/*(?:#{joined})*)"
 	parseUnits = (s) ->
 		if UNIT_RE.test(s)
 			return UNIT_RE.exec(s)[2]
 		""
 	conv = (a,b) ->
+		[numer_a, denom_a] = a.split '/'
+		[numer_b, denom_b] = b.split '/'
+		if denom_a? and denom_b?
+			return conv(denom_b, denom_a) * conv(numer_a, numer_b)
 		if a of conv
 			if b of conv[a]
 				return conv[a][b]()
@@ -2096,6 +2102,9 @@ $.plugin
 	setConversion 'yd', 'ft', -> 3
 	setConversion 'cm', 'mm', -> 10
 	setConversion 'm', 'cm', -> 100
+	setConversion 'm', 'meter', -> 1
+	setConversion 'm', 'meters', -> 1
+	setConversion 'ft', 'feet', -> 1
 	setConversion 'km', 'm', -> 1000
 	setConversion 'em', 'px', ->
 		w = 0
@@ -2130,6 +2139,9 @@ $.plugin
 	setConversion 'kg', 'g', -> 1000
 	setConversion 'lb', 'g', -> 453.6
 	setConversion 'lb', 'oz', -> 16
+	setConversion 'f', 'frame', -> 1
+	setConversion 'f', 'frames', -> 1
+	setConversion 'sec', 'f', -> 60
 	do fillConversions = ->
 		conv[''] = {}
 		one = locker 1.0
@@ -2153,7 +2165,7 @@ $.plugin
 	convertNumber = (number, unit) ->
 		f = parseFloat(number)
 		u = parseUnits(number)
-		c = conv[u]?[unit]()
+		c = conv(u, unit)
 		unless isFinite(c) and isFinite(f)
 			return number
 		"#{f * c}#{unit}"
@@ -2161,6 +2173,7 @@ $.plugin
 		match: (x) -> typeof x is "string" and UNIT_RE.test(x)
 		number: (x) -> parseFloat(x)
 		string: (x) -> "'#{x}'"
+	
 	{
 		$:
 			units:

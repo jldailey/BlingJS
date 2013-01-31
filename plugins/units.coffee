@@ -12,7 +12,9 @@ $.plugin
 	# Define a RegEx to match a unit string.
 	units = $ ["px","pt","pc","em","%","in","cm","mm","ex","lb","kg","yd","ft","m", ""]
 	UNIT_RE = null
-	do makeUnitRegex = -> UNIT_RE = new RegExp "(\\d+\\.*\\d*)(#{units.filter(/.+/).join '|'})"
+	do makeUnitRegex = ->
+		joined = units.filter(/.+/).join '|'
+		UNIT_RE = new RegExp "(\\d+\\.*\\d*)((?:#{joined})/*(?:#{joined})*)"
 
 	# Return the units portion of a string: "4.2px" yields "px"
 	parseUnits = (s) ->
@@ -22,6 +24,10 @@ $.plugin
 
 	# The core conversion routine:
 	conv = (a,b) ->
+		[numer_a, denom_a] = a.split '/'
+		[numer_b, denom_b] = b.split '/'
+		if denom_a? and denom_b?
+			return conv(denom_b, denom_a) * conv(numer_a, numer_b)
 		if a of conv
 			if b of conv[a]
 				return conv[a][b]()
@@ -55,6 +61,9 @@ $.plugin
 	setConversion 'yd', 'ft', -> 3
 	setConversion 'cm', 'mm', -> 10
 	setConversion 'm', 'cm', -> 100
+	setConversion 'm', 'meter', -> 1
+	setConversion 'm', 'meters', -> 1
+	setConversion 'ft', 'feet', -> 1
 	setConversion 'km', 'm', -> 1000
 	setConversion 'em', 'px', ->
 		w = 0
@@ -89,6 +98,9 @@ $.plugin
 	setConversion 'kg', 'g', -> 1000
 	setConversion 'lb', 'g', -> 453.6
 	setConversion 'lb', 'oz', -> 16
+	setConversion 'f', 'frame', -> 1
+	setConversion 'f', 'frames', -> 1
+	setConversion 'sec', 'f', -> 60
 
 	# Now fill in the conversions, and assign the reference back so further calls to setConversion will do the exhaustive fill.
 	do fillConversions = ->
@@ -115,11 +127,10 @@ $.plugin
 							infered += 1
 		null
 
-
 	convertNumber = (number, unit) ->
 		f = parseFloat(number)
 		u = parseUnits(number)
-		c = conv[u]?[unit]()
+		c = conv(u, unit)
 		unless isFinite(c) and isFinite(f)
 			return number
 		"#{f * c}#{unit}"
@@ -129,7 +140,7 @@ $.plugin
 		match: (x) -> typeof x is "string" and UNIT_RE.test(x)
 		number: (x) -> parseFloat(x)
 		string: (x) -> "'#{x}'"
-
+	
 	{
 		$:
 			units:
@@ -140,5 +151,4 @@ $.plugin
 		unitMap: (f) ->
 			@map (x) ->
 				f.call((n = parseFloat x), n) + parseUnits x
-
 	}

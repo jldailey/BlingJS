@@ -1056,6 +1056,8 @@ describe "Bling", ->
 		it "does not crash on bad numbers", ->
 			assert not isFinite $.units.convertTo('px', Infinity)
 			assert not isFinite $.units.convertTo('px', NaN)
+		it "can convert compound units like m/s", ->
+			assert.equal $.units.convertTo("px/ms", "42in/s"), "4.032px/ms"
 
 describe "DOM", ->
 	it "parse", ->

@@ -4314,7 +4314,9 @@
     units = $(["px", "pt", "pc", "em", "%", "in", "cm", "mm", "ex", "lb", "kg", "yd", "ft", "m", ""]);
     UNIT_RE = null;
     (makeUnitRegex = function() {
-      return UNIT_RE = new RegExp("(\\d+\\.*\\d*)(" + (units.filter(/.+/).join('|')) + ")");
+      var joined;
+      joined = units.filter(/.+/).join('|');
+      return UNIT_RE = new RegExp("(\\d+\\.*\\d*)((?:" + joined + ")/*(?:" + joined + ")*)");
     })();
     parseUnits = function(s) {
       if (UNIT_RE.test(s)) {
@@ -4323,6 +4325,12 @@
       return "";
     };
     conv = function(a, b) {
+      var denom_a, denom_b, numer_a, numer_b, _ref, _ref1;
+      _ref = a.split('/'), numer_a = _ref[0], denom_a = _ref[1];
+      _ref1 = b.split('/'), numer_b = _ref1[0], denom_b = _ref1[1];
+      if ((denom_a != null) && (denom_b != null)) {
+        return conv(denom_b, denom_a) * conv(numer_a, numer_b);
+      }
       if (a in conv) {
         if (b in conv[a]) {
           return conv[a][b]();
@@ -4371,6 +4379,15 @@
     });
     setConversion('m', 'cm', function() {
       return 100;
+    });
+    setConversion('m', 'meter', function() {
+      return 1;
+    });
+    setConversion('m', 'meters', function() {
+      return 1;
+    });
+    setConversion('ft', 'feet', function() {
+      return 1;
     });
     setConversion('km', 'm', function() {
       return 1000;
@@ -4452,6 +4469,15 @@
     setConversion('lb', 'oz', function() {
       return 16;
     });
+    setConversion('f', 'frame', function() {
+      return 1;
+    });
+    setConversion('f', 'frames', function() {
+      return 1;
+    });
+    setConversion('sec', 'f', function() {
+      return 60;
+    });
     (fillConversions = function() {
       var a, b, c, infered, one, _i, _j, _k, _l, _len, _len1, _len2, _len3;
       conv[''] = {};
@@ -4494,10 +4520,10 @@
       return null;
     })();
     convertNumber = function(number, unit) {
-      var c, f, u, _ref;
+      var c, f, u;
       f = parseFloat(number);
       u = parseUnits(number);
-      c = (_ref = conv[u]) != null ? _ref[unit]() : void 0;
+      c = conv(u, unit);
       if (!(isFinite(c) && isFinite(f))) {
         return number;
       }

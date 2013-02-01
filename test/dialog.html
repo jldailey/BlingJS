@@ -58,7 +58,7 @@
 						"span 'The contents of this message will self-destruct...' + " +
 						"button.ok 'OK'",
 					parent: this
-				}).css('width', '400px')
+				})
 			}
 			$(".left button").click(function(){ show.apply('.left') })
 			$(".right button").click(function(){ show.apply('.right') })
@@ -66,9 +66,9 @@
 			$(".bottom button").click(function(){ 
 				$.wizard([
 					{ title: "Page One",
-						content: "span 'This is page one.' + button.cancel 'Cancel' + button.next 'Next'" },
+						content: "span 'This is page one.' + button.cancel 'Cancel' + button.wiz-next 'Next'" },
 					{ title: "Page Two",
-						content: "span 'This is page two.' + button.back 'Back' + button.ok 'Done'" }
+						content: "span 'This is page two.' + button.wiz-back 'Back' + button.ok 'Done'" }
 				])
 			})
 		</script>

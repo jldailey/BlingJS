@@ -40,13 +40,8 @@ $.plugin
 			}
 		"').appendTo("head")
 
-	getContent = (type, stuff) ->
-		switch type
-			when "synth" then $.synth(stuff)
-			when "html" then $.HTML.parse(stuff)
-			when "text" then document.createTextNode(stuff)
-	
 	createDialog = (opts) ->
+		opts = $.extend createDialog.getDefaultOptions(), opts
 		injectCSS()
 		modal = $.synth("div.modal##{opts.id} div.dialog div.title + div.content") # h1.title button.cancel 'X' ++ div.content")
 			.appendTo("body") # append ourselves to the DOM so we start functioning as nodes
@@ -56,11 +51,11 @@ $.plugin
 
 		# fill in the content
 		contentNode = modal.find('.dialog > .content').take(1)
-		contentNode.append getContent opts.contentType, opts.content
+		contentNode.append createDialog.getContent opts.contentType, opts.content
 
 		# fill in the title
 		titleNode = modal.find('.dialog > .title').take(1)
-		titleNode.append getContent opts.titleType, opts.title
+		titleNode.append createDialog.getContent opts.titleType, opts.title
 
 		# position the modal and the dialog
 		modal.fitOver(opts.parent) # position the modal to mask the parent
@@ -70,21 +65,27 @@ $.plugin
 			.hide()
 			.take(1)
 			.show()
+	
+	createDialog.getDefaultOptions = ->
+		id: "dialog-" + $.random.string 4
+		parent: "body"
+		title: "Untitled Dialog"
+		titleType: "text"
+		content: "span 'Dialog Content'"
+		contentType: "synth"
+		ok: (modal) -> modal.remove()
+		cancel: (modal) -> modal.remove()
+	
+	createDialog.getContent = (type, stuff) ->
+		switch type
+			when "synth" then $.synth(stuff)
+			when "html" then $.HTML.parse(stuff)
+			when "text" then document.createTextNode(stuff)
+	
 
 	return {
 		$:
-			dialog: (opts) ->
-				defaults = {
-					id: "dialog-" + $.random.string 4
-					parent: "body"
-					title: "Untitled Dialog"
-					titleType: "text"
-					content: "span 'Dialog Content'"
-					contentType: "synth"
-					ok: (modal) -> modal.remove()
-					cancel: (modal) -> modal.remove()
-				}
-				createDialog $.extend defaults, opts
+			dialog: createDialog
 
 		fitOver: (elem = window) ->
 			if elem is window

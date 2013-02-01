@@ -482,13 +482,8 @@ $.plugin
 				background: rgba(0,0,0,0.4);
 			}
 		"').appendTo("head")
-	getContent = (type, stuff) ->
-		switch type
-			when "synth" then $.synth(stuff)
-			when "html" then $.HTML.parse(stuff)
-			when "text" then document.createTextNode(stuff)
-	
 	createDialog = (opts) ->
+		opts = $.extend createDialog.getDefaultOptions(), opts
 		injectCSS()
 		modal = $.synth("div.modal##{opts.id} div.dialog div.title + div.content") # h1.title button.cancel 'X' ++ div.content")
 			.appendTo("body") # append ourselves to the DOM so we start functioning as nodes
@@ -496,9 +491,9 @@ $.plugin
 			.delegate(".cancel", "click", (evt) -> opts.cancel(modal)) # all class='cancel' and class='ok' nodes are bound to
 			.delegate(".ok", "click", (evt) -> opts.ok(modal))
 		contentNode = modal.find('.dialog > .content').take(1)
-		contentNode.append getContent opts.contentType, opts.content
+		contentNode.append createDialog.getContent opts.contentType, opts.content
 		titleNode = modal.find('.dialog > .title').take(1)
-		titleNode.append getContent opts.titleType, opts.title
+		titleNode.append createDialog.getContent opts.titleType, opts.title
 		modal.fitOver(opts.parent) # position the modal to mask the parent
 			.show()
 			.find('.dialog') # select the dialog itself
@@ -506,20 +501,26 @@ $.plugin
 			.hide()
 			.take(1)
 			.show()
+	
+	createDialog.getDefaultOptions = ->
+		id: "dialog-" + $.random.string 4
+		parent: "body"
+		title: "Untitled Dialog"
+		titleType: "text"
+		content: "span 'Dialog Content'"
+		contentType: "synth"
+		ok: (modal) -> modal.remove()
+		cancel: (modal) -> modal.remove()
+	
+	createDialog.getContent = (type, stuff) ->
+		switch type
+			when "synth" then $.synth(stuff)
+			when "html" then $.HTML.parse(stuff)
+			when "text" then document.createTextNode(stuff)
+	
 	return {
 		$:
-			dialog: (opts) ->
-				defaults = {
-					id: "dialog-" + $.random.string 4
-					parent: "body"
-					title: "Untitled Dialog"
-					titleType: "text"
-					content: "span 'Dialog Content'"
-					contentType: "synth"
-					ok: (modal) -> modal.remove()
-					cancel: (modal) -> modal.remove()
-				}
-				createDialog $.extend defaults, opts
+			dialog: createDialog
 		fitOver: (elem = window) ->
 			if elem is window
 				rect =
@@ -2246,3 +2247,25 @@ $.plugin
 			for i in [1...args.length]
 				$.assertEqual a, args[i]
 		return @
+$.plugin
+	depends: 'dialog'
+	provides: 'wizard'
+, ->
+	
+	$: wizard: (slides) ->
+		currentSlide = 0
+		slideChanger = (delta) -> ->
+			newSlide = (currentSlide + delta) % slides.length
+			modal.find('.dialog').skip(newSlide).take(1).show()
+		modal = $.dialog slides[0]
+		modal.delegate '.dialog', 'show', (evt) ->
+			modal.find('.dialog').hide().removeClass('wiz-active')
+			$(evt.target).addClass('wiz-active')
+		modal.delegate '.wiz-next', 'click', slideChanger(+1)
+		modal.delegate '.wiz-back', 'click', slideChanger(-1)
+		modal.find('.dialog').first(1).show()
+		for slide in slides.slice(1)
+			d = $.synth('div.dialog div.title + div.content').appendTo("modal").hide()
+			slide = $.extend $.dialog.getDefaultOptions(), slide
+			d.find('.title').append $.dialog.getContent slide.titleType, slide.title
+			d.find('.content').append $.dialog.getContent slide.contentType, slide.content

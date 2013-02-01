@@ -38,7 +38,13 @@ $.plugin
 			# Classify the type to get a type-instance.
 			# Then convert the args to an array.
 			args = $.type.lookup(args[0]).array(args[0])
-		$.inherit Bling, args
+		b = $.inherit Bling, args
+		# Firefox clobbers the length when you change the inheritance chain on an array, so we patch it up here
+		if args.length is 0 and args[0] isnt undefined
+			i = 0
+			i++ while args[i] isnt undefined
+			b.length = i
+		b
 
 	$: hook: hook
 

@@ -2261,10 +2261,19 @@
       return args;
     };
     hook("bling-init").prepend(function(args) {
+      var b, i;
       if (args.length === 1) {
         args = $.type.lookup(args[0]).array(args[0]);
       }
-      return $.inherit(Bling, args);
+      b = $.inherit(Bling, args);
+      if (args.length === 0 && args[0] !== void 0) {
+        i = 0;
+        while (args[i] !== void 0) {
+          i++;
+        }
+        b.length = i;
+      }
+      return b;
     });
     return {
       $: {

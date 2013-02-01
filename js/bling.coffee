@@ -1055,7 +1055,12 @@ $.plugin
 	hook("bling-init").prepend (args) ->
 		if args.length is 1
 			args = $.type.lookup(args[0]).array(args[0])
-		$.inherit Bling, args
+		b = $.inherit Bling, args
+		if args.length is 0 and args[0] isnt undefined
+			i = 0
+			i++ while args[i] isnt undefined
+			b.length = i
+		b
 	$: hook: hook
 $.plugin
 	depends: "dom"

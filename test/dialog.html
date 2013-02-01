@@ -2,6 +2,7 @@
 <html>
 	<head>
 		<title>BlingJS UI Tests</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 		<script src="/js/bling.js"></script>
 		<style type="text/css">
 			body {
@@ -79,13 +80,13 @@
 			$(".right button").click(function(){ show.apply('.right') })
 			$(".top button").click(function(){ show() })
 			$(".bottom button").click(function(){ 
-				$.wizard([
+				$.wizard [
 					{ title: "Page One",
 						parent: window,
 						content: "span 'This is page one.' + br + button.cancel 'Cancel' + button.wiz-next 'Next'" },
 					{ title: "Page Two",
 						content: "span 'This is page two.' + br + button.wiz-back 'Back' + button.ok 'Done'" }
-				])
+				]
 			})
 		</script>
 	</body>

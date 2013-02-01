@@ -1172,9 +1172,9 @@
 				-webkit-transition-property: left;\
 				-webkit-transition-duration: .1s;\
 				-moz-transition-property: left;\
-				-moz-transition-duration: .1s;\
+				-moz-transition-duration: 1s;\
 				transition-property: left;\
-				transition-duration: .1s;\
+				transition-duration: 1s;\
 			}\
 			.dialog > .title {\
 				text-align: center;\

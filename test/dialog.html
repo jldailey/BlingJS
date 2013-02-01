@@ -39,6 +39,9 @@
 				bottom: 0;
 				border: 1px dashed black;
 			}
+			.dialog {
+				min-width: 400px;
+			}
 		</style>
 	</head>
 	<body>
@@ -66,9 +69,10 @@
 			$(".bottom button").click(function(){ 
 				$.wizard([
 					{ title: "Page One",
-						content: "span 'This is page one.' + button.cancel 'Cancel' + button.wiz-next 'Next'" },
+						parent: window,
+						content: "span 'This is page one.' + br + button.cancel 'Cancel' + button.wiz-next 'Next'" },
 					{ title: "Page Two",
-						content: "span 'This is page two.' + button.wiz-back 'Back' + button.ok 'Done'" }
+						content: "span 'This is page two.' + br + button.wiz-back 'Back' + button.ok 'Done'" }
 				])
 			})
 		</script>

@@ -1043,6 +1043,7 @@ describe "Bling", ->
 				[ {a:1}, {a:1}, {a:1} ]
 	
 	describe ".units", ->
+		$.units.enable()
 		it "handles strings with unit-suffixed numbers", ->
 			assert.equal $.type("34px"), "units"
 		it "does not handle strings with numbers alone", ->

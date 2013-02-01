@@ -4309,7 +4309,7 @@
     depends: 'math',
     provides: 'units'
   }, function() {
-    var UNIT_RE, conv, convertNumber, fillConversions, locker, makeUnitRegex, parseUnits, setConversion, units;
+    var UNIT_RE, conv, convertNumber, fillConversions, initialize, locker, makeUnitRegex, parseUnits, setConversion, units;
     units = $(["px", "pt", "pc", "em", "%", "in", "cm", "mm", "ex", "lb", "kg", "yd", "ft", "m", ""]);
     UNIT_RE = null;
     (makeUnitRegex = function() {
@@ -4355,169 +4355,172 @@
       makeUnitRegex();
       return fillConversions();
     };
-    setConversion('pc', 'pt', function() {
-      return 12;
-    });
-    setConversion('in', 'pt', function() {
-      return 72;
-    });
-    setConversion('in', 'px', function() {
-      return 96;
-    });
-    setConversion('in', 'cm', function() {
-      return 2.54;
-    });
-    setConversion('m', 'ft', function() {
-      return 3.281;
-    });
-    setConversion('yd', 'ft', function() {
-      return 3;
-    });
-    setConversion('cm', 'mm', function() {
-      return 10;
-    });
-    setConversion('m', 'cm', function() {
-      return 100;
-    });
-    setConversion('m', 'meter', function() {
-      return 1;
-    });
-    setConversion('m', 'meters', function() {
-      return 1;
-    });
-    setConversion('ft', 'feet', function() {
-      return 1;
-    });
-    setConversion('km', 'm', function() {
-      return 1000;
-    });
-    setConversion('em', 'px', function() {
-      var w, x;
-      w = 0;
-      try {
-        x = $("<span style='font-size:1em;visibility:hidden'>x</span>").appendTo("body");
-        w = x.width().first();
-        x.remove();
-      } catch (_error) {}
-      return w;
-    });
-    setConversion('ex', 'px', function() {
-      var w, x;
-      w = 0;
-      try {
-        x = $("<span style='font-size:1ex;visibility:hidden'>x</span>").appendTo("body");
-        w = x.width().first();
-        x.remove();
-      } catch (_error) {}
-      return w;
-    });
-    setConversion('ex', 'em', function() {
-      return 2;
-    });
-    setConversion('rad', 'deg', function() {
-      return 57.3;
-    });
-    setConversion('s', 'sec', function() {
-      return 1;
-    });
-    setConversion('s', 'ms', function() {
-      return 1000;
-    });
-    setConversion('ms', 'ns', function() {
-      return 1000000;
-    });
-    setConversion('min', 'sec', function() {
-      return 60;
-    });
-    setConversion('hr', 'min', function() {
-      return 60;
-    });
-    setConversion('hr', 'hour', function() {
-      return 1;
-    });
-    setConversion('hr', 'hours', function() {
-      return 1;
-    });
-    setConversion('day', 'hr', function() {
-      return 24;
-    });
-    setConversion('day', 'days', function() {
-      return 1;
-    });
-    setConversion('y', 'year', function() {
-      return 1;
-    });
-    setConversion('y', 'years', function() {
-      return 1;
-    });
-    setConversion('y', 'd', function() {
-      return 365.25;
-    });
-    setConversion('g', 'gram', function() {
-      return 1;
-    });
-    setConversion('g', 'grams', function() {
-      return 1;
-    });
-    setConversion('kg', 'g', function() {
-      return 1000;
-    });
-    setConversion('lb', 'g', function() {
-      return 453.6;
-    });
-    setConversion('lb', 'oz', function() {
-      return 16;
-    });
-    setConversion('f', 'frame', function() {
-      return 1;
-    });
-    setConversion('f', 'frames', function() {
-      return 1;
-    });
-    setConversion('sec', 'f', function() {
-      return 60;
-    });
-    (fillConversions = function() {
-      var a, b, c, infered, one, _i, _j, _k, _l, _len, _len1, _len2, _len3;
-      conv[''] = {};
-      one = locker(1.0);
-      for (_i = 0, _len = units.length; _i < _len; _i++) {
-        a = units[_i];
-        conv[a] || (conv[a] = {});
-        conv[a][a] = conv[a][''] = conv[''][a] = one;
-      }
-      infered = 1;
-      while (infered > 0) {
-        infered = 0;
-        for (_j = 0, _len1 = units.length; _j < _len1; _j++) {
-          a = units[_j];
-          if (!(a !== '')) {
-            continue;
-          }
+    initialize = function() {
+      setConversion('pc', 'pt', function() {
+        return 12;
+      });
+      setConversion('in', 'pt', function() {
+        return 72;
+      });
+      setConversion('in', 'px', function() {
+        return 96;
+      });
+      setConversion('in', 'cm', function() {
+        return 2.54;
+      });
+      setConversion('m', 'ft', function() {
+        return 3.281;
+      });
+      setConversion('yd', 'ft', function() {
+        return 3;
+      });
+      setConversion('cm', 'mm', function() {
+        return 10;
+      });
+      setConversion('m', 'cm', function() {
+        return 100;
+      });
+      setConversion('m', 'meter', function() {
+        return 1;
+      });
+      setConversion('m', 'meters', function() {
+        return 1;
+      });
+      setConversion('ft', 'feet', function() {
+        return 1;
+      });
+      setConversion('km', 'm', function() {
+        return 1000;
+      });
+      setConversion('em', 'px', function() {
+        var w, x;
+        w = 0;
+        try {
+          x = $("<span style='font-size:1em;visibility:hidden'>x</span>").appendTo("body");
+          w = x.width().first();
+          x.remove();
+        } catch (_error) {}
+        return w;
+      });
+      setConversion('ex', 'px', function() {
+        var w, x;
+        w = 0;
+        try {
+          x = $("<span style='font-size:1ex;visibility:hidden'>x</span>").appendTo("body");
+          w = x.width().first();
+          x.remove();
+        } catch (_error) {}
+        return w;
+      });
+      setConversion('ex', 'em', function() {
+        return 2;
+      });
+      setConversion('rad', 'deg', function() {
+        return 57.3;
+      });
+      setConversion('s', 'sec', function() {
+        return 1;
+      });
+      setConversion('s', 'ms', function() {
+        return 1000;
+      });
+      setConversion('ms', 'ns', function() {
+        return 1000000;
+      });
+      setConversion('min', 'sec', function() {
+        return 60;
+      });
+      setConversion('hr', 'min', function() {
+        return 60;
+      });
+      setConversion('hr', 'hour', function() {
+        return 1;
+      });
+      setConversion('hr', 'hours', function() {
+        return 1;
+      });
+      setConversion('day', 'hr', function() {
+        return 24;
+      });
+      setConversion('day', 'days', function() {
+        return 1;
+      });
+      setConversion('y', 'year', function() {
+        return 1;
+      });
+      setConversion('y', 'years', function() {
+        return 1;
+      });
+      setConversion('y', 'd', function() {
+        return 365.25;
+      });
+      setConversion('g', 'gram', function() {
+        return 1;
+      });
+      setConversion('g', 'grams', function() {
+        return 1;
+      });
+      setConversion('kg', 'g', function() {
+        return 1000;
+      });
+      setConversion('lb', 'g', function() {
+        return 453.6;
+      });
+      setConversion('lb', 'oz', function() {
+        return 16;
+      });
+      setConversion('f', 'frame', function() {
+        return 1;
+      });
+      setConversion('f', 'frames', function() {
+        return 1;
+      });
+      setConversion('sec', 'f', function() {
+        return 60;
+      });
+      (fillConversions = function() {
+        var a, b, c, infered, one, _i, _j, _k, _l, _len, _len1, _len2, _len3;
+        conv[''] = {};
+        one = locker(1.0);
+        for (_i = 0, _len = units.length; _i < _len; _i++) {
+          a = units[_i];
           conv[a] || (conv[a] = {});
-          for (_k = 0, _len2 = units.length; _k < _len2; _k++) {
-            b = units[_k];
-            if (!(b !== '')) {
+          conv[a][a] = conv[a][''] = conv[''][a] = one;
+        }
+        infered = 1;
+        while (infered > 0) {
+          infered = 0;
+          for (_j = 0, _len1 = units.length; _j < _len1; _j++) {
+            a = units[_j];
+            if (!(a !== '')) {
               continue;
             }
-            if ((!conv(a, b)) && (conv(b, a))) {
-              conv[a][b] = locker(1.0 / conv(b, a));
-              infered += 1;
-            }
-            for (_l = 0, _len3 = units.length; _l < _len3; _l++) {
-              c = units[_l];
-              if (c !== '') {
-                if ((conv(a, b)) && (conv(b, c)) && (!conv(a, c))) {
-                  conv[a][c] = locker(conv(a, b) * conv(b, c));
-                  infered += 1;
+            conv[a] || (conv[a] = {});
+            for (_k = 0, _len2 = units.length; _k < _len2; _k++) {
+              b = units[_k];
+              if (!(b !== '')) {
+                continue;
+              }
+              if ((!conv(a, b)) && (conv(b, a))) {
+                conv[a][b] = locker(1.0 / conv(b, a));
+                infered += 1;
+              }
+              for (_l = 0, _len3 = units.length; _l < _len3; _l++) {
+                c = units[_l];
+                if (c !== '') {
+                  if ((conv(a, b)) && (conv(b, c)) && (!conv(a, c))) {
+                    conv[a][c] = locker(conv(a, b) * conv(b, c));
+                    infered += 1;
+                  }
                 }
               }
             }
           }
         }
-      }
-      return null;
-    })();
+        return null;
+      })();
+      return $.units.enable = function() {};
+    };
     convertNumber = function(number, unit) {
       var c, f, u;
       f = parseFloat(number);
@@ -4542,6 +4545,7 @@
     return {
       $: {
         units: {
+          enable: initialize,
           set: setConversion,
           get: conv,
           convertTo: function(unit, obj) {

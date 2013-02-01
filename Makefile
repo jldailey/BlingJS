@@ -46,6 +46,8 @@ site: dist docs
 	&& sleep 1 \
 	&& git show master:$(DIST)/bling.js > js/bling.js \
 	&& sleep 1 \
+	&& git show master:test/dialog.html | sed 's@../dist/bling@js/bling@' > test/dialog.html \
+	&& sleep 1 \
 	&& git commit -a -m "build files" || true \
 	&& sleep 1 \
 	&& echo '$$.log("' `git log -1 --format="commit:%h @ %ci"` '")' > js/log-build.js \

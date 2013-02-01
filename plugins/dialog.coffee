@@ -10,45 +10,24 @@ $.plugin
 			.dialog {
 				position: absolute;
 				background: white;
-				border: 4px solid blue;
-				border-radius: 10px;
 				padding: 6px;
 				-webkit-transition-property: left;
 				-webkit-transition-duration: .1s;
 				-moz-transition-property: left;
 				-moz-transition-duration: .1s;
-				-ms-transition-property: left;
-				-ms-transition-duration: .1s;
-				-o-transition-property: left;
-				-o-transition-duration: .1s;
 				transition-property: left;
 				transition-duration: .1s;
 			}
 			.dialog > .title {
-				padding: 6px 0 4px 0;
-				margin: 0 0 6px 0;
-				font-size: 22px;
-				line-height: 32px;
 				text-align: center;
-				border-bottom: 1px solid #eaeaea;
 				width: 100%;
 			}
-			.dialog > .title > .cancel {
-				float: right;
-				width: 32px;
-				height: 32px;
-				border: 1px solid red;
-				font-size: 22px;
-				font-weight: bold;
-				font-family: arial, helvetica;
-			}
 			.dialog > .content {
-				text-align: center;
 				width: 100%;
 			}
 			.modal {
 				position: absolute;
-				background: rgba(0,0,0,0.4);
+				background: rgba(0,0,0,.4);
 			}
 		"').appendTo("head")
 

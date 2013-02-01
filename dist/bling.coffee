@@ -451,31 +451,43 @@ $.plugin
 		$('head style.dialog').remove()
 		$.synth('style.dialog "
 			.dialog {
-					position: absolute;
-					background: white;
-					border: 4px solid blue;
-					border-radius: 10px;
-					padding: 6px;
+				position: absolute;
+				background: white;
+				border: 4px solid blue;
+				border-radius: 10px;
+				padding: 6px;
+				-webkit-transition-property: left;
+				-webkit-transition-duration: .1s;
+				-moz-transition-property: left;
+				-moz-transition-duration: .1s;
+				-ms-transition-property: left;
+				-ms-transition-duration: .1s;
+				-o-transition-property: left;
+				-o-transition-duration: .1s;
+				transition-property: left;
+				transition-duration: .1s;
 			}
 			.dialog > .title {
-					padding: 6px 0 4px 0;
-					margin: 0 0 6px 0;
-					font-size: 22px;
-					line-height: 32px;
-					text-align: center;
-					border-bottom: 1px solid #eaeaea;
+				padding: 6px 0 4px 0;
+				margin: 0 0 6px 0;
+				font-size: 22px;
+				line-height: 32px;
+				text-align: center;
+				border-bottom: 1px solid #eaeaea;
+				width: 100%;
 			}
 			.dialog > .title > .cancel {
-					float: right;
-					width: 32px;
-					height: 32px;
-					border: 1px solid red;
-					font-size: 22px;
-					font-weight: bold;
-					font-family: arial, helvetica;
+				float: right;
+				width: 32px;
+				height: 32px;
+				border: 1px solid red;
+				font-size: 22px;
+				font-weight: bold;
+				font-family: arial, helvetica;
 			}
 			.dialog > .content {
 				text-align: center;
+				width: 100%;
 			}
 			.modal {
 				position: absolute;
@@ -487,20 +499,21 @@ $.plugin
 		injectCSS()
 		modal = $.synth("div.modal##{opts.id} div.dialog div.title + div.content") # h1.title button.cancel 'X' ++ div.content")
 			.appendTo("body") # append ourselves to the DOM so we start functioning as nodes
-			.click((evt) -> opts.cancel(modal))
-			.delegate(".cancel", "click", (evt) -> opts.cancel(modal)) # all class='cancel' and class='ok' nodes are bound to
+			.click((evt) ->
+				if evt.target is modal[0]
+					$.log 'dialog: Closing because the modal was clicked.'
+					opts.cancel(modal))
+			.delegate(".cancel", "click", (evt) -> opts.cancel(modal))
 			.delegate(".ok", "click", (evt) -> opts.ok(modal))
-		contentNode = modal.find('.dialog > .content').take(1)
+		contentNode = modal.find('.dialog > .content')
 		contentNode.append createDialog.getContent opts.contentType, opts.content
-		titleNode = modal.find('.dialog > .title').take(1)
+		titleNode = modal.find('.dialog > .title')
 		titleNode.append createDialog.getContent opts.titleType, opts.title
 		modal.fitOver(opts.parent) # position the modal to mask the parent
-			.show()
-			.find('.dialog') # select the dialog itself
-			.centerOn(modal) # center it on the new modal position
-			.hide()
-			.take(1)
-			.show()
+			.show() # show the modal
+			.find('.dialog')
+			.centerOn(modal)
+			.show() # show the dialog
 	
 	createDialog.getDefaultOptions = ->
 		id: "dialog-" + $.random.string 4
@@ -509,8 +522,12 @@ $.plugin
 		titleType: "text"
 		content: "span 'Dialog Content'"
 		contentType: "synth"
-		ok: (modal) -> modal.remove()
-		cancel: (modal) -> modal.remove()
+		ok: (modal) ->
+			$.log "dialog: Closing from default ok"
+			modal.remove()
+		cancel: (modal) ->
+			$.log "dialog: Closign from default cancel"
+			modal.remove()
 	
 	createDialog.getContent = (type, stuff) ->
 		switch type
@@ -2254,18 +2271,35 @@ $.plugin
 	
 	$: wizard: (slides) ->
 		currentSlide = 0
+		modal = $.dialog(slides[0]).select('parentNode')
 		slideChanger = (delta) -> ->
+			$.log "changing slide:", delta
 			newSlide = (currentSlide + delta) % slides.length
-			modal.find('.dialog').skip(newSlide).take(1).show()
-		modal = $.dialog slides[0]
-		modal.delegate '.dialog', 'show', (evt) ->
-			modal.find('.dialog').hide().removeClass('wiz-active')
-			$(evt.target).addClass('wiz-active')
+			if newSlide < 0
+				newSlide += slides.length
+			$.log "new slide:", newSlide, "old slide:", currentSlide
+			return if newSlide is currentSlide
+			dialogs = modal.find('.dialog').log("dialogs")
+			currentDialog = $ dialogs[currentSlide]
+			newDialog = $ dialogs[newSlide]
+			newLeft = 0
+			if delta < 0
+				newLeft = window.innerWidth
+			else
+				newLeft = -currentDialog.width().first()
+			currentDialog.removeClass('wiz-active')
+				.css left: $.px newLeft
+			newDialog.addClass('wiz-active')
+				.centerOn(modal)
+				.show()
+			currentSlide = newSlide
 		modal.delegate '.wiz-next', 'click', slideChanger(+1)
 		modal.delegate '.wiz-back', 'click', slideChanger(-1)
-		modal.find('.dialog').first(1).show()
 		for slide in slides.slice(1)
-			d = $.synth('div.dialog div.title + div.content').appendTo("modal").hide()
+			d = $.synth('div.dialog div.title + div.content')
+				.css( left: $.px window.innerWidth + 100 )
+				.appendTo(modal)
 			slide = $.extend $.dialog.getDefaultOptions(), slide
+			$.log "adding slide:",slide
 			d.find('.title').append $.dialog.getContent slide.titleType, slide.title
 			d.find('.content').append $.dialog.getContent slide.contentType, slide.content

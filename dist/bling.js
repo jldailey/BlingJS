@@ -1166,31 +1166,43 @@
       $('head style.dialog').remove();
       return $.synth('style.dialog "\
 			.dialog {\
-					position: absolute;\
-					background: white;\
-					border: 4px solid blue;\
-					border-radius: 10px;\
-					padding: 6px;\
+				position: absolute;\
+				background: white;\
+				border: 4px solid blue;\
+				border-radius: 10px;\
+				padding: 6px;\
+				-webkit-transition-property: left;\
+				-webkit-transition-duration: .1s;\
+				-moz-transition-property: left;\
+				-moz-transition-duration: .1s;\
+				-ms-transition-property: left;\
+				-ms-transition-duration: .1s;\
+				-o-transition-property: left;\
+				-o-transition-duration: .1s;\
+				transition-property: left;\
+				transition-duration: .1s;\
 			}\
 			.dialog > .title {\
-					padding: 6px 0 4px 0;\
-					margin: 0 0 6px 0;\
-					font-size: 22px;\
-					line-height: 32px;\
-					text-align: center;\
-					border-bottom: 1px solid #eaeaea;\
+				padding: 6px 0 4px 0;\
+				margin: 0 0 6px 0;\
+				font-size: 22px;\
+				line-height: 32px;\
+				text-align: center;\
+				border-bottom: 1px solid #eaeaea;\
+				width: 100%;\
 			}\
 			.dialog > .title > .cancel {\
-					float: right;\
-					width: 32px;\
-					height: 32px;\
-					border: 1px solid red;\
-					font-size: 22px;\
-					font-weight: bold;\
-					font-family: arial, helvetica;\
+				float: right;\
+				width: 32px;\
+				height: 32px;\
+				border: 1px solid red;\
+				font-size: 22px;\
+				font-weight: bold;\
+				font-family: arial, helvetica;\
 			}\
 			.dialog > .content {\
 				text-align: center;\
+				width: 100%;\
 			}\
 			.modal {\
 				position: absolute;\
@@ -1203,17 +1215,20 @@
       opts = $.extend(createDialog.getDefaultOptions(), opts);
       injectCSS();
       modal = $.synth("div.modal#" + opts.id + " div.dialog div.title + div.content").appendTo("body").click(function(evt) {
-        return opts.cancel(modal);
+        if (evt.target === modal[0]) {
+          $.log('dialog: Closing because the modal was clicked.');
+          return opts.cancel(modal);
+        }
       }).delegate(".cancel", "click", function(evt) {
         return opts.cancel(modal);
       }).delegate(".ok", "click", function(evt) {
         return opts.ok(modal);
       });
-      contentNode = modal.find('.dialog > .content').take(1);
+      contentNode = modal.find('.dialog > .content');
       contentNode.append(createDialog.getContent(opts.contentType, opts.content));
-      titleNode = modal.find('.dialog > .title').take(1);
+      titleNode = modal.find('.dialog > .title');
       titleNode.append(createDialog.getContent(opts.titleType, opts.title));
-      return modal.fitOver(opts.parent).show().find('.dialog').centerOn(modal).hide().take(1).show();
+      return modal.fitOver(opts.parent).show().find('.dialog').centerOn(modal).show();
     };
     createDialog.getDefaultOptions = function() {
       return {
@@ -1224,9 +1239,11 @@
         content: "span 'Dialog Content'",
         contentType: "synth",
         ok: function(modal) {
+          $.log("dialog: Closing from default ok");
           return modal.remove();
         },
         cancel: function(modal) {
+          $.log("dialog: Closign from default cancel");
           return modal.remove();
         }
       };
@@ -4701,27 +4718,46 @@
         wizard: function(slides) {
           var currentSlide, d, modal, slide, slideChanger, _i, _len, _ref, _results;
           currentSlide = 0;
+          modal = $.dialog(slides[0]).select('parentNode');
           slideChanger = function(delta) {
             return function() {
-              var newSlide;
+              var currentDialog, dialogs, newDialog, newLeft, newSlide;
+              $.log("changing slide:", delta);
               newSlide = (currentSlide + delta) % slides.length;
-              return modal.find('.dialog').skip(newSlide).take(1).show();
+              if (newSlide < 0) {
+                newSlide += slides.length;
+              }
+              $.log("new slide:", newSlide, "old slide:", currentSlide);
+              if (newSlide === currentSlide) {
+                return;
+              }
+              dialogs = modal.find('.dialog').log("dialogs");
+              currentDialog = $(dialogs[currentSlide]);
+              newDialog = $(dialogs[newSlide]);
+              newLeft = 0;
+              if (delta < 0) {
+                newLeft = window.innerWidth;
+              } else {
+                newLeft = -currentDialog.width().first();
+              }
+              currentDialog.removeClass('wiz-active').css({
+                left: $.px(newLeft)
+              });
+              newDialog.addClass('wiz-active').centerOn(modal).show();
+              return currentSlide = newSlide;
             };
           };
-          modal = $.dialog(slides[0]);
-          modal.delegate('.dialog', 'show', function(evt) {
-            modal.find('.dialog').hide().removeClass('wiz-active');
-            return $(evt.target).addClass('wiz-active');
-          });
           modal.delegate('.wiz-next', 'click', slideChanger(+1));
           modal.delegate('.wiz-back', 'click', slideChanger(-1));
-          modal.find('.dialog').first(1).show();
           _ref = slides.slice(1);
           _results = [];
           for (_i = 0, _len = _ref.length; _i < _len; _i++) {
             slide = _ref[_i];
-            d = $.synth('div.dialog div.title + div.content').appendTo("modal").hide();
+            d = $.synth('div.dialog div.title + div.content').css({
+              left: $.px(window.innerWidth + 100)
+            }).appendTo(modal);
             slide = $.extend($.dialog.getDefaultOptions(), slide);
+            $.log("adding slide:", slide);
             d.find('.title').append($.dialog.getContent(slide.titleType, slide.title));
             _results.push(d.find('.content').append($.dialog.getContent(slide.contentType, slide.content)));
           }

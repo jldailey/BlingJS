@@ -4,40 +4,41 @@ $.plugin
 , ->
 
 	# inject css
-	$('head style.dialog').remove()
-	$.synth('style.dialog "
-		.dialog {
-				position: absolute;
-				background: white;
-				border: 4px solid blue;
-				border-radius: 10px;
-				padding: 6px;
-		}
-		.dialog > .title {
-				padding: 6px 0 4px 0;
-				margin: 0 0 6px 0;
-				font-size: 22px;
-				line-height: 32px;
+	injectCSS = ->
+		$('head style.dialog').remove()
+		$.synth('style.dialog "
+			.dialog {
+					position: absolute;
+					background: white;
+					border: 4px solid blue;
+					border-radius: 10px;
+					padding: 6px;
+			}
+			.dialog > .title {
+					padding: 6px 0 4px 0;
+					margin: 0 0 6px 0;
+					font-size: 22px;
+					line-height: 32px;
+					text-align: center;
+					border-bottom: 1px solid #eaeaea;
+			}
+			.dialog > .title > .cancel {
+					float: right;
+					width: 32px;
+					height: 32px;
+					border: 1px solid red;
+					font-size: 22px;
+					font-weight: bold;
+					font-family: arial, helvetica;
+			}
+			.dialog > .content {
 				text-align: center;
-				border-bottom: 1px solid #eaeaea;
-		}
-		.dialog > .title > .cancel {
-				float: right;
-				width: 32px;
-				height: 32px;
-				border: 1px solid red;
-				font-size: 22px;
-				font-weight: bold;
-				font-family: arial, helvetica;
-		}
-		.dialog > .content {
-			text-align: center;
-		}
-		.modal {
-			position: absolute;
-			background: rgba(0,0,0,0.4);
-		}
-	"').appendTo("head")
+			}
+			.modal {
+				position: absolute;
+				background: rgba(0,0,0,0.4);
+			}
+		"').appendTo("head")
 
 	getContent = (type, stuff) ->
 		switch type
@@ -46,24 +47,29 @@ $.plugin
 			when "text" then document.createTextNode(stuff)
 	
 	createDialog = (opts) ->
-		modal = $.synth("div.modal##{opts.id} div.dialog h1.title button.cancel 'X' ++ div.content")
+		injectCSS()
+		modal = $.synth("div.modal##{opts.id} div.dialog div.title + div.content") # h1.title button.cancel 'X' ++ div.content")
 			.appendTo("body") # append ourselves to the DOM so we start functioning as nodes
 			.click((evt) -> opts.cancel(modal))
 			.delegate(".cancel", "click", (evt) -> opts.cancel(modal)) # all class='cancel' and class='ok' nodes are bound to
 			.delegate(".ok", "click", (evt) -> opts.ok(modal))
 
 		# fill in the content
-		contentNode = modal.find('.dialog > .content')
+		contentNode = modal.find('.dialog > .content').take(1)
 		contentNode.append getContent opts.contentType, opts.content
 
 		# fill in the title
-		titleNode = modal.find('.dialog > .title')
+		titleNode = modal.find('.dialog > .title').take(1)
 		titleNode.append getContent opts.titleType, opts.title
 
+		# position the modal and the dialog
 		modal.fitOver(opts.parent) # position the modal to mask the parent
 			.show()
-			.select('childNodes.0') # select the dialog itself
+			.find('.dialog') # select the dialog itself
 			.centerOn(modal) # center it on the new modal position
+			.hide()
+			.take(1)
+			.show()
 
 	return {
 		$:

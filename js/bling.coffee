@@ -447,74 +447,76 @@ $.plugin
 	depends: 'hook,synth,delay'
 	provides: 'dialog'
 , ->
-	$('head style.dialog').remove()
-	$.synth('style.dialog "
-		.dialog {
+	injectCSS = ->
+		$('head style.dialog').remove()
+		$.synth('style.dialog "
+			.dialog {
 				position: absolute;
 				background: white;
-				border: 4px solid blue;
-				border-radius: 10px;
 				padding: 6px;
-		}
-		.dialog > .title {
-				padding: 6px 0 4px 0;
-				margin: 0 0 6px 0;
-				font-size: 22px;
-				line-height: 32px;
+				-webkit-transition-property: left;
+				-webkit-transition-duration: .1s;
+				-moz-transition-property: left;
+				-moz-transition-duration: .1s;
+				transition-property: left;
+				transition-duration: .1s;
+			}
+			.dialog > .title {
 				text-align: center;
-				border-bottom: 1px solid #eaeaea;
-		}
-		.dialog > .title > .cancel {
-				float: right;
-				width: 32px;
-				height: 32px;
-				border: 1px solid red;
-				font-size: 22px;
-				font-weight: bold;
-				font-family: arial, helvetica;
-		}
-		.dialog > .content {
-			text-align: center;
-		}
-		.modal {
-			position: absolute;
-			background: rgba(0,0,0,0.4);
-		}
-	"').appendTo("head")
-	getContent = (type, stuff) ->
+				width: 100%;
+			}
+			.dialog > .content {
+				width: 100%;
+			}
+			.modal {
+				position: absolute;
+				background: rgba(0,0,0,.4);
+			}
+		"').appendTo("head")
+	createDialog = (opts) ->
+		opts = $.extend createDialog.getDefaultOptions(), opts
+		injectCSS()
+		modal = $.synth("div.modal##{opts.id} div.dialog div.title + div.content") # h1.title button.cancel 'X' ++ div.content")
+			.appendTo("body") # append ourselves to the DOM so we start functioning as nodes
+			.click((evt) ->
+				if evt.target is modal[0]
+					$.log 'dialog: Closing because the modal was clicked.'
+					opts.cancel(modal))
+			.delegate(".cancel", "click", (evt) -> opts.cancel(modal))
+			.delegate(".ok", "click", (evt) -> opts.ok(modal))
+		contentNode = modal.find('.dialog > .content')
+		contentNode.append createDialog.getContent opts.contentType, opts.content
+		titleNode = modal.find('.dialog > .title')
+		titleNode.append createDialog.getContent opts.titleType, opts.title
+		modal.fitOver(opts.parent) # position the modal to mask the parent
+			.show() # show the modal
+			.find('.dialog')
+			.centerOn(modal)
+			.show() # show the dialog
+	
+	createDialog.getDefaultOptions = ->
+		id: "dialog-" + $.random.string 4
+		parent: "body"
+		title: "Untitled Dialog"
+		titleType: "text"
+		content: "span 'Dialog Content'"
+		contentType: "synth"
+		ok: (modal) ->
+			$.log "dialog: Closing from default ok"
+			modal.remove()
+		cancel: (modal) ->
+			$.log "dialog: Closign from default cancel"
+			modal.remove()
+	
+	createDialog.getContent = (type, stuff) ->
 		switch type
 			when "synth" then $.synth(stuff)
 			when "html" then $.HTML.parse(stuff)
 			when "text" then document.createTextNode(stuff)
 	
-	createDialog = (opts) ->
-		modal = $.synth("div.modal##{opts.id} div.dialog h1.title button.cancel 'X' ++ div.content")
-			.appendTo("body") # append ourselves to the DOM so we start functioning as nodes
-			.click((evt) -> opts.cancel(modal))
-			.delegate(".cancel", "click", (evt) -> opts.cancel(modal)) # all class='cancel' and class='ok' nodes are bound to
-			.delegate(".ok", "click", (evt) -> opts.ok(modal))
-		contentNode = modal.find('.dialog > .content')
-		contentNode.append getContent opts.contentType, opts.content
-		titleNode = modal.find('.dialog > .title')
-		titleNode.append getContent opts.titleType, opts.title
-		modal.fitOver(opts.parent) # position the modal to mask the parent
-			.show()
-			.select('childNodes.0') # select the dialog itself
-			.centerOn(modal) # center it on the new modal position
 	return {
 		$:
-			dialog: (opts) ->
-				defaults = {
-					id: "dialog-" + $.random.string 4
-					parent: "body"
-					title: "Untitled Dialog"
-					titleType: "text"
-					content: "span 'Dialog Content'"
-					contentType: "synth"
-					ok: (modal) -> modal.remove()
-					cancel: (modal) -> modal.remove()
-				}
-				createDialog $.extend defaults, opts
+			dialog: createDialog
 		fitOver: (elem = window) ->
 			if elem is window
 				rect =
@@ -2094,74 +2096,76 @@ $.plugin
 			units.push to
 		makeUnitRegex()
 		fillConversions()
-	setConversion 'pc', 'pt', -> 12
-	setConversion 'in', 'pt', -> 72
-	setConversion 'in', 'px', -> 96
-	setConversion 'in', 'cm', -> 2.54
-	setConversion 'm', 'ft', -> 3.281
-	setConversion 'yd', 'ft', -> 3
-	setConversion 'cm', 'mm', -> 10
-	setConversion 'm', 'cm', -> 100
-	setConversion 'm', 'meter', -> 1
-	setConversion 'm', 'meters', -> 1
-	setConversion 'ft', 'feet', -> 1
-	setConversion 'km', 'm', -> 1000
-	setConversion 'em', 'px', ->
-		w = 0
-		try
-			x = $("<span style='font-size:1em;visibility:hidden'>x</span>").appendTo("body")
-			w = x.width().first()
-			x.remove()
-		w
-	setConversion 'ex', 'px', ->
-		w = 0
-		try
-			x = $("<span style='font-size:1ex;visibility:hidden'>x</span>").appendTo("body")
-			w = x.width().first()
-			x.remove()
-		w
-	setConversion 'ex', 'em', -> 2
-	setConversion 'rad', 'deg', -> 57.3
-	setConversion 's', 'sec', -> 1
-	setConversion 's', 'ms', -> 1000
-	setConversion 'ms', 'ns', -> 1000000
-	setConversion 'min', 'sec', -> 60
-	setConversion 'hr', 'min', -> 60
-	setConversion 'hr', 'hour', -> 1
-	setConversion 'hr', 'hours', -> 1
-	setConversion 'day', 'hr', -> 24
-	setConversion 'day', 'days', -> 1
-	setConversion 'y', 'year', -> 1
-	setConversion 'y', 'years', -> 1
-	setConversion 'y', 'd', -> 365.25
-	setConversion 'g', 'gram', -> 1
-	setConversion 'g', 'grams', -> 1
-	setConversion 'kg', 'g', -> 1000
-	setConversion 'lb', 'g', -> 453.6
-	setConversion 'lb', 'oz', -> 16
-	setConversion 'f', 'frame', -> 1
-	setConversion 'f', 'frames', -> 1
-	setConversion 'sec', 'f', -> 60
-	do fillConversions = ->
-		conv[''] = {}
-		one = locker 1.0
-		for a in units
-			conv[a] or= {}
-			conv[a][a] = conv[a][''] = conv[''][a] = one
-		infered = 1
-		while infered > 0
-			infered = 0
-			for a in units when a isnt ''
+	initialize = ->
+		setConversion 'pc', 'pt', -> 12
+		setConversion 'in', 'pt', -> 72
+		setConversion 'in', 'px', -> 96
+		setConversion 'in', 'cm', -> 2.54
+		setConversion 'm', 'ft', -> 3.281
+		setConversion 'yd', 'ft', -> 3
+		setConversion 'cm', 'mm', -> 10
+		setConversion 'm', 'cm', -> 100
+		setConversion 'm', 'meter', -> 1
+		setConversion 'm', 'meters', -> 1
+		setConversion 'ft', 'feet', -> 1
+		setConversion 'km', 'm', -> 1000
+		setConversion 'em', 'px', ->
+			w = 0
+			try
+				x = $("<span style='font-size:1em;visibility:hidden'>x</span>").appendTo("body")
+				w = x.width().first()
+				x.remove()
+			w
+		setConversion 'ex', 'px', ->
+			w = 0
+			try
+				x = $("<span style='font-size:1ex;visibility:hidden'>x</span>").appendTo("body")
+				w = x.width().first()
+				x.remove()
+			w
+		setConversion 'ex', 'em', -> 2
+		setConversion 'rad', 'deg', -> 57.3
+		setConversion 's', 'sec', -> 1
+		setConversion 's', 'ms', -> 1000
+		setConversion 'ms', 'ns', -> 1000000
+		setConversion 'min', 'sec', -> 60
+		setConversion 'hr', 'min', -> 60
+		setConversion 'hr', 'hour', -> 1
+		setConversion 'hr', 'hours', -> 1
+		setConversion 'day', 'hr', -> 24
+		setConversion 'day', 'days', -> 1
+		setConversion 'y', 'year', -> 1
+		setConversion 'y', 'years', -> 1
+		setConversion 'y', 'd', -> 365.25
+		setConversion 'g', 'gram', -> 1
+		setConversion 'g', 'grams', -> 1
+		setConversion 'kg', 'g', -> 1000
+		setConversion 'lb', 'g', -> 453.6
+		setConversion 'lb', 'oz', -> 16
+		setConversion 'f', 'frame', -> 1
+		setConversion 'f', 'frames', -> 1
+		setConversion 'sec', 'f', -> 60
+		do fillConversions = ->
+			conv[''] = {}
+			one = locker 1.0
+			for a in units
 				conv[a] or= {}
-				for b in units when b isnt ''
-					if (not conv a,b) and (conv b,a)
-						conv[a][b] = locker 1.0/conv(b,a)
-						infered += 1
-					for c in units when c isnt ''
-						if (conv a,b) and (conv b,c) and (not conv a,c)
-							conv[a][c] = locker conv(a,b) * conv(b,c)
+				conv[a][a] = conv[a][''] = conv[''][a] = one
+			infered = 1
+			while infered > 0
+				infered = 0
+				for a in units when a isnt ''
+					conv[a] or= {}
+					for b in units when b isnt ''
+						if (not conv a,b) and (conv b,a)
+							conv[a][b] = locker 1.0/conv(b,a)
 							infered += 1
-		null
+						for c in units when c isnt ''
+							if (conv a,b) and (conv b,c) and (not conv a,c)
+								conv[a][c] = locker conv(a,b) * conv(b,c)
+								infered += 1
+			null
+		$.units.enable = ->
 	convertNumber = (number, unit) ->
 		f = parseFloat(number)
 		u = parseUnits(number)
@@ -2177,6 +2181,7 @@ $.plugin
 	{
 		$:
 			units:
+				enable: initialize
 				set: setConversion
 				get: conv
 				convertTo: (unit, obj) -> convertNumber(obj, unit)
@@ -2241,3 +2246,36 @@ $.plugin
 			for i in [1...args.length]
 				$.assertEqual a, args[i]
 		return @
+$.plugin
+	depends: 'dialog'
+	provides: 'wizard'
+, ->
+	
+	$: wizard: (slides) ->
+		currentSlide = 0
+		modal = $.dialog(slides[0]).select('parentNode')
+		slideChanger = (delta) -> ->
+			return if slides.length is 0
+			newSlide = (currentSlide + delta) % slides.length
+			while newSlide < 0
+				newSlide += slides.length
+			return if newSlide is currentSlide
+			dialogs = modal.find('.dialog')
+			currentDialog = $ dialogs[currentSlide]
+			newDialog = $ dialogs[newSlide]
+			newLeft = if delta < 0 then newLeft = window.innerWidth else -currentDialog.width().first()
+			currentDialog.removeClass('wiz-active')
+				.css left: $.px newLeft
+			newDialog.addClass('wiz-active')
+				.centerOn(modal)
+				.show()
+			currentSlide = newSlide
+		modal.delegate '.wiz-next', 'click', slideChanger(+1)
+		modal.delegate '.wiz-back', 'click', slideChanger(-1)
+		for slide in slides.slice(1)
+			d = $.synth('div.dialog div.title + div.content')
+				.css( left: $.px window.innerWidth + 100 )
+				.appendTo(modal)
+			slide = $.extend $.dialog.getDefaultOptions(), slide
+			d.find('.title').append $.dialog.getContent slide.titleType, slide.title
+			d.find('.content').append $.dialog.getContent slide.contentType, slide.content

@@ -574,6 +574,16 @@ describe "Bling", ->
 				{a:[{b:6}]},
 				{a:[{b:9}]}
 			]).select("a.0.b"), [3,6,9]
+		it "supports multiple arguments (creating simplified objects)", ->
+			assert.deepEqual $([
+				{a:[{b:3},{c:2, d:1}]},
+				{a:[{b:6},{c:4, d:5}]},
+				{a:[{b:9},{c:8, d:7}]}
+			]).select("a.0.b", "a.1.c"), [
+				{ b:3, c:2 },
+				{ b:6, c:4 },
+				{ b:9, c:8 }
+			]
 
 	describe ".zap()", ->
 		it "assigns values to properties of items in a set", ->
@@ -1046,6 +1056,8 @@ describe "Bling", ->
 		it "does not crash on bad numbers", ->
 			assert not isFinite $.units.convertTo('px', Infinity)
 			assert not isFinite $.units.convertTo('px', NaN)
+		it "can convert compound units like m/s", ->
+			assert.equal $.units.convertTo("px/ms", "42in/s"), "4.032px/ms"
 
 describe "DOM", ->
 	it "parse", ->

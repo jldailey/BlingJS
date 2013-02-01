@@ -204,9 +204,25 @@ $.plugin
 			@
 		select: (->
 			getter = (prop) -> -> if $.is("function",v = @[prop]) then $.bound(@,v) else v
-			select = (p) ->
+			selectOne = (p) ->
 				if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
 				else @map(getter p)
+			selectMany = (a...) ->
+				n = @length
+				lists = Object.create(null)
+				for p in a
+					lists[p] = @select(p)
+				i = 0
+				@map ->
+					obj = Object.create(null)
+					for p of lists
+						obj[$(p.split '.').last()] = lists[p][i]
+					i++
+					obj
+			->
+				switch arguments.length
+					when 1 then selectOne.apply @, arguments
+					when 2 then selectMany.apply @, arguments
 		)()
 		or: (x) -> @[i] or= x for i in [0...@length]; @
 		zap: (p, v) ->
@@ -431,40 +447,41 @@ $.plugin
 	depends: 'hook,synth,delay'
 	provides: 'dialog'
 , ->
-	$('head style.dialog').remove()
-	$.synth('style.dialog "
-		.dialog {
-				position: absolute;
-				background: white;
-				border: 4px solid blue;
-				border-radius: 10px;
-				padding: 6px;
-		}
-		.dialog > .title {
-				padding: 6px 0 4px 0;
-				margin: 0 0 6px 0;
-				font-size: 22px;
-				line-height: 32px;
+	injectCSS = ->
+		$('head style.dialog').remove()
+		$.synth('style.dialog "
+			.dialog {
+					position: absolute;
+					background: white;
+					border: 4px solid blue;
+					border-radius: 10px;
+					padding: 6px;
+			}
+			.dialog > .title {
+					padding: 6px 0 4px 0;
+					margin: 0 0 6px 0;
+					font-size: 22px;
+					line-height: 32px;
+					text-align: center;
+					border-bottom: 1px solid #eaeaea;
+			}
+			.dialog > .title > .cancel {
+					float: right;
+					width: 32px;
+					height: 32px;
+					border: 1px solid red;
+					font-size: 22px;
+					font-weight: bold;
+					font-family: arial, helvetica;
+			}
+			.dialog > .content {
 				text-align: center;
-				border-bottom: 1px solid #eaeaea;
-		}
-		.dialog > .title > .cancel {
-				float: right;
-				width: 32px;
-				height: 32px;
-				border: 1px solid red;
-				font-size: 22px;
-				font-weight: bold;
-				font-family: arial, helvetica;
-		}
-		.dialog > .content {
-			text-align: center;
-		}
-		.modal {
-			position: absolute;
-			background: rgba(0,0,0,0.4);
-		}
-	"').appendTo("head")
+			}
+			.modal {
+				position: absolute;
+				background: rgba(0,0,0,0.4);
+			}
+		"').appendTo("head")
 	getContent = (type, stuff) ->
 		switch type
 			when "synth" then $.synth(stuff)
@@ -472,19 +489,23 @@ $.plugin
 			when "text" then document.createTextNode(stuff)
 	
 	createDialog = (opts) ->
-		modal = $.synth("div.modal##{opts.id} div.dialog h1.title button.cancel 'X' ++ div.content")
+		injectCSS()
+		modal = $.synth("div.modal##{opts.id} div.dialog div.title + div.content") # h1.title button.cancel 'X' ++ div.content")
 			.appendTo("body") # append ourselves to the DOM so we start functioning as nodes
 			.click((evt) -> opts.cancel(modal))
 			.delegate(".cancel", "click", (evt) -> opts.cancel(modal)) # all class='cancel' and class='ok' nodes are bound to
 			.delegate(".ok", "click", (evt) -> opts.ok(modal))
-		contentNode = modal.find('.dialog > .content')
+		contentNode = modal.find('.dialog > .content').take(1)
 		contentNode.append getContent opts.contentType, opts.content
-		titleNode = modal.find('.dialog > .title')
+		titleNode = modal.find('.dialog > .title').take(1)
 		titleNode.append getContent opts.titleType, opts.title
 		modal.fitOver(opts.parent) # position the modal to mask the parent
 			.show()
-			.select('childNodes.0') # select the dialog itself
+			.find('.dialog') # select the dialog itself
 			.centerOn(modal) # center it on the new modal position
+			.hide()
+			.take(1)
+			.show()
 	return {
 		$:
 			dialog: (opts) ->
@@ -2051,12 +2072,18 @@ $.plugin
 , ->
 	units = $ ["px","pt","pc","em","%","in","cm","mm","ex","lb","kg","yd","ft","m", ""]
 	UNIT_RE = null
-	do makeUnitRegex = -> UNIT_RE = new RegExp "(\\d+\\.*\\d*)(#{units.filter(/.+/).join '|'})"
+	do makeUnitRegex = ->
+		joined = units.filter(/.+/).join '|'
+		UNIT_RE = new RegExp "(\\d+\\.*\\d*)((?:#{joined})/*(?:#{joined})*)"
 	parseUnits = (s) ->
 		if UNIT_RE.test(s)
 			return UNIT_RE.exec(s)[2]
 		""
 	conv = (a,b) ->
+		[numer_a, denom_a] = a.split '/'
+		[numer_b, denom_b] = b.split '/'
+		if denom_a? and denom_b?
+			return conv(denom_b, denom_a) * conv(numer_a, numer_b)
 		if a of conv
 			if b of conv[a]
 				return conv[a][b]()
@@ -2080,6 +2107,9 @@ $.plugin
 	setConversion 'yd', 'ft', -> 3
 	setConversion 'cm', 'mm', -> 10
 	setConversion 'm', 'cm', -> 100
+	setConversion 'm', 'meter', -> 1
+	setConversion 'm', 'meters', -> 1
+	setConversion 'ft', 'feet', -> 1
 	setConversion 'km', 'm', -> 1000
 	setConversion 'em', 'px', ->
 		w = 0
@@ -2114,6 +2144,9 @@ $.plugin
 	setConversion 'kg', 'g', -> 1000
 	setConversion 'lb', 'g', -> 453.6
 	setConversion 'lb', 'oz', -> 16
+	setConversion 'f', 'frame', -> 1
+	setConversion 'f', 'frames', -> 1
+	setConversion 'sec', 'f', -> 60
 	do fillConversions = ->
 		conv[''] = {}
 		one = locker 1.0
@@ -2137,7 +2170,7 @@ $.plugin
 	convertNumber = (number, unit) ->
 		f = parseFloat(number)
 		u = parseUnits(number)
-		c = conv[u]?[unit]()
+		c = conv(u, unit)
 		unless isFinite(c) and isFinite(f)
 			return number
 		"#{f * c}#{unit}"
@@ -2145,6 +2178,7 @@ $.plugin
 		match: (x) -> typeof x is "string" and UNIT_RE.test(x)
 		number: (x) -> parseFloat(x)
 		string: (x) -> "'#{x}'"
+	
 	{
 		$:
 			units:

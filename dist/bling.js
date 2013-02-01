@@ -548,7 +548,7 @@
         return this;
       },
       select: (function() {
-        var getter, select;
+        var getter, selectMany, selectOne;
         getter = function(prop) {
           return function() {
             var v;
@@ -559,12 +559,40 @@
             }
           };
         };
-        return select = function(p) {
+        selectOne = function(p) {
           var i;
           if ((i = p.indexOf('.')) > -1) {
             return this.select(p.substr(0, i)).select(p.substr(i + 1));
           } else {
             return this.map(getter(p));
+          }
+        };
+        selectMany = function() {
+          var a, i, lists, n, p, _i, _len;
+          a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+          n = this.length;
+          lists = Object.create(null);
+          for (_i = 0, _len = a.length; _i < _len; _i++) {
+            p = a[_i];
+            lists[p] = this.select(p);
+          }
+          i = 0;
+          return this.map(function() {
+            var obj;
+            obj = Object.create(null);
+            for (p in lists) {
+              obj[$(p.split('.')).last()] = lists[p][i];
+            }
+            i++;
+            return obj;
+          });
+        };
+        return function() {
+          switch (arguments.length) {
+            case 1:
+              return selectOne.apply(this, arguments);
+            case 2:
+              return selectMany.apply(this, arguments);
           }
         };
       })(),
@@ -1133,41 +1161,43 @@
     depends: 'hook,synth,delay',
     provides: 'dialog'
   }, function() {
-    var createDialog, getContent;
-    $('head style.dialog').remove();
-    $.synth('style.dialog "\
-		.dialog {\
-				position: absolute;\
-				background: white;\
-				border: 4px solid blue;\
-				border-radius: 10px;\
-				padding: 6px;\
-		}\
-		.dialog > .title {\
-				padding: 6px 0 4px 0;\
-				margin: 0 0 6px 0;\
-				font-size: 22px;\
-				line-height: 32px;\
+    var createDialog, getContent, injectCSS;
+    injectCSS = function() {
+      $('head style.dialog').remove();
+      return $.synth('style.dialog "\
+			.dialog {\
+					position: absolute;\
+					background: white;\
+					border: 4px solid blue;\
+					border-radius: 10px;\
+					padding: 6px;\
+			}\
+			.dialog > .title {\
+					padding: 6px 0 4px 0;\
+					margin: 0 0 6px 0;\
+					font-size: 22px;\
+					line-height: 32px;\
+					text-align: center;\
+					border-bottom: 1px solid #eaeaea;\
+			}\
+			.dialog > .title > .cancel {\
+					float: right;\
+					width: 32px;\
+					height: 32px;\
+					border: 1px solid red;\
+					font-size: 22px;\
+					font-weight: bold;\
+					font-family: arial, helvetica;\
+			}\
+			.dialog > .content {\
 				text-align: center;\
-				border-bottom: 1px solid #eaeaea;\
-		}\
-		.dialog > .title > .cancel {\
-				float: right;\
-				width: 32px;\
-				height: 32px;\
-				border: 1px solid red;\
-				font-size: 22px;\
-				font-weight: bold;\
-				font-family: arial, helvetica;\
-		}\
-		.dialog > .content {\
-			text-align: center;\
-		}\
-		.modal {\
-			position: absolute;\
-			background: rgba(0,0,0,0.4);\
-		}\
-	"').appendTo("head");
+			}\
+			.modal {\
+				position: absolute;\
+				background: rgba(0,0,0,0.4);\
+			}\
+		"').appendTo("head");
+    };
     getContent = function(type, stuff) {
       switch (type) {
         case "synth":
@@ -1180,18 +1210,19 @@
     };
     createDialog = function(opts) {
       var contentNode, modal, titleNode;
-      modal = $.synth("div.modal#" + opts.id + " div.dialog h1.title button.cancel 'X' ++ div.content").appendTo("body").click(function(evt) {
+      injectCSS();
+      modal = $.synth("div.modal#" + opts.id + " div.dialog div.title + div.content").appendTo("body").click(function(evt) {
         return opts.cancel(modal);
       }).delegate(".cancel", "click", function(evt) {
         return opts.cancel(modal);
       }).delegate(".ok", "click", function(evt) {
         return opts.ok(modal);
       });
-      contentNode = modal.find('.dialog > .content');
+      contentNode = modal.find('.dialog > .content').take(1);
       contentNode.append(getContent(opts.contentType, opts.content));
-      titleNode = modal.find('.dialog > .title');
+      titleNode = modal.find('.dialog > .title').take(1);
       titleNode.append(getContent(opts.titleType, opts.title));
-      return modal.fitOver(opts.parent).show().select('childNodes.0').centerOn(modal);
+      return modal.fitOver(opts.parent).show().find('.dialog').centerOn(modal).hide().take(1).show();
     };
     return {
       $: {
@@ -4286,7 +4317,9 @@
     units = $(["px", "pt", "pc", "em", "%", "in", "cm", "mm", "ex", "lb", "kg", "yd", "ft", "m", ""]);
     UNIT_RE = null;
     (makeUnitRegex = function() {
-      return UNIT_RE = new RegExp("(\\d+\\.*\\d*)(" + (units.filter(/.+/).join('|')) + ")");
+      var joined;
+      joined = units.filter(/.+/).join('|');
+      return UNIT_RE = new RegExp("(\\d+\\.*\\d*)((?:" + joined + ")/*(?:" + joined + ")*)");
     })();
     parseUnits = function(s) {
       if (UNIT_RE.test(s)) {
@@ -4295,6 +4328,12 @@
       return "";
     };
     conv = function(a, b) {
+      var denom_a, denom_b, numer_a, numer_b, _ref, _ref1;
+      _ref = a.split('/'), numer_a = _ref[0], denom_a = _ref[1];
+      _ref1 = b.split('/'), numer_b = _ref1[0], denom_b = _ref1[1];
+      if ((denom_a != null) && (denom_b != null)) {
+        return conv(denom_b, denom_a) * conv(numer_a, numer_b);
+      }
       if (a in conv) {
         if (b in conv[a]) {
           return conv[a][b]();
@@ -4343,6 +4382,15 @@
     });
     setConversion('m', 'cm', function() {
       return 100;
+    });
+    setConversion('m', 'meter', function() {
+      return 1;
+    });
+    setConversion('m', 'meters', function() {
+      return 1;
+    });
+    setConversion('ft', 'feet', function() {
+      return 1;
     });
     setConversion('km', 'm', function() {
       return 1000;
@@ -4424,6 +4472,15 @@
     setConversion('lb', 'oz', function() {
       return 16;
     });
+    setConversion('f', 'frame', function() {
+      return 1;
+    });
+    setConversion('f', 'frames', function() {
+      return 1;
+    });
+    setConversion('sec', 'f', function() {
+      return 60;
+    });
     (fillConversions = function() {
       var a, b, c, infered, one, _i, _j, _k, _l, _len, _len1, _len2, _len3;
       conv[''] = {};
@@ -4466,10 +4523,10 @@
       return null;
     })();
     convertNumber = function(number, unit) {
-      var c, f, u, _ref;
+      var c, f, u;
       f = parseFloat(number);
       u = parseUnits(number);
-      c = (_ref = conv[u]) != null ? _ref[unit]() : void 0;
+      c = conv(u, unit);
       if (!(isFinite(c) && isFinite(f))) {
         return number;
       }

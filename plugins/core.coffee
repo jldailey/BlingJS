@@ -116,9 +116,25 @@ $.plugin
 			# to read a set of complex `p` values from an object.
 			# > `$([x]).select("name") == [ x.name ]`
 			# > `$([x]).select("childNodes.1.nodeName") == [ x.childNodes[1].nodeName ]`
-			select = (p) ->
+			selectOne = (p) ->
 				if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
 				else @map(getter p)
+			selectMany = (a...) ->
+				n = @length
+				lists = Object.create(null)
+				for p in a
+					lists[p] = @select(p)
+				i = 0
+				@map ->
+					obj = Object.create(null)
+					for p of lists
+						obj[$(p.split '.').last()] = lists[p][i]
+					i++
+					obj
+			->
+				switch arguments.length
+					when 1 then selectOne.apply @, arguments
+					when 2 then selectMany.apply @, arguments
 		)()
 
 		# Replace any false-ish items in _this_ with _x_.

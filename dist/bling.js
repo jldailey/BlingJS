@@ -1161,41 +1161,43 @@
     depends: 'hook,synth,delay',
     provides: 'dialog'
   }, function() {
-    var createDialog, getContent;
-    $('head style.dialog').remove();
-    $.synth('style.dialog "\
-		.dialog {\
-				position: absolute;\
-				background: white;\
-				border: 4px solid blue;\
-				border-radius: 10px;\
-				padding: 6px;\
-		}\
-		.dialog > .title {\
-				padding: 6px 0 4px 0;\
-				margin: 0 0 6px 0;\
-				font-size: 22px;\
-				line-height: 32px;\
+    var createDialog, getContent, injectCSS;
+    injectCSS = function() {
+      $('head style.dialog').remove();
+      return $.synth('style.dialog "\
+			.dialog {\
+					position: absolute;\
+					background: white;\
+					border: 4px solid blue;\
+					border-radius: 10px;\
+					padding: 6px;\
+			}\
+			.dialog > .title {\
+					padding: 6px 0 4px 0;\
+					margin: 0 0 6px 0;\
+					font-size: 22px;\
+					line-height: 32px;\
+					text-align: center;\
+					border-bottom: 1px solid #eaeaea;\
+			}\
+			.dialog > .title > .cancel {\
+					float: right;\
+					width: 32px;\
+					height: 32px;\
+					border: 1px solid red;\
+					font-size: 22px;\
+					font-weight: bold;\
+					font-family: arial, helvetica;\
+			}\
+			.dialog > .content {\
 				text-align: center;\
-				border-bottom: 1px solid #eaeaea;\
-		}\
-		.dialog > .title > .cancel {\
-				float: right;\
-				width: 32px;\
-				height: 32px;\
-				border: 1px solid red;\
-				font-size: 22px;\
-				font-weight: bold;\
-				font-family: arial, helvetica;\
-		}\
-		.dialog > .content {\
-			text-align: center;\
-		}\
-		.modal {\
-			position: absolute;\
-			background: rgba(0,0,0,0.4);\
-		}\
-	"').appendTo("head");
+			}\
+			.modal {\
+				position: absolute;\
+				background: rgba(0,0,0,0.4);\
+			}\
+		"').appendTo("head");
+    };
     getContent = function(type, stuff) {
       switch (type) {
         case "synth":
@@ -1208,18 +1210,19 @@
     };
     createDialog = function(opts) {
       var contentNode, modal, titleNode;
-      modal = $.synth("div.modal#" + opts.id + " div.dialog h1.title button.cancel 'X' ++ div.content").appendTo("body").click(function(evt) {
+      injectCSS();
+      modal = $.synth("div.modal#" + opts.id + " div.dialog div.title + div.content").appendTo("body").click(function(evt) {
         return opts.cancel(modal);
       }).delegate(".cancel", "click", function(evt) {
         return opts.cancel(modal);
       }).delegate(".ok", "click", function(evt) {
         return opts.ok(modal);
       });
-      contentNode = modal.find('.dialog > .content');
+      contentNode = modal.find('.dialog > .content').take(1);
       contentNode.append(getContent(opts.contentType, opts.content));
-      titleNode = modal.find('.dialog > .title');
+      titleNode = modal.find('.dialog > .title').take(1);
       titleNode.append(getContent(opts.titleType, opts.title));
-      return modal.fitOver(opts.parent).show().select('childNodes.0').centerOn(modal);
+      return modal.fitOver(opts.parent).show().find('.dialog').centerOn(modal).hide().take(1).show();
     };
     return {
       $: {

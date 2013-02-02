@@ -7,16 +7,20 @@ $.plugin
 	injectCSS = ->
 		$('head style.dialog').remove()
 		$.synth('style.dialog "
+			.modal {
+				position: absolute;
+				background: rgba(0,0,0,.3);
+			}
 			.dialog {
 				position: absolute;
+				box-shadow: 8px 8px 4px rgba(0,0,0,.4);
+				border-radius: 8px;
 				background: white;
 				padding: 6px;
 				-webkit-transition-property: left;
-				-webkit-transition-duration: .1s;
+				-webkit-transition-duration: .15s;
 				-moz-transition-property: left;
-				-moz-transition-duration: 1s;
-				transition-property: left;
-				transition-duration: 1s;
+				-moz-transition-duration: .15s;
 			}
 			.dialog > .title {
 				text-align: center;
@@ -25,42 +29,42 @@ $.plugin
 			.dialog > .content {
 				width: 100%;
 			}
-			.modal {
-				position: absolute;
-				background: rgba(0,0,0,.4);
-			}
-		"').appendTo("head")
+		"'.replace(/\t+/g,' ')).prependTo("head")
 
 	createDialog = (opts) ->
 		opts = $.extend createDialog.getDefaultOptions(), opts
 		injectCSS()
-		modal = $.synth("div.modal##{opts.id} div.dialog div.title + div.content") # h1.title button.cancel 'X' ++ div.content")
-			.appendTo("body") # append ourselves to the DOM so we start functioning as nodes
-			.click((evt) ->
+		dialogSynth = "div.dialog##{opts.id} div.title + div.content"
+		modal = $.synth("div.modal #{dialogSynth}")
+			.appendTo("body")
+			.click (evt) ->
 				if evt.target is modal[0]
 					$.log 'dialog: Closing because the modal was clicked.'
-					opts.cancel(modal))
+					opts.cancel(modal)
+		dialog = modal.find('.dialog')
+
+		modal
 			.delegate(".cancel", "click", (evt) -> opts.cancel(modal))
 			.delegate(".ok", "click", (evt) -> opts.ok(modal))
 
 		# fill in the content
-		contentNode = modal.find('.dialog > .content')
+		contentNode = dialog.find('.content').take(1)
 		contentNode.append createDialog.getContent opts.contentType, opts.content
 
 		# fill in the title
-		titleNode = modal.find('.dialog > .title')
+		titleNode = dialog.find('.title').take(1)
 		titleNode.append createDialog.getContent opts.titleType, opts.title
 
 		# position the modal and the dialog
-		modal.fitOver(opts.parent) # position the modal to mask the parent
-			.show() # show the modal
+		modal.fitOver(opts.target) # position the modal to mask the target
+			.show()
 			.find('.dialog')
 			.centerOn(modal)
-			.show() # show the dialog
+			.show()
 	
 	createDialog.getDefaultOptions = ->
 		id: "dialog-" + $.random.string 4
-		parent: "body"
+		target: "body"
 		title: "Untitled Dialog"
 		titleType: "text"
 		content: "span 'Dialog Content'"

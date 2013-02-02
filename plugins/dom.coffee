@@ -226,27 +226,27 @@ if $.global.document?
 				return @select('value')
 
 			# Get [or set] css properties.
-			css: (k,v) ->
+			css: (key,v) ->
 				# If we are doing assignment.
-				if v? or $.is "object", k
+				if v? or $.is "object", key
 					# Use a bound-method to do the assignment for us.
-					setter = @select 'style.setProperty'
+					setters = @select 'style.setProperty'
 					# If you give an object as a key, then use every k:v pair.
-					if $.is "object", k then setter.call i, k[i], "" for i of k
-					# So, the key is simple, and if the value is a string,
-					# just do simple assignment (using setProperty).
-					else if $.is "string", v then setter.call k, v, ""
+					if $.is "object", key then setters.call k, v, "" for k,v of key
 					# If the value was actually an array of values, then
 					# stripe the values across each item.
 					else if $.is "array", v
-						setter[i%nn] k, v[i%n], "" for i in [0...n = Math.max v.length, nn = setter.len()] by 1
+						setters[i%nn] key, v[i%n], "" for i in [0...n = Math.max v.length, nn = setters.length] by 1
+					# So, the key is simple, and if the value is a string,
+					# just do simple assignment (using setProperty).
+					else setters.call key, v, ""
 					return @
 				# Else, we are reading CSS properties.
 				else
 					# So, collect the full computed values.
-					cv = @map computeCSSProperty k
+					cv = @map computeCSSProperty key
 					# Then, collect the values specified directly on the node.
-					ov = @select('style').select k
+					ov = @select('style').select key
 					# Weave and fold them so that object values override
 					# computed values.
 					ov.weave(cv).fold (x,y) -> x or y

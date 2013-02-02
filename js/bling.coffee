@@ -450,16 +450,20 @@ $.plugin
 	injectCSS = ->
 		$('head style.dialog').remove()
 		$.synth('style.dialog "
+			.modal {
+				position: absolute;
+				background: rgba(0,0,0,.3);
+			}
 			.dialog {
 				position: absolute;
+				box-shadow: 8px 8px 4px rgba(0,0,0,.4);
+				border-radius: 8px;
 				background: white;
 				padding: 6px;
 				-webkit-transition-property: left;
-				-webkit-transition-duration: .1s;
+				-webkit-transition-duration: .15s;
 				-moz-transition-property: left;
-				-moz-transition-duration: 1s;
-				transition-property: left;
-				transition-duration: 1s;
+				-moz-transition-duration: .15s;
 			}
 			.dialog > .title {
 				text-align: center;
@@ -468,35 +472,34 @@ $.plugin
 			.dialog > .content {
 				width: 100%;
 			}
-			.modal {
-				position: absolute;
-				background: rgba(0,0,0,.4);
-			}
-		"').appendTo("head")
+		"'.replace(/\t+/g,' ')).prependTo("head")
 	createDialog = (opts) ->
 		opts = $.extend createDialog.getDefaultOptions(), opts
 		injectCSS()
-		modal = $.synth("div.modal##{opts.id} div.dialog div.title + div.content") # h1.title button.cancel 'X' ++ div.content")
-			.appendTo("body") # append ourselves to the DOM so we start functioning as nodes
-			.click((evt) ->
+		dialogSynth = "div.dialog##{opts.id} div.title + div.content"
+		modal = $.synth("div.modal #{dialogSynth}")
+			.appendTo("body")
+			.click (evt) ->
 				if evt.target is modal[0]
 					$.log 'dialog: Closing because the modal was clicked.'
-					opts.cancel(modal))
+					opts.cancel(modal)
+		dialog = modal.find('.dialog')
+		modal
 			.delegate(".cancel", "click", (evt) -> opts.cancel(modal))
 			.delegate(".ok", "click", (evt) -> opts.ok(modal))
-		contentNode = modal.find('.dialog > .content')
+		contentNode = dialog.find('.content').take(1)
 		contentNode.append createDialog.getContent opts.contentType, opts.content
-		titleNode = modal.find('.dialog > .title')
+		titleNode = dialog.find('.title').take(1)
 		titleNode.append createDialog.getContent opts.titleType, opts.title
-		modal.fitOver(opts.parent) # position the modal to mask the parent
-			.show() # show the modal
+		modal.fitOver(opts.target) # position the modal to mask the target
+			.show()
 			.find('.dialog')
 			.centerOn(modal)
-			.show() # show the dialog
+			.show()
 	
 	createDialog.getDefaultOptions = ->
 		id: "dialog-" + $.random.string 4
-		parent: "body"
+		target: "body"
 		title: "Untitled Dialog"
 		titleType: "text"
 		content: "span 'Dialog Content'"
@@ -726,17 +729,17 @@ if $.global.document?
 			val: (v) -> # .val([v]) - get [or set] each node's .value
 				return @zap('value', v) if v?
 				return @select('value')
-			css: (k,v) ->
-				if v? or $.is "object", k
-					setter = @select 'style.setProperty'
-					if $.is "object", k then setter.call i, k[i], "" for i of k
-					else if $.is "string", v then setter.call k, v, ""
+			css: (key,v) ->
+				if v? or $.is "object", key
+					setters = @select 'style.setProperty'
+					if $.is "object", key then setters.call k, v, "" for k,v of key
 					else if $.is "array", v
-						setter[i%nn] k, v[i%n], "" for i in [0...n = Math.max v.length, nn = setter.len()] by 1
+						setters[i%nn] key, v[i%n], "" for i in [0...n = Math.max v.length, nn = setters.length] by 1
+					else setters.call key, v, ""
 					return @
 				else
-					cv = @map computeCSSProperty k
-					ov = @select('style').select k
+					cv = @map computeCSSProperty key
+					ov = @select('style').select key
 					ov.weave(cv).fold (x,y) -> x or y
 			defaultCss: (k, v) ->
 				sel = @selector
@@ -2255,8 +2258,9 @@ $.plugin
 	depends: 'dialog'
 	provides: 'wizard'
 , ->
-	
-	$: wizard: (slides) ->
+	$: wizard: (slides...) ->
+		if slides.length is 1 and $.type(slides[0]) in ['array','bling']
+			slides = slides[0]
 		currentSlide = 0
 		modal = $.dialog(slides[0]).select('parentNode')
 		slideChanger = (delta) -> ->
@@ -2268,7 +2272,7 @@ $.plugin
 			dialogs = modal.find('.dialog')
 			currentDialog = $ dialogs[currentSlide]
 			newDialog = $ dialogs[newSlide]
-			newLeft = if delta < 0 then newLeft = window.innerWidth else -currentDialog.width().first()
+			newLeft = if delta < 0 then newLeft = window.innerWidth else -currentDialog.width().scale(1.5).first()
 			currentDialog.removeClass('wiz-active')
 				.css left: $.px newLeft
 			newDialog.addClass('wiz-active')
@@ -2284,3 +2288,4 @@ $.plugin
 			slide = $.extend $.dialog.getDefaultOptions(), slide
 			d.find('.title').append $.dialog.getContent slide.titleType, slide.title
 			d.find('.content').append $.dialog.getContent slide.contentType, slide.content
+		modal

@@ -8,6 +8,7 @@
 			body {
 				padding: 0;
 				margin: 0;
+				background: white;
 			}
 			.left {
 				top: 0;
@@ -42,8 +43,6 @@
 			}
 			.dialog {
 				min-width: 400px;
-				border: 4px solid blue;
-				border-radius: 10px;
 			}
 			.dialog > .title {
 				padding: 6px 0 4px 0;
@@ -65,28 +64,40 @@
 		<div class="right half">
 			<button>Right</button>
 		</div>
-		<div class='bottom'><button>Wizard</button></div>
+		<div class='bottom'>
+			<button id='wizard'>Wizard</button>
+			<button id='left-wizard'>Left Wizard</button>
+		</div>
 		<script type="text/javascript">
 			var show = function() {
 				$.dialog({
 					title: "Steal This Message",
 					content:
-						"span 'The contents of this message were synthesized specially just for you...' + " +
+						"span 'The contents of this message were synthesized specially for you...' + " +
 						"button.ok 'OK'",
-					parent: this
+					target: this
 				})
 			}
 			$(".left button").click(function(){ show.apply('.left') })
 			$(".right button").click(function(){ show.apply('.right') })
 			$(".top button").click(function(){ show() })
-			$(".bottom button").click(function(){ 
-				$.wizard [
+			$("button#wizard").click(function(){ 
+				$.wizard(
 					{ title: "Page One",
-						parent: window,
+						target: window,
 						content: "span 'This is page one.' + br + button.cancel 'Cancel' + button.wiz-next 'Next'" },
 					{ title: "Page Two",
 						content: "span 'This is page two.' + br + button.wiz-back 'Back' + button.ok 'Done'" }
-				]
+				)
+			})
+			$("button#left-wizard").click(function(){ 
+				$.wizard(
+					{ title: "Page One",
+						target: ".left",
+						content: "span 'This is page one.' + br + button.cancel 'Cancel' + button.wiz-next 'Next'" },
+					{ title: "Page Two",
+						content: "span 'This is page two.' + br + button.wiz-back 'Back' + button.ok 'Done'" }
+				)
 			})
 		</script>
 	</body>

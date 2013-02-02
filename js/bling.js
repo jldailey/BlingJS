@@ -1165,16 +1165,20 @@
     injectCSS = function() {
       $('head style.dialog').remove();
       return $.synth('style.dialog "\
+			.modal {\
+				position: absolute;\
+				background: rgba(0,0,0,.3);\
+			}\
 			.dialog {\
 				position: absolute;\
+				box-shadow: 8px 8px 4px rgba(0,0,0,.4);\
+				border-radius: 8px;\
 				background: white;\
 				padding: 6px;\
 				-webkit-transition-property: left;\
-				-webkit-transition-duration: .1s;\
+				-webkit-transition-duration: .15s;\
 				-moz-transition-property: left;\
-				-moz-transition-duration: 1s;\
-				transition-property: left;\
-				transition-duration: 1s;\
+				-moz-transition-duration: .15s;\
 			}\
 			.dialog > .title {\
 				text-align: center;\
@@ -1183,36 +1187,35 @@
 			.dialog > .content {\
 				width: 100%;\
 			}\
-			.modal {\
-				position: absolute;\
-				background: rgba(0,0,0,.4);\
-			}\
-		"').appendTo("head");
+		"'.replace(/\t+/g, ' ')).prependTo("head");
     };
     createDialog = function(opts) {
-      var contentNode, modal, titleNode;
+      var contentNode, dialog, dialogSynth, modal, titleNode;
       opts = $.extend(createDialog.getDefaultOptions(), opts);
       injectCSS();
-      modal = $.synth("div.modal#" + opts.id + " div.dialog div.title + div.content").appendTo("body").click(function(evt) {
+      dialogSynth = "div.dialog#" + opts.id + " div.title + div.content";
+      modal = $.synth("div.modal " + dialogSynth).appendTo("body").click(function(evt) {
         if (evt.target === modal[0]) {
           $.log('dialog: Closing because the modal was clicked.');
           return opts.cancel(modal);
         }
-      }).delegate(".cancel", "click", function(evt) {
+      });
+      dialog = modal.find('.dialog');
+      modal.delegate(".cancel", "click", function(evt) {
         return opts.cancel(modal);
       }).delegate(".ok", "click", function(evt) {
         return opts.ok(modal);
       });
-      contentNode = modal.find('.dialog > .content');
+      contentNode = dialog.find('.content').take(1);
       contentNode.append(createDialog.getContent(opts.contentType, opts.content));
-      titleNode = modal.find('.dialog > .title');
+      titleNode = dialog.find('.title').take(1);
       titleNode.append(createDialog.getContent(opts.titleType, opts.title));
-      return modal.fitOver(opts.parent).show().find('.dialog').centerOn(modal).show();
+      return modal.fitOver(opts.target).show().find('.dialog').centerOn(modal).show();
     };
     createDialog.getDefaultOptions = function() {
       return {
         id: "dialog-" + $.random.string(4),
-        parent: "body",
+        target: "body",
         title: "Untitled Dialog",
         titleType: "text",
         content: "span 'Dialog Content'",
@@ -1682,25 +1685,26 @@
           }
           return this.select('value');
         },
-        css: function(k, v) {
-          var cv, i, n, nn, ov, setter, _i, _ref;
-          if ((v != null) || $.is("object", k)) {
-            setter = this.select('style.setProperty');
-            if ($.is("object", k)) {
-              for (i in k) {
-                setter.call(i, k[i], "");
+        css: function(key, v) {
+          var cv, i, k, n, nn, ov, setters, _i, _ref;
+          if ((v != null) || $.is("object", key)) {
+            setters = this.select('style.setProperty');
+            if ($.is("object", key)) {
+              for (k in key) {
+                v = key[k];
+                setters.call(k, v, "");
               }
-            } else if ($.is("string", v)) {
-              setter.call(k, v, "");
             } else if ($.is("array", v)) {
-              for (i = _i = 0, _ref = n = Math.max(v.length, nn = setter.len()); _i < _ref; i = _i += 1) {
-                setter[i % nn](k, v[i % n], "");
+              for (i = _i = 0, _ref = n = Math.max(v.length, nn = setters.length); _i < _ref; i = _i += 1) {
+                setters[i % nn](key, v[i % n], "");
               }
+            } else {
+              setters.call(key, v, "");
             }
             return this;
           } else {
-            cv = this.map(computeCSSProperty(k));
-            ov = this.select('style').select(k);
+            cv = this.map(computeCSSProperty(key));
+            ov = this.select('style').select(key);
             return ov.weave(cv).fold(function(x, y) {
               return x || y;
             });
@@ -4707,8 +4711,12 @@
   }, function() {
     return {
       $: {
-        wizard: function(slides) {
-          var currentSlide, d, modal, slide, slideChanger, _i, _len, _ref, _results;
+        wizard: function() {
+          var currentSlide, d, modal, slide, slideChanger, slides, _i, _len, _ref, _ref1;
+          slides = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+          if (slides.length === 1 && ((_ref = $.type(slides[0])) === 'array' || _ref === 'bling')) {
+            slides = slides[0];
+          }
           currentSlide = 0;
           modal = $.dialog(slides[0]).select('parentNode');
           slideChanger = function(delta) {
@@ -4727,7 +4735,7 @@
               dialogs = modal.find('.dialog');
               currentDialog = $(dialogs[currentSlide]);
               newDialog = $(dialogs[newSlide]);
-              newLeft = delta < 0 ? newLeft = window.innerWidth : -currentDialog.width().first();
+              newLeft = delta < 0 ? newLeft = window.innerWidth : -currentDialog.width().scale(1.5).first();
               currentDialog.removeClass('wiz-active').css({
                 left: $.px(newLeft)
               });
@@ -4737,18 +4745,17 @@
           };
           modal.delegate('.wiz-next', 'click', slideChanger(+1));
           modal.delegate('.wiz-back', 'click', slideChanger(-1));
-          _ref = slides.slice(1);
-          _results = [];
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            slide = _ref[_i];
+          _ref1 = slides.slice(1);
+          for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+            slide = _ref1[_i];
             d = $.synth('div.dialog div.title + div.content').css({
               left: $.px(window.innerWidth + 100)
             }).appendTo(modal);
             slide = $.extend($.dialog.getDefaultOptions(), slide);
             d.find('.title').append($.dialog.getContent(slide.titleType, slide.title));
-            _results.push(d.find('.content').append($.dialog.getContent(slide.contentType, slide.content)));
+            d.find('.content').append($.dialog.getContent(slide.contentType, slide.content));
           }
-          return _results;
+          return modal;
         }
       }
     };

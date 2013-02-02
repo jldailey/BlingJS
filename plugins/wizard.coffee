@@ -2,8 +2,9 @@ $.plugin
 	depends: 'dialog'
 	provides: 'wizard'
 , ->
-	
-	$: wizard: (slides) ->
+	$: wizard: (slides...) ->
+		if slides.length is 1 and $.type(slides[0]) in ['array','bling']
+			slides = slides[0]
 		currentSlide = 0
 		modal = $.dialog(slides[0]).select('parentNode')
 		slideChanger = (delta) -> ->
@@ -16,7 +17,7 @@ $.plugin
 			currentDialog = $ dialogs[currentSlide]
 			newDialog = $ dialogs[newSlide]
 			# adjust style.left to transition the old slide out of the way
-			newLeft = if delta < 0 then newLeft = window.innerWidth else -currentDialog.width().first()
+			newLeft = if delta < 0 then newLeft = window.innerWidth else -currentDialog.width().scale(1.5).first()
 			currentDialog.removeClass('wiz-active')
 				.css left: $.px newLeft
 			newDialog.addClass('wiz-active')
@@ -33,5 +34,6 @@ $.plugin
 			slide = $.extend $.dialog.getDefaultOptions(), slide
 			d.find('.title').append $.dialog.getContent slide.titleType, slide.title
 			d.find('.content').append $.dialog.getContent slide.contentType, slide.content
+		modal
 
 

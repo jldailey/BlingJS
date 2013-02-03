@@ -1059,6 +1059,34 @@ describe "Bling", ->
 			assert not isFinite $.units.convertTo('px', NaN)
 		it "can convert compound units like m/s", ->
 			assert.equal $.units.convertTo("px/ms", "42in/s"), "4.032px/ms"
+	
+	describe "pubsub", ->
+		it "defines $.Hub", ->
+			assert typeof $.Hub is "function"
+		it "puts a root Hub on $ itself", ->
+			assert typeof $.publish is "function"
+			assert typeof $.subscribe is "function"
+		it "can create new Hubs", ->
+			h = new $.Hub()
+			assert typeof $.publish is "function"
+			assert typeof $.subscribe is "function"
+		it "implements the pubsub protocol", ->
+			h = new $.Hub()
+			pass = false
+			h.subscribe 'test-channel', -> pass = true
+			h.publish 'test-channel'
+			assert pass
+		it "passes along published data", ->
+			h = new $.Hub()
+			pass = false
+			h.subscribe 'test-channel', (data) -> pass = data
+			h.publish 'test-channel', true
+			assert pass
+		it "the root behaves like a global Hub", ->
+			pass = false
+			$.subscribe 'test-channel', (data) -> pass = data
+			$.publish 'test-channel', true
+			assert pass
 
 describe "DOM", ->
 	it "parse", ->

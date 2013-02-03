@@ -2705,45 +2705,60 @@
   });
 
   $.plugin({
+    depends: "core",
     provides: "pubsub"
   }, function() {
-    var subscribers;
-    subscribers = {};
-    return {
-      $: {
-        publish: function() {
-          var args, e, f, _i, _len, _ref;
-          e = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-          _ref = (subscribers[e] || (subscribers[e] = []));
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            f = _ref[_i];
-            f.apply(null, args);
-          }
-          return args;
-        },
-        publisher: function(e, func) {
-          return function() {
-            var args;
-            args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-            return $.publish(e, func.apply(this, args));
-          };
-        },
-        subscribe: function(e, func) {
-          (subscribers[e] || (subscribers[e] = [])).push(func);
-          return func;
-        },
-        unsubscribe: function(e, func) {
-          var a, i;
-          if (!(func != null)) {
-            return subscribers[e] = [];
-          } else {
-            a = (subscribers[e] || (subscribers[e] = []));
-            if ((i = a.indexOf(func)) > -1) {
-              return a.splice(i, i);
-            }
+    var Hub;
+    Hub = (function() {
+
+      function Hub() {
+        this.listeners = {};
+      }
+
+      Hub.prototype.publish = function() {
+        var args, channel, f, _base, _i, _len, _ref;
+        channel = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+        _ref = ((_base = this.listeners)[channel] || (_base[channel] = []));
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          f = _ref[_i];
+          f.apply(null, args);
+        }
+        return args;
+      };
+
+      Hub.prototype.publisher = function(channel, func) {
+        var t;
+        t = this;
+        return function() {
+          return t.publish(channel, func.apply(this, arguments));
+        };
+      };
+
+      Hub.prototype.subscribe = function(channel, func) {
+        var _base;
+        ((_base = this.listeners)[channel] || (_base[channel] = [])).push(func);
+        return func;
+      };
+
+      Hub.prototype.unsubscribe = function(channel, func) {
+        var a, i, _base;
+        if (!(func != null)) {
+          return this.listeners[channel] = [];
+        } else {
+          a = ((_base = this.listeners)[channel] || (_base[channel] = []));
+          if ((i = a.indexOf(func)) > -1) {
+            return a.splice(i, i);
           }
         }
-      }
+      };
+
+      return Hub;
+
+    })();
+    return {
+      $: $.extend(new Hub(), {
+        Hub: Hub
+      })
     };
   });
 

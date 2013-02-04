@@ -17,8 +17,7 @@ $.plugin
 	# constructors, and anything else we can think of that matters.
 	isType = (T, o) ->
 		if not o? then T in [o,"null","undefined"]
-		else o.constructor is T or
-			o.constructor.name is T or
+		else (o.constructor? and (o.constructor is T or o.constructor.name is T)) or
 			Object::toString.apply(o) is "[object #{T}]" or
 			isType T, o.__proto__ # recursive
 

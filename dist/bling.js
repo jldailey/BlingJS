@@ -4120,7 +4120,7 @@
       if (!(o != null)) {
         return T === o || T === "null" || T === "undefined";
       } else {
-        return o.constructor === T || o.constructor.name === T || Object.prototype.toString.apply(o) === ("[object " + T + "]") || isType(T, o.__proto__);
+        return ((o.constructor != null) && (o.constructor === T || o.constructor.name === T)) || Object.prototype.toString.apply(o) === ("[object " + T + "]") || isType(T, o.__proto__);
       }
     };
     inherit = function(parent, obj) {

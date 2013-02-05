@@ -2149,15 +2149,16 @@
       },
       object: {
         hash: function(o) {
-          var k;
+          var k, v;
           return $.hash(Object) + $((function() {
             var _results;
             _results = [];
             for (k in o) {
-              _results.push($.hash(o[k]));
+              v = o[k];
+              _results.push($.hash(k) + $.hash(v));
             }
             return _results;
-          })()).sum() + $.hash(Object.keys(o));
+          })()).sum();
         }
       },
       array: {
@@ -4204,13 +4205,17 @@
       });
       register("bool", {
         match: function() {
-          var _ref;
-          return typeof this === "boolean" || ((_ref = String(this)) === "true" || _ref === "false");
+          return typeof this === "boolean" || (function() {
+            var _ref;
+            try {
+              return (_ref = String(this)) === "true" || _ref === "false";
+            } catch (_error) {}
+          }).call(this);
         }
       });
       register("array", {
-        match: function() {
-          return (typeof Array.isArray === "function" ? Array.isArray(this) : void 0) || isType(Array, this);
+        match: Array.isArray || function() {
+          return isType(Array, this);
         }
       });
       register("function", {

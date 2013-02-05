@@ -471,9 +471,9 @@ describe "Bling", ->
 		describe "always produces finite hashes", ->
 			it "for objects", -> assert isFinite $.hash a:1
 			it "for empty objects", -> assert isFinite $.hash {}
+			it "for naked objects", -> assert isFinite $.hash Object.create null
 		describe "the order of elements matters", ->
 			it "in arrays", -> assert.notEqual $.hash(["a","b"]), $.hash(["b","a"])
-			it "in objects", -> assert.notEqual $.hash({}), $.hash []
 			it "in blings", -> assert.notEqual $.hash($(["a","b"])), $.hash $(["b","a"])
 
 	describe ".hook()", ->

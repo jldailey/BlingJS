@@ -560,21 +560,37 @@
           };
         };
         selectOne = function(p) {
-          var i;
-          if ((i = p.indexOf('.')) > -1) {
-            return this.select(p.substr(0, i)).select(p.substr(i + 1));
-          } else {
-            return this.map(getter(p));
+          var i, type;
+          switch (type = $.type(p)) {
+            case 'regexp':
+              return selectMany.call(this, p);
+            case 'string':
+              if ((i = p.indexOf('.')) > -1) {
+                return this.select(p.substr(0, i)).select(p.substr(i + 1));
+              } else {
+                return this.map(getter(p));
+              }
+              break;
+            default:
+              return $();
           }
         };
         selectMany = function() {
-          var a, i, lists, n, p, _i, _len;
+          var a, i, lists, match, n, p, _i, _j, _len, _len1, _ref;
           a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
           n = this.length;
           lists = Object.create(null);
           for (_i = 0, _len = a.length; _i < _len; _i++) {
             p = a[_i];
-            lists[p] = this.select(p);
+            if ($.is('regexp', p)) {
+              _ref = $.keysOf(this.first()).filter(p);
+              for (_j = 0, _len1 = _ref.length; _j < _len1; _j++) {
+                match = _ref[_j];
+                lists[match] = this.select(match);
+              }
+            } else {
+              lists[p] = this.select(p);
+            }
           }
           i = 0;
           return this.map(function() {

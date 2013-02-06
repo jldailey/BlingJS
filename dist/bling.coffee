@@ -189,13 +189,20 @@ $.plugin
 		select: (->
 			getter = (prop) -> -> if $.is("function",v = @[prop]) then $.bound(@,v) else v
 			selectOne = (p) ->
-				if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
-				else @map(getter p)
+				switch type = $.type p
+					when 'regexp' then selectMany.call @, p
+					when 'string'
+						if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
+						else @map(getter p)
+					else $()
 			selectMany = (a...) ->
 				n = @length
 				lists = Object.create(null)
 				for p in a
-					lists[p] = @select(p)
+					if $.is 'regexp', p
+						for match in $.keysOf(@first()).filter(p)
+							lists[match] = @select(match)
+					else lists[p] = @select(p)
 				i = 0
 				@map ->
 					obj = Object.create(null)
@@ -989,8 +996,7 @@ $.plugin
 		unknown: { hash: (o) -> $.checksum $.toString o }
 		object:  { hash: (o) ->
 			$.hash(Object) +
-				$($.hash(o[k]) for k of o).sum() +
-				$.hash Object.keys o
+				$($.hash(k) + $.hash(v) for k,v of o).sum()
 		}
 		array:   { hash: (o) ->
 			$.hash(Array) + $(o.map $.hash).reduce (a,x) ->
@@ -2039,8 +2045,8 @@ $.plugin
 		register "regexp",    match: -> isType 'RegExp', @
 		register "string",    match: -> typeof @ is "string" or isType String, @
 		register "number",    match: -> (isType Number, @) and @ isnt NaN
-		register "bool",      match: -> typeof @ is "boolean" or String(@) in ["true","false"]
-		register "array",     match: -> Array.isArray?(@) or isType Array, @
+		register "bool",      match: -> typeof @ is "boolean" or try String(@) in ["true","false"]
+		register "array",     match: Array.isArray or -> isType Array, @
 		register "function",  match: -> typeof @ is "function"
 		register "global",    match: -> typeof @ is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
 		register "undefined", match: (x) -> x is undefined

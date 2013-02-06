@@ -94,8 +94,8 @@ $.plugin
 		register "regexp",    match: -> isType 'RegExp', @
 		register "string",    match: -> typeof @ is "string" or isType String, @
 		register "number",    match: -> (isType Number, @) and @ isnt NaN
-		register "bool",      match: -> typeof @ is "boolean" or String(@) in ["true","false"]
-		register "array",     match: -> Array.isArray?(@) or isType Array, @
+		register "bool",      match: -> typeof @ is "boolean" or try String(@) in ["true","false"]
+		register "array",     match: Array.isArray or -> isType Array, @
 		register "function",  match: -> typeof @ is "function"
 		register "global",    match: -> typeof @ is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
 		# These checks for null and undefined are small exceptions to the

@@ -9,8 +9,7 @@ $.plugin
 		unknown: { hash: (o) -> $.checksum $.toString o }
 		object:  { hash: (o) ->
 			$.hash(Object) +
-				$($.hash(o[k]) for k of o).sum() +
-				$.hash Object.keys o
+				$($.hash(k) + $.hash(v) for k,v of o).sum()
 		}
 		array:   { hash: (o) ->
 			$.hash(Array) + $(o.map $.hash).reduce (a,x) ->

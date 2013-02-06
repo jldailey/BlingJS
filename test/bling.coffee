@@ -560,30 +560,36 @@ describe "Bling", ->
 			assert.equal $([1,2,2,3,4,3]).count(), 6
 
 	describe ".select()", ->
+		selectObjects = $ [
+			{id: 1, pX: 2, pY: 3, parent: { id: 2 }, children: [ { id: 3 } ] },
+			{id: 2, pX: 3, pY: 4, parent: { id: 4 }, children: [ { id: 6 } ] },
+			{id: 3, pX: 4, pY: 5, parent: { id: 6 }, children: [ { id: 9 } ] },
+		]
 		it "extracts values from properties of items in a set", ->
-			assert.deepEqual $([ {id:1}, {id:2}, {id:3} ]).select('id'), [1,2,3]
+			assert.deepEqual selectObjects.select('id'), [1,2,3]
 		it "supports nested property names", ->
-			assert.deepEqual $([
-				{a:{b:2}},
-				{a:{b:4}},
-				{a:{b:6}}
-			]).select("a.b"), [2,4,6]
+			assert.deepEqual selectObjects.select("parent.id"), [2,4,6]
 		it "supports nesting into arrays", ->
-			assert.deepEqual $([
-				{a:[{b:3}]},
-				{a:[{b:6}]},
-				{a:[{b:9}]}
-			]).select("a.0.b"), [3,6,9]
+			assert.deepEqual selectObjects.select("children.0.id"), [3,6,9]
 		it "supports multiple arguments (creating simplified objects)", ->
-			assert.deepEqual $([
-				{a:[{b:3},{c:2, d:1}]},
-				{a:[{b:6},{c:4, d:5}]},
-				{a:[{b:9},{c:8, d:7}]}
-			]).select("a.0.b", "a.1.c"), [
-				{ b:3, c:2 },
-				{ b:6, c:4 },
-				{ b:9, c:8 }
+			assert.deepEqual selectObjects.select("pX","pY"), [
+				{ pX: 2, pY: 3 },
+				{ pX: 3, pY: 4 },
+				{ pX: 4, pY: 5 }
 			]
+		it "supports passing a regex, in lieu of multiple arguments", ->
+			assert.deepEqual selectObjects.select(/^p[XY]/), [
+				{ pX: 2, pY: 3 },
+				{ pX: 3, pY: 4 },
+				{ pX: 4, pY: 5 }
+			]
+		it "supports mixing a regex and string arguments", ->
+			assert.deepEqual selectObjects.select(/^p[XY]/,"parent.id"), [
+				{ pX: 2, pY: 3, id: 2 },
+				{ pX: 3, pY: 4, id: 4 },
+				{ pX: 4, pY: 5, id: 6 }
+			]
+			
 
 	describe ".zap()", ->
 		it "assigns values to properties of items in a set", ->

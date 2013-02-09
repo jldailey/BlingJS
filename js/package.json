@@ -10,7 +10,7 @@
     "url": "git://github.com/jldailey/BlingJS.git"
   },
   "scripts": {
-    "test": "coffee tests/bling.coffee"
+    "test": "make test"
   },
 	"devDependencies": {
 		"coffee-script": "latest",

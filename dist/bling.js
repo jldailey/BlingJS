@@ -1125,46 +1125,31 @@
     depends: 'hook,synth,delay',
     provides: 'dialog'
   }, function() {
-    var createDialog, injectCSS;
+    var createDialog, injectCSS, transition;
+    transition = function(props, duration) {
+      props = props.split(/, */);
+      return ["-webkit", "-moz"].map(function(prefix) {
+        return "" + prefix + "-transition-property: " + (props.join(', ')) + "; " + prefix + "-transition-duration: " + (props.map(function() {
+          return duration;
+        }).join(", ")) + ";";
+      }).join(' ');
+    };
     injectCSS = function() {
       $('head style.dialog').remove();
-      return $.synth('style.dialog "\
-			.modal {\
-				position: absolute;\
-				background: rgba(0,0,0,.3);\
-			}\
-			.dialog {\
-				position: absolute;\
-				box-shadow: 8px 8px 4px rgba(0,0,0,.4);\
-				border-radius: 8px;\
-				background: white;\
-				padding: 6px;\
-				-webkit-transition-property: left;\
-				-webkit-transition-duration: .15s;\
-				-moz-transition-property: left;\
-				-moz-transition-duration: .15s;\
-			}\
-			.dialog > .title {\
-				text-align: center;\
-				width: 100%;\
-			}\
-			.dialog > .content {\
-				width: 100%;\
-			}\
-		"'.replace(/\t+/g, ' ')).prependTo("head");
+      return $.synth(("style.dialog '			.dialog, .modal { position: absolute; }			.modal {				background: rgba(0,0,0,.3);			}			.dialog {				box-shadow: 8px 8px 4px rgba(0,0,0,.4);				border-radius: 8px;				background: white;				padding: 6px; " + (transition("left", ".15s")) + "			}			.dialog > .title {				text-align: center;				width: 100%;			}			.dialog > .content {				width: 100%;			}		'").replace(/\t+|\n+/g, ' ')).prependTo("head").text().log('text');
     };
     createDialog = function(opts) {
       var contentNode, dialog, dialogSynth, modal, titleNode;
       opts = $.extend(createDialog.getDefaultOptions(), opts);
       injectCSS();
-      dialogSynth = "div.dialog#" + opts.id + " div.title + div.content";
-      modal = $.synth("div.modal " + dialogSynth).appendTo("body").click(function(evt) {
+      dialogSynth = "";
+      modal = $.synth("div.modal div.dialog#" + opts.id + " div.title + div.content").appendTo("body").click(function(evt) {
         if (evt.target === modal[0]) {
           $.log('dialog: Closing because the modal was clicked.');
           return opts.cancel(modal);
         }
       });
-      dialog = modal.find('.dialog');
+      dialog = modal.find('.dialog').take(1);
       modal.delegate(".cancel", "click", function(evt) {
         return opts.cancel(modal);
       }).delegate(".ok", "click", function(evt) {
@@ -1174,7 +1159,11 @@
       contentNode.append(createDialog.getContent(opts.contentType, opts.content));
       titleNode = dialog.find('.title').take(1);
       titleNode.append(createDialog.getContent(opts.titleType, opts.title));
-      return modal.fitOver(opts.target).show().find('.dialog').centerOn(modal).show();
+      $(opts.target).bind('resize', function(evt) {
+        modal.fitOver(opts.target).show();
+        return dialog.centerOn(modal).show();
+      }).trigger('resize');
+      return dialog;
     };
     createDialog.getDefaultOptions = function() {
       return {
@@ -4748,19 +4737,20 @@
     return {
       $: {
         wizard: function() {
-          var currentSlide, d, modal, slide, slideChanger, slides, _i, _len, _ref, _ref1;
+          var currentSlide, d, dialogs, modal, slide, slideChanger, slides, _i, _len, _ref, _ref1;
           slides = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
           if (slides.length === 1 && ((_ref = $.type(slides[0])) === 'array' || _ref === 'bling')) {
             slides = slides[0];
           }
           currentSlide = 0;
           modal = $.dialog(slides[0]).select('parentNode');
+          dialogs = [];
           slideChanger = function(delta) {
+            if (!slides.length) {
+              return $.identity;
+            }
             return function() {
-              var currentDialog, dialogs, newDialog, newLeft, newSlide;
-              if (slides.length === 0) {
-                return;
-              }
+              var currentDialog, newDialog, newLeft, newSlide;
               newSlide = (currentSlide + delta) % slides.length;
               while (newSlide < 0) {
                 newSlide += slides.length;
@@ -4768,10 +4758,9 @@
               if (newSlide === currentSlide) {
                 return;
               }
-              dialogs = modal.find('.dialog');
               currentDialog = $(dialogs[currentSlide]);
               newDialog = $(dialogs[newSlide]);
-              newLeft = delta < 0 ? newLeft = window.innerWidth : -currentDialog.width().scale(1.5).first();
+              newLeft = delta < 0 ? window.innerWidth : -currentDialog.width()[0] * 1.5;
               currentDialog.removeClass('wiz-active').css({
                 left: $.px(newLeft)
               });
@@ -4791,6 +4780,7 @@
             d.find('.title').append($.dialog.getContent(slide.titleType, slide.title));
             d.find('.content').append($.dialog.getContent(slide.contentType, slide.content));
           }
+          dialogs = modal.find('.dialog');
           return modal;
         }
       }

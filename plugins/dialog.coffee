@@ -2,25 +2,26 @@ $.plugin
 	depends: 'hook,synth,delay'
 	provides: 'dialog'
 , ->
-
+	
+	transition = (props, duration) ->
+		props = props.split /, */
+		["-webkit","-moz"].map((prefix) ->
+			"#{prefix}-transition-property: #{props.join ', '}; #{prefix}-transition-duration: #{props.map(-> duration).join ", "};"
+		).join ' '
+	
 	# inject css
 	injectCSS = ->
 		$('head style.dialog').remove()
-		$.synth('style.dialog "
+		$.synth("style.dialog '
+			.dialog, .modal { position: absolute; }
 			.modal {
-				position: absolute;
 				background: rgba(0,0,0,.3);
 			}
 			.dialog {
-				position: absolute;
 				box-shadow: 8px 8px 4px rgba(0,0,0,.4);
 				border-radius: 8px;
 				background: white;
-				padding: 6px;
-				-webkit-transition-property: left;
-				-webkit-transition-duration: .15s;
-				-moz-transition-property: left;
-				-moz-transition-duration: .15s;
+				padding: 6px; #{transition "left", ".15s"}
 			}
 			.dialog > .title {
 				text-align: center;
@@ -29,19 +30,20 @@ $.plugin
 			.dialog > .content {
 				width: 100%;
 			}
-		"'.replace(/\t+/g,' ')).prependTo("head")
+		'".replace(/\t+|\n+/g,' ')).prependTo("head").text().log('text')
+
 
 	createDialog = (opts) ->
 		opts = $.extend createDialog.getDefaultOptions(), opts
 		injectCSS()
-		dialogSynth = "div.dialog##{opts.id} div.title + div.content"
-		modal = $.synth("div.modal #{dialogSynth}")
+		dialogSynth = ""
+		modal = $.synth("div.modal div.dialog##{opts.id} div.title + div.content")
 			.appendTo("body")
 			.click (evt) ->
 				if evt.target is modal[0]
 					$.log 'dialog: Closing because the modal was clicked.'
 					opts.cancel(modal)
-		dialog = modal.find('.dialog')
+		dialog = modal.find('.dialog').take(1)
 
 		modal
 			.delegate(".cancel", "click", (evt) -> opts.cancel(modal))
@@ -55,12 +57,12 @@ $.plugin
 		titleNode = dialog.find('.title').take(1)
 		titleNode.append createDialog.getContent opts.titleType, opts.title
 
-		# position the modal and the dialog
-		modal.fitOver(opts.target) # position the modal to mask the target
-			.show()
-			.find('.dialog')
-			.centerOn(modal)
-			.show()
+		$(opts.target).bind('resize', (evt) ->
+			modal.fitOver(opts.target).show()
+			dialog.centerOn(modal).show()
+		).trigger('resize')
+
+		dialog
 	
 	createDialog.getDefaultOptions = ->
 		id: "dialog-" + $.random.string 4

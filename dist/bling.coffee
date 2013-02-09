@@ -438,23 +438,25 @@ $.plugin
 	depends: 'hook,synth,delay'
 	provides: 'dialog'
 , ->
+	
+	transition = (props, duration) ->
+		props = props.split /, */
+		["-webkit","-moz"].map((prefix) ->
+			"#{prefix}-transition-property: #{props.join ', '}; #{prefix}-transition-duration: #{props.map(-> duration).join ", "};"
+		).join ' '
+	
 	injectCSS = ->
 		$('head style.dialog').remove()
-		$.synth('style.dialog "
+		$.synth("style.dialog '
+			.dialog, .modal { position: absolute; }
 			.modal {
-				position: absolute;
 				background: rgba(0,0,0,.3);
 			}
 			.dialog {
-				position: absolute;
 				box-shadow: 8px 8px 4px rgba(0,0,0,.4);
 				border-radius: 8px;
 				background: white;
-				padding: 6px;
-				-webkit-transition-property: left;
-				-webkit-transition-duration: .15s;
-				-moz-transition-property: left;
-				-moz-transition-duration: .15s;
+				padding: 6px; #{transition "left", ".15s"}
 			}
 			.dialog > .title {
 				text-align: center;
@@ -463,18 +465,18 @@ $.plugin
 			.dialog > .content {
 				width: 100%;
 			}
-		"'.replace(/\t+/g,' ')).prependTo("head")
+		'".replace(/\t+|\n+/g,' ')).prependTo("head").text().log('text')
 	createDialog = (opts) ->
 		opts = $.extend createDialog.getDefaultOptions(), opts
 		injectCSS()
-		dialogSynth = "div.dialog##{opts.id} div.title + div.content"
-		modal = $.synth("div.modal #{dialogSynth}")
+		dialogSynth = ""
+		modal = $.synth("div.modal div.dialog##{opts.id} div.title + div.content")
 			.appendTo("body")
 			.click (evt) ->
 				if evt.target is modal[0]
 					$.log 'dialog: Closing because the modal was clicked.'
 					opts.cancel(modal)
-		dialog = modal.find('.dialog')
+		dialog = modal.find('.dialog').take(1)
 		modal
 			.delegate(".cancel", "click", (evt) -> opts.cancel(modal))
 			.delegate(".ok", "click", (evt) -> opts.ok(modal))
@@ -482,11 +484,11 @@ $.plugin
 		contentNode.append createDialog.getContent opts.contentType, opts.content
 		titleNode = dialog.find('.title').take(1)
 		titleNode.append createDialog.getContent opts.titleType, opts.title
-		modal.fitOver(opts.target) # position the modal to mask the target
-			.show()
-			.find('.dialog')
-			.centerOn(modal)
-			.show()
+		$(opts.target).bind('resize', (evt) ->
+			modal.fitOver(opts.target).show()
+			dialog.centerOn(modal).show()
+		).trigger('resize')
+		dialog
 	
 	createDialog.getDefaultOptions = ->
 		id: "dialog-" + $.random.string 4
@@ -2274,22 +2276,23 @@ $.plugin
 			slides = slides[0]
 		currentSlide = 0
 		modal = $.dialog(slides[0]).select('parentNode')
-		slideChanger = (delta) -> ->
-			return if slides.length is 0
-			newSlide = (currentSlide + delta) % slides.length
-			while newSlide < 0
-				newSlide += slides.length
-			return if newSlide is currentSlide
-			dialogs = modal.find('.dialog')
-			currentDialog = $ dialogs[currentSlide]
-			newDialog = $ dialogs[newSlide]
-			newLeft = if delta < 0 then newLeft = window.innerWidth else -currentDialog.width().scale(1.5).first()
-			currentDialog.removeClass('wiz-active')
-				.css left: $.px newLeft
-			newDialog.addClass('wiz-active')
-				.centerOn(modal)
-				.show()
-			currentSlide = newSlide
+		dialogs = []
+		slideChanger = (delta) ->
+			return $.identity unless slides.length
+			->
+				newSlide = (currentSlide + delta) % slides.length
+				while newSlide < 0
+					newSlide += slides.length
+				return if newSlide is currentSlide
+				currentDialog = $ dialogs[currentSlide]
+				newDialog = $ dialogs[newSlide]
+				newLeft = if delta < 0 then window.innerWidth else -currentDialog.width()[0] * 1.5
+				currentDialog.removeClass('wiz-active')
+					.css left: $.px newLeft
+				newDialog.addClass('wiz-active')
+					.centerOn(modal)
+					.show()
+				currentSlide = newSlide
 		modal.delegate '.wiz-next', 'click', slideChanger(+1)
 		modal.delegate '.wiz-back', 'click', slideChanger(-1)
 		for slide in slides.slice(1)
@@ -2299,4 +2302,5 @@ $.plugin
 			slide = $.extend $.dialog.getDefaultOptions(), slide
 			d.find('.title').append $.dialog.getContent slide.titleType, slide.title
 			d.find('.content').append $.dialog.getContent slide.contentType, slide.content
+		dialogs = modal.find('.dialog')
 		modal

@@ -1220,6 +1220,12 @@ describe "DOM", ->
 				pass = (evt.type is 'dummy')
 			td.trigger 'dummy'
 			assert pass
+		it ".click()", ->
+			pass = 0
+			td = $("td").click (evt) -> pass += 1
+			td = $("td").bind 'click', (evt) -> pass += 1
+			td.trigger 'click'
+			# assert.equal pass, 2
 		it ".un/delegate()", ->
 			counter = 0
 			cb = (evt) -> counter += 1

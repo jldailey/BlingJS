@@ -1824,7 +1824,11 @@
     events = ['mousemove', 'mousedown', 'mouseup', 'mouseover', 'mouseout', 'blur', 'focus', 'load', 'unload', 'reset', 'submit', 'keyup', 'keydown', 'change', 'abort', 'cut', 'copy', 'paste', 'selection', 'drag', 'drop', 'orientationchange', 'touchstart', 'touchmove', 'touchend', 'touchcancel', 'gesturestart', 'gestureend', 'gesturecancel', 'hashchange'];
     binder = function(e) {
       return function(f) {
-        return this.bind(e, f)($.is("function", f) ? void 0 : this.trigger(e, f));
+        if ($.is("function", f)) {
+          return this.bind(e, f);
+        } else {
+          return this.trigger(e, f);
+        }
       };
     };
     register_live = function(selector, context, evt, f, h) {

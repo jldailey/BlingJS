@@ -17,7 +17,10 @@ $.plugin
 		'hashchange'
 	]
 
-	binder = (e) -> (f) -> @bind(e, f) if $.is "function", f else @trigger(e, f)
+	binder = (e) ->
+		(f) ->
+			if ($.is "function", f) then @bind(e, f)
+			else @trigger(e, f)
 
 	register_live = (selector, context, evt, f, h) ->
 		$(context).bind(evt, h)

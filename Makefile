@@ -35,24 +35,21 @@ dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
 docs: $(DIST)/docs/bling.html
 
-site: dist docs
+site: dist
 	git stash save &> /dev/null \
 	&& git checkout site \
 	&& sleep 1 \
 	&& cp $(DIST)/*.js js \
 	&& cp $(DIST)/*.js.gz js \
-	&& cp $(DIST)/docs/* docs \
 	&& git show master:$(DIST)/bling.coffee > js/bling.coffee \
 	&& sleep 1 \
 	&& git show master:$(DIST)/bling.js > js/bling.js \
 	&& sleep 1 \
+	&& git show master:package.json > js/package.json \
+	&& sleep 1 \
 	&& git show master:test/dialog.html | sed 's@../dist/bling@/js/bling@' > test/dialog.html \
 	&& sleep 1 \
-	&& git commit -a -m "build files" || true \
-	&& sleep 1 \
-	&& echo '$$.log("' `git log -1 --format="commit:%h @ %ci"` '")' > js/log-build.js \
-	&& sleep 1 \
-	&& git commit js/log-build.js --amend -m "build annotation" \
+	&& git commit -am "make site" || true \
 	&& sleep 1 \
 	&& git checkout master \
 	&& sleep 1 \

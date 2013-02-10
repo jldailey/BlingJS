@@ -9,7 +9,12 @@ if $.global.document?
 		$.type.register "nodelist",
 			match:  (o) -> o? and $.isType "NodeList", o
 			hash:   (o) -> $($.hash(i) for i in x).sum()
-			array:  $.identity
+			array:  do ->
+				try # probe to see if this browsers allows direct modification of a nodelist's prototype
+					document.querySelectorAll("xxx").__proto__ = {}
+					return $.identity
+				catch err # if we can't patch directly, we have to copy into a real array :(
+					return (o) -> (node for node in nodelist)
 			string: (o) -> "{Nodelist:["+$(o).select('nodeName').join(",")+"]}"
 			node:   (o) -> $(o).toFragment()
 		$.type.register "node",

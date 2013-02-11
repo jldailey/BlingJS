@@ -103,7 +103,8 @@ $.plugin
 			@css css
 			# queue the callback to be executed at the end of the animation
 			# WARNING: NOT EXACT!
-			@delay duration, callback
+			if callback
+				@delay duration, callback
 
 		hide: (callback) -> # .hide() - each node gets display:none
 			@each ->

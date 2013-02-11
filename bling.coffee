@@ -51,7 +51,7 @@ extend = (a, b...) ->
 # rather it should be used python style: `Bling(stuff)`.
 class Bling # extends (new Array)
 	constructor: (args...) ->
-		# See: plugins/hook.coffee
+		### See: plugins/hook.coffee ###
 		return Bling.hook "bling-init", args
 
 # We specify an inheritance similar to `class Bling extends (new Array)`,

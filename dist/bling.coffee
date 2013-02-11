@@ -54,6 +54,22 @@ extend Bling, do ->
 		data
 $ = Bling
 $.plugin
+	provides: "EventEmitter"
+	depends: "type,hook"
+, ->
+	$: EventEmitter: $.hook("bling-init").append (obj = Object.create(null)) ->
+		listeners = {}
+		list = (e) -> (listeners[e] or= [])
+		$.inherit {
+			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
+			addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
+			on:                 (e, h) -> @addListener e, h
+			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
+			removeAllListeners: (e) -> listeners[e] = []
+			setMaxListeners:    (n) -> # who really needs this in the core API?
+			listeners:          (e) -> list(e).slice 0
+		}, obj
+$.plugin
 	provides: "cartesian"
 , ->
 	$:
@@ -555,10 +571,17 @@ if $.global.document?
 		depends: "function,type"
 		provides: "dom"
 	, ->
+		bNodelistsAreSpecial = false
 		$.type.register "nodelist",
 			match:  (o) -> o? and $.isType "NodeList", o
 			hash:   (o) -> $($.hash(i) for i in x).sum()
-			array:  $.identity
+			array:  do ->
+				try # probe to see if this browsers allows direct modification of a nodelist's prototype
+					document.querySelectorAll("xxx").__proto__ = {}
+					return $.identity
+				catch err # if we can't patch directly, we have to copy into a real array :(
+					bNodelistsAreSpecial = true
+					return (o) -> (node for node in o)
 			string: (o) -> "{Nodelist:["+$(o).select('nodeName').join(",")+"]}"
 			node:   (o) -> $(o).toFragment()
 		$.type.register "node",
@@ -595,7 +618,11 @@ if $.global.document?
 			}
 			string:
 				node:  (o) -> $(o).toFragment()
-				array: (o) -> document.querySelectorAll? o
+				array: do ->
+					if bNodelistsAreSpecial
+						(o) -> $.type.lookup(nl = document.querySelectorAll o).array(nl)
+					else
+						(o) -> document.querySelectorAll o
 			function: { node: (o) -> $(o.toString()).toFragment() }
 		toFrag = (a) ->
 			if not a.parentNode?
@@ -797,22 +824,6 @@ if $.global.document?
 					return df
 				return toNode @[0]
 		}
-$.plugin
-	provides: "EventEmitter"
-	depends: "type,hook"
-, ->
-	$: EventEmitter: $.hook("bling-init").append (obj = Object.create(null)) ->
-		listeners = {}
-		list = (e) -> (listeners[e] or= [])
-		$.inherit {
-			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-			addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
-			on:                 (e, h) -> @addListener e, h
-			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
-			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
-			listeners:          (e) -> list(e).slice 0
-		}, obj
 $.plugin
 	depends: "dom,function,core"
 	provides: "event"

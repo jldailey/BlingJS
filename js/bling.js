@@ -1307,7 +1307,8 @@
       depends: "function,type",
       provides: "dom"
     }, function() {
-      var after, before, computeCSSProperty, escaper, getOrSetRect, parser, selectChain, toFrag, toNode;
+      var after, bNodelistsAreSpecial, before, computeCSSProperty, escaper, getOrSetRect, parser, selectChain, toFrag, toNode;
+      bNodelistsAreSpecial = false;
       $.type.register("nodelist", {
         match: function(o) {
           return (o != null) && $.isType("NodeList", o);
@@ -1329,11 +1330,12 @@
             document.querySelectorAll("xxx").__proto__ = {};
             return $.identity;
           } catch (err) {
+            bNodelistsAreSpecial = true;
             return function(o) {
               var node, _i, _len, _results;
               _results = [];
-              for (_i = 0, _len = nodelist.length; _i < _len; _i++) {
-                node = nodelist[_i];
+              for (_i = 0, _len = o.length; _i < _len; _i++) {
+                node = o[_i];
                 _results.push(node);
               }
               return _results;
@@ -1434,9 +1436,18 @@
           node: function(o) {
             return $(o).toFragment();
           },
-          array: function(o) {
-            return typeof document.querySelectorAll === "function" ? document.querySelectorAll(o) : void 0;
-          }
+          array: (function() {
+            if (bNodelistsAreSpecial) {
+              return function(o) {
+                var nl;
+                return $.type.lookup(nl = document.querySelectorAll(o)).array(nl);
+              };
+            } else {
+              return function(o) {
+                return document.querySelectorAll(o);
+              };
+            }
+          })()
         },
         "function": {
           node: function(o) {

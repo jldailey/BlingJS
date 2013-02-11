@@ -6,6 +6,7 @@ if $.global.document?
 		depends: "function,type"
 		provides: "dom"
 	, ->
+		bNodelistsAreSpecial = false
 		$.type.register "nodelist",
 			match:  (o) -> o? and $.isType "NodeList", o
 			hash:   (o) -> $($.hash(i) for i in x).sum()
@@ -14,7 +15,8 @@ if $.global.document?
 					document.querySelectorAll("xxx").__proto__ = {}
 					return $.identity
 				catch err # if we can't patch directly, we have to copy into a real array :(
-					return (o) -> (node for node in nodelist)
+					bNodelistsAreSpecial = true
+					return (o) -> (node for node in o)
 			string: (o) -> "{Nodelist:["+$(o).select('nodeName').join(",")+"]}"
 			node:   (o) -> $(o).toFragment()
 		$.type.register "node",
@@ -58,7 +60,11 @@ if $.global.document?
 			}
 			string:
 				node:  (o) -> $(o).toFragment()
-				array: (o) -> document.querySelectorAll? o
+				array: do ->
+					if bNodelistsAreSpecial
+						(o) -> $.type.lookup(nl = document.querySelectorAll o).array(nl)
+					else
+						(o) -> document.querySelectorAll o
 			function: { node: (o) -> $(o.toString()).toFragment() }
 
 		toFrag = (a) ->

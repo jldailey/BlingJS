@@ -54,6 +54,22 @@ extend Bling, do ->
 		data
 $ = Bling
 $.plugin
+	provides: "EventEmitter"
+	depends: "type,hook"
+, ->
+	$: EventEmitter: $.hook("bling-init").append (obj = Object.create(null)) ->
+		listeners = {}
+		list = (e) -> (listeners[e] or= [])
+		$.inherit {
+			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
+			addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
+			on:                 (e, h) -> @addListener e, h
+			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
+			removeAllListeners: (e) -> listeners[e] = []
+			setMaxListeners:    (n) -> # who really needs this in the core API?
+			listeners:          (e) -> list(e).slice 0
+		}, obj
+$.plugin
 	provides: "cartesian"
 , ->
 	$:
@@ -423,7 +439,7 @@ $.plugin
 					@
 			)()
 			(n, f) ->
-				if $.is("function",f) then timeoutQueue.add(f, n)
+				if $.is("function",f) then timeoutQueue.add(f, parseInt n)
 				cancel: -> timeoutQueue.cancel(f)
 		)()
 	delay: (n, f, c=@) ->
@@ -451,6 +467,7 @@ $.plugin
 			.dialog, .modal { position: absolute; }
 			.modal {
 				background: rgba(0,0,0,.3);
+				opacity: 0;
 			}
 			.dialog {
 				box-shadow: 8px 8px 4px rgba(0,0,0,.4);
@@ -465,7 +482,7 @@ $.plugin
 			.dialog > .content {
 				width: 100%;
 			}
-		'".replace(/\t+|\n+/g,' ')).prependTo("head").text().log('text')
+		'".replace(/\t+|\n+/g,' ')).prependTo("head")
 	createDialog = (opts) ->
 		opts = $.extend createDialog.getDefaultOptions(), opts
 		injectCSS()
@@ -474,18 +491,18 @@ $.plugin
 			.appendTo("body")
 			.click (evt) ->
 				if evt.target is modal[0]
-					$.log 'dialog: Closing because the modal was clicked.'
+					$.log 'dialog: Cancelling because the modal was clicked.'
 					opts.cancel(modal)
-		dialog = modal.find('.dialog').take(1)
+		dialog = modal.find('.dialog', 1)
 		modal
 			.delegate(".cancel", "click", (evt) -> opts.cancel(modal))
 			.delegate(".ok", "click", (evt) -> opts.ok(modal))
-		contentNode = dialog.find('.content').take(1)
+		contentNode = dialog.find('.content', 1)
 		contentNode.append createDialog.getContent opts.contentType, opts.content
-		titleNode = dialog.find('.title').take(1)
+		titleNode = dialog.find('.title', 1)
 		titleNode.append createDialog.getContent opts.titleType, opts.title
 		$(opts.target).bind('resize', (evt) ->
-			modal.fitOver(opts.target).show()
+			modal.fitOver(opts.target).fadeIn(200)
 			dialog.centerOn(modal).show()
 		).trigger('resize')
 		dialog
@@ -499,10 +516,13 @@ $.plugin
 		contentType: "synth"
 		ok: (modal) ->
 			$.log "dialog: Closing from default ok"
-			modal.remove()
+			modal.emit('ok')
+				.fadeOut(200, -> modal.remove())
 		cancel: (modal) ->
-			$.log "dialog: Closign from default cancel"
-			modal.remove()
+			$.log "dialog: Closing from default cancel"
+			modal.emit('cancel')
+				.fadeOut(200, -> modal.remove())
+				.find(".dialog", 1).css left: 0
 	
 	createDialog.getContent = (type, stuff) ->
 		switch type
@@ -551,10 +571,17 @@ if $.global.document?
 		depends: "function,type"
 		provides: "dom"
 	, ->
+		bNodelistsAreSpecial = false
 		$.type.register "nodelist",
 			match:  (o) -> o? and $.isType "NodeList", o
 			hash:   (o) -> $($.hash(i) for i in x).sum()
-			array:  $.identity
+			array:  do ->
+				try # probe to see if this browsers allows direct modification of a nodelist's prototype
+					document.querySelectorAll("xxx").__proto__ = {}
+					return $.identity
+				catch err # if we can't patch directly, we have to copy into a real array :(
+					bNodelistsAreSpecial = true
+					return (o) -> (node for node in o)
 			string: (o) -> "{Nodelist:["+$(o).select('nodeName').join(",")+"]}"
 			node:   (o) -> $(o).toFragment()
 		$.type.register "node",
@@ -591,7 +618,11 @@ if $.global.document?
 			}
 			string:
 				node:  (o) -> $(o).toFragment()
-				array: (o) -> document.querySelectorAll? o
+				array: do ->
+					if bNodelistsAreSpecial
+						(o) -> $.type.lookup(nl = document.querySelectorAll o).array(nl)
+					else
+						(o) -> document.querySelectorAll o
 			function: { node: (o) -> $(o.toString()).toFragment() }
 		toFrag = (a) ->
 			if not a.parentNode?
@@ -776,9 +807,14 @@ if $.global.document?
 			prev: selectChain('previousSibling')
 			next: selectChain('nextSibling')
 			remove: -> @each -> @parentNode?.removeChild(@)
-			find: (css) ->
+			find: (css, limit = 0) ->
 				@filter("*")
-					.map( -> @querySelectorAll css )
+					.map(
+						switch limit
+							when 0 then (-> @querySelectorAll css)
+							when 1 then (-> $ @querySelector css)
+							else (-> $(@querySelectorAll css).take(limit) )
+					)
 					.flatten()
 			clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @
 			toFragment: ->
@@ -788,22 +824,6 @@ if $.global.document?
 					return df
 				return toNode @[0]
 		}
-$.plugin
-	provides: "EventEmitter"
-	depends: "type,hook"
-, ->
-	$: EventEmitter: $.hook("bling-init").append (obj = Object.create(null)) ->
-		listeners = {}
-		list = (e) -> (listeners[e] or= [])
-		$.inherit {
-			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-			addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
-			on:                 (e, h) -> @addListener e, h
-			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
-			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
-			listeners:          (e) -> list(e).slice 0
-		}, obj
 $.plugin
 	depends: "dom,function,core"
 	provides: "event"
@@ -1958,7 +1978,8 @@ $.plugin
 			if trans
 				css[transformProperty] = trans
 			@css css
-			@delay duration, callback
+			if callback
+				@delay duration, callback
 		hide: (callback) -> # .hide() - each node gets display:none
 			@each ->
 				if @style

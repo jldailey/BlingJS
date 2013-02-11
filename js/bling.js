@@ -145,6 +145,58 @@
   $ = Bling;
 
   $.plugin({
+    provides: "EventEmitter",
+    depends: "type,hook"
+  }, function() {
+    return {
+      $: {
+        EventEmitter: $.hook("bling-init").append(function(obj) {
+          var list, listeners;
+          if (obj == null) {
+            obj = Object.create(null);
+          }
+          listeners = {};
+          list = function(e) {
+            return listeners[e] || (listeners[e] = []);
+          };
+          return $.inherit({
+            emit: function() {
+              var a, e, f, _i, _len, _ref;
+              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+              _ref = list(e);
+              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                f = _ref[_i];
+                f.apply(this, a);
+              }
+              return this;
+            },
+            addListener: function(e, h) {
+              list(e).push(h);
+              return this.emit('newListener', e, h);
+            },
+            on: function(e, h) {
+              return this.addListener(e, h);
+            },
+            removeListener: function(e, h) {
+              var i;
+              if ((i = list(e).indexOf(h)) > -1) {
+                return list(e).splice(i, 1);
+              }
+            },
+            removeAllListeners: function(e) {
+              return listeners[e] = [];
+            },
+            setMaxListeners: function(n) {},
+            listeners: function(e) {
+              return list(e).slice(0);
+            }
+          }, obj);
+        })
+      }
+    };
+  });
+
+  $.plugin({
     provides: "cartesian"
   }, function() {
     return {
@@ -1088,7 +1140,7 @@
           })());
           return function(n, f) {
             if ($.is("function", f)) {
-              timeoutQueue.add(f, n);
+              timeoutQueue.add(f, parseInt(n));
             }
             return {
               cancel: function() {
@@ -1136,7 +1188,7 @@
     };
     injectCSS = function() {
       $('head style.dialog').remove();
-      return $.synth(("style.dialog '			.dialog, .modal { position: absolute; }			.modal {				background: rgba(0,0,0,.3);			}			.dialog {				box-shadow: 8px 8px 4px rgba(0,0,0,.4);				border-radius: 8px;				background: white;				padding: 6px; " + (transition("left", ".15s")) + "			}			.dialog > .title {				text-align: center;				width: 100%;			}			.dialog > .content {				width: 100%;			}		'").replace(/\t+|\n+/g, ' ')).prependTo("head").text().log('text');
+      return $.synth(("style.dialog '			.dialog, .modal { position: absolute; }			.modal {				background: rgba(0,0,0,.3);				opacity: 0;			}			.dialog {				box-shadow: 8px 8px 4px rgba(0,0,0,.4);				border-radius: 8px;				background: white;				padding: 6px; " + (transition("left", ".15s")) + "			}			.dialog > .title {				text-align: center;				width: 100%;			}			.dialog > .content {				width: 100%;			}		'").replace(/\t+|\n+/g, ' ')).prependTo("head");
     };
     createDialog = function(opts) {
       var contentNode, dialog, dialogSynth, modal, titleNode;
@@ -1145,22 +1197,22 @@
       dialogSynth = "";
       modal = $.synth("div.modal div.dialog#" + opts.id + " div.title + div.content").appendTo("body").click(function(evt) {
         if (evt.target === modal[0]) {
-          $.log('dialog: Closing because the modal was clicked.');
+          $.log('dialog: Cancelling because the modal was clicked.');
           return opts.cancel(modal);
         }
       });
-      dialog = modal.find('.dialog').take(1);
+      dialog = modal.find('.dialog', 1);
       modal.delegate(".cancel", "click", function(evt) {
         return opts.cancel(modal);
       }).delegate(".ok", "click", function(evt) {
         return opts.ok(modal);
       });
-      contentNode = dialog.find('.content').take(1);
+      contentNode = dialog.find('.content', 1);
       contentNode.append(createDialog.getContent(opts.contentType, opts.content));
-      titleNode = dialog.find('.title').take(1);
+      titleNode = dialog.find('.title', 1);
       titleNode.append(createDialog.getContent(opts.titleType, opts.title));
       $(opts.target).bind('resize', function(evt) {
-        modal.fitOver(opts.target).show();
+        modal.fitOver(opts.target).fadeIn(200);
         return dialog.centerOn(modal).show();
       }).trigger('resize');
       return dialog;
@@ -1175,11 +1227,17 @@
         contentType: "synth",
         ok: function(modal) {
           $.log("dialog: Closing from default ok");
-          return modal.remove();
+          return modal.emit('ok').fadeOut(200, function() {
+            return modal.remove();
+          });
         },
         cancel: function(modal) {
-          $.log("dialog: Closign from default cancel");
-          return modal.remove();
+          $.log("dialog: Closing from default cancel");
+          return modal.emit('cancel').fadeOut(200, function() {
+            return modal.remove();
+          }).find(".dialog", 1).css({
+            left: 0
+          });
         }
       };
     };
@@ -1255,7 +1313,8 @@
       depends: "function,type",
       provides: "dom"
     }, function() {
-      var after, before, computeCSSProperty, escaper, getOrSetRect, parser, selectChain, toFrag, toNode;
+      var after, bNodelistsAreSpecial, before, computeCSSProperty, escaper, getOrSetRect, parser, selectChain, toFrag, toNode;
+      bNodelistsAreSpecial = false;
       $.type.register("nodelist", {
         match: function(o) {
           return (o != null) && $.isType("NodeList", o);
@@ -1272,7 +1331,23 @@
             return _results;
           })()).sum();
         },
-        array: $.identity,
+        array: (function() {
+          try {
+            document.querySelectorAll("xxx").__proto__ = {};
+            return $.identity;
+          } catch (err) {
+            bNodelistsAreSpecial = true;
+            return function(o) {
+              var node, _i, _len, _results;
+              _results = [];
+              for (_i = 0, _len = o.length; _i < _len; _i++) {
+                node = o[_i];
+                _results.push(node);
+              }
+              return _results;
+            };
+          }
+        })(),
         string: function(o) {
           return "{Nodelist:[" + $(o).select('nodeName').join(",") + "]}";
         },
@@ -1367,9 +1442,18 @@
           node: function(o) {
             return $(o).toFragment();
           },
-          array: function(o) {
-            return typeof document.querySelectorAll === "function" ? document.querySelectorAll(o) : void 0;
-          }
+          array: (function() {
+            if (bNodelistsAreSpecial) {
+              return function(o) {
+                var nl;
+                return $.type.lookup(nl = document.querySelectorAll(o)).array(nl);
+              };
+            } else {
+              return function(o) {
+                return document.querySelectorAll(o);
+              };
+            }
+          })()
         },
         "function": {
           node: function(o) {
@@ -1735,10 +1819,26 @@
             return (_ref = this.parentNode) != null ? _ref.removeChild(this) : void 0;
           });
         },
-        find: function(css) {
-          return this.filter("*").map(function() {
-            return this.querySelectorAll(css);
-          }).flatten();
+        find: function(css, limit) {
+          if (limit == null) {
+            limit = 0;
+          }
+          return this.filter("*").map((function() {
+            switch (limit) {
+              case 0:
+                return function() {
+                  return this.querySelectorAll(css);
+                };
+              case 1:
+                return function() {
+                  return $(this.querySelector(css));
+                };
+              default:
+                return function() {
+                  return $(this.querySelectorAll(css)).take(limit);
+                };
+            }
+          })()).flatten();
         },
         clone: function(deep) {
           if (deep == null) {
@@ -1762,58 +1862,6 @@
       };
     });
   }
-
-  $.plugin({
-    provides: "EventEmitter",
-    depends: "type,hook"
-  }, function() {
-    return {
-      $: {
-        EventEmitter: $.hook("bling-init").append(function(obj) {
-          var list, listeners;
-          if (obj == null) {
-            obj = Object.create(null);
-          }
-          listeners = {};
-          list = function(e) {
-            return listeners[e] || (listeners[e] = []);
-          };
-          return $.inherit({
-            emit: function() {
-              var a, e, f, _i, _len, _ref;
-              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-              _ref = list(e);
-              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                f = _ref[_i];
-                f.apply(this, a);
-              }
-              return this;
-            },
-            addListener: function(e, h) {
-              list(e).push(h);
-              return this.emit('newListener', e, h);
-            },
-            on: function(e, h) {
-              return this.addListener(e, h);
-            },
-            removeListener: function(e, h) {
-              var i;
-              if ((i = list(e).indexOf(h)) > -1) {
-                return list(e).splice(i, 1);
-              }
-            },
-            removeAllListeners: function(e) {
-              return listeners[e] = [];
-            },
-            setMaxListeners: function(n) {},
-            listeners: function(e) {
-              return list(e).slice(0);
-            }
-          }, obj);
-        })
-      }
-    };
-  });
 
   $.plugin({
     depends: "dom,function,core",
@@ -4042,7 +4090,9 @@
           css[transformProperty] = trans;
         }
         this.css(css);
-        return this.delay(duration, callback);
+        if (callback) {
+          return this.delay(duration, callback);
+        }
       },
       hide: function(callback) {
         this.each(function() {

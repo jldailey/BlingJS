@@ -1190,6 +1190,11 @@ describe "DOM", ->
 			.find(".x")
 		assert.equal a.length, 2
 		assert.deepEqual a.select('nodeName'), ['B', 'C']
+	it ".find(css, limit)", ->
+		a = $("<a><b class='x'/><c class='x'/><d/></a>")
+			.find(".x", 1)
+		assert.equal a.length, 1
+		assert.deepEqual a.select('nodeName'), ['B']
 	it "clone", ->
 		c = $("div.c").clone()[0]
 		d = $("div.c")[0]

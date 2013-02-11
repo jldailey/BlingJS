@@ -39,7 +39,7 @@ $.plugin
 			# to put the simple things first, to improve code flow:
 			# > `$.delay 5, () ->` is better than `$.delay (() -> ), 5`
 			(n, f) ->
-				if $.is("function",f) then timeoutQueue.add(f, n)
+				if $.is("function",f) then timeoutQueue.add(f, parseInt n)
 				cancel: -> timeoutQueue.cancel(f)
 
 		)()

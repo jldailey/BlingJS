@@ -330,12 +330,17 @@ if $.global.document?
 			remove: -> @each -> @parentNode?.removeChild(@)
 
 			# Collect sub-nodes that match _css_, using **querySelectorAll**.
-			find: (css) ->
+			find: (css, limit = 0) ->
 				# Filter the input set to only DOM nodes.
 				@filter("*")
 					# Use each node as the context for creation of a new bling.
-					.map( -> @querySelectorAll css )
-					# Flatten all the blings into a single set.
+					.map(
+						switch limit
+							when 0 then (-> @querySelectorAll css)
+							when 1 then (-> $ @querySelector css)
+							else (-> $(@querySelectorAll css).take(limit) )
+					)
+					# Flatten all the nodelists into a single set.
 					.flatten()
 
 			# Collect a new set, full of clones of the DOM Nodes in the input set.

@@ -691,15 +691,29 @@ describe "Bling", ->
 		it "allows duplicates (unlike union)", ->
 			assert.deepEqual $([[1,2],[1,2]]).flatten(), [1,2,1,2]
 
-	describe ".call()", ->
-		it "calls every function in the set", ->
-			assert.deepEqual $([((x) -> x*2), ((x) -> x*x)]).call(4), [8, 16]
-		it "skips non-functions", ->
-			assert.deepEqual $([((x) -> x*2), NaN, ((x) -> x*x)]).call(4), [8, 16]
+	describe "functions", ->
+		describe ".call()", ->
+			it "calls every function in the set", ->
+				assert.deepEqual $([((x) -> x*2), ((x) -> x*x)]).call(4), [8, 16]
+			it "skips non-functions", ->
+				assert.deepEqual $([((x) -> x*2), NaN, ((x) -> x*x)]).call(4), [8, 16]
 
-	describe ".apply()", ->
-		it "calls every function in the set, with a specific context", ->
-			assert.deepEqual($([((x) -> @+x), ((x) -> @*x)]).apply(4,[2]), [6, 8])
+		describe ".apply()", ->
+			it "calls every function in the set, with a specific context", ->
+				assert.deepEqual($([((x) -> @+x), ((x) -> @*x)]).apply(4,[2]), [6, 8])
+
+		describe ".partial()", ->
+			it "partially applies every function in the set", ->
+				b = $([
+					(a,b) -> a+b
+					(a,b) -> a-b
+					(a,b) -> a*b
+					(a,b) -> a/b
+				])
+				assert.deepEqual b.partial(4).call(2), [6,2,8,2]
+			it "has a global version", ->
+				f = $.partial ((a,b) -> a+b), 2
+				assert.equal f(4), 6
 
 	describe ".keysOf()", ->
 		it "is like Object.keys", ->
@@ -901,13 +915,20 @@ describe "Bling", ->
 			it "entity escaped", -> assert.equal $.synth('div "text&amp;stuff"').first().toString(), "<div>text&amp;stuff</div>"
 			it "entity un-escaped", -> assert.equal $.synth('div "text&stuff"').first().toString(), "<div>text&stuff</div>"
 
-	describe ".delay(ms, f)", ->
-		it "runs f after a delay of ms", (done) ->
-			t = $.now
-			$.delay 100, ->
-				delta = Math.abs(($.now - t) - 100)
-				assert delta < 25
-				done()
+	describe "delay", ->
+		describe ".delay(ms, f)", ->
+			it "runs f after a delay of ms", (done) ->
+				t = $.now
+				$.delay 100, ->
+					delta = Math.abs(($.now - t) - 100)
+					assert delta < 25
+					done()
+		describe ".immediate(f)", ->
+			it "runs f on the next tick", (done) ->
+				pass = false
+				$.immediate ->
+					assert pass = true
+					done()
 
 	describe ".config(name, def)", ->
 		it "gets config from the environment", ->
@@ -1093,6 +1114,32 @@ describe "Bling", ->
 			$.subscribe 'test-channel', (data) -> pass = data
 			$.publish 'test-channel', true
 			assert pass
+	
+	describe "async", ->
+		it "defines series and parallel", ->
+			assert 'series' of $::
+			assert 'parallel' of $::
+		describe ".series(cb)", ->
+			it "calls all funcs in series", (done) ->
+				$([
+					(cb) -> $.delay 200, -> cb(1)
+					(cb) -> $.delay 100, -> cb(2)
+					(cb) -> $.delay 10, -> cb(3)
+					(cb) -> $.immediate -> cb(4)
+				]).series ->
+					assert.deepEqual @flatten(), [1,2,3,4]
+					done()
+		describe ".paralell(cb)", ->
+			it 'calls all funcs in parallel', (done) ->
+				$([
+					(cb) -> $.delay 200, -> cb(1)
+					(cb) -> $.delay 100, -> cb(2)
+					(cb) -> $.delay 10, -> cb(3)
+					(cb) -> $.immediate -> cb(4)
+				]).parallel ->
+					assert.deepEqual @flatten(), [1,2,3,4]
+					done()
+
 
 describe "DOM", ->
 	it "parse", ->

@@ -3041,6 +3041,100 @@
   });
 
   $.plugin({
+    depends: "core",
+    provides: "request-queue"
+  }, function() {
+    var RequestQueue;
+    return {
+      $: {
+        RequestQueue: RequestQueue = (function() {
+          var stop;
+
+          function RequestQueue(requester) {
+            this.requester = (function() {
+              if (requester != null) {
+                return requester;
+              } else {
+                try {
+                  return require('request');
+                } catch (_error) {}
+              }
+            })();
+            this.interval = null;
+            this.queue = [];
+          }
+
+          RequestQueue.prototype.tick = function() {
+            var i, n, _i, _ref, _results;
+            _results = [];
+            for (i = _i = 0, _ref = n = Math.min(this.queue.length, this.perTick); _i < _ref; i = _i += 1) {
+              _results.push(this.requester.apply(this, this.queue.shift()));
+            }
+            return _results;
+          };
+
+          RequestQueue.prototype.start = function(perTick, interval) {
+            var _this = this;
+            this.perTick = perTick != null ? perTick : 1;
+            if (interval == null) {
+              interval = 100;
+            }
+            if (this.interval != null) {
+              this.stop();
+            }
+            this.interval = setInterval((function() {
+              return _this.tick();
+            }), interval);
+            return this;
+          };
+
+          RequestQueue.prototype.stop = stop = function() {
+            clearInterval(this.interval);
+            this.interval = null;
+            return this;
+          };
+
+          RequestQueue.prototype.close = stop;
+
+          RequestQueue.prototype.request = function() {
+            var args;
+            args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+            this.queue.push(args);
+            return this;
+          };
+
+          RequestQueue.prototype.post = function(opts, callback) {
+            if (callback == null) {
+              callback = $.identity;
+            }
+            this.queue.push([
+              $.extend(opts, {
+                method: "POST"
+              }), callback
+            ]);
+            return this;
+          };
+
+          RequestQueue.prototype.get = function(opts, callback) {
+            if (callback == null) {
+              callback = $.identity;
+            }
+            this.queue.push([
+              $.extend(opts, {
+                method: "GET"
+              }), callback
+            ]);
+            return this;
+          };
+
+          return RequestQueue;
+
+        })()
+      }
+    };
+  });
+
+  $.plugin({
     provides: "sendgrid",
     depends: "config"
   }, function() {

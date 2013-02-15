@@ -70,6 +70,39 @@ $.plugin
 			listeners:          (e) -> list(e).slice 0
 		}, obj
 $.plugin
+	depends: "core"
+	provides: "async"
+, ->
+	return {
+		series: (fin = $.identity) ->
+			ret = $()
+			todo = @length
+			unless todo > 0
+				fin.apply ret
+				return @
+			done = 0
+			finish_one = (index) -> ->
+				ret[index] = arguments
+				if ++done >= todo
+					fin.apply ret
+				else next(done)
+			do next = (i=0) => $.immediate => @[i](finish_one(i))
+			return @
+		parallel: (fin) ->
+			ret = $()
+			todo = @length
+			unless todo > 0
+				fin.apply ret
+				return @
+			done = 0
+			finish_one = (index) -> ->
+				ret[index] = arguments
+				if ++done >= todo
+					fin.apply ret
+			for i in [0...todo] by 1
+				@[i](finish_one(i))
+	}
+$.plugin
 	provides: "cartesian"
 , ->
 	$:
@@ -437,13 +470,15 @@ $.plugin
 				if $.is("function",f) then timeoutQueue.add(f, parseInt n)
 				cancel: -> timeoutQueue.cancel(f)
 		)()
-	delay: (n, f, c=@) ->
-		$.delay n, $.bound(c, f)
-		@
-	interval: (n, f, c=@) ->
-		g = $.bound c, f
-		h = -> g(); $.delay n, h
-		$.delay n, h
+		immediate: do ->
+			return switch true
+				when 'setImmediate' of $.global then $.global.setImmediate
+				when process?.nextTick? then process.nextTick
+				else (f) -> setTimeout(f, 0)
+		interval: (n, f) ->
+			$.delay n, g = -> f(); $.delay n, g
+	delay: (n, f) ->
+		$.delay n, f
 		@
 $.plugin
 	depends: 'hook,synth,delay'
@@ -993,9 +1028,8 @@ $.plugin
 			else
 				r = (a...) -> f.apply t, (args if args.length else a)
 			$.extend r, { toString: -> "bound-method of #{t}.#{f.name}" }
-		E: (callback) -> (f) -> (err, data) ->
-			return f(data) unless err
-			callback err, data
+		partial: (f, a...) -> (b...) -> f a..., b...
+	partial: (a...) -> @map (f) -> $.partial f, a...
 $.plugin
 	provides: "groupBy"
 , ->

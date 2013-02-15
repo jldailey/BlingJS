@@ -11,7 +11,6 @@ $.plugin
 			tick: ->
 				for i in [0...n = Math.min @queue.length, @perTick] by 1
 					@requester @queue.shift()...
-				$.log "RequestQueue::tick completed #{n} requests." if n
 			start: (@perTick=1, interval=100) ->
 				@stop() if @interval?
 				@interval = setInterval (=> do @tick), interval

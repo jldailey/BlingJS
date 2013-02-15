@@ -34,10 +34,7 @@ $.plugin
 			else
 				r = (a...) -> f.apply t, (args if args.length else a)
 			$.extend r, { toString: -> "bound-method of #{t}.#{f.name}" }
-		# __$.E(f)__ is an "error thingie". You use it to create a wrapper for standard node style callbacks:
-		#    e = $.E (err) -> $.log err
-		#    f.readFile "foo", e (data) ->
-		E: (callback) -> (f) -> (err, data) ->
-			return f(data) unless err
-			callback err, data
-
+		# __$.partial(f, args...)__ returns a new function that
+		# has a subset of the arguments already specified.
+		partial: (f, a...) -> (b...) -> f a..., b...
+	partial: (a...) -> @map (f) -> $.partial f, a...

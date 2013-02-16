@@ -45,11 +45,7 @@ $.plugin
 
 		# Get a new set with the results of calling a function of every
 		# item in _this_.
-		map: (f) ->
-			b = $()
-			for t in @
-				b.push f.call t,t
-			b
+		map: (f) -> $( f.call(t,t) for t in @ )
 
 		filterMap: (f) ->
 			b = $()
@@ -109,8 +105,8 @@ $.plugin
 			@
 
 		# Get a new set of properties from every item in _this_.
-		select: (->
-			# A helper that will read property `p` from some object later.
+		select: do ->
+			# First, a private helper that will read property `prop` from some object later.
 			getter = (prop) -> -> if $.is("function",v = @[prop]) then $.bound(@,v) else v
 			# Recursively split `p` on `.` and map the getter helper
 			# to read a set of complex `p` values from an object.
@@ -138,11 +134,10 @@ $.plugin
 						obj[$(p.split '.').last()] = lists[p][i]
 					i++
 					obj
-			->
+			return ->
 				switch arguments.length
 					when 1 then selectOne.apply @, arguments
 					when 2 then selectMany.apply @, arguments
-		)()
 
 		# Replace any false-ish items in _this_ with _x_.
 		# > `$("<a>").select('parentNode').or(document)`

@@ -54,6 +54,22 @@ extend Bling, do ->
 		data
 $ = Bling
 $.plugin
+	provides: "EventEmitter"
+	depends: "type,hook"
+, ->
+	$: EventEmitter: $.hook("bling-init").append (obj = Object.create(null)) ->
+		listeners = {}
+		list = (e) -> (listeners[e] or= [])
+		$.inherit {
+			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
+			addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
+			on:                 (e, h) -> @addListener e, h
+			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
+			removeAllListeners: (e) -> listeners[e] = []
+			setMaxListeners:    (n) -> # who really needs this in the core API?
+			listeners:          (e) -> list(e).slice 0
+		}, obj
+$.plugin
 	provides: "cartesian"
 , ->
 	$:
@@ -141,11 +157,7 @@ $.plugin
 				return try o[k] catch err then err
 		eq: (i) -> $([@[index i, @]])
 		each: (f) -> (f.call(t,t) for t in @); @
-		map: (f) ->
-			b = $()
-			for t in @
-				b.push f.call t,t
-			b
+		map: (f) -> $( f.call(t,t) for t in @ )
 		filterMap: (f) ->
 			b = $()
 			for t in @
@@ -186,7 +198,7 @@ $.plugin
 			while i >= 0
 				@swap --i, Math.floor(Math.random() * i)
 			@
-		select: (->
+		select: do ->
 			getter = (prop) -> -> if $.is("function",v = @[prop]) then $.bound(@,v) else v
 			selectOne = (p) ->
 				switch type = $.type p
@@ -210,11 +222,10 @@ $.plugin
 						obj[$(p.split '.').last()] = lists[p][i]
 					i++
 					obj
-			->
+			return ->
 				switch arguments.length
 					when 1 then selectOne.apply @, arguments
 					when 2 then selectMany.apply @, arguments
-		)()
 		or: (x) -> @[i] or= x for i in [0...@length]; @
 		zap: (p, v) ->
 			if ($.is 'object', p) and not v?
@@ -808,22 +819,6 @@ if $.global.document?
 					return df
 				return toNode @[0]
 		}
-$.plugin
-	provides: "EventEmitter"
-	depends: "type,hook"
-, ->
-	$: EventEmitter: $.hook("bling-init").append (obj = Object.create(null)) ->
-		listeners = {}
-		list = (e) -> (listeners[e] or= [])
-		$.inherit {
-			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-			addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
-			on:                 (e, h) -> @addListener e, h
-			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
-			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
-			listeners:          (e) -> list(e).slice 0
-		}, obj
 $.plugin
 	depends: "dom,function,core"
 	provides: "event"

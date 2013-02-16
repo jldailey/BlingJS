@@ -197,6 +197,67 @@
   });
 
   $.plugin({
+    depends: "core",
+    provides: "async"
+  }, function() {
+    return {
+      series: function(fin) {
+        var done, finish_one, next, ret, todo,
+          _this = this;
+        if (fin == null) {
+          fin = $.identity;
+        }
+        ret = $();
+        todo = this.length;
+        if (!(todo > 0)) {
+          fin.apply(ret);
+          return this;
+        }
+        done = 0;
+        finish_one = function(index) {
+          return function() {
+            ret[index] = arguments;
+            if (++done >= todo) {
+              return fin.apply(ret);
+            } else {
+              return next(done);
+            }
+          };
+        };
+        (next = function(i) {
+          return $.immediate(function() {
+            return _this[i](finish_one(i));
+          });
+        })(0);
+        return this;
+      },
+      parallel: function(fin) {
+        var done, finish_one, i, ret, todo, _i, _results;
+        ret = $();
+        todo = this.length;
+        if (!(todo > 0)) {
+          fin.apply(ret);
+          return this;
+        }
+        done = 0;
+        finish_one = function(index) {
+          return function() {
+            ret[index] = arguments;
+            if (++done >= todo) {
+              return fin.apply(ret);
+            }
+          };
+        };
+        _results = [];
+        for (i = _i = 0; _i < todo; i = _i += 1) {
+          _results.push(this[i](finish_one(i)));
+        }
+        return _results;
+      }
+    };
+  });
+
+  $.plugin({
     provides: "cartesian"
   }, function() {
     return {
@@ -1151,26 +1212,29 @@
               }
             };
           };
-        })()
-      },
-      delay: function(n, f, c) {
-        if (c == null) {
-          c = this;
+        })(),
+        immediate: (function() {
+          switch (true) {
+            case 'setImmediate' in $.global:
+              return $.global.setImmediate;
+            case (typeof process !== "undefined" && process !== null ? process.nextTick : void 0) != null:
+              return process.nextTick;
+            default:
+              return function(f) {
+                return setTimeout(f, 0);
+              };
+          }
+        })(),
+        interval: function(n, f) {
+          var g;
+          return $.delay(n, g = function() {
+            f();
+            return $.delay(n, g);
+          });
         }
-        $.delay(n, $.bound(c, f));
-        return this;
       },
-      interval: function(n, f, c) {
-        var g, h;
-        if (c == null) {
-          c = this;
-        }
-        g = $.bound(c, f);
-        h = function() {
-          g();
-          return $.delay(n, h);
-        };
-        $.delay(n, h);
+      delay: function(n, f) {
+        $.delay(n, f);
         return this;
       }
     };
@@ -2148,16 +2212,22 @@
             }
           });
         },
-        E: function(callback) {
-          return function(f) {
-            return function(err, data) {
-              if (!err) {
-                return f(data);
-              }
-              return callback(err, data);
-            };
+        partial: function() {
+          var a, f;
+          f = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+          return function() {
+            var b;
+            b = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+            return f.apply(null, __slice.call(a).concat(__slice.call(b)));
           };
         }
+      },
+      partial: function() {
+        var a;
+        a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+        return this.map(function(f) {
+          return $.partial.apply($, [f].concat(__slice.call(a)));
+        });
       }
     };
   });
@@ -2965,6 +3035,100 @@
               return $.random.integer(1, faces + 1);
             }
           });
+        })()
+      }
+    };
+  });
+
+  $.plugin({
+    depends: "core",
+    provides: "request-queue"
+  }, function() {
+    var RequestQueue;
+    return {
+      $: {
+        RequestQueue: RequestQueue = (function() {
+          var stop;
+
+          function RequestQueue(requester) {
+            this.requester = (function() {
+              if (requester != null) {
+                return requester;
+              } else {
+                try {
+                  return require('request');
+                } catch (_error) {}
+              }
+            })();
+            this.interval = null;
+            this.queue = [];
+          }
+
+          RequestQueue.prototype.tick = function() {
+            var i, n, _i, _ref, _results;
+            _results = [];
+            for (i = _i = 0, _ref = n = Math.min(this.queue.length, this.perTick); _i < _ref; i = _i += 1) {
+              _results.push(this.requester.apply(this, this.queue.shift()));
+            }
+            return _results;
+          };
+
+          RequestQueue.prototype.start = function(perTick, interval) {
+            var _this = this;
+            this.perTick = perTick != null ? perTick : 1;
+            if (interval == null) {
+              interval = 100;
+            }
+            if (this.interval != null) {
+              this.stop();
+            }
+            this.interval = setInterval((function() {
+              return _this.tick();
+            }), interval);
+            return this;
+          };
+
+          RequestQueue.prototype.stop = stop = function() {
+            clearInterval(this.interval);
+            this.interval = null;
+            return this;
+          };
+
+          RequestQueue.prototype.close = stop;
+
+          RequestQueue.prototype.request = function() {
+            var args;
+            args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+            this.queue.push(args);
+            return this;
+          };
+
+          RequestQueue.prototype.post = function(opts, callback) {
+            if (callback == null) {
+              callback = $.identity;
+            }
+            this.queue.push([
+              $.extend(opts, {
+                method: "POST"
+              }), callback
+            ]);
+            return this;
+          };
+
+          RequestQueue.prototype.get = function(opts, callback) {
+            if (callback == null) {
+              callback = $.identity;
+            }
+            this.queue.push([
+              $.extend(opts, {
+                method: "GET"
+              }), callback
+            ]);
+            return this;
+          };
+
+          return RequestQueue;
+
         })()
       }
     };

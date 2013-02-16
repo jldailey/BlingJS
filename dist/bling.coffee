@@ -70,6 +70,39 @@ $.plugin
 			listeners:          (e) -> list(e).slice 0
 		}, obj
 $.plugin
+	depends: "core"
+	provides: "async"
+, ->
+	return {
+		series: (fin = $.identity) ->
+			ret = $()
+			todo = @length
+			unless todo > 0
+				fin.apply ret
+				return @
+			done = 0
+			finish_one = (index) -> ->
+				ret[index] = arguments
+				if ++done >= todo
+					fin.apply ret
+				else next(done)
+			do next = (i=0) => $.immediate => @[i](finish_one(i))
+			return @
+		parallel: (fin) ->
+			ret = $()
+			todo = @length
+			unless todo > 0
+				fin.apply ret
+				return @
+			done = 0
+			finish_one = (index) -> ->
+				ret[index] = arguments
+				if ++done >= todo
+					fin.apply ret
+			for i in [0...todo] by 1
+				@[i](finish_one(i))
+	}
+$.plugin
 	provides: "cartesian"
 , ->
 	$:
@@ -437,13 +470,15 @@ $.plugin
 				if $.is("function",f) then timeoutQueue.add(f, parseInt n)
 				cancel: -> timeoutQueue.cancel(f)
 		)()
-	delay: (n, f, c=@) ->
-		$.delay n, $.bound(c, f)
-		@
-	interval: (n, f, c=@) ->
-		g = $.bound c, f
-		h = -> g(); $.delay n, h
-		$.delay n, h
+		immediate: do ->
+			return switch true
+				when 'setImmediate' of $.global then $.global.setImmediate
+				when process?.nextTick? then process.nextTick
+				else (f) -> setTimeout(f, 0)
+		interval: (n, f) ->
+			$.delay n, g = -> f(); $.delay n, g
+	delay: (n, f) ->
+		$.delay n, f
 		@
 $.plugin
 	depends: 'hook,synth,delay'
@@ -993,9 +1028,8 @@ $.plugin
 			else
 				r = (a...) -> f.apply t, (args if args.length else a)
 			$.extend r, { toString: -> "bound-method of #{t}.#{f.name}" }
-		E: (callback) -> (f) -> (err, data) ->
-			return f(data) unless err
-			callback err, data
+		partial: (f, a...) -> (b...) -> f a..., b...
+	partial: (a...) -> @map (f) -> $.partial f, a...
 $.plugin
 	provides: "groupBy"
 , ->
@@ -1354,6 +1388,37 @@ $.plugin
 				$( die(faces) for _ in [0...n] by 1 )
 			die: die = (faces) ->
 				$.random.integer(1,faces+1)
+$.plugin
+	depends: "core"
+	provides: "request-queue"
+, ->
+	$:
+		RequestQueue: class RequestQueue
+			constructor: (requester) ->
+				@requester = requester ? try require 'request'
+				@interval = null
+				@queue = []
+			tick: ->
+				for i in [0...n = Math.min @queue.length, @perTick] by 1
+					@requester @queue.shift()...
+			start: (@perTick=1, interval=100) ->
+				@stop() if @interval?
+				@interval = setInterval (=> do @tick), interval
+				@
+			stop: stop = ->
+				clearInterval @interval
+				@interval = null
+				@
+			close: stop
+			request: (args...) ->
+				@queue.push args
+				@
+			post: (opts, callback = $.identity) ->
+				@queue.push [($.extend opts, method: "POST"), callback]
+				@
+			get: (opts, callback = $.identity) ->
+				@queue.push [($.extend opts, method: "GET"), callback]
+				@
 $.plugin
 	provides: "sendgrid"
 	depends: "config"

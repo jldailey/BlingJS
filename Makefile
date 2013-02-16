@@ -7,7 +7,7 @@ COFFEE=node_modules/.bin/coffee
 DOCCO=node_modules/.bin/docco
 JLDOM=node_modules/jldom
 MOCHA=node_modules/.bin/mocha
-MOCHA_OPTS=--compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R TAP
+MOCHA_OPTS=--compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R dot
 
 all: dist report
 

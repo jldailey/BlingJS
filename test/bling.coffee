@@ -513,6 +513,16 @@ describe "Bling", ->
 				else null
 			), [1, 9]
 	
+	describe ".tap(f)", ->
+		it "applies f to this", ->
+			assert.deepEqual $([1,2]).tap(-> @push 3), [1,2,3]
+		it "chains on f's return value", ->
+			assert.equal $([1,2]).tap(-> { n: @length }).n, 2
+		it "passes the set as `this` and as the only argument", ->
+			$([1,2]).tap (set) ->
+				assert.equal $.type(@), "bling"
+				assert.equal $.type(set), "bling"
+	
 	describe ".replaceWith", ->
 		it "copies values from array to this", ->
 			assert.deepEqual $(1,2,3,4).replaceWith([5,6,7,8]), [5,6,7,8]

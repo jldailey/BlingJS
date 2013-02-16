@@ -487,6 +487,9 @@
         }
         return b;
       },
+      tap: function(f) {
+        return f.call(this, this);
+      },
       replaceWith: function(array) {
         var i, _i, _ref, _results;
         _results = [];
@@ -4971,7 +4974,7 @@
               return $.identity;
             }
             return function() {
-              var currentDialog, newDialog, newLeft, newSlide;
+              var currentDialog, newDialog, newLeft, newSlide, width;
               newSlide = (currentSlide + delta) % slides.length;
               while (newSlide < 0) {
                 newSlide += slides.length;
@@ -4981,11 +4984,12 @@
               }
               currentDialog = $(dialogs[currentSlide]);
               newDialog = $(dialogs[newSlide]);
-              newLeft = delta < 0 ? window.innerWidth : -currentDialog.width()[0] * 1.5;
+              width = currentDialog.width()[0];
+              newLeft = delta < 0 ? window.innerWidth - width : 0;
               currentDialog.removeClass('wiz-active').css({
                 left: $.px(newLeft)
-              });
-              newDialog.addClass('wiz-active').centerOn(modal).show();
+              }).fadeOut();
+              newDialog.addClass('wiz-active').centerOn(modal).fadeIn();
               return currentSlide = newSlide;
             };
           };
@@ -4996,12 +5000,13 @@
             slide = _ref1[_i];
             d = $.synth('div.dialog div.title + div.content').css({
               left: $.px(window.innerWidth + 100)
-            }).appendTo(modal);
+            }).hide().appendTo(modal);
             slide = $.extend($.dialog.getDefaultOptions(), slide);
             d.find('.title').append($.dialog.getContent(slide.titleType, slide.title));
             d.find('.content').append($.dialog.getContent(slide.contentType, slide.content));
           }
           dialogs = modal.find('.dialog');
+          dialogs.take(1).show();
           return modal;
         }
       }

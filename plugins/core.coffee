@@ -54,6 +54,9 @@ $.plugin
 				if v?
 					b.push v
 			b
+		
+		# Chainable way to apply some arbitrary function
+		tap: (f) -> f.call @, @
 
 		replaceWith: (array) ->
 			for i in [0...array.length] by 1

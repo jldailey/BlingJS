@@ -198,6 +198,8 @@ $.plugin
 				if v?
 					b.push v
 			b
+		
+		tap: (f) -> f.call @, @
 		replaceWith: (array) ->
 			for i in [0...array.length] by 1
 				@[i] = array[i]

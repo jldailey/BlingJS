@@ -487,6 +487,9 @@
         }
         return b;
       },
+      tap: function(f) {
+        return f.call(this, this);
+      },
       replaceWith: function(array) {
         var i, _i, _ref, _results;
         _results = [];

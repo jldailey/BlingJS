@@ -4,7 +4,6 @@ DIST=dist
 PLUGINS=plugins
 YUI_VERSION=2.4.7
 COFFEE=node_modules/.bin/coffee
-DOCCO=node_modules/.bin/docco
 JLDOM=node_modules/jldom
 MOCHA=node_modules/.bin/mocha
 MOCHA_OPTS=--compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R dot
@@ -25,15 +24,10 @@ $(COFFEE):
 	sed -ibak -e 's/path.exists/fs.exists/' node_modules/coffee-script/lib/coffee-script/command.js
 	rm -f node_modules/coffee-script/lib/coffee-script/command.js.bak
 
-$(DOCCO):
-	npm install docco
-
 $(JLDOM):
 	npm install jldom
 
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
-
-docs: $(DIST)/docs/bling.html
 
 site: dist
 	git stash save &> /dev/null \
@@ -73,9 +67,6 @@ yuicompressor.jar:
 	cp yuicompressor-$(YUI_VERSION)/build/yuicompressor-$(YUI_VERSION).jar ./yuicompressor.jar
 	rm -rf yuicompressor-$(YUI_VERSION)
 
-$(DIST)/docs/%.html: %.coffee $(DOCCO)
-	(cd $(DIST) && ../$(DOCCO) ../$<)
-
 %.gz: %
 	gzip -vf9c $< > $@
 
@@ -88,4 +79,4 @@ clean:
 	rm -rf yuicompressor.zip yuicompressor.jar yuicompressor-$(YUI_VERSION)
 	rm -rf node_modules/
 
-.PHONY: all bling clean dist site plugins test
+.PHONY: all bling clean dist site test

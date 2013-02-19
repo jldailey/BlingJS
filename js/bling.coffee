@@ -845,11 +845,13 @@ $.plugin
 	depends: "type,hook"
 , ->
 	$: EventEmitter: $.hook("bling-init").append (obj = Object.create(null)) ->
-		listeners = {}
+		listeners = Object.create null
 		list = (e) -> (listeners[e] or= [])
 		$.inherit {
 			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-			addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
+			addListener:        (e, h) -> switch $.type e
+				when 'object' then @addListener(k,v) for k,v of e
+				when 'string' then list(e).push(h); @emit('newListener', e, h)
 			on:                 (e, h) -> @addListener e, h
 			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
 			removeAllListeners: (e) -> listeners[e] = []

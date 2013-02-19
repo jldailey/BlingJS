@@ -774,6 +774,16 @@ describe "Bling", ->
 			assert.equal a.listeners("smoke").length, 2
 			a.listeners("smoke").push("water")
 			assert.equal a.listeners("smoke").length, 2
+		it "accepts multiple events to bind at once", ->
+			a = $.EventEmitter a:1
+			pass = 0
+			a.on(
+				smoke: -> pass += 1
+				steam: -> pass += 1
+			)
+			a.emit 'smoke'
+			a.emit 'steam'
+			assert.equal pass, 2
 		describe "class extends support", ->
 			class Foo extends $.EventEmitter
 				constructor: ->

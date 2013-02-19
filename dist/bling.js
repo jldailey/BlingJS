@@ -1892,7 +1892,7 @@
           if (obj == null) {
             obj = Object.create(null);
           }
-          listeners = {};
+          listeners = Object.create(null);
           list = function(e) {
             return listeners[e] || (listeners[e] = []);
           };
@@ -1908,8 +1908,20 @@
               return this;
             },
             addListener: function(e, h) {
-              list(e).push(h);
-              return this.emit('newListener', e, h);
+              var k, v, _results;
+              switch ($.type(e)) {
+                case 'object':
+                  _results = [];
+                  for (k in e) {
+                    v = e[k];
+                    _results.push(this.addListener(k, v));
+                  }
+                  return _results;
+                  break;
+                case 'string':
+                  list(e).push(h);
+                  return this.emit('newListener', e, h);
+              }
             },
             on: function(e, h) {
               return this.addListener(e, h);

@@ -1,15 +1,19 @@
 
 (function indexJS($) {
-	$(document)
-	.ready(function () {
+	$(document).ready(function () {
+		$.get("js/package.json", function(text) {
+			var pkg = JSON.parse(text);
+			$("a[name=Top]").after("<sub>v"+pkg.version+"</sub>");
+		});
+	}).ready(function () {
 		// find unsupported fraction markup
 		// and insert fall-back text
-		var num_re = /&frac(\d)(\d);/
+		var num_re = /&frac(\d)(\d);/;
 		$("p").each(function() {
 			var p = $(this),
 			text = p.text()[0]
 			if( num_re.test(text) )
-			p.text(text.replace(num_re, "$1/$2"))
+				p.text(text.replace(num_re, "$1/$2"))
 		})
 	})
 	// replace tabs with spaces in <pre>'s

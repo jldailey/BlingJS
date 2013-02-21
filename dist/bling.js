@@ -145,6 +145,70 @@
   $ = Bling;
 
   $.plugin({
+    provides: "EventEmitter",
+    depends: "type,hook"
+  }, function() {
+    return {
+      $: {
+        EventEmitter: $.hook("bling-init").append(function(obj) {
+          var list, listeners;
+          if (obj == null) {
+            obj = Object.create(null);
+          }
+          listeners = Object.create(null);
+          list = function(e) {
+            return listeners[e] || (listeners[e] = []);
+          };
+          return $.inherit({
+            emit: function() {
+              var a, e, f, _i, _len, _ref;
+              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+              _ref = list(e);
+              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                f = _ref[_i];
+                f.apply(this, a);
+              }
+              return this;
+            },
+            addListener: function(e, h) {
+              var k, v, _results;
+              switch ($.type(e)) {
+                case 'object':
+                  _results = [];
+                  for (k in e) {
+                    v = e[k];
+                    _results.push(this.addListener(k, v));
+                  }
+                  return _results;
+                  break;
+                case 'string':
+                  list(e).push(h);
+                  return this.emit('newListener', e, h);
+              }
+            },
+            on: function(e, h) {
+              return this.addListener(e, h);
+            },
+            removeListener: function(e, h) {
+              var i;
+              if ((i = list(e).indexOf(h)) > -1) {
+                return list(e).splice(i, 1);
+              }
+            },
+            removeAllListeners: function(e) {
+              return listeners[e] = [];
+            },
+            setMaxListeners: function(n) {},
+            listeners: function(e) {
+              return list(e).slice(0);
+            }
+          }, obj);
+        })
+      }
+    };
+  });
+
+  $.plugin({
     depends: "core",
     provides: "async"
   }, function() {
@@ -1326,6 +1390,135 @@
     };
   });
 
+  $.plugin({
+    depends: "core",
+    provides: "diff"
+  }, function() {
+    var collapse, del, diff, diff_memo, ins, lev, lev_memo, sub;
+    lev_memo = Object.create(null);
+    lev = function(s, i, n, t, j, m) {
+      var _name, _name1, _ref, _ref1;
+      return (_ref = lev_memo[_name = [s, i, n, t, j, m]]) != null ? _ref : lev_memo[_name] = (_ref1 = lev_memo[_name1 = [t, j, m, s, i, n]]) != null ? _ref1 : lev_memo[_name1] = (function() {
+        switch (true) {
+          case m <= 0:
+            return n;
+          case n <= 0:
+            return m;
+          default:
+            return Math.min(1 + lev(s, i + 1, n - 1, t, j, m), 1 + lev(s, i, n, t, j + 1, m - 1), (s[i] !== t[j]) + lev(s, i + 1, n - 1, t, j + 1, m - 1));
+        }
+      })();
+    };
+    collapse = function(ops) {
+      return $.inherit({
+        toHTML: function() {
+          return this.reduce((function(a, x) {
+            return a += (function() {
+              switch (x.op) {
+                case 'ins':
+                  return "<ins>" + x.v + "</ins>";
+                case 'del':
+                  return "<del>" + x.v + "</del>";
+                case 'sub':
+                  return "<del>" + x.v + "</del><ins>" + x.w + "</ins>";
+                case 'sav':
+                  return x.v;
+              }
+            })();
+          }), "");
+        }
+      }, ops.reduce((function(a, x) {
+        var last;
+        if (x.op === 'sub' && x.v === x.w) {
+          x.op = 'sav';
+          delete x.w;
+        }
+        if (!a.length) {
+          a.push(x);
+        } else {
+          if ((last = a.last()).op === x.op) {
+            last.v += x.v;
+            if (last.op === 'sub') {
+              last.w += x.w;
+            }
+          } else {
+            a.push(x);
+          }
+        }
+        return a;
+      }), $()));
+    };
+    diff_memo = Object.create(null);
+    del = function(c) {
+      return {
+        op: 'del',
+        v: c
+      };
+    };
+    ins = function(c) {
+      return {
+        op: 'ins',
+        v: c
+      };
+    };
+    sub = function(c, d) {
+      return {
+        op: 'sub',
+        v: c,
+        w: d
+      };
+    };
+    diff = function(s, i, n, t, j, m) {
+      var _name, _ref;
+      return (_ref = diff_memo[_name = [s, i, n, t, j, m]]) != null ? _ref : diff_memo[_name] = collapse((function() {
+        var c, cost, costs, _i, _j, _len, _len1, _ref1, _ref2, _results, _results1;
+        switch (true) {
+          case m <= 0:
+            _ref1 = s.substr(i, n);
+            _results = [];
+            for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+              c = _ref1[_i];
+              _results.push(del(c));
+            }
+            return _results;
+          case n <= 0:
+            _ref2 = t.substr(j, m);
+            _results1 = [];
+            for (_j = 0, _len1 = _ref2.length; _j < _len1; _j++) {
+              c = _ref2[_j];
+              _results1.push(ins(c));
+            }
+            return _results1;
+          default:
+            cost = s[i] !== t[j];
+            costs = {
+              del: 1 + lev(s, i + 1, n - 1, t, j, m),
+              ins: 1 + lev(s, i, n, t, j + 1, m - 1),
+              sub: cost + lev(s, i + 1, n - 1, t, j + 1, m - 1)
+            };
+            switch (Math.min(costs.del, costs.ins, costs.sub)) {
+              case costs.del:
+                return $(del(s[i])).concat(diff(s, i + 1, n - 1, t, j, m));
+              case costs.ins:
+                return $(ins(t[j])).concat(diff(s, i, n, t, j + 1, m - 1));
+              case costs.sub:
+                return $(sub(s[i], t[j])).concat(diff(s, i + 1, n - 1, t, j + 1, m - 1));
+            }
+        }
+      })());
+    };
+    return {
+      $: {
+        editDistance: function(s, t) {
+          return lev(s, 0, s.length, t, 0, t.length);
+        },
+        stringDiff: function(s, t) {
+          return diff(s, 0, s.length, t, 0, t.length);
+        }
+      }
+    };
+  });
+
   if ($.global.document != null) {
     $.plugin({
       depends: "function,type",
@@ -1880,70 +2073,6 @@
       };
     });
   }
-
-  $.plugin({
-    provides: "EventEmitter",
-    depends: "type,hook"
-  }, function() {
-    return {
-      $: {
-        EventEmitter: $.hook("bling-init").append(function(obj) {
-          var list, listeners;
-          if (obj == null) {
-            obj = Object.create(null);
-          }
-          listeners = Object.create(null);
-          list = function(e) {
-            return listeners[e] || (listeners[e] = []);
-          };
-          return $.inherit({
-            emit: function() {
-              var a, e, f, _i, _len, _ref;
-              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-              _ref = list(e);
-              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                f = _ref[_i];
-                f.apply(this, a);
-              }
-              return this;
-            },
-            addListener: function(e, h) {
-              var k, v, _results;
-              switch ($.type(e)) {
-                case 'object':
-                  _results = [];
-                  for (k in e) {
-                    v = e[k];
-                    _results.push(this.addListener(k, v));
-                  }
-                  return _results;
-                  break;
-                case 'string':
-                  list(e).push(h);
-                  return this.emit('newListener', e, h);
-              }
-            },
-            on: function(e, h) {
-              return this.addListener(e, h);
-            },
-            removeListener: function(e, h) {
-              var i;
-              if ((i = list(e).indexOf(h)) > -1) {
-                return list(e).splice(i, 1);
-              }
-            },
-            removeAllListeners: function(e) {
-              return listeners[e] = [];
-            },
-            setMaxListeners: function(n) {},
-            listeners: function(e) {
-              return list(e).slice(0);
-            }
-          }, obj);
-        })
-      }
-    };
-  });
 
   $.plugin({
     depends: "dom,function,core",

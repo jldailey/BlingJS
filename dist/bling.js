@@ -1923,13 +1923,13 @@
                   return this.emit('newListener', e, h);
               }
             },
-            on: function(e, h) {
-              return this.addListener(e, h);
+            on: function(e, f) {
+              return this.addListener(e, f);
             },
-            removeListener: function(e, h) {
-              var i;
-              if ((i = list(e).indexOf(h)) > -1) {
-                return list(e).splice(i, 1);
+            removeListener: function(e, f) {
+              var i, l;
+              if ((i = (l = list(e)).indexOf(f)) > -1) {
+                return l.splice(i, 1);
               }
             },
             removeAllListeners: function(e) {

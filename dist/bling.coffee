@@ -645,22 +645,21 @@ $.plugin
 	ins = (c) -> {op:'ins',v:c}
 	sub = (c,d) -> {op:'sub',v:c,w:d}
 	diff = (s,i,n,t,j,m) ->
-		return diff_memo[[s,i,n,t,j,m]] ?= collapse(do -> switch true
+		return diff_memo[[s,i,n,t,j,m]] ?= collapse do -> switch true
 			when m <= 0 then (del(c) for c in s.substr i,n)
 			when n <= 0 then (ins(c) for c in t.substr j,m)
 			else
 				cost = (s[i] isnt t[j])
 				costs =
-					del: 1 + lev(s,i+1,n-1, t,j,m)
-					ins: 1 + lev(s,i,n, t,j+1,m-1)
-					sub: cost + lev(s,i+1,n-1, t,j+1,m-1)
-				switch Math.min(costs.del, costs.ins, costs.sub)
+					del: 1 + lev s,i+1,n-1, t,j,m
+					ins: 1 + lev s,i,n, t,j+1,m-1
+					sub: cost + lev s,i+1,n-1, t,j+1,m-1
+				switch Math.min costs.del, costs.ins, costs.sub
 					when costs.del then $(del s[i]).concat diff s,i+1,n-1, t,j,m
 					when costs.ins then $(ins t[j]).concat diff s,i,n, t,j+1,m-1
 					when costs.sub then $(sub s[i],t[j]).concat diff s,i+1,n-1, t,j+1,m-1
-		)
 	$:
-		editDistance: (s, t) -> lev s,0,s.length, t,0,t.length
+		stringDistance: (s, t) -> lev s,0,s.length, t,0,t.length
 		stringDiff: (s, t) -> diff s,0,s.length, t,0,t.length
 if $.global.document?
 	$.plugin
@@ -1960,10 +1959,12 @@ $.plugin
 					return f.apply @,a
 				null
 		debounce: (ms, f) ->
-			last = 0
+			timeout = null
 			(a...) ->
-				last += (gap = $.now - last)
-				return f.apply @,a if gap > ms else null
+				clearTimeout timeout
+				setTimeout (=>
+					f.apply @, arguments
+				), ms
 $.plugin
 	depends: 'type'
 	provides: 'TNET'

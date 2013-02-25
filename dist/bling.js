@@ -1509,7 +1509,7 @@
     };
     return {
       $: {
-        editDistance: function(s, t) {
+        stringDistance: function(s, t) {
           return lev(s, 0, s.length, t, 0, t.length);
         },
         stringDiff: function(s, t) {
@@ -4127,13 +4127,16 @@
           };
         },
         debounce: function(ms, f) {
-          var last;
-          last = 0;
+          var timeout;
+          timeout = null;
           return function() {
-            var a, gap;
+            var a,
+              _this = this;
             a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-            last += (gap = $.now - last);
-            return f.apply(this, a(gap > ms ? void 0 : null));
+            clearTimeout(timeout);
+            return setTimeout((function() {
+              return f.apply(_this, arguments);
+            }), ms);
           };
         }
       }

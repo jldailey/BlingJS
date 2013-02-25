@@ -1182,20 +1182,20 @@ describe "Bling", ->
 				assert.equal count, 10
 				done()
 	
-	describe ".editDistance()", ->
+	describe ".stringDistance()", ->
 		it "equal strings are zero distance", ->
-			assert.equal $.editDistance("a","a"), 0
-			assert.equal $.editDistance("ab","ab"), 0
+			assert.equal $.stringDistance("a","a"), 0
+			assert.equal $.stringDistance("ab","ab"), 0
 		it "inserts are one distance", ->
-			assert.equal $.editDistance('a','ab'), 1
+			assert.equal $.stringDistance('a','ab'), 1
 		it "deletes are one distance", ->
-			assert.equal $.editDistance('ab', 'a'), 1
+			assert.equal $.stringDistance('ab', 'a'), 1
 		it "replaces are one distance", ->
-			assert.equal $.editDistance('a','b'), 1
+			assert.equal $.stringDistance('a','b'), 1
 		it "can mix inserts/deletes/replaces", ->
-			assert.equal $.editDistance('Hoy','aHi'), 3
+			assert.equal $.stringDistance('Hoy','aHi'), 3
 		it "memoizes without corrupting results", ->
-			assert.equal $.editDistance('Hoy','aHi'), 3
+			assert.equal $.stringDistance('Hoy','aHi'), 3
 	
 	describe ".stringDiff()", ->
 		it "handles all inserts", ->

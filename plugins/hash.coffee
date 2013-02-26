@@ -12,9 +12,7 @@ $.plugin
 				$($.hash(k) + $.hash(v) for k,v of o).sum()
 		}
 		array:   { hash: (o) ->
-			$.hash(Array) + $(o.map $.hash).reduce (a,x) ->
-				(a*a)+(x|0)
-			, 1
+			$.hash(Array) + $(o.map $.hash).reduce(((a,x) -> (a*a)+(x|0)), 1)
 		}
 		bool:    { hash: (o) -> parseInt(1 if o) }
 	return {

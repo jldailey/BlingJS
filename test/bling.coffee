@@ -814,12 +814,11 @@ describe "Bling", ->
 				assert.equal flag, true
 			describe "inheritance chain", ->
 				class A extends $.EventEmitter
+					constructor: -> super @
 					A: ->
 				class B extends A
 					B: ->
 				class C extends B
-					constructor: ->
-						super(@)
 				a = new A()
 				b = new B()
 				c = new C()

@@ -6,7 +6,7 @@ extend = (a, b...) ->
 	a
 class Bling # extends (new Array)
 	constructor: (args...) ->
-		return Bling.hook "bling-init", args
+		`return Bling.hook("bling-init", args)`
 Bling.prototype = []
 Bling.prototype.constructor = Bling
 Bling.global = if window? then window else global

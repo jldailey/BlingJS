@@ -17,8 +17,8 @@ $.plugin
 			addListener:        (e, h) -> switch $.type e
 				when 'object' then @addListener(k,v) for k,v of e
 				when 'string' then list(e).push(h); @emit('newListener', e, h)
-			on:                 (e, h) -> @addListener e, h
-			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
+			on:                 (e, f) -> @addListener e, f
+			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
 			removeAllListeners: (e) -> listeners[e] = []
 			setMaxListeners:    (n) -> # who really needs this in the core API?
 			listeners:          (e) -> list(e).slice 0

@@ -13,7 +13,7 @@
     "test": "make test"
   },
 	"devDependencies": {
-		"coffee-script": "latest",
+		"coffee-script": "1.4.0",
 		"jldom": "latest",
 		"docco": "latest"
 	}

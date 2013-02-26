@@ -98,6 +98,7 @@ $.plugin
 		register "array",     match: Array.isArray or -> isType Array, @
 		register "function",  match: -> typeof @ is "function"
 		register "global",    match: -> typeof @ is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
+		register "arguments", match: -> 'callee' of @ and 'length' of @
 		# These checks for null and undefined are small exceptions to the
 		# simple-first idea, since they are precise and getting them out
 		# of the way early lets the above tests omit a safety check.
@@ -138,8 +139,10 @@ $.plugin
 		undefined: { array: (o) -> [] }
 		# Arrays just convert to themselves.
 		array:     { array: (o) -> o }
-		# Numbers create a new array of that capacity.
+		# Numbers create a new array of that capacity (but zero length).
 		number:    { array: (o) -> Bling.extend new Array(o), length: 0 }
+		# Arguments get sliced into to a real array.
+		arguments: { array: (o) -> Array::slice.apply o }
 
 	# Now, we register "bling", and all the things we know how to do
 	# with it:

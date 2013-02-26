@@ -61,6 +61,11 @@ describe "Bling", ->
 		assert.deepEqual $(1,2,3), [1,2,3]
 	it "can be created from CSS selector", ->
 		assert.equal $("td").length, 8
+	it "can be created from an arguments object", ->
+		f = -> Bling(arguments)
+		assert.equal $.type(f(1,2,3)), "bling"
+		assert.equal f(1,2,3).length, 3
+		assert.deepEqual f(1,2,3), [1,2,3]
 
 	describe ".type()", ->
 		describe "should classify", ->
@@ -73,6 +78,7 @@ describe "Bling", ->
 			it "'bool'", -> assert.equal $.type(true), "bool"
 			it "'regexp'", -> assert.equal $.type(//), "regexp"
 			it "'window'", -> assert.equal $.type(window), "global"
+			it "'arguments'", -> assert.equal $.type(arguments), "arguments"
 
 	describe ".is()", ->
 		describe "should identify", ->

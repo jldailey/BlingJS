@@ -54,6 +54,24 @@ extend Bling, do ->
 		data
 $ = Bling
 $.plugin
+	provides: "EventEmitter"
+	depends: "type,hook"
+, ->
+	$: EventEmitter: $.hook("bling-init").append (obj = Object.create(null)) ->
+		listeners = Object.create null
+		list = (e) -> (listeners[e] or= [])
+		$.inherit {
+			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
+			addListener:        (e, h) -> switch $.type e
+				when 'object' then @addListener(k,v) for k,v of e
+				when 'string' then list(e).push(h); @emit('newListener', e, h)
+			on:                 (e, f) -> @addListener e, f
+			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
+			removeAllListeners: (e) -> listeners[e] = []
+			setMaxListeners:    (n) -> # who really needs this in the core API?
+			listeners:          (e) -> list(e).slice 0
+		}, obj
+$.plugin
 	depends: "core"
 	provides: "async"
 , ->
@@ -902,24 +920,6 @@ if $.global.document?
 				return toNode @[0]
 		}
 $.plugin
-	provides: "EventEmitter"
-	depends: "type,hook"
-, ->
-	$: EventEmitter: $.hook("bling-init").append (obj = Object.create(null)) ->
-		listeners = Object.create null
-		list = (e) -> (listeners[e] or= [])
-		$.inherit {
-			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-			addListener:        (e, h) -> switch $.type e
-				when 'object' then @addListener(k,v) for k,v of e
-				when 'string' then list(e).push(h); @emit('newListener', e, h)
-			on:                 (e, f) -> @addListener e, f
-			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
-			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
-			listeners:          (e) -> list(e).slice 0
-		}, obj
-$.plugin
 	depends: "dom,function,core"
 	provides: "event"
 , ->
@@ -1111,6 +1111,7 @@ $.plugin
 	provides: "hash"
 	depends: "type"
 , ->
+	maxHash = Math.pow(2,32)
 	$.type.extend
 		unknown: { hash: (o) -> $.checksum $.toString o }
 		object:  { hash: (o) ->
@@ -1118,7 +1119,7 @@ $.plugin
 				$($.hash(k) + $.hash(v) for k,v of o).sum()
 		}
 		array:   { hash: (o) ->
-			$.hash(Array) + $(o.map $.hash).reduce(((a,x) -> (a*a)+(x|0)), 1)
+			$.hash(Array) + $(o.map $.hash).reduce(((a,x) -> ((a*a)+(x|0)) % maxHash), 1)
 		}
 		bool:    { hash: (o) -> parseInt(1 if o) }
 	return {
@@ -2216,10 +2217,11 @@ $.plugin
 		array:     { array: (o) -> o }
 		number:    { array: (o) -> Bling.extend new Array(o), length: 0 }
 		arguments: { array: (o) -> Array::slice.apply o }
+	maxHash = Math.pow(2,32)
 	_type.register "bling",
 		match:  (o) -> o and isType Bling, o
 		array:  (o) -> o.toArray()
-		hash:   (o) -> o.map(Bling.hash).reduce (a,x) -> (a*a)+x
+		hash:   (o) -> o.map(Bling.hash).reduce (a,x) -> ((a*a)+x) % maxHash
 		string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
 		repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 	$:

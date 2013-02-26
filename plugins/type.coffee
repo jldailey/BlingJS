@@ -146,13 +146,14 @@ $.plugin
 
 	# Now, we register "bling", and all the things we know how to do
 	# with it:
+	maxHash = Math.pow(2,32)
 	_type.register "bling",
 		# Add the type test so: `$.type($()) == "bling"`.
 		match:  (o) -> o and isType Bling, o
 		# Blings extend arrays so they convert to themselves.
 		array:  (o) -> o.toArray()
 		# Their hash is just the sum of member hashes (order matters).
-		hash:   (o) -> o.map(Bling.hash).reduce (a,x) -> (a*a)+x
+		hash:   (o) -> o.map(Bling.hash).reduce (a,x) -> ((a*a)+x) % maxHash
 		# They have a very literal string representation.
 		string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
 		repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"

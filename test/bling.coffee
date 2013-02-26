@@ -481,6 +481,10 @@ describe "Bling", ->
 		describe "the order of elements matters", ->
 			it "in arrays", -> assert.notEqual $.hash(["a","b"]), $.hash(["b","a"])
 			it "in blings", -> assert.notEqual $.hash($(["a","b"])), $.hash $(["b","a"])
+		describe "overflow does not cause collisions", ->
+			it "in arrays", -> assert.notEqual $.hash([1,2,3,0]), $.hash([1,2,3,99])
+			it "in blings", -> assert.notEqual $.hash($(1,2,3,0)), $.hash(1,2,3,99)
+			it "in objects", -> assert.notEqual $.hash({a:1,b:[1,2,3,0]}), $.hash({a:1,b:[1,2,3,99]})
 
 	describe ".hook()", ->
 		it "is a function", ->

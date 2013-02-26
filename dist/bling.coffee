@@ -1118,9 +1118,7 @@ $.plugin
 				$($.hash(k) + $.hash(v) for k,v of o).sum()
 		}
 		array:   { hash: (o) ->
-			$.hash(Array) + $(o.map $.hash).reduce (a,x) ->
-				(a*a)+(x|0)
-			, 1
+			$.hash(Array) + $(o.map $.hash).reduce(((a,x) -> (a*a)+(x|0)), 1)
 		}
 		bool:    { hash: (o) -> parseInt(1 if o) }
 	return {
@@ -2202,6 +2200,7 @@ $.plugin
 		register "array",     match: Array.isArray or -> isType Array, @
 		register "function",  match: -> typeof @ is "function"
 		register "global",    match: -> typeof @ is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
+		register "arguments", match: -> 'callee' of @ and 'length' of @
 		register "undefined", match: (x) -> x is undefined
 		register "null",      match: (x) -> x is null
 		return extend ((o) -> lookup(o).name),
@@ -2216,6 +2215,7 @@ $.plugin
 		undefined: { array: (o) -> [] }
 		array:     { array: (o) -> o }
 		number:    { array: (o) -> Bling.extend new Array(o), length: 0 }
+		arguments: { array: (o) -> Array::slice.apply o }
 	_type.register "bling",
 		match:  (o) -> o and isType Bling, o
 		array:  (o) -> o.toArray()

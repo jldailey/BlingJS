@@ -2437,9 +2437,9 @@
       },
       array: {
         hash: function(o) {
-          return $.hash(Array) + $(o.map($.hash)).reduce(function(a, x) {
+          return $.hash(Array) + $(o.map($.hash)).reduce((function(a, x) {
             return (a * a) + (x | 0);
-          }, 1);
+          }), 1);
         }
       },
       bool: {
@@ -4601,6 +4601,11 @@
           return typeof this === "object" && 'setInterval' in this;
         }
       });
+      register("arguments", {
+        match: function() {
+          return 'callee' in this && 'length' in this;
+        }
+      });
       register("undefined", {
         match: function(x) {
           return x === void 0;
@@ -4654,6 +4659,11 @@
           return Bling.extend(new Array(o), {
             length: 0
           });
+        }
+      },
+      "arguments": {
+        array: function(o) {
+          return Array.prototype.slice.apply(o);
         }
       }
     });

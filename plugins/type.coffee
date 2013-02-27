@@ -89,16 +89,16 @@ $.plugin
 		# This implies that the 'simplest' checks should be registered
 		# first, and conceptually more specialized checks would get added
 		# as time goes on (so specialized type matches are preferred).
-		register "object",    match: -> typeof @ is "object"
-		register "error",     match: -> isType 'Error', @
-		register "regexp",    match: -> isType 'RegExp', @
-		register "string",    match: -> typeof @ is "string" or isType String, @
-		register "number",    match: -> (isType Number, @) and @ isnt NaN
-		register "bool",      match: -> typeof @ is "boolean" or try String(@) in ["true","false"]
-		register "array",     match: Array.isArray or -> isType Array, @
-		register "function",  match: -> typeof @ is "function"
-		register "global",    match: -> typeof @ is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
-		register "arguments", match: -> 'callee' of @ and 'length' of @
+		register "object",    match: (o) -> typeof o is "object"
+		register "error",     match: (o) -> isType 'Error', o
+		register "regexp",    match: (o) -> isType 'RegExp', o
+		register "string",    match: (o) -> typeof o is "string" or isType String, o
+		register "number",    match: (o) -> (isType Number, o) and o isnt NaN
+		register "bool",      match: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
+		register "array",     match: Array.isArray or -> isType Array, o
+		register "function",  match: (o) -> typeof o is "function"
+		register "global",    match: (o) -> typeof o is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
+		register "arguments", match: (o) -> 'callee' of o and 'length' of o
 		# These checks for null and undefined are small exceptions to the
 		# simple-first idea, since they are precise and getting them out
 		# of the way early lets the above tests omit a safety check.

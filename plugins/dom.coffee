@@ -239,7 +239,7 @@ if $.global.document?
 			# Get [or set] css properties.
 			css: (key,v) ->
 				# If we are doing assignment.
-				if v? or $.is "object", key
+				if v? or $.is('object', key)
 					# Use a bound-method to do the assignment for us.
 					setters = @select 'style.setProperty'
 					# If you give an object as a key, then use every k:v pair.

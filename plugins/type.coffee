@@ -95,7 +95,7 @@ $.plugin
 		register "string",    match: (o) -> typeof o is "string" or isType String, o
 		register "number",    match: (o) -> (isType Number, o) and o isnt NaN
 		register "bool",      match: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
-		register "array",     match: Array.isArray or -> isType Array, o
+		register "array",     match: Array.isArray or (o) -> isType Array, o
 		register "function",  match: (o) -> typeof o is "function"
 		register "global",    match: (o) -> typeof o is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
 		register "arguments", match: (o) -> 'callee' of o and 'length' of o

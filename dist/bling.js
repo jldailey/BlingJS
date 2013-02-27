@@ -1935,7 +1935,7 @@
         },
         css: function(key, v) {
           var cv, i, k, n, nn, ov, ret, setters, _i, _ref;
-          if ((v != null) || $.is("object", key)) {
+          if ((v != null) || $.is('object', key)) {
             setters = this.select('style.setProperty');
             if ($.is("object", key)) {
               for (k in key) {
@@ -4557,58 +4557,58 @@
       };
       register("unknown", base);
       register("object", {
-        match: function() {
-          return typeof this === "object";
+        match: function(o) {
+          return typeof o === "object";
         }
       });
       register("error", {
-        match: function() {
-          return isType('Error', this);
+        match: function(o) {
+          return isType('Error', o);
         }
       });
       register("regexp", {
-        match: function() {
-          return isType('RegExp', this);
+        match: function(o) {
+          return isType('RegExp', o);
         }
       });
       register("string", {
-        match: function() {
-          return typeof this === "string" || isType(String, this);
+        match: function(o) {
+          return typeof o === "string" || isType(String, o);
         }
       });
       register("number", {
-        match: function() {
-          return (isType(Number, this)) && this !== NaN;
+        match: function(o) {
+          return (isType(Number, o)) && o !== NaN;
         }
       });
       register("bool", {
-        match: function() {
-          return typeof this === "boolean" || (function() {
+        match: function(o) {
+          return typeof o === "boolean" || (function() {
             var _ref;
             try {
-              return (_ref = String(this)) === "true" || _ref === "false";
+              return (_ref = String(o)) === "true" || _ref === "false";
             } catch (_error) {}
-          }).call(this);
+          })();
         }
       });
       register("array", {
-        match: Array.isArray || function() {
-          return isType(Array, this);
+        match: Array.isArray || function(o) {
+          return isType(Array, o);
         }
       });
       register("function", {
-        match: function() {
-          return typeof this === "function";
+        match: function(o) {
+          return typeof o === "function";
         }
       });
       register("global", {
-        match: function() {
-          return typeof this === "object" && 'setInterval' in this;
+        match: function(o) {
+          return typeof o === "object" && 'setInterval' in this;
         }
       });
       register("arguments", {
-        match: function() {
-          return 'callee' in this && 'length' in this;
+        match: function(o) {
+          return 'callee' in o && 'length' in o;
         }
       });
       register("undefined", {

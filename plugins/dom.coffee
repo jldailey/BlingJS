@@ -81,7 +81,7 @@ if $.global.document?
 		# window.getComputedStyle is not a normal function
 		# (it doesnt support .call() so we can't use it with .map())
 		# so define something that does work properly for use in .css
-		computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
+		$.computeCSSProperty = computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
 
 		getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select p
 

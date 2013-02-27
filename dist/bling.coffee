@@ -729,7 +729,7 @@ if $.global.document?
 		toNode = (x) -> $.type.lookup(x).node x
 		escaper = false
 		parser = false
-		computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
+		$.computeCSSProperty = computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
 		getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select p
 		selectChain = (prop) -> -> @map (p) -> $( p while p = p[prop] )
 		return {

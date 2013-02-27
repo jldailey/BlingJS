@@ -1591,7 +1591,7 @@ $.plugin
 					catch err
 						"[Error: #{err.message}]"
 			toRepr: (x) -> $.type.lookup(x).repr(x)
-			px: (x, delta=0) -> x? and (parseInt(x,10)+(delta|0))+"px"
+			px: (x, delta=0) -> x? and (parseInt(x,10)+(parseInt(delta)|0))+"px"
 			capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
 			dashize: (name) ->
 				ret = ""

@@ -209,9 +209,20 @@ describe "Bling", ->
 	describe ".px()", ->
 		describe "converts ... to pixel strings", ->
 			it "integers", -> assert.equal $.px(100), "100px"
-			it "floats", -> assert.equal $.px(-100.0), "-100px"
-			it "negatives", -> assert.equal $.px(-100.0), "-100px"
+			it "floats", -> assert.equal $.px(-100.1), "-100px"
+			it "negatives", -> assert.equal $.px(-100.2), "-100px"
 			it "pixel strings", -> assert.equal $.px("100.0px"), "100px"
+		describe "adjusts by a delta while converting", ->
+			it "with a number delta", ->
+				assert.equal "20px", $.px("10px", 10)
+			it "with a px delta", ->
+				assert.equal "20px", $.px("10px", "10px")
+			it "with NaN", ->
+				assert.equal "10px", $.px("10px", NaN)
+			it "with Infinity", ->
+				assert.equal "10px", $.px("10px", Infinity)
+			it "with null", ->
+				assert.equal "10px", $.px("10px", null)
 
 	describe ".padLeft()", ->
 		it "adds padding when needed", ->

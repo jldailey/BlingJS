@@ -1691,7 +1691,7 @@
       };
       escaper = false;
       parser = false;
-      computeCSSProperty = function(k) {
+      $.computeCSSProperty = computeCSSProperty = function(k) {
         return function() {
           return $.global.getComputedStyle(this, null).getPropertyValue(k);
         };

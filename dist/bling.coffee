@@ -853,13 +853,18 @@ if $.global.document?
 					setters = @select 'style.setProperty'
 					if $.is "object", key then setters.call k, v, "" for k,v of key
 					else if $.is "array", v
-						setters[i%nn] key, v[i%n], "" for i in [0...n = Math.max v.length, nn = setters.length] by 1
+						for i in [0...n = Math.max v.length, nn = setters.length] by 1
+							setters[i%nn](key, v[i%n], "")
 					else setters.call key, v, ""
 					return @
 				else
 					cv = @map computeCSSProperty key
+					$.log "CV:",cv
 					ov = @select('style').select key
-					ov.weave(cv).fold (x,y) -> x or y
+					$.log "OV:", ov
+					ret = ov.weave(cv).fold (x,y) -> x or y
+					$.log "RET:", ret
+					ret
 			defaultCss: (k, v) ->
 				sel = @selector
 				style = ""

@@ -3505,7 +3505,7 @@
           if (delta == null) {
             delta = 0;
           }
-          return (x != null) && (parseInt(x, 10) + (delta | 0)) + "px";
+          return (x != null) && (parseInt(x, 10) + (parseInt(delta) | 0)) + "px";
         },
         capitalize: function(name) {
           return (name.split(" ").map(function(x) {

@@ -849,7 +849,7 @@ if $.global.document?
 				return @zap('value', v) if v?
 				return @select('value')
 			css: (key,v) ->
-				if v? or $.is "object", key
+				if v? or $.is('object', key)
 					setters = @select 'style.setProperty'
 					if $.is "object", key then setters.call k, v, "" for k,v of key
 					else if $.is "array", v
@@ -2197,16 +2197,16 @@ $.plugin
 				if cache[name]?.match.call obj, obj
 					return cache[name]
 		register "unknown",   base
-		register "object",    match: -> typeof @ is "object"
-		register "error",     match: -> isType 'Error', @
-		register "regexp",    match: -> isType 'RegExp', @
-		register "string",    match: -> typeof @ is "string" or isType String, @
-		register "number",    match: -> (isType Number, @) and @ isnt NaN
-		register "bool",      match: -> typeof @ is "boolean" or try String(@) in ["true","false"]
-		register "array",     match: Array.isArray or -> isType Array, @
-		register "function",  match: -> typeof @ is "function"
-		register "global",    match: -> typeof @ is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
-		register "arguments", match: -> 'callee' of @ and 'length' of @
+		register "object",    match: (o) -> typeof o is "object"
+		register "error",     match: (o) -> isType 'Error', o
+		register "regexp",    match: (o) -> isType 'RegExp', o
+		register "string",    match: (o) -> typeof o is "string" or isType String, o
+		register "number",    match: (o) -> (isType Number, o) and o isnt NaN
+		register "bool",      match: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
+		register "array",     match: Array.isArray or (o) -> isType Array, o
+		register "function",  match: (o) -> typeof o is "function"
+		register "global",    match: (o) -> typeof o is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
+		register "arguments", match: (o) -> 'callee' of o and 'length' of o
 		register "undefined", match: (x) -> x is undefined
 		register "null",      match: (x) -> x is null
 		return extend ((o) -> lookup(o).name),

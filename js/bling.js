@@ -1934,7 +1934,7 @@
           return this.select('value');
         },
         css: function(key, v) {
-          var cv, i, k, n, nn, ov, setters, _i, _ref;
+          var i, k, n, nn, setters, values, _i, _ref;
           if ((v != null) || $.is('object', key)) {
             setters = this.select('style.setProperty');
             if ($.is("object", key)) {
@@ -1946,16 +1946,16 @@
               for (i = _i = 0, _ref = n = Math.max(v.length, nn = setters.length); _i < _ref; i = _i += 1) {
                 setters[i % nn](key, v[i % n], "");
               }
+            } else if ($.is('function', v)) {
+              values = this.select("style." + key).weave(this.map(computeCSSProperty(key))).fold($.coalesce).weave(setters).fold(function(setter, value) {
+                return setter(key, v.call(value, value));
+              });
             } else {
               setters.call(key, v, "");
             }
             return this;
           } else {
-            cv = this.map(computeCSSProperty(key));
-            ov = this.select('style').select(key);
-            return ov.weave(cv).fold(function(x, y) {
-              return x != null ? x : y;
-            });
+            return this.select("style." + key).weave(this.map(computeCSSProperty(key))).fold($.coalesce);
           }
         },
         defaultCss: function(k, v) {

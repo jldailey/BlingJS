@@ -855,12 +855,17 @@ if $.global.document?
 					else if $.is "array", v
 						for i in [0...n = Math.max v.length, nn = setters.length] by 1
 							setters[i%nn](key, v[i%n], "")
+					else if $.is 'function', v
+						values = @select("style.#{key}")
+							.weave(@map computeCSSProperty key)
+							.fold($.coalesce)
+							.weave(setters)
+							.fold (setter, value) -> setter(key, v.call value, value)
 					else setters.call key, v, ""
 					return @
-				else
-					cv = @map computeCSSProperty key
-					ov = @select('style').select key
-					ov.weave(cv).fold (x,y) -> x ? y
+				else @select("style.#{key}")
+					.weave(@map computeCSSProperty key)
+					.fold($.coalesce)
 			defaultCss: (k, v) ->
 				sel = @selector
 				style = ""

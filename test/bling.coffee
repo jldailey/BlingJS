@@ -1359,6 +1359,13 @@ describe "DOM", ->
 				right: window.innerWidth
 				bottom: window.innerHeight
 			}
+	
+	describe ".css()", ->
+		it "accepts a single argument", ->
+			assert.deepEqual $('td').css('width'), $.zeros(8).map -> ''
+		it "sets when called with two arguments", ->
+			$("td").css("width", "100px")
+			assert.deepEqual $('td').css('width'), $.zeros(8).map -> '100px'
 		
 	describe "Events", ->
 		it ".bind/trigger()", ->

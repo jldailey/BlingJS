@@ -249,19 +249,20 @@ if $.global.document?
 					else if $.is "array", v
 						for i in [0...n = Math.max v.length, nn = setters.length] by 1
 							setters[i%nn](key, v[i%n], "")
+					else if $.is 'function', v
+						values = @select("style.#{key}")
+							.weave(@map computeCSSProperty key)
+							.fold($.coalesce)
+							.weave(setters)
+							.fold (setter, value) -> setter(key, v.call value, value)
 					# So, the key is simple, and if the value is a string,
 					# just do simple assignment (using setProperty).
 					else setters.call key, v, ""
 					return @
 				# Else, we are reading CSS properties.
-				else
-					# So, collect the full computed values.
-					cv = @map computeCSSProperty key
-					# Then, collect the values specified directly on the node.
-					ov = @select('style').select key
-					# Weave and fold them so that object values override
-					# computed values.
-					ov.weave(cv).fold (x,y) -> x ? y
+				else @select("style.#{key}")
+					.weave(@map computeCSSProperty key)
+					.fold($.coalesce)
 
 			# Set css properties by injecting a style element in the the
 			# head. If _k_ is an object of k:v pairs, then no second argument is needed.

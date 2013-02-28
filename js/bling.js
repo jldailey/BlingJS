@@ -1934,7 +1934,7 @@
           return this.select('value');
         },
         css: function(key, v) {
-          var cv, i, k, n, nn, ov, ret, setters, _i, _ref;
+          var cv, i, k, n, nn, ov, setters, _i, _ref;
           if ((v != null) || $.is('object', key)) {
             setters = this.select('style.setProperty');
             if ($.is("object", key)) {
@@ -1952,14 +1952,10 @@
             return this;
           } else {
             cv = this.map(computeCSSProperty(key));
-            $.log("CV:", cv);
             ov = this.select('style').select(key);
-            $.log("OV:", ov);
-            ret = ov.weave(cv).fold(function(x, y) {
-              return x || y;
+            return ov.weave(cv).fold(function(x, y) {
+              return x != null ? x : y;
             });
-            $.log("RET:", ret);
-            return ret;
           }
         },
         defaultCss: function(k, v) {
@@ -4608,7 +4604,9 @@
       });
       register("arguments", {
         match: function(o) {
-          return 'callee' in o && 'length' in o;
+          try {
+            return 'callee' in o && 'length' in o;
+          } catch (_error) {}
         }
       });
       register("undefined", {

@@ -859,12 +859,8 @@ if $.global.document?
 					return @
 				else
 					cv = @map computeCSSProperty key
-					$.log "CV:",cv
 					ov = @select('style').select key
-					$.log "OV:", ov
-					ret = ov.weave(cv).fold (x,y) -> x or y
-					$.log "RET:", ret
-					ret
+					ov.weave(cv).fold (x,y) -> x ? y
 			defaultCss: (k, v) ->
 				sel = @selector
 				style = ""
@@ -2206,7 +2202,7 @@ $.plugin
 		register "array",     match: Array.isArray or (o) -> isType Array, o
 		register "function",  match: (o) -> typeof o is "function"
 		register "global",    match: (o) -> typeof o is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
-		register "arguments", match: (o) -> 'callee' of o and 'length' of o
+		register "arguments", match: (o) -> try 'callee' of o and 'length' of o
 		register "undefined", match: (x) -> x is undefined
 		register "null",      match: (x) -> x is null
 		return extend ((o) -> lookup(o).name),

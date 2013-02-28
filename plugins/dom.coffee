@@ -257,15 +257,11 @@ if $.global.document?
 				else
 					# So, collect the full computed values.
 					cv = @map computeCSSProperty key
-					$.log "CV:",cv
 					# Then, collect the values specified directly on the node.
 					ov = @select('style').select key
-					$.log "OV:", ov
 					# Weave and fold them so that object values override
 					# computed values.
-					ret = ov.weave(cv).fold (x,y) -> x or y
-					$.log "RET:", ret
-					ret
+					ov.weave(cv).fold (x,y) -> x ? y
 
 			# Set css properties by injecting a style element in the the
 			# head. If _k_ is an object of k:v pairs, then no second argument is needed.

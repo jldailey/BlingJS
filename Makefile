@@ -30,26 +30,20 @@ $(JLDOM):
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
 site: dist
-	git stash save &> /dev/null \
-	&& git checkout site \
-	&& sleep 1 \
-	&& cp $(DIST)/*.js js \
-	&& cp $(DIST)/*.js.gz js \
-	&& git show master:$(DIST)/bling.coffee > js/bling.coffee \
-	&& sleep 1 \
-	&& git show master:$(DIST)/bling.js > js/bling.js \
-	&& sleep 1 \
-	&& git show master:package.json > js/package.json \
-	&& sleep 1 \
-	&& git show master:test/dialog.html | sed 's@../dist/bling@/js/bling@' > test/dialog.html \
-	&& sleep 1 \
-	&& git commit -am "make site" || true \
-	&& sleep 1 \
-	&& git checkout master \
-	&& sleep 1 \
-	&& git stash pop || true \
-	&& sleep 1 \
-	&& git status
+	@git stash save &> /dev/null
+	@git checkout site
+	@sleep 1
+	@cp $(DIST)/*.js js
+	@cp $(DIST)/*.js.gz js
+	@git show master:$(DIST)/bling.coffee > js/bling.coffee
+	@git show master:$(DIST)/bling.js > js/bling.js
+	@git show master:package.json > js/package.json
+	@git show master:test/dialog.html | sed 's@../dist/bling@/js/bling@' > test/dialog.html
+	@git commit -am "make site" || true
+	@sleep 1
+	@git checkout master
+	@sleep 1
+	@git stash pop || true
 
 $(DIST)/min.%.js: $(DIST)/%.js yuicompressor.jar
 	$(JAVA) -jar yuicompressor.jar $< -v -o $@

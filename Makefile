@@ -37,6 +37,7 @@ site: dist
 	@cp $(DIST)/*.js.gz js
 	@git show master:$(DIST)/bling.coffee > js/bling.coffee
 	@git show master:$(DIST)/bling.js > js/bling.js
+	@git show master:$(DIST)/bling.map > js/bling.map
 	@git show master:package.json > js/package.json
 	@git show master:test/dialog.html | sed 's@../dist/bling@/js/bling@' > test/dialog.html
 	@git commit -am "make site" || true
@@ -49,7 +50,7 @@ $(DIST)/min.%.js: $(DIST)/%.js yuicompressor.jar
 	$(JAVA) -jar yuicompressor.jar $< -v -o $@
 
 $(DIST)/%.js: $(DIST)/%.coffee $(COFFEE)
-	$(COFFEE) -o $(DIST) -c $<
+	$(COFFEE) -o $(DIST) -cm $<
 
 $(DIST)/bling.coffee: bling.coffee $(shell ls $(PLUGINS)/*.coffee)
 	cat $^ | sed -E 's/^	*#.*$$//g' | grep -v '^ *$$' > $@

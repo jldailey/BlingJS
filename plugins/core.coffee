@@ -31,6 +31,7 @@ $.plugin
 				console.log a...
 				return a[a.length-1] if a.length
 			, prefixSize: 5)
+			logger: (prefix) -> (m...) -> m.unshift(prefix); $.log m...
 			assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 			coalesce: (a...) -> $(a).coalesce()
 			keysOf: (o) -> $(k for k of o)
@@ -138,7 +139,7 @@ $.plugin
 						obj[$(p.split '.').last()] = lists[p][i]
 					i++
 					obj
-			->
+			return ->
 				switch arguments.length
 					when 1 then selectOne.apply @, arguments
 					when 2 then selectMany.apply @, arguments

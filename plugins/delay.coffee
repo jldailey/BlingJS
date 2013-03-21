@@ -43,13 +43,16 @@ $.plugin
 				cancel: -> timeoutQueue.cancel(f)
 
 		)()
+		immediate: do ->
+			return switch true
+				when 'setImmediate' of $.global then $.global.setImmediate
+				when process?.nextTick? then process.nextTick
+				else (f) -> setTimeout(f, 0)
+		interval: (n, f) ->
+			$.delay n, g = -> f(); $.delay n, g
 
 	# Continue with _f_ after _n_ milliseconds.
-	delay: (n, f, c=@) ->
-		$.delay n, $.bound(c, f)
+	delay: (n, f) ->
+		$.delay n, f
 		@
-	interval: (n, f, c=@) ->
-		g = $.bound c, f
-		h = -> g(); $.delay n, h
-		$.delay n, h
-		@
+

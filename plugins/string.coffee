@@ -63,7 +63,7 @@ $.plugin
 			# __$.px(x,[delta])__ computes a "px"-string ("20px"), `x` can
 			# be a number or a "px"-string; if `delta` is present it will
 			# be added to the number portion.
-			px: (x, delta=0) -> x? and (parseInt(x,10)+(delta|0))+"px"
+			px: (x, delta=0) -> x? and (parseInt(x,10)+(parseInt(delta)|0))+"px"
 			# Example: Add 100px of width to an element.
 
 			# jQuery style:

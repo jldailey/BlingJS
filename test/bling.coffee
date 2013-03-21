@@ -61,6 +61,11 @@ describe "Bling", ->
 		assert.deepEqual $(1,2,3), [1,2,3]
 	it "can be created from CSS selector", ->
 		assert.equal $("td").length, 8
+	it "can be created from an arguments object", ->
+		f = -> Bling(arguments)
+		assert.equal $.type(f(1,2,3)), "bling"
+		assert.equal f(1,2,3).length, 3
+		assert.deepEqual f(1,2,3), [1,2,3]
 
 	describe ".type()", ->
 		describe "should classify", ->
@@ -73,6 +78,7 @@ describe "Bling", ->
 			it "'bool'", -> assert.equal $.type(true), "bool"
 			it "'regexp'", -> assert.equal $.type(//), "regexp"
 			it "'window'", -> assert.equal $.type(window), "global"
+			it "'arguments'", -> assert.equal $.type(arguments), "arguments"
 
 	describe ".is()", ->
 		describe "should identify", ->
@@ -203,9 +209,20 @@ describe "Bling", ->
 	describe ".px()", ->
 		describe "converts ... to pixel strings", ->
 			it "integers", -> assert.equal $.px(100), "100px"
-			it "floats", -> assert.equal $.px(-100.0), "-100px"
-			it "negatives", -> assert.equal $.px(-100.0), "-100px"
+			it "floats", -> assert.equal $.px(-100.1), "-100px"
+			it "negatives", -> assert.equal $.px(-100.2), "-100px"
 			it "pixel strings", -> assert.equal $.px("100.0px"), "100px"
+		describe "adjusts by a delta while converting", ->
+			it "with a number delta", ->
+				assert.equal "20px", $.px("10px", 10)
+			it "with a px delta", ->
+				assert.equal "20px", $.px("10px", "10px")
+			it "with NaN", ->
+				assert.equal "10px", $.px("10px", NaN)
+			it "with Infinity", ->
+				assert.equal "10px", $.px("10px", Infinity)
+			it "with null", ->
+				assert.equal "10px", $.px("10px", null)
 
 	describe ".padLeft()", ->
 		it "adds padding when needed", ->
@@ -475,6 +492,10 @@ describe "Bling", ->
 		describe "the order of elements matters", ->
 			it "in arrays", -> assert.notEqual $.hash(["a","b"]), $.hash(["b","a"])
 			it "in blings", -> assert.notEqual $.hash($(["a","b"])), $.hash $(["b","a"])
+		describe "overflow does not cause collisions", ->
+			it "in arrays", -> assert.notEqual $.hash([1,2,3,0]), $.hash([1,2,3,99])
+			it "in blings", -> assert.notEqual $.hash($(1,2,3,0)), $.hash(1,2,3,99)
+			it "in objects", -> assert.notEqual $.hash({a:1,b:[1,2,3,0]}), $.hash({a:1,b:[1,2,3,99]})
 
 	describe ".hook()", ->
 		it "is a function", ->
@@ -512,6 +533,16 @@ describe "Bling", ->
 				if @ % 2 then @*@
 				else null
 			), [1, 9]
+	
+	describe ".tap(f)", ->
+		it "applies f to this", ->
+			assert.deepEqual $([1,2]).tap(-> @push 3), [1,2,3]
+		it "chains on f's return value", ->
+			assert.equal $([1,2]).tap(-> { n: @length }).n, 2
+		it "passes the set as `this` and as the only argument", ->
+			$([1,2]).tap (set) ->
+				assert.equal $.type(@), "bling"
+				assert.equal $.type(set), "bling"
 	
 	describe ".replaceWith", ->
 		it "copies values from array to this", ->
@@ -691,15 +722,29 @@ describe "Bling", ->
 		it "allows duplicates (unlike union)", ->
 			assert.deepEqual $([[1,2],[1,2]]).flatten(), [1,2,1,2]
 
-	describe ".call()", ->
-		it "calls every function in the set", ->
-			assert.deepEqual $([((x) -> x*2), ((x) -> x*x)]).call(4), [8, 16]
-		it "skips non-functions", ->
-			assert.deepEqual $([((x) -> x*2), NaN, ((x) -> x*x)]).call(4), [8, 16]
+	describe "functions", ->
+		describe ".call()", ->
+			it "calls every function in the set", ->
+				assert.deepEqual $([((x) -> x*2), ((x) -> x*x)]).call(4), [8, 16]
+			it "skips non-functions", ->
+				assert.deepEqual $([((x) -> x*2), NaN, ((x) -> x*x)]).call(4), [8, 16]
 
-	describe ".apply()", ->
-		it "calls every function in the set, with a specific context", ->
-			assert.deepEqual($([((x) -> @+x), ((x) -> @*x)]).apply(4,[2]), [6, 8])
+		describe ".apply()", ->
+			it "calls every function in the set, with a specific context", ->
+				assert.deepEqual($([((x) -> @+x), ((x) -> @*x)]).apply(4,[2]), [6, 8])
+
+		describe ".partial()", ->
+			it "partially applies every function in the set", ->
+				b = $([
+					(a,b) -> a+b
+					(a,b) -> a-b
+					(a,b) -> a*b
+					(a,b) -> a/b
+				])
+				assert.deepEqual b.partial(4).call(2), [6,2,8,2]
+			it "has a global version", ->
+				f = $.partial ((a,b) -> a+b), 2
+				assert.equal f(4), 6
 
 	describe ".keysOf()", ->
 		it "is like Object.keys", ->
@@ -750,6 +795,16 @@ describe "Bling", ->
 			assert.equal a.listeners("smoke").length, 2
 			a.listeners("smoke").push("water")
 			assert.equal a.listeners("smoke").length, 2
+		it "accepts multiple events to bind at once", ->
+			a = $.EventEmitter a:1
+			pass = 0
+			a.on(
+				smoke: -> pass += 1
+				steam: -> pass += 1
+			)
+			a.emit 'smoke'
+			a.emit 'steam'
+			assert.equal pass, 2
 		describe "class extends support", ->
 			class Foo extends $.EventEmitter
 				constructor: ->
@@ -770,12 +825,11 @@ describe "Bling", ->
 				assert.equal flag, true
 			describe "inheritance chain", ->
 				class A extends $.EventEmitter
+					constructor: -> super @
 					A: ->
 				class B extends A
 					B: ->
 				class C extends B
-					constructor: ->
-						super(@)
 				a = new A()
 				b = new B()
 				c = new C()
@@ -901,13 +955,20 @@ describe "Bling", ->
 			it "entity escaped", -> assert.equal $.synth('div "text&amp;stuff"').first().toString(), "<div>text&amp;stuff</div>"
 			it "entity un-escaped", -> assert.equal $.synth('div "text&stuff"').first().toString(), "<div>text&stuff</div>"
 
-	describe ".delay(ms, f)", ->
-		it "runs f after a delay of ms", (done) ->
-			t = $.now
-			$.delay 100, ->
-				delta = Math.abs(($.now - t) - 100)
-				assert delta < 25
-				done()
+	describe "delay", ->
+		describe ".delay(ms, f)", ->
+			it "runs f after a delay of ms", (done) ->
+				t = $.now
+				$.delay 100, ->
+					delta = Math.abs(($.now - t) - 100)
+					assert delta < 25
+					done()
+		describe ".immediate(f)", ->
+			it "runs f on the next tick", (done) ->
+				pass = false
+				$.immediate ->
+					assert pass = true
+					done()
 
 	describe ".config(name, def)", ->
 		it "gets config from the environment", ->
@@ -1093,6 +1154,87 @@ describe "Bling", ->
 			$.subscribe 'test-channel', (data) -> pass = data
 			$.publish 'test-channel', true
 			assert pass
+	
+	describe "async", ->
+		it "defines series and parallel", ->
+			assert 'series' of $::
+			assert 'parallel' of $::
+		describe ".series(cb)", ->
+			it "calls all funcs in series", (done) ->
+				$([
+					(cb) -> $.delay 200, -> cb(1)
+					(cb) -> $.delay 100, -> cb(2)
+					(cb) -> $.delay 10, -> cb(3)
+					(cb) -> $.immediate -> cb(4)
+				]).series ->
+					assert.deepEqual @flatten(), [1,2,3,4]
+					done()
+		describe ".paralell(cb)", ->
+			it 'calls all funcs in parallel', (done) ->
+				$([
+					(cb) -> $.delay 200, -> cb(1)
+					(cb) -> $.delay 100, -> cb(2)
+					(cb) -> $.delay 10, -> cb(3)
+					(cb) -> $.immediate -> cb(4)
+				]).parallel ->
+					assert.deepEqual @flatten(), [1,2,3,4]
+					done()
+	
+	describe "RequestQueue", ->
+		it "pushes throttled messages through a real requester", (done) ->
+			# Make a mock requester
+			count = 0
+			requester = (opts, cb) ->
+				assert opts.method is "POST"
+				count += opts.index
+				cb(false, opts.index)
+			rq = new $.RequestQueue(requester)
+			# Push 3 messages every 101ms
+			rq.start 3, 101
+			# Queue some messages (5 should take 202ms to send)
+			for index in [0...5] by 1 then do (index) ->
+				rq.post {index}, (err, data) ->
+					assert.equal err, false
+					assert.equal data, index
+			# Stop in 250ms
+			$.delay 250, ->
+				rq.stop()
+				assert.equal count, 10
+				done()
+	
+	describe ".stringDistance()", ->
+		it "equal strings are zero distance", ->
+			assert.equal $.stringDistance("a","a"), 0
+			assert.equal $.stringDistance("ab","ab"), 0
+		it "inserts are one distance", ->
+			assert.equal $.stringDistance('a','ab'), 1
+		it "deletes are one distance", ->
+			assert.equal $.stringDistance('ab', 'a'), 1
+		it "replaces are one distance", ->
+			assert.equal $.stringDistance('a','b'), 1
+		it "can mix inserts/deletes/replaces", ->
+			assert.equal $.stringDistance('Hoy','aHi'), 3
+		it "memoizes without corrupting results", ->
+			assert.equal $.stringDistance('Hoy','aHi'), 3
+	
+	describe ".stringDiff()", ->
+		it "handles all inserts", ->
+			assert.deepEqual $.stringDiff("", "abc"), [{op:'ins',v:'abc'}]
+		it "handles all deletes", ->
+			assert.deepEqual $.stringDiff("abc", ""), [{op:'del',v:'abc'}]
+		it "handles replaces", ->
+			assert.deepEqual $.stringDiff("a", "b"), [{op:'sub',v:'a',w:'b'}]
+		it "handles all replaces", ->
+			assert.deepEqual $.stringDiff("aaa", "bbb"), [{op:'sub',v:'aaa',w:'bbb'}]
+		it "handles saves", ->
+			assert.deepEqual $.stringDiff('a','a'), [{op:'sav',v:'a'}]
+		it "handles all saves", ->
+			assert.deepEqual $.stringDiff('aaa','aaa'), [{op:'sav',v:'aaa'}]
+		it "handles mixed operations", ->
+			assert.deepEqual $.stringDiff("ab", "bbd"), [{op:'sub',v:'a',w:'b'},{op:'sav',v:'b'},{op:'ins',v:'d'}]
+		it "renders HTML", ->
+			assert.deepEqual $.stringDiff("Hello", "Hi").toHTML(), "H<del>ell</del><del>o</del><ins>i</ins>"
+
 
 describe "DOM", ->
 	it "parse", ->
@@ -1217,6 +1359,13 @@ describe "DOM", ->
 				right: window.innerWidth
 				bottom: window.innerHeight
 			}
+	
+	describe ".css()", ->
+		it "accepts a single argument", ->
+			assert.deepEqual $('td').css('width'), $.zeros(8).map -> ''
+		it "sets when called with two arguments", ->
+			$("td").css("width", "100px")
+			assert.deepEqual $('td').css('width'), $.zeros(8).map -> '100px'
 		
 	describe "Events", ->
 		it ".bind/trigger()", ->

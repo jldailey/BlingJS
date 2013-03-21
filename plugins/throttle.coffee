@@ -17,9 +17,10 @@ $.plugin
 					return f.apply @,a
 				null
 		debounce: (ms, f) ->
-			# must be a silence of _ms_ (where f is not even attempted)
-			# before f will be callable again.
-			last = 0
+			timeout = null
 			(a...) ->
-				last += (gap = $.now - last)
-				return f.apply @,a if gap > ms else null
+				clearTimeout timeout
+				setTimeout (=>
+					f.apply @, arguments
+				), ms
+

@@ -52,7 +52,7 @@ extend = (a, b...) ->
 class Bling # extends (new Array)
 	constructor: (args...) ->
 		### See: plugins/hook.coffee ###
-		return Bling.hook "bling-init", args
+		`return Bling.hook("bling-init", args)`
 
 # We specify an inheritance similar to `class Bling extends (new Array)`,
 # if such a thing were supported by the syntax directly.

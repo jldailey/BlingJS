@@ -6,7 +6,7 @@ extend = (a, b...) ->
 	a
 class Bling # extends (new Array)
 	constructor: (args...) ->
-		return Bling.hook "bling-init", args
+		`return Bling.hook("bling-init", args)`
 Bling.prototype = []
 Bling.prototype.constructor = Bling
 Bling.global = if window? then window else global
@@ -53,6 +53,57 @@ extend Bling, do ->
 				else i++
 		data
 $ = Bling
+$.plugin
+	provides: "EventEmitter"
+	depends: "type,hook"
+, ->
+	$: EventEmitter: $.hook("bling-init").append (obj = Object.create(null)) ->
+		listeners = Object.create null
+		list = (e) -> (listeners[e] or= [])
+		$.inherit {
+			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
+			addListener:        (e, h) -> switch $.type e
+				when 'object' then @addListener(k,v) for k,v of e
+				when 'string' then list(e).push(h); @emit('newListener', e, h)
+			on:                 (e, f) -> @addListener e, f
+			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
+			removeAllListeners: (e) -> listeners[e] = []
+			setMaxListeners:    (n) -> # who really needs this in the core API?
+			listeners:          (e) -> list(e).slice 0
+		}, obj
+$.plugin
+	depends: "core"
+	provides: "async"
+, ->
+	return {
+		series: (fin = $.identity) ->
+			ret = $()
+			todo = @length
+			unless todo > 0
+				fin.apply ret
+				return @
+			done = 0
+			finish_one = (index) -> ->
+				ret[index] = arguments
+				if ++done >= todo
+					fin.apply ret
+				else next(done)
+			do next = (i=0) => $.immediate => @[i](finish_one(i))
+			return @
+		parallel: (fin) ->
+			ret = $()
+			todo = @length
+			unless todo > 0
+				fin.apply ret
+				return @
+			done = 0
+			finish_one = (index) -> ->
+				ret[index] = arguments
+				if ++done >= todo
+					fin.apply ret
+			for i in [0...todo] by 1
+				@[i](finish_one(i))
+	}
 $.plugin
 	provides: "cartesian"
 , ->
@@ -141,11 +192,7 @@ $.plugin
 				return try o[k] catch err then err
 		eq: (i) -> $([@[index i, @]])
 		each: (f) -> (f.call(t,t) for t in @); @
-		map: (f) ->
-			b = $()
-			for t in @
-				b.push f.call t,t
-			b
+		map: (f) -> $( f.call(t,t) for t in @ )
 		filterMap: (f) ->
 			b = $()
 			for t in @
@@ -153,6 +200,8 @@ $.plugin
 				if v?
 					b.push v
 			b
+		
+		tap: (f) -> f.call @, @
 		replaceWith: (array) ->
 			for i in [0...array.length] by 1
 				@[i] = array[i]
@@ -186,7 +235,7 @@ $.plugin
 			while i >= 0
 				@swap --i, Math.floor(Math.random() * i)
 			@
-		select: (->
+		select: do ->
 			getter = (prop) -> -> if $.is("function",v = @[prop]) then $.bound(@,v) else v
 			selectOne = (p) ->
 				switch type = $.type p
@@ -210,11 +259,10 @@ $.plugin
 						obj[$(p.split '.').last()] = lists[p][i]
 					i++
 					obj
-			->
+			return ->
 				switch arguments.length
 					when 1 then selectOne.apply @, arguments
 					when 2 then selectMany.apply @, arguments
-		)()
 		or: (x) -> @[i] or= x for i in [0...@length]; @
 		zap: (p, v) ->
 			if ($.is 'object', p) and not v?
@@ -426,13 +474,15 @@ $.plugin
 				if $.is("function",f) then timeoutQueue.add(f, parseInt n)
 				cancel: -> timeoutQueue.cancel(f)
 		)()
-	delay: (n, f, c=@) ->
-		$.delay n, $.bound(c, f)
-		@
-	interval: (n, f, c=@) ->
-		g = $.bound c, f
-		h = -> g(); $.delay n, h
-		$.delay n, h
+		immediate: do ->
+			return switch true
+				when 'setImmediate' of $.global then $.global.setImmediate
+				when process?.nextTick? then process.nextTick
+				else (f) -> setTimeout(f, 0)
+		interval: (n, f) ->
+			$.delay n, g = -> f(); $.delay n, g
+	delay: (n, f) ->
+		$.delay n, f
 		@
 $.plugin
 	depends: 'hook,synth,delay'
@@ -550,6 +600,67 @@ $.plugin
 					top: $.px top - (rect.height / 2)
 					left: $.px left - (rect.width / 2)
 	}
+$.plugin
+	depends: "core"
+	provides: "diff"
+, ->
+	lev_memo = Object.create null
+	lev = (s,i,n,t,j,m) ->
+		return lev_memo[[s,i,n,t,j,m]] ?= lev_memo[[t,j,m,s,i,n]] ?= do -> switch true
+			when m <= 0 then n
+			when n <= 0 then m
+			else Math.min(
+				1 + lev(s,i+1,n-1, t,j,m),
+				1 + lev(s,i,n, t,j+1,m-1),
+				(s[i] isnt t[j]) + lev(s,i+1,n-1, t,j+1,m-1)
+			)
+	
+	collapse = (ops) -> # combines similar operations in a sequence
+		$.inherit {
+			toHTML: ->
+				@reduce(((a,x) ->
+					a += switch x.op
+						when 'ins' then "<ins>#{x.v}</ins>"
+						when 'del' then "<del>#{x.v}</del>"
+						when 'sub' then "<del>#{x.v}</del><ins>#{x.w}</ins>"
+						when 'sav' then x.v
+				), "")
+		}, ops.reduce(((a,x) ->
+			if x.op is 'sub' and x.v is x.w # replacing with the same thing is just preserving
+				x.op = 'sav'
+				delete x.w
+			unless a.length
+				a.push x
+			else
+				if (last = a.last()).op is x.op
+					last.v += x.v
+					if last.op is 'sub'
+						last.w += x.w
+				else
+					a.push x
+			return a
+		), $())
+	diff_memo = Object.create null
+	del = (c) -> {op:'del',v:c}
+	ins = (c) -> {op:'ins',v:c}
+	sub = (c,d) -> {op:'sub',v:c,w:d}
+	diff = (s,i,n,t,j,m) ->
+		return diff_memo[[s,i,n,t,j,m]] ?= collapse do -> switch true
+			when m <= 0 then (del(c) for c in s.substr i,n)
+			when n <= 0 then (ins(c) for c in t.substr j,m)
+			else
+				cost = (s[i] isnt t[j])
+				costs =
+					del: 1 + lev s,i+1,n-1, t,j,m
+					ins: 1 + lev s,i,n, t,j+1,m-1
+					sub: cost + lev s,i+1,n-1, t,j+1,m-1
+				switch Math.min costs.del, costs.ins, costs.sub
+					when costs.del then $(del s[i]).concat diff s,i+1,n-1, t,j,m
+					when costs.ins then $(ins t[j]).concat diff s,i,n, t,j+1,m-1
+					when costs.sub then $(sub s[i],t[j]).concat diff s,i+1,n-1, t,j+1,m-1
+	$:
+		stringDistance: (s, t) -> lev s,0,s.length, t,0,t.length
+		stringDiff: (s, t) -> diff s,0,s.length, t,0,t.length
 if $.global.document?
 	$.plugin
 		depends: "function,type"
@@ -618,7 +729,7 @@ if $.global.document?
 		toNode = (x) -> $.type.lookup(x).node x
 		escaper = false
 		parser = false
-		computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
+		$.computeCSSProperty = computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
 		getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select p
 		selectChain = (prop) -> -> @map (p) -> $( p while p = p[prop] )
 		return {
@@ -738,17 +849,23 @@ if $.global.document?
 				return @zap('value', v) if v?
 				return @select('value')
 			css: (key,v) ->
-				if v? or $.is "object", key
+				if v? or $.is('object', key)
 					setters = @select 'style.setProperty'
 					if $.is "object", key then setters.call k, v, "" for k,v of key
 					else if $.is "array", v
-						setters[i%nn] key, v[i%n], "" for i in [0...n = Math.max v.length, nn = setters.length] by 1
+						for i in [0...n = Math.max v.length, nn = setters.length] by 1
+							setters[i%nn](key, v[i%n], "")
+					else if $.is 'function', v
+						values = @select("style.#{key}")
+							.weave(@map computeCSSProperty key)
+							.fold($.coalesce)
+							.weave(setters)
+							.fold (setter, value) -> setter(key, v.call value, value)
 					else setters.call key, v, ""
 					return @
-				else
-					cv = @map computeCSSProperty key
-					ov = @select('style').select key
-					ov.weave(cv).fold (x,y) -> x or y
+				else @select("style.#{key}")
+					.weave(@map computeCSSProperty key)
+					.fold($.coalesce)
 			defaultCss: (k, v) ->
 				sel = @selector
 				style = ""
@@ -808,22 +925,6 @@ if $.global.document?
 					return df
 				return toNode @[0]
 		}
-$.plugin
-	provides: "EventEmitter"
-	depends: "type,hook"
-, ->
-	$: EventEmitter: $.hook("bling-init").append (obj = Object.create(null)) ->
-		listeners = {}
-		list = (e) -> (listeners[e] or= [])
-		$.inherit {
-			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-			addListener:        (e, h) -> list(e).push(h); @emit('newListener', e, h)
-			on:                 (e, h) -> @addListener e, h
-			removeListener:     (e, h) -> (list(e).splice i, 1) if (i = list(e).indexOf h) > -1
-			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
-			listeners:          (e) -> list(e).slice 0
-		}, obj
 $.plugin
 	depends: "dom,function,core"
 	provides: "event"
@@ -998,9 +1099,8 @@ $.plugin
 			else
 				r = (a...) -> f.apply t, (args if args.length else a)
 			$.extend r, { toString: -> "bound-method of #{t}.#{f.name}" }
-		E: (callback) -> (f) -> (err, data) ->
-			return f(data) unless err
-			callback err, data
+		partial: (f, a...) -> (b...) -> f a..., b...
+	partial: (a...) -> @map (f) -> $.partial f, a...
 $.plugin
 	provides: "groupBy"
 , ->
@@ -1017,6 +1117,7 @@ $.plugin
 	provides: "hash"
 	depends: "type"
 , ->
+	maxHash = Math.pow(2,32)
 	$.type.extend
 		unknown: { hash: (o) -> $.checksum $.toString o }
 		object:  { hash: (o) ->
@@ -1024,9 +1125,7 @@ $.plugin
 				$($.hash(k) + $.hash(v) for k,v of o).sum()
 		}
 		array:   { hash: (o) ->
-			$.hash(Array) + $(o.map $.hash).reduce (a,x) ->
-				(a*a)+(x|0)
-			, 1
+			$.hash(Array) + $(o.map $.hash).reduce(((a,x) -> ((a*a)+(x|0)) % maxHash), 1)
 		}
 		bool:    { hash: (o) -> parseInt(1 if o) }
 	return {
@@ -1360,6 +1459,37 @@ $.plugin
 			die: die = (faces) ->
 				$.random.integer(1,faces+1)
 $.plugin
+	depends: "core"
+	provides: "request-queue"
+, ->
+	$:
+		RequestQueue: class RequestQueue
+			constructor: (requester) ->
+				@requester = requester ? try require 'request'
+				@interval = null
+				@queue = []
+			tick: ->
+				for i in [0...n = Math.min @queue.length, @perTick] by 1
+					@requester @queue.shift()...
+			start: (@perTick=1, interval=100) ->
+				@stop() if @interval?
+				@interval = setInterval (=> do @tick), interval
+				@
+			stop: stop = ->
+				clearInterval @interval
+				@interval = null
+				@
+			close: stop
+			request: (args...) ->
+				@queue.push args
+				@
+			post: (opts, callback = $.identity) ->
+				@queue.push [($.extend opts, method: "POST"), callback]
+				@
+			get: (opts, callback = $.identity) ->
+				@queue.push [($.extend opts, method: "GET"), callback]
+				@
+$.plugin
 	provides: "sendgrid"
 	depends: "config"
 , ->
@@ -1467,7 +1597,7 @@ $.plugin
 					catch err
 						"[Error: #{err.message}]"
 			toRepr: (x) -> $.type.lookup(x).repr(x)
-			px: (x, delta=0) -> x? and (parseInt(x,10)+(delta|0))+"px"
+			px: (x, delta=0) -> x? and (parseInt(x,10)+(parseInt(delta)|0))+"px"
 			capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
 			dashize: (name) ->
 				ret = ""
@@ -1834,10 +1964,12 @@ $.plugin
 					return f.apply @,a
 				null
 		debounce: (ms, f) ->
-			last = 0
+			timeout = null
 			(a...) ->
-				last += (gap = $.now - last)
-				return f.apply @,a if gap > ms else null
+				clearTimeout timeout
+				setTimeout (=>
+					f.apply @, arguments
+				), ms
 $.plugin
 	depends: 'type'
 	provides: 'TNET'
@@ -2066,15 +2198,16 @@ $.plugin
 				if cache[name]?.match.call obj, obj
 					return cache[name]
 		register "unknown",   base
-		register "object",    match: -> typeof @ is "object"
-		register "error",     match: -> isType 'Error', @
-		register "regexp",    match: -> isType 'RegExp', @
-		register "string",    match: -> typeof @ is "string" or isType String, @
-		register "number",    match: -> (isType Number, @) and @ isnt NaN
-		register "bool",      match: -> typeof @ is "boolean" or try String(@) in ["true","false"]
-		register "array",     match: Array.isArray or -> isType Array, @
-		register "function",  match: -> typeof @ is "function"
-		register "global",    match: -> typeof @ is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
+		register "object",    match: (o) -> typeof o is "object"
+		register "error",     match: (o) -> isType 'Error', o
+		register "regexp",    match: (o) -> isType 'RegExp', o
+		register "string",    match: (o) -> typeof o is "string" or isType String, o
+		register "number",    match: (o) -> (isType Number, o) and o isnt NaN
+		register "bool",      match: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
+		register "array",     match: Array.isArray or (o) -> isType Array, o
+		register "function",  match: (o) -> typeof o is "function"
+		register "global",    match: (o) -> typeof o is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
+		register "arguments", match: (o) -> try 'callee' of o and 'length' of o
 		register "undefined", match: (x) -> x is undefined
 		register "null",      match: (x) -> x is null
 		return extend ((o) -> lookup(o).name),
@@ -2089,10 +2222,12 @@ $.plugin
 		undefined: { array: (o) -> [] }
 		array:     { array: (o) -> o }
 		number:    { array: (o) -> Bling.extend new Array(o), length: 0 }
+		arguments: { array: (o) -> Array::slice.apply o }
+	maxHash = Math.pow(2,32)
 	_type.register "bling",
 		match:  (o) -> o and isType Bling, o
 		array:  (o) -> o.toArray()
-		hash:   (o) -> o.map(Bling.hash).reduce (a,x) -> (a*a)+x
+		hash:   (o) -> o.map(Bling.hash).reduce (a,x) -> ((a*a)+x) % maxHash
 		string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
 		repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 	$:
@@ -2310,21 +2445,25 @@ $.plugin
 				return if newSlide is currentSlide
 				currentDialog = $ dialogs[currentSlide]
 				newDialog = $ dialogs[newSlide]
-				newLeft = if delta < 0 then window.innerWidth else -currentDialog.width()[0] * 1.5
+				width = currentDialog.width()[0]
+				newLeft = if delta < 0 then window.innerWidth - width else 0
 				currentDialog.removeClass('wiz-active')
-					.css left: $.px newLeft
+					.css(left: $.px newLeft)
+					.fadeOut()
 				newDialog.addClass('wiz-active')
 					.centerOn(modal)
-					.show()
+					.fadeIn()
 				currentSlide = newSlide
 		modal.delegate '.wiz-next', 'click', slideChanger(+1)
 		modal.delegate '.wiz-back', 'click', slideChanger(-1)
 		for slide in slides.slice(1)
 			d = $.synth('div.dialog div.title + div.content')
 				.css( left: $.px window.innerWidth + 100 )
+				.hide()
 				.appendTo(modal)
 			slide = $.extend $.dialog.getDefaultOptions(), slide
 			d.find('.title').append $.dialog.getContent slide.titleType, slide.title
 			d.find('.content').append $.dialog.getContent slide.contentType, slide.content
 		dialogs = modal.find('.dialog')
+		dialogs.take(1).show()
 		modal

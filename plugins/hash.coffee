@@ -5,6 +5,7 @@ $.plugin
 	provides: "hash"
 	depends: "type"
 , ->
+	maxHash = Math.pow(2,32)
 	$.type.extend
 		unknown: { hash: (o) -> $.checksum $.toString o }
 		object:  { hash: (o) ->
@@ -12,9 +13,7 @@ $.plugin
 				$($.hash(k) + $.hash(v) for k,v of o).sum()
 		}
 		array:   { hash: (o) ->
-			$.hash(Array) + $(o.map $.hash).reduce (a,x) ->
-				(a*a)+(x|0)
-			, 1
+			$.hash(Array) + $(o.map $.hash).reduce(((a,x) -> ((a*a)+(x|0)) % maxHash), 1)
 		}
 		bool:    { hash: (o) -> parseInt(1 if o) }
 	return {

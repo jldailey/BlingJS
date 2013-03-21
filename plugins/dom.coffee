@@ -81,7 +81,7 @@ if $.global.document?
 		# window.getComputedStyle is not a normal function
 		# (it doesnt support .call() so we can't use it with .map())
 		# so define something that does work properly for use in .css
-		computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
+		$.computeCSSProperty = computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
 
 		getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select p
 
@@ -239,7 +239,7 @@ if $.global.document?
 			# Get [or set] css properties.
 			css: (key,v) ->
 				# If we are doing assignment.
-				if v? or $.is "object", key
+				if v? or $.is('object', key)
 					# Use a bound-method to do the assignment for us.
 					setters = @select 'style.setProperty'
 					# If you give an object as a key, then use every k:v pair.
@@ -247,20 +247,22 @@ if $.global.document?
 					# If the value was actually an array of values, then
 					# stripe the values across each item.
 					else if $.is "array", v
-						setters[i%nn] key, v[i%n], "" for i in [0...n = Math.max v.length, nn = setters.length] by 1
+						for i in [0...n = Math.max v.length, nn = setters.length] by 1
+							setters[i%nn](key, v[i%n], "")
+					else if $.is 'function', v
+						values = @select("style.#{key}")
+							.weave(@map computeCSSProperty key)
+							.fold($.coalesce)
+							.weave(setters)
+							.fold (setter, value) -> setter(key, v.call value, value)
 					# So, the key is simple, and if the value is a string,
 					# just do simple assignment (using setProperty).
 					else setters.call key, v, ""
 					return @
 				# Else, we are reading CSS properties.
-				else
-					# So, collect the full computed values.
-					cv = @map computeCSSProperty key
-					# Then, collect the values specified directly on the node.
-					ov = @select('style').select key
-					# Weave and fold them so that object values override
-					# computed values.
-					ov.weave(cv).fold (x,y) -> x or y
+				else @select("style.#{key}")
+					.weave(@map computeCSSProperty key)
+					.fold($.coalesce)
 
 			# Set css properties by injecting a style element in the the
 			# head. If _k_ is an object of k:v pairs, then no second argument is needed.

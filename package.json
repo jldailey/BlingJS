@@ -1,17 +1,17 @@
 {
-  "author": "Jesse Dailey <jesse.dailey@gmail.com>",
-  "name": "bling",
-  "description": "The kitchen sink library.",
-  "version": "0.0.76",
-  "homepage": "http://blingjs.com",
+	"author": "Jesse Dailey <jesse.dailey@gmail.com>",
+	"name": "bling",
+	"description": "The kitchen sink library.",
+	"version": "0.0.85",
+	"homepage": "http://blingjs.com",
 	"main": "./dist/bling.js",
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/jldailey/BlingJS.git"
-  },
-  "scripts": {
-    "test": "make test"
-  },
+	"repository": {
+		"type": "git",
+		"url": "git://github.com/jldailey/BlingJS.git"
+	},
+	"scripts": {
+		"test": "make test"
+	},
 	"devDependencies": {
 		"coffee-script": "latest",
 		"jldom": "latest",

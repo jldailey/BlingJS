@@ -4,10 +4,9 @@ DIST=dist
 PLUGINS=plugins
 YUI_VERSION=2.4.7
 COFFEE=node_modules/.bin/coffee
-DOCCO=node_modules/.bin/docco
 JLDOM=node_modules/jldom
 MOCHA=node_modules/.bin/mocha
-MOCHA_OPTS=--compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R TAP
+MOCHA_OPTS=--compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R dot
 
 all: dist report
 
@@ -25,43 +24,33 @@ $(COFFEE):
 	sed -ibak -e 's/path.exists/fs.exists/' node_modules/coffee-script/lib/coffee-script/command.js
 	rm -f node_modules/coffee-script/lib/coffee-script/command.js.bak
 
-$(DOCCO):
-	npm install docco
-
 $(JLDOM):
 	npm install jldom
 
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
-docs: $(DIST)/docs/bling.html
-
 site: dist
-	git stash save &> /dev/null \
-	&& git checkout site \
-	&& sleep 1 \
-	&& cp $(DIST)/*.js js \
-	&& cp $(DIST)/*.js.gz js \
-	&& git show master:$(DIST)/bling.coffee > js/bling.coffee \
-	&& sleep 1 \
-	&& git show master:$(DIST)/bling.js > js/bling.js \
-	&& sleep 1 \
-	&& git show master:package.json > js/package.json \
-	&& sleep 1 \
-	&& git show master:test/dialog.html | sed 's@../dist/bling@/js/bling@' > test/dialog.html \
-	&& sleep 1 \
-	&& git commit -am "make site" || true \
-	&& sleep 1 \
-	&& git checkout master \
-	&& sleep 1 \
-	&& git stash pop || true \
-	&& sleep 1 \
-	&& git status
+	@git stash save &> /dev/null
+	@git checkout site
+	@sleep 1
+	@cp $(DIST)/*.js js
+	@cp $(DIST)/*.js.gz js
+	@git show master:$(DIST)/bling.coffee > js/bling.coffee
+	@git show master:$(DIST)/bling.js > js/bling.js
+	@git show master:$(DIST)/bling.map > js/bling.map
+	@git show master:package.json > js/package.json
+	@git show master:test/dialog.html | sed 's@../dist/bling@/js/bling@' > test/dialog.html
+	@git commit -am "make site" || true
+	@sleep 1
+	@git checkout master
+	@sleep 1
+	@git stash pop || true
 
 $(DIST)/min.%.js: $(DIST)/%.js yuicompressor.jar
 	$(JAVA) -jar yuicompressor.jar $< -v -o $@
 
 $(DIST)/%.js: $(DIST)/%.coffee $(COFFEE)
-	$(COFFEE) -o $(DIST) -c $<
+	$(COFFEE) -o $(DIST) -cm $<
 
 $(DIST)/bling.coffee: bling.coffee $(shell ls $(PLUGINS)/*.coffee)
 	cat $^ | sed -E 's/^	*#.*$$//g' | grep -v '^ *$$' > $@
@@ -72,9 +61,6 @@ yuicompressor.jar:
 	rm yuicompressor.zip
 	cp yuicompressor-$(YUI_VERSION)/build/yuicompressor-$(YUI_VERSION).jar ./yuicompressor.jar
 	rm -rf yuicompressor-$(YUI_VERSION)
-
-$(DIST)/docs/%.html: %.coffee $(DOCCO)
-	(cd $(DIST) && ../$(DOCCO) ../$<)
 
 %.gz: %
 	gzip -vf9c $< > $@
@@ -88,4 +74,4 @@ clean:
 	rm -rf yuicompressor.zip yuicompressor.jar yuicompressor-$(YUI_VERSION)
 	rm -rf node_modules/
 
-.PHONY: all bling clean dist site plugins test
+.PHONY: all bling clean dist site test

@@ -1257,11 +1257,25 @@ describe "DOM", ->
 	it "dashName2", -> assert.equal $.dashize("FooBar"), "-foo-bar"
 	it "html1", -> assert.equal $("tr").html().first(), "<td>1,1</td><td>1,2</td>"
 	it "html2", -> assert.equal $("div").html("<span>C</span>").html().first(), "<span>C</span>"
-	it "append", ->
-		try
-			assert.equal($("tr td.d").append("<span>Hi</span>").html().first(), "3,2<span>Hi</span>")
-		finally
-			$("tr td.d span").remove()
+	describe "append", ->
+		it "appends simple HTML", ->
+			try
+				assert.equal($("tr td.d").append("<span>Hi</span>").html().first(), "3,2<span>Hi</span>")
+			finally
+				$("tr td.d span").remove()
+		it "appends HTML fragments", ->
+			try
+				assert.equal($("tr td.d").append("<span>Hi</span><br>").html().first(), "3,2<span>Hi</span><br/>")
+			finally
+				$("tr td.d span").remove()
+				$("tr td.d br").remove()
+	describe "appendText", ->
+		it "appends plain text", ->
+			try
+				assert.equal($("tr td.d").appendText("Hi").html().first(), "3,2Hi")
+			finally
+				$("tr td.d").html("3,2")
+
 	it "appendTo1", -> assert.equal($("<span>Hi</span>").toRepr(), "$([<span>Hi</span>])")
 	it "appendTo2", ->
 		try

@@ -36,7 +36,7 @@ if $.global.document?
 				# Put the html into a new div.
 				(node = document.createElement('div')).innerHTML = h
 				# If there's only one resulting child, return that Node.
-				if n = (childNodes = node.childNodes).length is 1
+				if (n = (childNodes = node.childNodes).length) is 1
 					return node.removeChild(childNodes[0])
 				# Otherwise, copy all the div's children into a new
 				# fragment.
@@ -123,6 +123,10 @@ if $.global.document?
 			append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
 				x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
 				@each -> @appendChild x.cloneNode true
+
+			appendText: (text) ->
+				node = document.createTextNode(text)
+				@each -> @appendChild node.cloneNode true
 
 			appendTo: (x) -> # .appendTo(/n/) - each node [or fragment] will become the last child of x
 				clones = @map( -> @cloneNode true)
@@ -364,7 +368,7 @@ if $.global.document?
 				if @length > 1
 					df = document.createDocumentFragment()
 					# Convert every item in _this_ to a DOM node, and then append it to the Fragment.
-					(@map toNode).map $.bound df, df.appendChild
+					(@map toNode).map (node) -> df.appendChild(node)
 					return df
 				return toNode @[0]
 		}

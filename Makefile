@@ -50,7 +50,7 @@ $(DIST)/min.%.js: $(DIST)/%.js yuicompressor.jar
 	$(JAVA) -jar yuicompressor.jar $< -v -o $@
 
 $(DIST)/%.js: $(DIST)/%.coffee $(COFFEE)
-	$(COFFEE) -o $(DIST) -cm $<
+	(cd $(DIST) && ../$(COFFEE) -cm $(subst $(DIST)/,,$<))
 
 $(DIST)/bling.coffee: bling.coffee $(shell ls $(PLUGINS)/*.coffee)
 	cat $^ | sed -E 's/^	*#.*$$//g' | grep -v '^ *$$' > $@

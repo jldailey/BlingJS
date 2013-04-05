@@ -509,18 +509,15 @@
         return this;
       },
       map: function(f) {
-        var t;
+        var b, i, t, _i, _len;
 
-        return $((function() {
-          var _i, _len, _results;
-
-          _results = [];
-          for (_i = 0, _len = this.length; _i < _len; _i++) {
-            t = this[_i];
-            _results.push(f.call(t, t));
-          }
-          return _results;
-        }).call(this));
+        b = $();
+        i = 0;
+        for (_i = 0, _len = this.length; _i < _len; _i++) {
+          t = this[_i];
+          b[i++] = f.call(t, t);
+        }
+        return b;
       },
       filterMap: function(f) {
         var b, t, v, _i, _len;
@@ -1707,7 +1704,7 @@
           var childNodes, df, i, n, node, _i;
 
           (node = document.createElement('div')).innerHTML = h;
-          if (n = (childNodes = node.childNodes).length === 1) {
+          if ((n = (childNodes = node.childNodes).length) === 1) {
             return node.removeChild(childNodes[0]);
           }
           df = document.createDocumentFragment();
@@ -1869,6 +1866,14 @@
           x = toNode(x);
           return this.each(function() {
             return this.appendChild(x.cloneNode(true));
+          });
+        },
+        appendText: function(text) {
+          var node;
+
+          node = document.createTextNode(text);
+          return this.each(function() {
+            return this.appendChild(node.cloneNode(true));
           });
         },
         appendTo: function(x) {
@@ -2184,7 +2189,9 @@
 
           if (this.length > 1) {
             df = document.createDocumentFragment();
-            (this.map(toNode)).map($.bound(df, df.appendChild));
+            (this.map(toNode)).map(function(node) {
+              return df.appendChild(node);
+            });
             return df;
           }
           return toNode(this[0]);

@@ -192,7 +192,11 @@ $.plugin
 				return try o[k] catch err then err
 		eq: (i) -> $([@[index i, @]])
 		each: (f) -> (f.call(t,t) for t in @); @
-		map: (f) -> $( f.call(t,t) for t in @ )
+		map: (f) -> # CS comprehensions generate too much extra code for such a critical bottle-neck
+			b = $()
+			i = 0
+			(b[i++] = f.call t,t) for t in @
+			return b
 		filterMap: (f) ->
 			b = $()
 			for t in @
@@ -693,7 +697,7 @@ if $.global.document?
 			match:  (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
 			node:   (h) ->
 				(node = document.createElement('div')).innerHTML = h
-				if n = (childNodes = node.childNodes).length is 1
+				if (n = (childNodes = node.childNodes).length) is 1
 					return node.removeChild(childNodes[0])
 				df = document.createDocumentFragment()
 				df.appendChild(node.removeChild(childNodes[0])) for i in [0...n] by 1
@@ -755,6 +759,9 @@ if $.global.document?
 			append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
 				x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
 				@each -> @appendChild x.cloneNode true
+			appendText: (text) ->
+				node = document.createTextNode(text)
+				@each -> @appendChild node.cloneNode true
 			appendTo: (x) -> # .appendTo(/n/) - each node [or fragment] will become the last child of x
 				clones = @map( -> @cloneNode true)
 				i = 0
@@ -921,7 +928,7 @@ if $.global.document?
 			toFragment: ->
 				if @length > 1
 					df = document.createDocumentFragment()
-					(@map toNode).map $.bound df, df.appendChild
+					(@map toNode).map (node) -> df.appendChild(node)
 					return df
 				return toNode @[0]
 		}

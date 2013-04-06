@@ -47,7 +47,7 @@
       var args;
 
       args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-      return Bling.hook("bling-init", args);
+      return Bling.init(args);
     }
 
     return Bling;
@@ -159,7 +159,7 @@
   }, function() {
     return {
       $: {
-        EventEmitter: $.hook("bling-init").append(function(obj) {
+        EventEmitter: Bling.init.append(function(obj) {
           var list, listeners;
 
           if (obj == null) {
@@ -2674,32 +2674,33 @@
     provides: "hook",
     depends: "type"
   }, function() {
-    var hook, hooks;
+    var hook;
 
-    hooks = {};
-    hook = function(name, args) {
-      var func, p, _i, _len;
+    hook = function() {
+      var chain;
 
-      p = (hooks[name] || (hooks[name] = []));
-      if (!args) {
-        return {
-          prepend: function(obj) {
-            p.unshift(obj);
-            return obj;
-          },
-          append: function(obj) {
-            p.push(obj);
-            return obj;
-          }
-        };
-      }
-      for (_i = 0, _len = p.length; _i < _len; _i++) {
-        func = p[_i];
-        args = func.call(this, args);
-      }
-      return args;
+      chain = [];
+      return $.extend((function(args) {
+        var func, _i, _len;
+
+        for (_i = 0, _len = chain.length; _i < _len; _i++) {
+          func = chain[_i];
+          args = func.call(this, args);
+        }
+        return args;
+      }), {
+        prepend: function(obj) {
+          chain.unshift(obj);
+          return obj;
+        },
+        append: function(obj) {
+          chain.push(obj);
+          return obj;
+        }
+      });
     };
-    hook("bling-init").prepend(function(args) {
+    Bling.init = hook();
+    Bling.init.prepend(function(args) {
       var b, i;
 
       if (args.length === 1) {
@@ -2835,7 +2836,7 @@
   });
 
   $.depends('hook', function() {
-    return $.hook('bling-init').append(function(obj) {
+    return Bling.init.append(function(obj) {
       var keyMakers, map;
 
       map = Object.create(null);
@@ -5019,10 +5020,8 @@
       if ((denom_a != null) && (denom_b != null)) {
         return conv(denom_b, denom_a) * conv(numer_a, numer_b);
       }
-      if (a in conv) {
-        if (b in conv[a]) {
-          return conv[a][b]();
-        }
+      if (a in conv && (b in conv[a])) {
+        return conv[a][b]();
       }
       return 0;
     };

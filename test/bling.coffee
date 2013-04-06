@@ -501,13 +501,17 @@ describe "Bling", ->
 		it "is a function", ->
 			assert $.is 'function', $.hook
 		it "returns a hook with append/prepend", ->
-			p = $.hook('unit-test')
+			p = $.hook()
 			assert $.is 'function', p.append
 			assert $.is 'function', p.prepend
+		it "returns a function", ->
+			p = $.hook()
+			assert $.is 'function', p
 		it "computes values when called", ->
-			$.hook('unit-test').append (x) -> x += 2
-			$.hook('unit-test').prepend (x) -> x *= 2
-			assert.equal $.hook('unit-test', 4), 10
+			hook = $.hook()
+			hook.append (x) -> x + 2
+			hook.prepend (x) -> x * 2
+			assert.equal hook(4), 10
 
 	describe ".eq()", ->
 		it "selects a new set with only one element", ->

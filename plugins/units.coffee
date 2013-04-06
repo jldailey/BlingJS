@@ -28,9 +28,8 @@ $.plugin
 		[numer_b, denom_b] = b.split '/'
 		if denom_a? and denom_b?
 			return conv(denom_b, denom_a) * conv(numer_a, numer_b)
-		if a of conv
-			if b of conv[a]
-				return conv[a][b]()
+		if a of conv and (b of conv[a])
+			return conv[a][b]()
 		0
 
 	# A locker is a function for returning a fixed value, 

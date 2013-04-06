@@ -1,5 +1,5 @@
 $.depends 'hook', ->
-	$.hook('bling-init').append (obj) ->
+	Bling.init.append (obj) ->
 		map = Object.create(null)
 		keyMakers = []
 		$.inherit {

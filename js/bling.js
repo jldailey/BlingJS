@@ -1971,15 +1971,26 @@
           return clones;
         },
         attr: function(a, v) {
-          switch (v) {
-            case void 0:
-              return this.select("getAttribute").call(a, v);
-            case null:
-              return this.select("removeAttribute").call(a, v);
-            default:
-              this.select("setAttribute").call(a, v);
-              return this;
+          var k;
+
+          if ($.is('object', a)) {
+            for (k in a) {
+              v = a[k];
+              this.attr(k, v);
+            }
+          } else {
+            switch (v) {
+              case void 0:
+                return this.select("getAttribute").call(a, v);
+              case null:
+                this.select("removeAttribute").call(a, v);
+                this;
+                break;
+              default:
+                this.select("setAttribute").call(a, v);
+            }
           }
+          return this;
         },
         data: function(k, v) {
           return this.attr("data-" + ($.dashize(k)), v);

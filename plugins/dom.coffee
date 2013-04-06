@@ -192,12 +192,16 @@ if $.global.document?
 				clones
 
 			attr: (a,v) -> # .attr(a, [v]) - get [or set] an /a/ttribute [/v/alue]
-				return switch v
-					when undefined then @select("getAttribute").call(a, v)
-					when null then @select("removeAttribute").call(a, v)
+				if $.is 'object', a
+					@attr(k,v) for k,v of a
+				else switch v
+					when undefined
+						return @select("getAttribute").call(a, v)
+					when null
+						@select("removeAttribute").call(a, v); @
 					else
 						@select("setAttribute").call(a, v)
-						@
+				@
 
 			data: (k, v) -> @attr "data-#{$.dashize(k)}", v
 

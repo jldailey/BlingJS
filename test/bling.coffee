@@ -1312,9 +1312,21 @@ describe "DOM", ->
 	it "wrap", -> assert.equal($("<b></b>").wrap("<a></a>").select('parentNode').toRepr(), "$([<a><b/></a>])")
 	it "unwrap", -> assert.equal($("<a><b/></a>").find("b").unwrap().first().parentNode, null)
 	it "replace", -> assert.equal($("<a><b/><c/><b/></a>").find("b").replace("<p/>").eq(0).select('parentNode').toRepr(), "$([<a><p/><c/><p/></a>])")
-	it "attr", -> assert.equal($("<a href='#'></a>").attr("href").first(), "#")
-	it "attr2", -> assert.equal($("<a data-lazy-href='#'></a>").attr("data-lazy-href").first(), "#")
-	it "attr3", -> assert.equal($("<a data-lazy-href='#'></a>").attr("data-lazy-href","poop").attr("data-lazy-href").first(), "poop")
+	describe ".attr()", ->
+		it "can read attributes from DOM nodes", ->
+			assert.equal "#", $("<a href='#'></a>").attr("href").first()
+		it "can read attributes with complicated names", ->
+			assert.equal "#", $("<a data-lazy-href='#'></a>").attr("data-lazy-href").first()
+		it "can set attributes", ->
+			assert.equal "new", $("<a data-lazy-href='#'></a>").attr("data-lazy-href","new").attr("data-lazy-href").first()
+		it "can set multiple attributes at once", ->
+			node = $("<a lazy-href='/home'></a>")
+			node.attr {
+				"lazy-href": "/away"
+				"color": "yellow"
+			}
+			assert.equal node.attr("lazy-href").first(), "/away"
+			assert.equal node.attr("color").first(), "yellow"
 	it "data", -> assert.equal($("<a data-lazy-href='#'></a>").data("lazyHref").first(), "#")
 	it "data2", -> assert.equal($("<a data-lazy-href='#'></a>").data("lazyHref","poop").data("lazyHref").first(), "poop")
 	it "removeClass", -> assert.equal($("<a class='test'></a>").removeClass('test').toRepr(), "$([<a/>])")

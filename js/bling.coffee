@@ -6,7 +6,7 @@ extend = (a, b...) ->
 	a
 class Bling # extends (new Array)
 	constructor: (args...) ->
-		`return Bling.hook("bling-init", args)`
+		`return Bling.init(args)`
 Bling.prototype = []
 Bling.prototype.constructor = Bling
 Bling.global = if window? then window else global
@@ -57,7 +57,7 @@ $.plugin
 	provides: "EventEmitter"
 	depends: "type,hook"
 , ->
-	$: EventEmitter: $.hook("bling-init").append (obj = Object.create(null)) ->
+	$: EventEmitter: Bling.init.append (obj = Object.create(null)) ->
 		listeners = Object.create null
 		list = (e) -> (listeners[e] or= [])
 		$.inherit {
@@ -1181,18 +1181,18 @@ $.plugin
 	provides: "hook"
 	depends: "type"
 , ->
-	hooks = {}
-	hook = (name, args) ->
-		p = (hooks[name] or= [])
-		if not args
-			return {
-				prepend: (obj) -> p.unshift(obj); obj
-				append: (obj) -> p.push(obj); obj
-			}
-		for func in p
-			args = func.call @, args
-		args
-	hook("bling-init").prepend (args) ->
+	hook = ->
+		chain = []
+		return $.extend ((args) ->
+			for func in chain
+				args = func.call @, args
+			args
+		), {
+			prepend: (obj) -> chain.unshift(obj); obj
+			append: (obj) -> chain.push(obj); obj
+		}
+	Bling.init = hook()
+	Bling.init.prepend (args) ->
 		if args.length is 1
 			args = $.type.lookup(args[0]).array(args[0])
 		b = $.inherit Bling, args
@@ -1264,7 +1264,7 @@ $.plugin
 				$.http(url, opts)
 	}
 $.depends 'hook', ->
-	$.hook('bling-init').append (obj) ->
+	Bling.init.append (obj) ->
 		map = Object.create(null)
 		keyMakers = []
 		$.inherit {
@@ -2268,9 +2268,8 @@ $.plugin
 		[numer_b, denom_b] = b.split '/'
 		if denom_a? and denom_b?
 			return conv(denom_b, denom_a) * conv(numer_a, numer_b)
-		if a of conv
-			if b of conv[a]
-				return conv[a][b]()
+		if a of conv and (b of conv[a])
+			return conv[a][b]()
 		0
 	locker = (x) -> -> x
 	fillConversions = ->

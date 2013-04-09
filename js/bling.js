@@ -993,6 +993,9 @@
       toArray: function() {
         this.__proto__ = Array.prototype;
         return this;
+      },
+      clear: function() {
+        return this.splice(0, this.length);
       }
     };
   });
@@ -3170,6 +3173,82 @@
             return (_ref = (_base = opts.cache)[_name = opts.hash(arguments)]) != null ? _ref : _base[_name] = opts.f.apply(this, arguments);
           };
         }
+      }
+    };
+  });
+
+  $.plugin({
+    depends: "core,function",
+    provides: "promise"
+  }, function() {
+    var promise;
+
+    promise = function(obj) {
+      var err, result, waiting;
+
+      if (obj == null) {
+        obj = Object.create(null);
+      }
+      waiting = $();
+      err = result = null;
+      return $.inherit({
+        wait: function(cb) {
+          if (err != null) {
+            return cb(err, null);
+          }
+          if (result != null) {
+            return cb(null, result);
+          }
+          waiting.push(cb);
+          return this;
+        },
+        finish: function(result) {
+          waiting.call(null, result).clear();
+          return this;
+        },
+        fail: function(error) {
+          waiting.call(error, null).clear();
+          return this;
+        }
+      }, obj);
+    };
+    promise.iDB = function(obj) {
+      var p;
+
+      p = $.Promise();
+      $.extend(obj, {
+        onerror: function() {
+          return p.fail(this.result);
+        },
+        onfailure: function() {
+          return p.fail(this.result);
+        },
+        onblocked: function() {
+          return p.fail("blocked");
+        },
+        onsuccess: function() {
+          return p.finish(this.result);
+        }
+      });
+      return p;
+    };
+    promise.xhr = function(xhr) {
+      var p;
+
+      p = $.Promise();
+      return xhr.onreadystatechange = function() {
+        if (this.readyState === this.DONE) {
+          if (this.status === 200) {
+            return p.finish(xhr);
+          } else {
+            return p.fail("" + this.status + " " + this.statusText);
+          }
+        }
+      };
+    };
+    return {
+      $: {
+        Promise: promise
       }
     };
   });

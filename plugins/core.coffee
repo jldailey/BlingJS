@@ -312,4 +312,8 @@ $.plugin
 		toArray: ->
 			@__proto__ = Array::
 			@ # no copies, yay?
+
+		# Remove all items
+		clear: -> @splice 0, @length
+
 	}

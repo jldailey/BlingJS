@@ -1238,6 +1238,34 @@ describe "Bling", ->
 			assert.deepEqual $.stringDiff("ab", "bbd"), [{op:'sub',v:'a',w:'b'},{op:'sav',v:'b'},{op:'ins',v:'d'}]
 		it "renders HTML", ->
 			assert.deepEqual $.stringDiff("Hello", "Hi").toHTML(), "H<del>ell</del><del>o</del><ins>i</ins>"
+	
+	describe "$.Promise", ->
+		describe "basic contract", ->
+			p = $.Promise()
+			pass = false
+			it "can be waited on", ->
+				p.wait (err, data) -> pass = data
+			it "can be finished", ->
+				p.finish true
+			it "passes the finished data to anything waiting", ->
+				assert pass
+		describe "inheritance", ->
+			it "works with default constructor", ->
+				class Foo extends $.Promise
+				f = new Foo()
+				f.wait (err, data) -> f.pass = data
+				f.finish true
+				assert.equal f.pass, true
+			it "works with super", ->
+				class Foo extends $.Promise
+					constructor: (@pass) ->
+						super @
+				f = new Foo(false)
+				f.wait (err, data) -> f.pass = data
+				f.finish true
+				assert f.pass
+
+
 
 
 describe "DOM", ->

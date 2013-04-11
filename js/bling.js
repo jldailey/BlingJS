@@ -3181,9 +3181,9 @@
     depends: "core,function",
     provides: "promise"
   }, function() {
-    var promise;
+    var Progress, Promise, ret;
 
-    promise = function(obj) {
+    Promise = function(obj) {
       var err, result, waiting;
 
       if (obj == null) {
@@ -3210,45 +3210,67 @@
           waiting.call(error, null).clear();
           return this;
         }
-      }, obj);
+      }, $.EventEmitter(obj));
     };
-    promise.iDB = function(obj) {
-      var p;
+    Progress = function(max) {
+      var cur, progress;
 
-      p = $.Promise();
-      $.extend(obj, {
-        onerror: function() {
-          return p.fail(this.result);
+      if (max == null) {
+        max = 1.0;
+      }
+      cur = 0.0;
+      progress = function() {
+        var args;
+
+        args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+      };
+      return $.inherit({
+        progress: function() {
+          var args;
+
+          args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+          if (!args.length) {
+            return cur;
+          }
+          cur = args[0];
+          if (args.length > 1) {
+            max = args[1];
+          }
+          if (cur >= max) {
+            this.finish(cur);
+          }
+          this.emit('progress', cur, max);
+          return this;
         },
-        onfailure: function() {
-          return p.fail(this.result);
+        progressInc: function(delta) {
+          if (delta == null) {
+            delta = 1;
+          }
+          return this.progress(cur + delta);
         },
-        onblocked: function() {
-          return p.fail("blocked");
-        },
-        onsuccess: function() {
-          return p.finish(this.result);
+        progressMax: function(q) {
+          return max = q;
         }
-      });
-      return p;
+      }, Promise());
     };
-    promise.xhr = function(xhr) {
+    Promise.xhr = function(xhr) {
       var p;
 
       p = $.Promise();
       return xhr.onreadystatechange = function() {
         if (this.readyState === this.DONE) {
           if (this.status === 200) {
-            return p.finish(xhr);
+            return p.finish(xhr.responseText);
           } else {
             return p.fail("" + this.status + " " + this.statusText);
           }
         }
       };
     };
-    return {
+    return ret = {
       $: {
-        Promise: promise
+        Promise: Promise,
+        Progress: Progress
       }
     };
   });

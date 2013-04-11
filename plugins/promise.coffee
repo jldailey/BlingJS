@@ -3,7 +3,7 @@ $.plugin
 	depends: "core,function"
 	provides: "promise"
 , ->
-	promise = (obj = Object.create null) ->
+	Promise = (obj = Object.create null) ->
 		waiting = $()
 		err = result = null
 		return $.inherit {
@@ -12,34 +12,34 @@ $.plugin
 				return cb(null,result) if result?
 				waiting.push cb
 				@
-			finish: (result) ->
-				waiting.call(null, result).clear()
-				@
-			fail: (error) ->
-				waiting.call(error, null).clear()
-				@
-		}, obj
+			finish: (result) -> waiting.call(null, result).clear(); @
+			fail:   (error)  -> waiting.call(error,  null).clear(); @
+		}, $.EventEmitter(obj)
 
-	# Common Wrappers
-	# ---------------
-	#
-	# Wrap IndexedDB objects in a Promise.
-	promise.iDB = (obj) ->
-		p = $.Promise()
-		$.extend obj,
-			onerror:   -> p.fail @result
-			onfailure: -> p.fail @result
-			onblocked: -> p.fail "blocked"
-			onsuccess: -> p.finish @result
-		p
-	
-	promise.xhr = (xhr) ->
+	Progress = (max = 1.0) ->
+		cur = 0.0
+		progress = (args...) ->
+		return $.inherit {
+			progress: (args...) ->
+				return cur unless args.length
+				cur = args[0]
+				if args.length > 1
+					max = args[1]
+				@finish(cur) if cur >= max
+				@emit 'progress', cur, max
+				@
+			progressInc: (delta = 1) -> @progress cur + delta
+			progressMax: (q) -> max = q
+		}, Promise()
+
+	# Helper for wrapping an XHR object in a Promise
+	Promise.xhr = (xhr) ->
 		p = $.Promise()
 		xhr.onreadystatechange = ->
 			if @readyState is @DONE
 				if @status is 200
-					p.finish xhr
+					p.finish xhr.responseText
 				else
 					p.fail "#{@status} #{@statusText}"
 
-	return $: Promise: promise
+	ret = { $: { Promise, Progress } }

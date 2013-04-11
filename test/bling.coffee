@@ -1258,12 +1258,45 @@ describe "Bling", ->
 				assert.equal f.pass, true
 			it "works with super", ->
 				class Foo extends $.Promise
-					constructor: (@pass) ->
-						super @
+					constructor: (@pass) -> super @
 				f = new Foo(false)
 				f.wait (err, data) -> f.pass = data
 				f.finish true
 				assert f.pass
+
+	describe "$.Progress", ->
+		it "is a Promise", ->
+			p = $.Progress()
+			waiting = true
+			p.wait (err, data) -> waiting = false
+			p.finish()
+			assert.equal waiting, false
+		describe "is an incremental Promise", ->
+			p = $.Progress(10)
+			_cur = _max = _done = 0
+			p.on "progress", (cur, max) ->
+				_cur = cur; _max = max
+			p.wait (err, data) -> _done = data
+			it "p.progressInc(n) adjusts progress by n", ->
+				p.progressInc(1)
+				assert.equal _cur, 1
+				assert.equal _max, 10
+			it "progress() with no args returns current progress", ->
+				assert.equal p.progress(), _cur
+			it "progress(cur) is a setter", ->
+				p.progress(9)
+				assert.equal p.progress(), 9
+			it "completing progress finishes the Promise", ->
+				p.progress(10)
+				assert.equal _done, 10
+			it "result of finished Progress is the final progress value", ->
+				p.progress(11.1)
+				assert.equal _done, 11.1
+
+
+				
+
+			
 
 
 

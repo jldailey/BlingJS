@@ -4889,10 +4889,12 @@
       }
     };
     inherit = function(parent, obj) {
+      var _ref;
+
       if (typeof parent === "function") {
         parent = parent.prototype;
       }
-      if (parent.__proto__ === Object.prototype) {
+      if ((_ref = parent.__proto__) === Object.prototype || _ref === null) {
         parent.__proto__ = obj.__proto__;
       }
       obj.__proto__ = parent;

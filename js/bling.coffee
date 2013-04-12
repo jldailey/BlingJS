@@ -1411,6 +1411,7 @@ $.plugin
 					p.finish xhr.responseText
 				else
 					p.fail "#{@status} #{@statusText}"
+		return p
 	$.depend 'dom', ->
 		Promise.image = (src) ->
 			p = $.Promise()
@@ -1418,6 +1419,7 @@ $.plugin
 			image.onload = -> p.finish(image)
 			image.onerror = (evt) -> p.fail(evt)
 			image.src = src
+			return p
 	ret = { $: { Promise, Progress } }
 $.plugin
 	depends: "core"

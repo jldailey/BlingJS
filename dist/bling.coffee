@@ -2235,7 +2235,7 @@ $.plugin
 	inherit = (parent, obj) ->
 		if typeof parent is "function"
 			parent = parent.prototype
-		if parent.__proto__ is Object.prototype
+		if parent.__proto__ in [Object.prototype, null]
 			parent.__proto__ = obj.__proto__
 		obj.__proto__ = parent
 		obj

@@ -30,7 +30,7 @@ $.plugin
 		if typeof parent is "function"
 			parent = parent.prototype
 		# if the parent isn't bringing it's own __proto__ chain
-		if parent.__proto__ in [Object.prototype, null]
+		if parent.__proto__ in [Object.prototype, null, undefined]
 			# splice the new parent such that the original chain is preserved
 			parent.__proto__ = obj.__proto__
 		obj.__proto__ = parent

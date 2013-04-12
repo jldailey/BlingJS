@@ -104,7 +104,7 @@
   };
 
   extend(Bling, (function() {
-    var complete, incomplete, waiting;
+    var complete, depend, incomplete, waiting;
 
     waiting = [];
     complete = {};
@@ -114,7 +114,7 @@
       });
     };
     return {
-      depends: function(needs, func) {
+      depends: depend = function(needs, func) {
         if ((needs = incomplete(needs)).length === 0) {
           func();
         } else {
@@ -129,6 +129,7 @@
         }
         return func;
       },
+      depend: depend,
       provide: function(needs, data) {
         var func, i, need, _i, _len, _ref;
 
@@ -3267,6 +3268,21 @@
         }
       };
     };
+    $.depend('dom', function() {
+      return Promise.image = function(src) {
+        var image, p;
+
+        p = $.Promise();
+        image = new Image();
+        image.onload = function() {
+          return p.finish(image);
+        };
+        image.onerror = function(evt) {
+          return p.fail(evt);
+        };
+        return image.src = src;
+      };
+    });
     return ret = {
       $: {
         Promise: Promise,

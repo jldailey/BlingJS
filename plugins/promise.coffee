@@ -42,4 +42,12 @@ $.plugin
 				else
 					p.fail "#{@status} #{@statusText}"
 
+	$.depend 'dom', ->
+		Promise.image = (src) ->
+			p = $.Promise()
+			image = new Image()
+			image.onload = -> p.finish(image)
+			image.onerror = (evt) -> p.fail(evt)
+			image.src = src
+
 	ret = { $: { Promise, Progress } }

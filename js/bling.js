@@ -164,7 +164,7 @@
           var list, listeners;
 
           if (obj == null) {
-            obj = Object.create(null);
+            obj = {};
           }
           listeners = Object.create(null);
           list = function(e) {
@@ -3188,7 +3188,7 @@
       var err, result, waiting;
 
       if (obj == null) {
-        obj = Object.create(null);
+        obj = {};
       }
       waiting = $();
       err = result = null;
@@ -4891,10 +4891,13 @@
     inherit = function(parent, obj) {
       var _ref;
 
+      if (obj == null) {
+        return;
+      }
       if (typeof parent === "function") {
         parent = parent.prototype;
       }
-      if ((_ref = parent.__proto__) === Object.prototype || _ref === null) {
+      if ((_ref = parent.__proto__) === Object.prototype || _ref === null || _ref === (void 0)) {
         parent.__proto__ = obj.__proto__;
       }
       obj.__proto__ = parent;

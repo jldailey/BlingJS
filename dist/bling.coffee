@@ -58,7 +58,7 @@ $.plugin
 	provides: "EventEmitter"
 	depends: "type,hook"
 , ->
-	$: EventEmitter: Bling.init.append (obj = Object.create(null)) ->
+	$: EventEmitter: Bling.init.append (obj = {}) ->
 		listeners = Object.create null
 		list = (e) -> (listeners[e] or= [])
 		$.inherit {
@@ -1376,7 +1376,7 @@ $.plugin
 	depends: "core,function"
 	provides: "promise"
 , ->
-	Promise = (obj = Object.create null) ->
+	Promise = (obj = {}) ->
 		waiting = $()
 		err = result = null
 		return $.inherit {
@@ -2233,9 +2233,10 @@ $.plugin
 			Object::toString.apply(o) is "[object #{T}]" or
 			isType T, o.__proto__ # recursive
 	inherit = (parent, obj) ->
+		return unless obj?
 		if typeof parent is "function"
 			parent = parent.prototype
-		if parent.__proto__ in [Object.prototype, null]
+		if parent.__proto__ in [Object.prototype, null, undefined]
 			parent.__proto__ = obj.__proto__
 		obj.__proto__ = parent
 		obj

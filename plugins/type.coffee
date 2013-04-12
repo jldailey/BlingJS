@@ -27,6 +27,7 @@ $.plugin
 	# to be an _instance_, and the `parent` can either be an _instance_ or a
 	# __constructor__.
 	inherit = (parent, obj) ->
+		return unless obj?
 		if typeof parent is "function"
 			parent = parent.prototype
 		# if the parent isn't bringing it's own __proto__ chain

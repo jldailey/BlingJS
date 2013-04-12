@@ -3,7 +3,7 @@ $.plugin
 	depends: "core,function"
 	provides: "promise"
 , ->
-	Promise = (obj = Object.create null) ->
+	Promise = (obj = {}) ->
 		waiting = $()
 		err = result = null
 		return $.inherit {

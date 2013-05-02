@@ -28,6 +28,7 @@ $.plugin
 		# __$.bound(context,f,[args])__ returns a new function that
 		# assures `this === context` when called.
 		bound: (t, f, args = []) ->
+			return $.identity unless f?
 			if $.is "function", f.bind
 				args.splice 0, 0, t
 				r = f.bind.apply f, args

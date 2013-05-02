@@ -17,15 +17,10 @@ $.plugin
 					return f.apply @,a
 				null
 		debounce: (ms, f) ->
-			# f will be called only on the last of a burst of attempts
-			# the end of a burst is a gap of _ms_ duration
 			timeout = null
 			(a...) ->
-				if timeout isnt null
-					clearTimeout timeout
-				timeout = setTimeout (=>
-					if timeout isnt null
-						clearTimeout timeout
-						timeout = null
-					f.apply @,a
+				clearTimeout timeout
+				setTimeout (=>
+					f.apply @, arguments
 				), ms
+

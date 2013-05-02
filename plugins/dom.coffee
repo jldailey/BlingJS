@@ -36,7 +36,7 @@ if $.global.document?
 				# Put the html into a new div.
 				(node = document.createElement('div')).innerHTML = h
 				# If there's only one resulting child, return that Node.
-				if n = (childNodes = node.childNodes).length is 1
+				if (n = (childNodes = node.childNodes).length) is 1
 					return node.removeChild(childNodes[0])
 				# Otherwise, copy all the div's children into a new
 				# fragment.
@@ -81,7 +81,7 @@ if $.global.document?
 		# window.getComputedStyle is not a normal function
 		# (it doesnt support .call() so we can't use it with .map())
 		# so define something that does work properly for use in .css
-		computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
+		$.computeCSSProperty = computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
 
 		getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select p
 
@@ -123,6 +123,10 @@ if $.global.document?
 			append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
 				x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
 				@each -> @appendChild x.cloneNode true
+
+			appendText: (text) ->
+				node = document.createTextNode(text)
+				@each -> @appendChild node.cloneNode true
 
 			appendTo: (x) -> # .appendTo(/n/) - each node [or fragment] will become the last child of x
 				clones = @map( -> @cloneNode true)
@@ -188,12 +192,16 @@ if $.global.document?
 				clones
 
 			attr: (a,v) -> # .attr(a, [v]) - get [or set] an /a/ttribute [/v/alue]
-				return switch v
-					when undefined then @select("getAttribute").call(a, v)
-					when null then @select("removeAttribute").call(a, v)
+				if $.is 'object', a
+					@attr(k,v) for k,v of a
+				else switch v
+					when undefined
+						return @select("getAttribute").call(a, v)
+					when null
+						@select("removeAttribute").call(a, v); @
 					else
 						@select("setAttribute").call(a, v)
-						@
+				@
 
 			data: (k, v) -> @attr "data-#{$.dashize(k)}", v
 
@@ -239,7 +247,7 @@ if $.global.document?
 			# Get [or set] css properties.
 			css: (key,v) ->
 				# If we are doing assignment.
-				if v? or $.is "object", key
+				if v? or $.is('object', key)
 					# Use a bound-method to do the assignment for us.
 					setters = @select 'style.setProperty'
 					# If you give an object as a key, then use every k:v pair.
@@ -247,20 +255,22 @@ if $.global.document?
 					# If the value was actually an array of values, then
 					# stripe the values across each item.
 					else if $.is "array", v
-						setters[i%nn] key, v[i%n], "" for i in [0...n = Math.max v.length, nn = setters.length] by 1
+						for i in [0...n = Math.max v.length, nn = setters.length] by 1
+							setters[i%nn](key, v[i%n], "")
+					else if $.is 'function', v
+						values = @select("style.#{key}")
+							.weave(@map computeCSSProperty key)
+							.fold($.coalesce)
+							.weave(setters)
+							.fold (setter, value) -> setter(key, v.call value, value)
 					# So, the key is simple, and if the value is a string,
 					# just do simple assignment (using setProperty).
 					else setters.call key, v, ""
 					return @
 				# Else, we are reading CSS properties.
-				else
-					# So, collect the full computed values.
-					cv = @map computeCSSProperty key
-					# Then, collect the values specified directly on the node.
-					ov = @select('style').select key
-					# Weave and fold them so that object values override
-					# computed values.
-					ov.weave(cv).fold (x,y) -> x or y
+				else @select("style.#{key}")
+					.weave(@map computeCSSProperty key)
+					.fold($.coalesce)
 
 			# Set css properties by injecting a style element in the the
 			# head. If _k_ is an object of k:v pairs, then no second argument is needed.
@@ -362,7 +372,7 @@ if $.global.document?
 				if @length > 1
 					df = document.createDocumentFragment()
 					# Convert every item in _this_ to a DOM node, and then append it to the Fragment.
-					(@map toNode).map $.bound df, df.appendChild
+					(@map toNode).map (node) -> df.appendChild(node)
 					return df
 				return toNode @[0]
 		}

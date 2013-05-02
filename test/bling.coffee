@@ -61,6 +61,11 @@ describe "Bling", ->
 		assert.deepEqual $(1,2,3), [1,2,3]
 	it "can be created from CSS selector", ->
 		assert.equal $("td").length, 8
+	it "can be created from an arguments object", ->
+		f = -> Bling(arguments)
+		assert.equal $.type(f(1,2,3)), "bling"
+		assert.equal f(1,2,3).length, 3
+		assert.deepEqual f(1,2,3), [1,2,3]
 
 	describe ".type()", ->
 		describe "should classify", ->
@@ -73,6 +78,7 @@ describe "Bling", ->
 			it "'bool'", -> assert.equal $.type(true), "bool"
 			it "'regexp'", -> assert.equal $.type(//), "regexp"
 			it "'window'", -> assert.equal $.type(window), "global"
+			it "'arguments'", -> assert.equal $.type(arguments), "arguments"
 
 	describe ".is()", ->
 		describe "should identify", ->
@@ -203,9 +209,20 @@ describe "Bling", ->
 	describe ".px()", ->
 		describe "converts ... to pixel strings", ->
 			it "integers", -> assert.equal $.px(100), "100px"
-			it "floats", -> assert.equal $.px(-100.0), "-100px"
-			it "negatives", -> assert.equal $.px(-100.0), "-100px"
+			it "floats", -> assert.equal $.px(-100.1), "-100px"
+			it "negatives", -> assert.equal $.px(-100.2), "-100px"
 			it "pixel strings", -> assert.equal $.px("100.0px"), "100px"
+		describe "adjusts by a delta while converting", ->
+			it "with a number delta", ->
+				assert.equal "20px", $.px("10px", 10)
+			it "with a px delta", ->
+				assert.equal "20px", $.px("10px", "10px")
+			it "with NaN", ->
+				assert.equal "10px", $.px("10px", NaN)
+			it "with Infinity", ->
+				assert.equal "10px", $.px("10px", Infinity)
+			it "with null", ->
+				assert.equal "10px", $.px("10px", null)
 
 	describe ".padLeft()", ->
 		it "adds padding when needed", ->
@@ -475,18 +492,26 @@ describe "Bling", ->
 		describe "the order of elements matters", ->
 			it "in arrays", -> assert.notEqual $.hash(["a","b"]), $.hash(["b","a"])
 			it "in blings", -> assert.notEqual $.hash($(["a","b"])), $.hash $(["b","a"])
+		describe "overflow does not cause collisions", ->
+			it "in arrays", -> assert.notEqual $.hash([1,2,3,0]), $.hash([1,2,3,99])
+			it "in blings", -> assert.notEqual $.hash($(1,2,3,0)), $.hash(1,2,3,99)
+			it "in objects", -> assert.notEqual $.hash({a:1,b:[1,2,3,0]}), $.hash({a:1,b:[1,2,3,99]})
 
 	describe ".hook()", ->
 		it "is a function", ->
 			assert $.is 'function', $.hook
 		it "returns a hook with append/prepend", ->
-			p = $.hook('unit-test')
+			p = $.hook()
 			assert $.is 'function', p.append
 			assert $.is 'function', p.prepend
+		it "returns a function", ->
+			p = $.hook()
+			assert $.is 'function', p
 		it "computes values when called", ->
-			$.hook('unit-test').append (x) -> x += 2
-			$.hook('unit-test').prepend (x) -> x *= 2
-			assert.equal $.hook('unit-test', 4), 10
+			hook = $.hook()
+			hook.append (x) -> x + 2
+			hook.prepend (x) -> x * 2
+			assert.equal hook(4), 10
 
 	describe ".eq()", ->
 		it "selects a new set with only one element", ->
@@ -804,12 +829,11 @@ describe "Bling", ->
 				assert.equal flag, true
 			describe "inheritance chain", ->
 				class A extends $.EventEmitter
+					constructor: -> super @
 					A: ->
 				class B extends A
 					B: ->
 				class C extends B
-					constructor: ->
-						super(@)
 				a = new A()
 				b = new B()
 				c = new C()
@@ -1214,6 +1238,60 @@ describe "Bling", ->
 			assert.deepEqual $.stringDiff("ab", "bbd"), [{op:'sub',v:'a',w:'b'},{op:'sav',v:'b'},{op:'ins',v:'d'}]
 		it "renders HTML", ->
 			assert.deepEqual $.stringDiff("Hello", "Hi").toHTML(), "H<del>e</del><ins>i</ins><del>llo</del>"
+	
+	describe "$.Promise", ->
+		describe "basic contract", ->
+			p = $.Promise()
+			pass = false
+			it "can be waited on", ->
+				p.wait (err, data) -> pass = data
+			it "can be finished", ->
+				p.finish true
+			it "passes the finished data to anything waiting", ->
+				assert pass
+		describe "inheritance", ->
+			it "works with default constructor", ->
+				class Foo extends $.Promise
+				f = new Foo()
+				f.wait (err, data) -> f.pass = data
+				f.finish true
+				assert.equal f.pass, true
+			it "works with super", ->
+				class Foo extends $.Promise
+					constructor: (@pass) -> super @
+				f = new Foo(false)
+				f.wait (err, data) -> f.pass = data
+				f.finish true
+				assert f.pass
+
+	describe "$.Progress", ->
+		it "is a Promise", ->
+			p = $.Progress()
+			waiting = true
+			p.wait (err, data) -> waiting = false
+			p.finish()
+			assert.equal waiting, false
+		describe "is an incremental Promise", ->
+			p = $.Progress(10)
+			_cur = _max = _done = 0
+			p.on "progress", (cur, max) ->
+				_cur = cur; _max = max
+			p.wait (err, data) -> _done = data
+			it "p.progressInc(n) adjusts progress by n", ->
+				p.progressInc(1)
+				assert.equal _cur, 1
+				assert.equal _max, 10
+			it "progress() with no args returns current progress", ->
+				assert.equal p.progress(), _cur
+			it "progress(cur) is a setter", ->
+				p.progress(9)
+				assert.equal p.progress(), 9
+			it "completing progress finishes the Promise", ->
+				p.progress(10)
+				assert.equal _done, 10
+			it "result of finished Progress is the final progress value", ->
+				p.progress(11.1)
+				assert.equal _done, 11.1
 
 
 describe "DOM", ->
@@ -1237,11 +1315,25 @@ describe "DOM", ->
 	it "dashName2", -> assert.equal $.dashize("FooBar"), "-foo-bar"
 	it "html1", -> assert.equal $("tr").html().first(), "<td>1,1</td><td>1,2</td>"
 	it "html2", -> assert.equal $("div").html("<span>C</span>").html().first(), "<span>C</span>"
-	it "append", ->
-		try
-			assert.equal($("tr td.d").append("<span>Hi</span>").html().first(), "3,2<span>Hi</span>")
-		finally
-			$("tr td.d span").remove()
+	describe "append", ->
+		it "appends simple HTML", ->
+			try
+				assert.equal($("tr td.d").append("<span>Hi</span>").html().first(), "3,2<span>Hi</span>")
+			finally
+				$("tr td.d span").remove()
+		it "appends HTML fragments", ->
+			try
+				assert.equal($("tr td.d").append("<span>Hi</span><br>").html().first(), "3,2<span>Hi</span><br/>")
+			finally
+				$("tr td.d span").remove()
+				$("tr td.d br").remove()
+	describe "appendText", ->
+		it "appends plain text", ->
+			try
+				assert.equal($("tr td.d").appendText("Hi").html().first(), "3,2Hi")
+			finally
+				$("tr td.d").html("3,2")
+
 	it "appendTo1", -> assert.equal($("<span>Hi</span>").toRepr(), "$([<span>Hi</span>])")
 	it "appendTo2", ->
 		try
@@ -1274,9 +1366,21 @@ describe "DOM", ->
 	it "wrap", -> assert.equal($("<b></b>").wrap("<a></a>").select('parentNode').toRepr(), "$([<a><b/></a>])")
 	it "unwrap", -> assert.equal($("<a><b/></a>").find("b").unwrap().first().parentNode, null)
 	it "replace", -> assert.equal($("<a><b/><c/><b/></a>").find("b").replace("<p/>").eq(0).select('parentNode').toRepr(), "$([<a><p/><c/><p/></a>])")
-	it "attr", -> assert.equal($("<a href='#'></a>").attr("href").first(), "#")
-	it "attr2", -> assert.equal($("<a data-lazy-href='#'></a>").attr("data-lazy-href").first(), "#")
-	it "attr3", -> assert.equal($("<a data-lazy-href='#'></a>").attr("data-lazy-href","poop").attr("data-lazy-href").first(), "poop")
+	describe ".attr()", ->
+		it "can read attributes from DOM nodes", ->
+			assert.equal "#", $("<a href='#'></a>").attr("href").first()
+		it "can read attributes with complicated names", ->
+			assert.equal "#", $("<a data-lazy-href='#'></a>").attr("data-lazy-href").first()
+		it "can set attributes", ->
+			assert.equal "new", $("<a data-lazy-href='#'></a>").attr("data-lazy-href","new").attr("data-lazy-href").first()
+		it "can set multiple attributes at once", ->
+			node = $("<a lazy-href='/home'></a>")
+			node.attr {
+				"lazy-href": "/away"
+				"color": "yellow"
+			}
+			assert.equal node.attr("lazy-href").first(), "/away"
+			assert.equal node.attr("color").first(), "yellow"
 	it "data", -> assert.equal($("<a data-lazy-href='#'></a>").data("lazyHref").first(), "#")
 	it "data2", -> assert.equal($("<a data-lazy-href='#'></a>").data("lazyHref","poop").data("lazyHref").first(), "poop")
 	it "removeClass", -> assert.equal($("<a class='test'></a>").removeClass('test').toRepr(), "$([<a/>])")
@@ -1339,6 +1443,13 @@ describe "DOM", ->
 				right: window.innerWidth
 				bottom: window.innerHeight
 			}
+	
+	describe ".css()", ->
+		it "accepts a single argument", ->
+			assert.deepEqual $('td').css('width'), $.zeros(8).map -> ''
+		it "sets when called with two arguments", ->
+			$("td").css("width", "100px")
+			assert.deepEqual $('td').css('width'), $.zeros(8).map -> '100px'
 		
 	describe "Events", ->
 		it ".bind/trigger()", ->

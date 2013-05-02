@@ -45,7 +45,11 @@ $.plugin
 
 		# Get a new set with the results of calling a function of every
 		# item in _this_.
-		map: (f) -> $( f.call(t,t) for t in @ )
+		map: (f) -> # CS comprehensions generate too much extra code for such a critical bottle-neck
+			b = $()
+			i = 0
+			(b[i++] = f.call t,t) for t in @
+			return b
 
 		filterMap: (f) ->
 			b = $()
@@ -308,4 +312,8 @@ $.plugin
 		toArray: ->
 			@__proto__ = Array::
 			@ # no copies, yay?
+
+		# Remove all items
+		clear: -> @splice 0, @length
+
 	}

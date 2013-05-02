@@ -89,15 +89,16 @@ $.plugin
 		# This implies that the 'simplest' checks should be registered
 		# first, and conceptually more specialized checks would get added
 		# as time goes on (so specialized type matches are preferred).
-		register "object",    match: -> typeof @ is "object"
-		register "error",     match: -> isType 'Error', @
-		register "regexp",    match: -> isType 'RegExp', @
-		register "string",    match: -> typeof @ is "string" or isType String, @
-		register "number",    match: -> (isType Number, @) and @ isnt NaN
-		register "bool",      match: -> typeof @ is "boolean" or try String(@) in ["true","false"]
-		register "array",     match: Array.isArray or -> isType Array, @
-		register "function",  match: -> typeof @ is "function"
-		register "global",    match: -> typeof @ is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
+		register "object",    match: (o) -> typeof o is "object"
+		register "error",     match: (o) -> isType 'Error', o
+		register "regexp",    match: (o) -> isType 'RegExp', o
+		register "string",    match: (o) -> typeof o is "string" or isType String, o
+		register "number",    match: (o) -> (isType Number, o) and o isnt NaN
+		register "bool",      match: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
+		register "array",     match: Array.isArray or (o) -> isType Array, o
+		register "function",  match: (o) -> typeof o is "function"
+		register "global",    match: (o) -> typeof o is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
+		register "arguments", match: (o) -> try 'callee' of o and 'length' of o
 		# These checks for null and undefined are small exceptions to the
 		# simple-first idea, since they are precise and getting them out
 		# of the way early lets the above tests omit a safety check.
@@ -138,18 +139,21 @@ $.plugin
 		undefined: { array: (o) -> [] }
 		# Arrays just convert to themselves.
 		array:     { array: (o) -> o }
-		# Numbers create a new array of that capacity.
+		# Numbers create a new array of that capacity (but zero length).
 		number:    { array: (o) -> Bling.extend new Array(o), length: 0 }
+		# Arguments get sliced into to a real array.
+		arguments: { array: (o) -> Array::slice.apply o }
 
 	# Now, we register "bling", and all the things we know how to do
 	# with it:
+	maxHash = Math.pow(2,32)
 	_type.register "bling",
 		# Add the type test so: `$.type($()) == "bling"`.
 		match:  (o) -> o and isType Bling, o
 		# Blings extend arrays so they convert to themselves.
 		array:  (o) -> o.toArray()
 		# Their hash is just the sum of member hashes (order matters).
-		hash:   (o) -> o.map(Bling.hash).reduce (a,x) -> (a*a)+x
+		hash:   (o) -> o.map(Bling.hash).reduce (a,x) -> ((a*a)+x) % maxHash
 		# They have a very literal string representation.
 		string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
 		repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"

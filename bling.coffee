@@ -52,7 +52,7 @@ extend = (a, b...) ->
 class Bling # extends (new Array)
 	constructor: (args...) ->
 		### See: plugins/hook.coffee ###
-		return Bling.hook "bling-init", args
+		`return Bling.init(args)`
 
 # We specify an inheritance similar to `class Bling extends (new Array)`,
 # if such a thing were supported by the syntax directly.
@@ -119,13 +119,14 @@ extend Bling, do ->
 		(if (typeof n) is "string" then n.split /, */ else n)
 		.filter (x) -> not (x of complete)
 
-	depends: (needs, func) ->
+	depends: depend = (needs, func) ->
 		if (needs = incomplete needs).length is 0 then func()
 		else
 			waiting.push (need) ->
 				(needs.splice i, 1) if (i = needs.indexOf need) > -1
 				return (needs.length is 0 and func)
 		func
+	depend: depend # alias
 	provide: (needs, data) ->
 		for need in incomplete needs
 			complete[need] = i = 0

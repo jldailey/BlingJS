@@ -6,7 +6,7 @@ extend = (a, b...) ->
 	a
 class Bling # extends (new Array)
 	constructor: (args...) ->
-		return Bling.hook "bling-init", args
+		`return Bling.init(args)`
 Bling.prototype = []
 Bling.prototype.constructor = Bling
 Bling.global = if window? then window else global
@@ -35,13 +35,14 @@ extend Bling, do ->
 	incomplete = (n) ->
 		(if (typeof n) is "string" then n.split /, */ else n)
 		.filter (x) -> not (x of complete)
-	depends: (needs, func) ->
+	depends: depend = (needs, func) ->
 		if (needs = incomplete needs).length is 0 then func()
 		else
 			waiting.push (need) ->
 				(needs.splice i, 1) if (i = needs.indexOf need) > -1
 				return (needs.length is 0 and func)
 		func
+	depend: depend # alias
 	provide: (needs, data) ->
 		for need in incomplete needs
 			complete[need] = i = 0
@@ -174,7 +175,11 @@ $.plugin
 				return try o[k] catch err then err
 		eq: (i) -> $([@[index i, @]])
 		each: (f) -> (f.call(t,t) for t in @); @
-		map: (f) -> $( f.call(t,t) for t in @ )
+		map: (f) -> # CS comprehensions generate too much extra code for such a critical bottle-neck
+			b = $()
+			i = 0
+			(b[i++] = f.call t,t) for t in @
+			return b
 		filterMap: (f) ->
 			b = $()
 			for t in @
@@ -330,6 +335,7 @@ $.plugin
 		toArray: ->
 			@__proto__ = Array::
 			@ # no copies, yay?
+		clear: -> @splice 0, @length
 	}
 $.plugin
 	provides: 'date'
@@ -578,10 +584,9 @@ $.plugin
 			@each ->
 				dialog = $ @
 				rect = dialog.rect().first()
-				$.log 'rect', rect
 				dialog.css
-					top: $.log 'top', $.px top - (rect.height / 2)
-					left: $.log 'left', $.px left - (rect.width / 2)
+					top: $.px top - (rect.height / 2)
+					left: $.px left - (rect.width / 2)
 	}
 $.plugin
 	depends: "core"
@@ -680,7 +685,7 @@ if $.global.document?
 			match:  (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
 			node:   (h) ->
 				(node = document.createElement('div')).innerHTML = h
-				if n = (childNodes = node.childNodes).length is 1
+				if (n = (childNodes = node.childNodes).length) is 1
 					return node.removeChild(childNodes[0])
 				df = document.createDocumentFragment()
 				df.appendChild(node.removeChild(childNodes[0])) for i in [0...n] by 1
@@ -716,7 +721,7 @@ if $.global.document?
 		toNode = (x) -> $.type.lookup(x).node x
 		escaper = false
 		parser = false
-		computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
+		$.computeCSSProperty = computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
 		getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select p
 		selectChain = (prop) -> -> @map (p) -> $( p while p = p[prop] )
 		return {
@@ -742,6 +747,9 @@ if $.global.document?
 			append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
 				x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
 				@each -> @appendChild x.cloneNode true
+			appendText: (text) ->
+				node = document.createTextNode(text)
+				@each -> @appendChild node.cloneNode true
 			appendTo: (x) -> # .appendTo(/n/) - each node [or fragment] will become the last child of x
 				clones = @map( -> @cloneNode true)
 				i = 0
@@ -795,12 +803,16 @@ if $.global.document?
 					@[i].parentNode?.replaceChild clones[i], @[i]
 				clones
 			attr: (a,v) -> # .attr(a, [v]) - get [or set] an /a/ttribute [/v/alue]
-				return switch v
-					when undefined then @select("getAttribute").call(a, v)
-					when null then @select("removeAttribute").call(a, v)
+				if $.is 'object', a
+					@attr(k,v) for k,v of a
+				else switch v
+					when undefined
+						return @select("getAttribute").call(a, v)
+					when null
+						@select("removeAttribute").call(a, v); @
 					else
 						@select("setAttribute").call(a, v)
-						@
+				@
 			data: (k, v) -> @attr "data-#{$.dashize(k)}", v
 			addClass: (x) -> # .addClass(/x/) - add x to each node's .className
 				notempty = (y) -> y isnt ""
@@ -836,17 +848,23 @@ if $.global.document?
 				return @zap('value', v) if v?
 				return @select('value')
 			css: (key,v) ->
-				if v? or $.is "object", key
+				if v? or $.is('object', key)
 					setters = @select 'style.setProperty'
 					if $.is "object", key then setters.call k, v, "" for k,v of key
 					else if $.is "array", v
-						setters[i%nn] key, v[i%n], "" for i in [0...n = Math.max v.length, nn = setters.length] by 1
+						for i in [0...n = Math.max v.length, nn = setters.length] by 1
+							setters[i%nn](key, v[i%n], "")
+					else if $.is 'function', v
+						values = @select("style.#{key}")
+							.weave(@map computeCSSProperty key)
+							.fold($.coalesce)
+							.weave(setters)
+							.fold (setter, value) -> setter(key, v.call value, value)
 					else setters.call key, v, ""
 					return @
-				else
-					cv = @map computeCSSProperty key
-					ov = @select('style').select key
-					ov.weave(cv).fold (x,y) -> x or y
+				else @select("style.#{key}")
+					.weave(@map computeCSSProperty key)
+					.fold($.coalesce)
 			defaultCss: (k, v) ->
 				sel = @selector
 				style = ""
@@ -902,7 +920,7 @@ if $.global.document?
 			toFragment: ->
 				if @length > 1
 					df = document.createDocumentFragment()
-					(@map toNode).map $.bound df, df.appendChild
+					(@map toNode).map (node) -> df.appendChild(node)
 					return df
 				return toNode @[0]
 		}
@@ -910,7 +928,7 @@ $.plugin
 	provides: "EventEmitter"
 	depends: "type,hook"
 , ->
-	$: EventEmitter: $.hook("bling-init").append (obj = Object.create(null)) ->
+	$: EventEmitter: Bling.init.append (obj = Object.create(null)) ->
 		listeners = Object.create null
 		list = (e) -> (listeners[e] or= [])
 		$.inherit {
@@ -1117,6 +1135,7 @@ $.plugin
 	provides: "hash"
 	depends: "type"
 , ->
+	maxHash = Math.pow(2,32)
 	$.type.extend
 		unknown: { hash: (o) -> $.checksum $.toString o }
 		object:  { hash: (o) ->
@@ -1124,9 +1143,7 @@ $.plugin
 				$($.hash(k) + $.hash(v) for k,v of o).sum()
 		}
 		array:   { hash: (o) ->
-			$.hash(Array) + $(o.map $.hash).reduce (a,x) ->
-				(a*a)+(x|0)
-			, 1
+			$.hash(Array) + $(o.map $.hash).reduce(((a,x) -> ((a*a)+(x|0)) % maxHash), 1)
 		}
 		bool:    { hash: (o) -> parseInt(1 if o) }
 	return {
@@ -1175,18 +1192,18 @@ $.plugin
 	provides: "hook"
 	depends: "type"
 , ->
-	hooks = {}
-	hook = (name, args) ->
-		p = (hooks[name] or= [])
-		if not args
-			return {
-				prepend: (obj) -> p.unshift(obj); obj
-				append: (obj) -> p.push(obj); obj
-			}
-		for func in p
-			args = func.call @, args
-		args
-	hook("bling-init").prepend (args) ->
+	hook = ->
+		chain = []
+		return $.extend ((args) ->
+			for func in chain
+				args = func.call @, args
+			args
+		), {
+			prepend: (obj) -> chain.unshift(obj); obj
+			append: (obj) -> chain.push(obj); obj
+		}
+	Bling.init = hook()
+	Bling.init.prepend (args) ->
 		if args.length is 1
 			args = $.type.lookup(args[0]).array(args[0])
 		b = $.inherit Bling, args
@@ -1258,7 +1275,7 @@ $.plugin
 				$.http(url, opts)
 	}
 $.depends 'hook', ->
-	$.hook('bling-init').append (obj) ->
+	Bling.init.append (obj) ->
 		map = Object.create(null)
 		keyMakers = []
 		$.inherit {
@@ -1360,6 +1377,53 @@ $.plugin
 			return ->
 				opts.cache[opts.hash(arguments)] ?= opts.f.apply @, arguments
 	
+$.plugin
+	depends: "core,function"
+	provides: "promise"
+, ->
+	Promise = (obj = Object.create null) ->
+		waiting = $()
+		err = result = null
+		return $.inherit {
+			wait: (cb) ->
+				return cb(err,null) if err?
+				return cb(null,result) if result?
+				waiting.push cb
+				@
+			finish: (result) -> waiting.call(null, result).clear(); @
+			fail:   (error)  -> waiting.call(error,  null).clear(); @
+		}, $.EventEmitter(obj)
+	Progress = (max = 1.0) ->
+		cur = 0.0
+		progress = (args...) ->
+		return $.inherit {
+			progress: (args...) ->
+				return cur unless args.length
+				cur = args[0]
+				if args.length > 1
+					max = args[1]
+				@finish(cur) if cur >= max
+				@emit 'progress', cur, max
+				@
+			progressInc: (delta = 1) -> @progress cur + delta
+			progressMax: (q) -> max = q
+		}, Promise()
+	Promise.xhr = (xhr) ->
+		p = $.Promise()
+		xhr.onreadystatechange = ->
+			if @readyState is @DONE
+				if @status is 200
+					p.finish xhr.responseText
+				else
+					p.fail "#{@status} #{@statusText}"
+	$.depend 'dom', ->
+		Promise.image = (src) ->
+			p = $.Promise()
+			image = new Image()
+			image.onload = -> p.finish(image)
+			image.onerror = (evt) -> p.fail(evt)
+			image.src = src
+	ret = { $: { Promise, Progress } }
 $.plugin
 	depends: "core"
 	provides: "pubsub"
@@ -1598,7 +1662,7 @@ $.plugin
 					catch err
 						"[Error: #{err.message}]"
 			toRepr: (x) -> $.type.lookup(x).repr(x)
-			px: (x, delta=0) -> x? and (parseInt(x,10)+(delta|0))+"px"
+			px: (x, delta=0) -> x? and (parseInt(x,10)+(parseInt(delta)|0))+"px"
 			capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
 			dashize: (name) ->
 				ret = ""
@@ -1967,13 +2031,9 @@ $.plugin
 		debounce: (ms, f) ->
 			timeout = null
 			(a...) ->
-				if timeout isnt null
-					clearTimeout timeout
-				timeout = setTimeout (=>
-					if timeout isnt null
-						clearTimeout timeout
-						timeout = null
-					f.apply @,a
+				clearTimeout timeout
+				setTimeout (=>
+					f.apply @, arguments
 				), ms
 $.plugin
 	depends: 'type'
@@ -2203,15 +2263,16 @@ $.plugin
 				if cache[name]?.match.call obj, obj
 					return cache[name]
 		register "unknown",   base
-		register "object",    match: -> typeof @ is "object"
-		register "error",     match: -> isType 'Error', @
-		register "regexp",    match: -> isType 'RegExp', @
-		register "string",    match: -> typeof @ is "string" or isType String, @
-		register "number",    match: -> (isType Number, @) and @ isnt NaN
-		register "bool",      match: -> typeof @ is "boolean" or try String(@) in ["true","false"]
-		register "array",     match: Array.isArray or -> isType Array, @
-		register "function",  match: -> typeof @ is "function"
-		register "global",    match: -> typeof @ is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
+		register "object",    match: (o) -> typeof o is "object"
+		register "error",     match: (o) -> isType 'Error', o
+		register "regexp",    match: (o) -> isType 'RegExp', o
+		register "string",    match: (o) -> typeof o is "string" or isType String, o
+		register "number",    match: (o) -> (isType Number, o) and o isnt NaN
+		register "bool",      match: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
+		register "array",     match: Array.isArray or (o) -> isType Array, o
+		register "function",  match: (o) -> typeof o is "function"
+		register "global",    match: (o) -> typeof o is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
+		register "arguments", match: (o) -> try 'callee' of o and 'length' of o
 		register "undefined", match: (x) -> x is undefined
 		register "null",      match: (x) -> x is null
 		return extend ((o) -> lookup(o).name),
@@ -2226,10 +2287,12 @@ $.plugin
 		undefined: { array: (o) -> [] }
 		array:     { array: (o) -> o }
 		number:    { array: (o) -> Bling.extend new Array(o), length: 0 }
+		arguments: { array: (o) -> Array::slice.apply o }
+	maxHash = Math.pow(2,32)
 	_type.register "bling",
 		match:  (o) -> o and isType Bling, o
 		array:  (o) -> o.toArray()
-		hash:   (o) -> o.map(Bling.hash).reduce (a,x) -> (a*a)+x
+		hash:   (o) -> o.map(Bling.hash).reduce (a,x) -> ((a*a)+x) % maxHash
 		string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
 		repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 	$:
@@ -2263,9 +2326,8 @@ $.plugin
 		[numer_b, denom_b] = b.split '/'
 		if denom_a? and denom_b?
 			return conv(denom_b, denom_a) * conv(numer_a, numer_b)
-		if a of conv
-			if b of conv[a]
-				return conv[a][b]()
+		if a of conv and (b of conv[a])
+			return conv[a][b]()
 		0
 	locker = (x) -> -> x
 	fillConversions = ->

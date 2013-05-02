@@ -104,7 +104,7 @@ $.plugin
 			# queue the callback to be executed at the end of the animation
 			# WARNING: NOT EXACT!
 			if callback
-				@delay duration, callback
+				@delay duration, $.bound @, callback
 
 		hide: (callback) -> # .hide() - each node gets display:none
 			@each ->
@@ -115,7 +115,7 @@ $.plugin
 					@style.display = "none"
 			.trigger("hide")
 			if callback
-				@delay updateDelay, callback
+				@delay updateDelay, $.bound @, callback
 			@
 
 		show: (callback) -> # .show() - show each node
@@ -125,12 +125,12 @@ $.plugin
 					delete @_display
 			.trigger("show")
 			if callback
-				@delay updateDelay, callback
+				@delay updateDelay, $.bound @, callback
 			@
 
 		toggle: (callback) -> # .toggle() - show each hidden node, hide each visible one
 			@weave(@css("display"))
-				.fold (display, node) ->
+				.fold((display, node) ->
 					if display is "none"
 						node.style.display = node._display or ""
 						delete node._display
@@ -140,7 +140,7 @@ $.plugin
 						node.style.display = "none"
 						$(node).trigger "hide"
 					node
-				.delay(updateDelay, callback)
+				).delay(updateDelay, $.bound @, callback)
 
 		fadeIn: (speed, callback) -> # .fadeIn() - fade each node to opacity 1.0
 			@.css('opacity','0.0')
@@ -153,7 +153,7 @@ $.plugin
 			@transform {
 				opacity:"0.0",
 				translate3d:[x,y,0.0]
-			}, speed, -> @hide(callback)
+			}, speed, -> @hide($.bound @, callback)
 		fadeLeft: (speed, callback) -> @fadeOut speed, callback, "-"+@width().first(), 0.0
 		fadeRight: (speed, callback) -> @fadeOut speed, callback, @width().first(), 0.0
 		fadeUp: (speed, callback) -> @fadeOut speed, callback, 0.0, "-"+@height().first()

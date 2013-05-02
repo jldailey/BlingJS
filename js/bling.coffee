@@ -1594,14 +1594,14 @@ $.plugin
 	$:
 		sortedIndex: (array, item, iterator) ->
 			cmp = switch $.type iterator
-				when "string" then (a,b) -> a[iterator] - b[iterator]
-				when "function" then (a,b) -> iterator(a) - iterator(b)
-				else (a,b) -> a - b
+				when "string" then (a,b) -> a[iterator] < b[iterator]
+				when "function" then (a,b) -> iterator(a) < iterator(b)
+				else (a,b) -> a < b
 			hi = array.length
 			lo = 0
 			while lo < hi
 				mid = (hi + lo)>>>1
-				if cmp(array[mid], item) < 0
+				if cmp(array[mid], item)
 					lo = mid + 1
 				else
 					hi = mid

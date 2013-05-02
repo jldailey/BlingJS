@@ -1213,7 +1213,7 @@ describe "Bling", ->
 		it "handles mixed operations", ->
 			assert.deepEqual $.stringDiff("ab", "bbd"), [{op:'sub',v:'a',w:'b'},{op:'sav',v:'b'},{op:'ins',v:'d'}]
 		it "renders HTML", ->
-			assert.deepEqual $.stringDiff("Hello", "Hi").toHTML(), "H<del>ell</del><del>o</del><ins>i</ins>"
+			assert.deepEqual $.stringDiff("Hello", "Hi").toHTML(), "H<del>e</del><ins>i</ins><del>llo</del>"
 
 
 describe "DOM", ->

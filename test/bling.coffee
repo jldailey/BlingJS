@@ -750,6 +750,14 @@ describe "Bling", ->
 				f = $.partial ((a,b) -> a+b), 2
 				assert.equal f(4), 6
 
+		describe ".toRepr()", ->
+			assert.equal $.toRepr(-> "Hello"), 'function () {\n          return "Hello";\n        }'
+			describe "nested", ->
+				assert.equal $.toRepr( {
+					a: { b: "c" }
+					d: { f: -> "e" }
+				} ), "{a:{b:'c'}, d:{f:function () {\n                return \"e\";\n              }}}"
+
 	describe ".keysOf()", ->
 		it "is like Object.keys", ->
 			assert.deepEqual $.keysOf(a:1), ['a']

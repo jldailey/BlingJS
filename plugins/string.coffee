@@ -23,18 +23,28 @@ $.plugin
 			number: safer parseFloat
 			repr:   (s) -> "'#{s}'"
 		array:  { string: safer (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
-		object: { string: safer (o) ->
-			ret = []
-			for k of o
-				try
-					v = o[k]
-				catch err
-					v = "[Error: #{err.message}]"
-				ret.push "#{k}:#{$.toString v}"
-			"{" + ret.join(', ') + "}"
-		}
+		object:
+			string: safer (o) ->
+				ret = []
+				for k of o
+					try
+						v = o[k]
+					catch err
+						v = "[Error: #{err.message}]"
+					ret.push "#{k}:#{$.toString v}"
+				"{" + ret.join(', ') + "}"
+			repr: safer (o) ->
+				ret = []
+				for k of o
+					try
+						v = o[k]
+					catch err
+						v = "[Error: #{err.message}]"
+					ret.push "#{k}:#{$.toRepr v}"
+				"{" + ret.join(', ') + "}"
 		function:
 			string: (f) -> f.toString().replace(/^([^{]*){(?:.|\n|\r)*}$/, '$1{ ... }')
+			repr: (f) -> f.toString()
 		number:
 			repr:   (n) -> String(n)
 			string: safer (n) ->

@@ -3813,11 +3813,29 @@
             ret.push("" + k + ":" + ($.toString(v)));
           }
           return "{" + ret.join(', ') + "}";
+        }),
+        repr: safer(function(o) {
+          var err, k, ret, v;
+
+          ret = [];
+          for (k in o) {
+            try {
+              v = o[k];
+            } catch (_error) {
+              err = _error;
+              v = "[Error: " + err.message + "]";
+            }
+            ret.push("" + k + ":" + ($.toRepr(v)));
+          }
+          return "{" + ret.join(', ') + "}";
         })
       },
       "function": {
         string: function(f) {
           return f.toString().replace(/^([^{]*){(?:.|\n|\r)*}$/, '$1{ ... }');
+        },
+        repr: function(f) {
+          return f.toString();
         }
       },
       number: {

@@ -1317,9 +1317,10 @@
           var dialog, rect;
           dialog = $(this);
           rect = dialog.rect().first();
+          $.log('rect', rect);
           return dialog.css({
-            top: $.px(top - (rect.height / 2)),
-            left: $.px(left - (rect.width / 2))
+            top: $.log('top', $.px(top - (rect.height / 2))),
+            left: $.log('left', $.px(left - (rect.width / 2)))
           });
         });
       }
@@ -1332,16 +1333,16 @@
   }, function() {
     var collapse, del, diff, diff_memo, ins, lev, lev_memo, sub;
     lev_memo = Object.create(null);
-    lev = function(s, i, n, t, j, m) {
+    lev = function(s, i, n, t, j, m, dw, iw, sw) {
       var _name, _name1, _ref, _ref1;
-      return (_ref = lev_memo[_name = [s, i, n, t, j, m]]) != null ? _ref : lev_memo[_name] = (_ref1 = lev_memo[_name1 = [t, j, m, s, i, n]]) != null ? _ref1 : lev_memo[_name1] = (function() {
+      return (_ref = lev_memo[_name = [s, i, n, t, j, m, dw, iw, sw]]) != null ? _ref : lev_memo[_name] = (_ref1 = lev_memo[_name1 = [t, j, m, s, i, n, dw, iw, sw]]) != null ? _ref1 : lev_memo[_name1] = (function() {
         switch (true) {
           case m <= 0:
             return n;
           case n <= 0:
             return m;
           default:
-            return Math.min(1 + lev(s, i + 1, n - 1, t, j, m), 1 + lev(s, i, n, t, j + 1, m - 1), (s[i] !== t[j]) + lev(s, i + 1, n - 1, t, j + 1, m - 1));
+            return Math.min(dw + lev(s, i + 1, n - 1, t, j, m, dw, iw, sw), iw + lev(s, i, n, t, j + 1, m - 1, dw, iw, sw), (sw * (s[i] !== t[j])) + lev(s, i + 1, n - 1, t, j + 1, m - 1, dw, iw, sw));
         }
       })();
     };
@@ -1404,10 +1405,10 @@
         w: d
       };
     };
-    diff = function(s, i, n, t, j, m) {
+    diff = function(s, i, n, t, j, m, dw, iw, sw) {
       var _name, _ref;
-      return (_ref = diff_memo[_name = [s, i, n, t, j, m]]) != null ? _ref : diff_memo[_name] = collapse((function() {
-        var c, cost, costs, _i, _j, _len, _len1, _ref1, _ref2, _results, _results1;
+      return (_ref = diff_memo[_name = [s, i, n, t, j, m, dw, iw, sw]]) != null ? _ref : diff_memo[_name] = collapse((function() {
+        var args, c, costs, _i, _j, _len, _len1, _ref1, _ref2, _results, _results1;
         switch (true) {
           case m <= 0:
             _ref1 = s.substr(i, n);
@@ -1417,6 +1418,7 @@
               _results.push(del(c));
             }
             return _results;
+            break;
           case n <= 0:
             _ref2 = t.substr(j, m);
             _results1 = [];
@@ -1425,20 +1427,26 @@
               _results1.push(ins(c));
             }
             return _results1;
+            break;
           default:
-            cost = s[i] !== t[j];
+            sw *= s[i] !== t[j];
+            args = {
+              del: [s, i + 1, n - 1, t, j, m, 1, 1.5, 1.5],
+              ins: [s, i, n, t, j + 1, m - 1, 1.5, 1, 1.5],
+              sub: [s, i + 1, n - 1, t, j + 1, m - 1, 1, 1, 1]
+            };
             costs = {
-              del: 1 + lev(s, i + 1, n - 1, t, j, m),
-              ins: 1 + lev(s, i, n, t, j + 1, m - 1),
-              sub: cost + lev(s, i + 1, n - 1, t, j + 1, m - 1)
+              del: dw + lev.apply(null, args.del),
+              ins: iw + lev.apply(null, args.ins),
+              sub: sw + lev.apply(null, args.sub)
             };
             switch (Math.min(costs.del, costs.ins, costs.sub)) {
               case costs.del:
-                return $(del(s[i])).concat(diff(s, i + 1, n - 1, t, j, m));
+                return $(del(s[i])).concat(diff.apply(null, args.del));
               case costs.ins:
-                return $(ins(t[j])).concat(diff(s, i, n, t, j + 1, m - 1));
+                return $(ins(t[j])).concat(diff.apply(null, args.ins));
               case costs.sub:
-                return $(sub(s[i], t[j])).concat(diff(s, i + 1, n - 1, t, j + 1, m - 1));
+                return $(sub(s[i], t[j])).concat(diff.apply(null, args.sub));
             }
         }
       })());
@@ -1446,10 +1454,10 @@
     return {
       $: {
         stringDistance: function(s, t) {
-          return lev(s, 0, s.length, t, 0, t.length);
+          return lev(s, 0, s.length, t, 0, t.length, 1, 1, 1);
         },
         stringDiff: function(s, t) {
-          return diff(s, 0, s.length, t, 0, t.length);
+          return diff(s, 0, s.length, t, 0, t.length, 1, 1, 1.5);
         }
       }
     };
@@ -2339,6 +2347,9 @@
           var r;
           if (args == null) {
             args = [];
+          }
+          if (f == null) {
+            return $.identity;
           }
           if ($.is("function", f.bind)) {
             args.splice(0, 0, t);
@@ -4127,13 +4138,22 @@
           };
         },
         debounce: function(ms, f) {
-          var last;
-          last = 0;
+          var timeout;
+          timeout = null;
           return function() {
-            var a, gap;
+            var a,
+              _this = this;
             a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-            last += (gap = $.now - last);
-            return f.apply(this, a(gap > ms ? void 0 : null));
+            if (timeout !== null) {
+              clearTimeout(timeout);
+            }
+            return timeout = setTimeout((function() {
+              if (timeout !== null) {
+                clearTimeout(timeout);
+                timeout = null;
+              }
+              return f.apply(_this, a);
+            }), ms);
           };
         }
       }
@@ -4402,7 +4422,7 @@
         }
         this.css(css);
         if (callback) {
-          return this.delay(duration, callback);
+          return this.delay(duration, $.bound(this, callback));
         }
       },
       hide: function(callback) {
@@ -4416,7 +4436,7 @@
           }
         }).trigger("hide");
         if (callback) {
-          this.delay(updateDelay, callback);
+          this.delay(updateDelay, $.bound(this, callback));
         }
         return this;
       },
@@ -4428,7 +4448,7 @@
           }
         }).trigger("show");
         if (callback) {
-          this.delay(updateDelay, callback);
+          this.delay(updateDelay, $.bound(this, callback));
         }
         return this;
       },
@@ -4444,7 +4464,7 @@
             $(node).trigger("hide");
           }
           return node;
-        }).delay(updateDelay, callback);
+        }).delay(updateDelay, $.bound(this, callback));
       },
       fadeIn: function(speed, callback) {
         return this.css('opacity', '0.0').show(function() {
@@ -4465,7 +4485,7 @@
           opacity: "0.0",
           translate3d: [x, y, 0.0]
         }, speed, function() {
-          return this.hide(callback);
+          return this.hide($.bound(this, callback));
         });
       },
       fadeLeft: function(speed, callback) {
@@ -5111,28 +5131,35 @@
           modal = $.dialog(slides[0]).select('parentNode');
           dialogs = [];
           slideChanger = function(delta) {
-            if (!slides.length) {
-              return $.identity;
+            switch (slides.length) {
+              case 0:
+                return $.identity;
+              default:
+                return function() {
+                  var currentDialog, newDialog, newLeft, newSlide, width;
+                  newSlide = (currentSlide + delta) % slides.length;
+                  while (newSlide < 0) {
+                    newSlide += slides.length;
+                  }
+                  if (newSlide === currentSlide) {
+                    return;
+                  }
+                  $.log("slideChange: " + currentSlide + " -> " + newSlide);
+                  currentDialog = $(dialogs[currentSlide]);
+                  newDialog = $(dialogs[newSlide]);
+                  width = currentDialog.width()[0];
+                  newLeft = delta < 0 ? window.innerWidth - width : 0;
+                  $.log("newLeft: " + ($.px(newLeft)));
+                  currentDialog.removeClass('wiz-active').css({
+                    left: $.px(newLeft)
+                  }).fadeOut();
+                  newDialog.addClass('wiz-active').css({
+                    opacity: 0,
+                    display: 'block'
+                  }).centerOn(modal).fadeIn();
+                  return currentSlide = newSlide;
+                };
             }
-            return function() {
-              var currentDialog, newDialog, newLeft, newSlide, width;
-              newSlide = (currentSlide + delta) % slides.length;
-              while (newSlide < 0) {
-                newSlide += slides.length;
-              }
-              if (newSlide === currentSlide) {
-                return;
-              }
-              currentDialog = $(dialogs[currentSlide]);
-              newDialog = $(dialogs[newSlide]);
-              width = currentDialog.width()[0];
-              newLeft = delta < 0 ? window.innerWidth - width : 0;
-              currentDialog.removeClass('wiz-active').css({
-                left: $.px(newLeft)
-              }).fadeOut();
-              newDialog.addClass('wiz-active').centerOn(modal).fadeIn();
-              return currentSlide = newSlide;
-            };
           };
           modal.delegate('.wiz-next', 'click', slideChanger(+1));
           modal.delegate('.wiz-back', 'click', slideChanger(-1));
@@ -5140,11 +5167,12 @@
           for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
             slide = _ref1[_i];
             d = $.synth('div.dialog div.title + div.content').css({
-              left: $.px(window.innerWidth + 100)
-            }).hide().appendTo(modal);
+              left: $.px(window.innerWidth)
+            });
             slide = $.extend($.dialog.getDefaultOptions(), slide);
             d.find('.title').append($.dialog.getContent(slide.titleType, slide.title));
             d.find('.content').append($.dialog.getContent(slide.contentType, slide.content));
+            d.appendTo(modal).fadeOut(0);
           }
           dialogs = modal.find('.dialog');
           dialogs.take(1).show();

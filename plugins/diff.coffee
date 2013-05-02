@@ -3,15 +3,15 @@ $.plugin
 	provides: "diff"
 , ->
 	lev_memo = Object.create null
-	lev = (s,i,n,t,j,m) ->
+	lev = (s,i,n,t,j,m,dw,iw,sw) ->
 		# distance is symmetric so we cache under two keys at once
-		return lev_memo[[s,i,n,t,j,m]] ?= lev_memo[[t,j,m,s,i,n]] ?= do -> switch true
+		return lev_memo[[s,i,n,t,j,m,dw,iw,sw]] ?= lev_memo[[t,j,m,s,i,n,dw,iw,sw]] ?= do -> switch true
 			when m <= 0 then n
 			when n <= 0 then m
 			else Math.min(
-				1 + lev(s,i+1,n-1, t,j,m),
-				1 + lev(s,i,n, t,j+1,m-1),
-				(s[i] isnt t[j]) + lev(s,i+1,n-1, t,j+1,m-1)
+				dw + lev(s,i+1,n-1, t,j,m,dw,iw,sw),
+				iw + lev(s,i,n, t,j+1,m-1,dw,iw,sw),
+				(sw * (s[i] isnt t[j])) + lev(s,i+1,n-1, t,j+1,m-1,dw,iw,sw)
 			)
 	
 	collapse = (ops) -> # combines similar operations in a sequence
@@ -45,23 +45,27 @@ $.plugin
 	del = (c) -> {op:'del',v:c}
 	ins = (c) -> {op:'ins',v:c}
 	sub = (c,d) -> {op:'sub',v:c,w:d}
-	diff = (s,i,n,t,j,m) ->
+	diff = (s,i,n,t,j,m,dw,iw,sw) ->
 		# diffs are not symmetric, so only cache under one key
-		return diff_memo[[s,i,n,t,j,m]] ?= collapse do -> switch true
-			when m <= 0 then (del(c) for c in s.substr i,n)
-			when n <= 0 then (ins(c) for c in t.substr j,m)
+		return diff_memo[[s,i,n,t,j,m,dw,iw,sw]] ?= collapse do -> switch true
+			when m <= 0 then (del c) for c in s.substr i,n
+			when n <= 0 then (ins c) for c in t.substr j,m
 			else
-				cost = (s[i] isnt t[j])
+				sw *= (s[i] isnt t[j])
+				args =
+					del: [s,i+1,n-1, t,j,m,     1,1.5,1.5]
+					ins: [s,i,n, t,j+1,m-1,     1.5,1,1.5]
+					sub: [s,i+1,n-1, t,j+1,m-1, 1,1,1]
 				costs =
-					del: 1 + lev s,i+1,n-1, t,j,m
-					ins: 1 + lev s,i,n, t,j+1,m-1
-					sub: cost + lev s,i+1,n-1, t,j+1,m-1
+					del: dw + lev args.del...
+					ins: iw + lev args.ins...
+					sub: sw + lev args.sub...
 				switch Math.min costs.del, costs.ins, costs.sub
-					when costs.del then $(del s[i]).concat diff s,i+1,n-1, t,j,m
-					when costs.ins then $(ins t[j]).concat diff s,i,n, t,j+1,m-1
-					when costs.sub then $(sub s[i],t[j]).concat diff s,i+1,n-1, t,j+1,m-1
+					when costs.del then $(del s[i]).concat diff args.del...
+					when costs.ins then $(ins t[j]).concat diff args.ins...
+					when costs.sub then $(sub s[i],t[j]).concat diff args.sub...
 
 	$:
-		stringDistance: (s, t) -> lev s,0,s.length, t,0,t.length
-		stringDiff: (s, t) -> diff s,0,s.length, t,0,t.length
+		stringDistance: (s, t) -> lev s,0,s.length, t,0,t.length,1,1,1
+		stringDiff: (s, t) -> diff s,0,s.length, t,0,t.length,1,1,1.5
 

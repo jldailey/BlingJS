@@ -2164,7 +2164,7 @@
           var list, listeners;
 
           if (obj == null) {
-            obj = Object.create(null);
+            obj = {};
           }
           listeners = Object.create(null);
           list = function(e) {
@@ -3198,7 +3198,7 @@
       var err, result, waiting;
 
       if (obj == null) {
-        obj = Object.create(null);
+        obj = {};
       }
       waiting = $();
       err = result = null;
@@ -3268,7 +3268,7 @@
       var p;
 
       p = $.Promise();
-      return xhr.onreadystatechange = function() {
+      xhr.onreadystatechange = function() {
         if (this.readyState === this.DONE) {
           if (this.status === 200) {
             return p.finish(xhr.responseText);
@@ -3277,6 +3277,7 @@
           }
         }
       };
+      return p;
     };
     $.depend('dom', function() {
       return Promise.image = function(src) {
@@ -3290,7 +3291,8 @@
         image.onerror = function(evt) {
           return p.fail(evt);
         };
-        return image.src = src;
+        image.src = src;
+        return p;
       };
     });
     return ret = {
@@ -4915,10 +4917,15 @@
       }
     };
     inherit = function(parent, obj) {
+      var _ref;
+
+      if (obj == null) {
+        return;
+      }
       if (typeof parent === "function") {
         parent = parent.prototype;
       }
-      if (parent.__proto__ === Object.prototype) {
+      if ((_ref = parent.__proto__) === Object.prototype || _ref === null || _ref === (void 0)) {
         parent.__proto__ = obj.__proto__;
       }
       obj.__proto__ = parent;

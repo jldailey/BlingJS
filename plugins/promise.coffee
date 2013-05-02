@@ -3,7 +3,7 @@ $.plugin
 	depends: "core,function"
 	provides: "promise"
 , ->
-	Promise = (obj = Object.create null) ->
+	Promise = (obj = {}) ->
 		waiting = $()
 		err = result = null
 		return $.inherit {
@@ -41,6 +41,7 @@ $.plugin
 					p.finish xhr.responseText
 				else
 					p.fail "#{@status} #{@statusText}"
+		return p
 
 	$.depend 'dom', ->
 		Promise.image = (src) ->
@@ -49,5 +50,6 @@ $.plugin
 			image.onload = -> p.finish(image)
 			image.onerror = (evt) -> p.fail(evt)
 			image.src = src
+			return p
 
 	ret = { $: { Promise, Progress } }

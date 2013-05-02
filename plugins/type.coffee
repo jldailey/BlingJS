@@ -27,9 +27,12 @@ $.plugin
 	# to be an _instance_, and the `parent` can either be an _instance_ or a
 	# __constructor__.
 	inherit = (parent, obj) ->
+		return unless obj?
 		if typeof parent is "function"
 			parent = parent.prototype
-		if parent.__proto__ is Object.prototype
+		# if the parent isn't bringing it's own __proto__ chain
+		if parent.__proto__ in [Object.prototype, null, undefined]
+			# splice the new parent such that the original chain is preserved
 			parent.__proto__ = obj.__proto__
 		obj.__proto__ = parent
 		obj

@@ -1097,6 +1097,18 @@ describe "Bling", ->
 			b = a.sortBy()
 			assert.deepEqual b, [1,2,3]
 			assert a isnt b
+		it "sorts strings correctly", ->
+			assert.deepEqual $(
+				{ code: "a" },
+				{ code: "c" },
+				{ code: "b" }
+			).sortBy('code').select('code'), ["a","b","c"]
+		it "can do complex sorts (such as case-less)", ->
+			assert.deepEqual $(
+				{ code: "a" },
+				{ code: "c" },
+				{ code: "B" }
+			).sortBy((item)-> item.code.toLowerCase()).select('code'), ["a","B","c"]
 	
 	describe ".sortedInsert(item,iterator)", ->
 		it "inserts in sorted order", ->

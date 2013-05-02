@@ -3692,15 +3692,15 @@
             switch ($.type(iterator)) {
               case "string":
                 return function(a, b) {
-                  return a[iterator] - b[iterator];
+                  return a[iterator] < b[iterator];
                 };
               case "function":
                 return function(a, b) {
-                  return iterator(a) - iterator(b);
+                  return iterator(a) < iterator(b);
                 };
               default:
                 return function(a, b) {
-                  return a - b;
+                  return a < b;
                 };
             }
           })();
@@ -3708,7 +3708,7 @@
           lo = 0;
           while (lo < hi) {
             mid = (hi + lo) >>> 1;
-            if (cmp(array[mid], item) < 0) {
+            if (cmp(array[mid], item)) {
               lo = mid + 1;
             } else {
               hi = mid;

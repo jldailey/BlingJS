@@ -3886,6 +3886,9 @@
             return x[0].toUpperCase() + x.substring(1).toLowerCase();
           })).join(" ");
         },
+        slugize: function(phrase) {
+          return phrase.toLowerCase().replace(/^\s+/, '').replace(/\s+$/, '').replace(/\t/g, ' ').replace(/[^A-Za-z0-9 ]/g, '').replace(/\s+/g, '-');
+        },
         dashize: function(name) {
           var c, i, ret, _i, _ref;
 

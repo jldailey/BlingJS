@@ -1676,6 +1676,13 @@ $.plugin
 			toRepr: (x) -> $.type.lookup(x).repr(x)
 			px: (x, delta=0) -> x? and (parseInt(x,10)+(parseInt(delta)|0))+"px"
 			capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
+			slugize: (phrase) -> phrase
+				.toLowerCase()
+				.replace(/^\s+/, '')
+				.replace(/\s+$/, '')
+				.replace(/\t/g, ' ')
+				.replace(/[^A-Za-z0-9 ]/g, '')
+				.replace(/\s+/g,'-')
 			dashize: (name) ->
 				ret = ""
 				for i in [0...(name?.length|0)]

@@ -1292,6 +1292,13 @@ describe "Bling", ->
 				assert.equal pass, false # not fired yet
 				p.finish(true)
 				assert pass
+			it "clears callbacks after fire", ->
+				id = 0
+				p.wait (err, data) -> id += data # handler A
+				p.finish 1
+				p.wait (err, data) -> id += data # handler B
+				p.finish 1
+				assert.equal id, 2 # if handler A or B ran more than once, id would be >= 3
 		describe "inheritance", ->
 			it "works with default constructor", ->
 				class Foo extends $.Promise
@@ -1334,7 +1341,7 @@ describe "Bling", ->
 				assert.equal _done, 10
 			it "result of finished Progress is the final progress value", ->
 				p.progress(11.1)
-				assert.equal _done, 11.1
+				assert.equal _done, 10 # the value at the time it was completed
 
 
 describe "DOM", ->

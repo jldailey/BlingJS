@@ -25,7 +25,12 @@ $.plugin
 
 		# static and instance versions of a state-changer factory
 		GO: (m) -> -> @mode = m
-		@GO: (m) -> -> @mode = m
+		@GO: (m, enter=false) ->
+			->
+				if enter # force enter to trigger
+					@_mode = null
+				@mode = m
+
 		
 		tick: (c) ->
 			row = @modeline
@@ -57,7 +62,7 @@ $.plugin
 	class SynthMachine extends $.StateMachine
 		basic =
 			"#": @GO 2
-			".": @GO 3
+			".": @GO 3, true
 			"[": @GO 4
 			'"': @GO 6
 			"'": @GO 7

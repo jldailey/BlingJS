@@ -970,6 +970,8 @@ describe "Bling", ->
 		describe "supports CSS selectors:", ->
 			it "id", -> assert.equal $.synth('div#id').first().id, "id"
 			it "class", -> assert.equal $.synth('div.cls').first().className, "cls"
+			it "multiple classes", ->
+				assert.equal $.synth('div.clsA.clsB').first().className, "clsA clsB"
 			it "attributes", -> assert.equal $.synth('div[foo=bar]').first().attributes.foo, "bar"
 			it "attributes (multiple)", -> assert.deepEqual $.synth('div[a=b][c=d]').first().attributes, {a:'b',c:'d'}
 			it "text (single quotes)", -> assert.equal $.synth("div 'text'").first().toString(), "<div>text</div>"

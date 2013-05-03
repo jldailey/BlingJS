@@ -4134,8 +4134,14 @@
             };
           };
 
-          StateMachine.GO = function(m) {
+          StateMachine.GO = function(m, enter) {
+            if (enter == null) {
+              enter = false;
+            }
             return function() {
+              if (enter) {
+                this._mode = null;
+              }
               return this.mode = m;
             };
           };
@@ -4195,7 +4201,7 @@
 
       basic = {
         "#": SynthMachine.GO(2),
-        ".": SynthMachine.GO(3),
+        ".": SynthMachine.GO(3, true),
         "[": SynthMachine.GO(4),
         '"': SynthMachine.GO(6),
         "'": SynthMachine.GO(7),

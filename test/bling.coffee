@@ -224,55 +224,6 @@ describe "Bling", ->
 			it "with null", ->
 				assert.equal "10px", $.px("10px", null)
 
-	describe ".padLeft()", ->
-		it "adds padding when needed", ->
-			assert.equal $.padLeft("foo", 5), "  foo"
-		it "does not add padding when not needed", ->
-			assert.equal $.padLeft("foo", 2), "foo"
-		it "does not add padding when barely not needed", ->
-			assert.equal $.padLeft("foo", 3), "foo"
-		it "can pad with non-default character", ->
-			assert.equal $.padLeft("foo", 5, "X"), "XXfoo"
-
-	describe ".padRight()", ->
-		it "adds padding when needed", -> assert.equal $.padRight("foo", 5), "foo  "
-		it "doesnt when not", -> assert.equal $.padRight("foo", 2), "foo"
-		it "doesnt when not", -> assert.equal $.padRight("foo", 3), "foo"
-		it "can pad with non-default character", -> assert.equal $.padRight("foo", 5, "X"), "fooXX"
-
-	describe ".stringSplice()", ->
-		it "should insert text", ->
-			assert.equal $.stringSplice("foobar",3,3,"baz"), "foobazbar"
-		it "should partially replace text", ->
-			assert.equal $.stringSplice("foobar",1,5,"baz"), "fbazr"
-		it "should completely replace text", ->
-			assert.equal $.stringSplice("foobar",0,6,"baz"), "baz"
-		it "should prepend text", ->
-			assert.equal $.stringSplice("foobar",0,0,"baz"), "bazfoobar"
-
-	describe ".checkSum()", ->
-		it "should compute the same hash as adler32", ->
-			assert.equal $.checksum("foobar"), 145425018
-		it "should not just hash the one thing", ->
-			assert.equal $.checksum("foobarbaz"), 310051767
-
-	describe ".toString()", ->
-		describe "should output", ->
-			it "blings", ->
-				assert.equal $([2,3,4]).toString(), "$([2, 3, 4])"
-			it "functions", ->
-				assert.equal $.toString(-> $.log), "function () { ... }"
-			it "objects", ->assert.equal $.toString({a:{b:1}}), "{a:{b:1}}"
-		it "should not fail", ->
-			obj = a: 1
-			$.defineProperty obj, 'xxx',
-				get: -> throw new Error "forbidden"
-			assert.equal $.toString(obj), "{a:1, xxx:[Error: forbidden]}"
-
-	describe ".stringTruncate()", ->
-		it "should truncate long strings and add ellipses", ->
-			assert.equal ($.stringTruncate "long string", 6), "long..."
-
 	describe ".plugin()", ->
 		describe "creating new plugins", ->
 			$.plugin ->
@@ -477,7 +428,6 @@ describe "Bling", ->
 					sum += $.random.element elems, weights
 				assert Math.abs(sum - 400) < 50
 
-
 	describe ".hash()", ->
 		describe "hashes any type of object", ->
 			it "number", -> assert $.hash(42) isnt $.hash(43)
@@ -624,7 +574,6 @@ describe "Bling", ->
 				{ pX: 3, pY: 4, id: 4 },
 				{ pX: 4, pY: 5, id: 6 }
 			]
-			
 
 	describe ".zap()", ->
 		it "assigns values to properties of items in a set", ->
@@ -725,6 +674,67 @@ describe "Bling", ->
 			assert.deepEqual $([[1,2],[3,4]]).flatten(), [1,2,3,4]
 		it "allows duplicates (unlike union)", ->
 			assert.deepEqual $([[1,2],[1,2]]).flatten(), [1,2,1,2]
+
+	describe "String functions", ->
+		describe ".padLeft()", ->
+			it "adds padding when needed", ->
+				assert.equal $.padLeft("foo", 5), "  foo"
+			it "does not add padding when not needed", ->
+				assert.equal $.padLeft("foo", 2), "foo"
+			it "does not add padding when barely not needed", ->
+				assert.equal $.padLeft("foo", 3), "foo"
+			it "can pad with non-default character", ->
+				assert.equal $.padLeft("foo", 5, "X"), "XXfoo"
+		describe ".padRight()", ->
+			it "adds padding when needed", -> assert.equal $.padRight("foo", 5), "foo  "
+			it "doesnt when not", -> assert.equal $.padRight("foo", 2), "foo"
+			it "doesnt when not", -> assert.equal $.padRight("foo", 3), "foo"
+			it "can pad with non-default character", -> assert.equal $.padRight("foo", 5, "X"), "fooXX"
+		describe ".stringSplice()", ->
+			it "should insert text", ->
+				assert.equal $.stringSplice("foobar",3,3,"baz"), "foobazbar"
+			it "should partially replace text", ->
+				assert.equal $.stringSplice("foobar",1,5,"baz"), "fbazr"
+			it "should completely replace text", ->
+				assert.equal $.stringSplice("foobar",0,6,"baz"), "baz"
+			it "should prepend text", ->
+				assert.equal $.stringSplice("foobar",0,0,"baz"), "bazfoobar"
+		describe ".checkSum()", ->
+			it "should compute the same hash as adler32", ->
+				assert.equal $.checksum("foobar"), 145425018
+			it "should not just hash the one thing", ->
+				assert.equal $.checksum("foobarbaz"), 310051767
+		describe ".toString()", ->
+			describe "should output", ->
+				it "blings", ->
+					assert.equal $([2,3,4]).toString(), "$([2, 3, 4])"
+				it "functions", ->
+					assert.equal $.toString(-> $.log), "function () { ... }"
+				it "objects", ->assert.equal $.toString({a:{b:1}}), "{a:{b:1}}"
+			it "should not fail", ->
+				obj = a: 1
+				$.defineProperty obj, 'xxx',
+					get: -> throw new Error "forbidden"
+				assert.equal $.toString(obj), "{a:1, xxx:[Error: forbidden]}"
+		describe ".stringTruncate()", ->
+			it "should truncate long strings and add ellipses", ->
+				assert.equal ($.stringTruncate "long string", 6), "long..."
+		describe ".camelize", ->
+			it "converts dash-case to camelCase", ->
+				assert.equal $.camelize("foo-bar"), "fooBar"
+			it "converts all dashed letter to captials", ->
+				assert.equal $.camelize("-foo-bar"), "FooBar"
+		describe ".slugize", ->
+			it "converts a phrase to a slug", ->
+				assert.equal $.slugize("foo bar"), "foo-bar"
+				assert.equal $.slugize(" foo bar "), "foo-bar"
+			it "strips special characters", ->
+				assert.equal $.slugize("\x01foo bar\n"), "foo-bar"
+		describe ".dashize", ->
+			it "converts camelCase to dash-case", ->
+				assert.equal $.dashize("fooBar"), "foo-bar"
+			it "all capital letters get dashed", ->
+				assert.equal $.dashize("FooBar"), "-foo-bar"
 
 	describe "functions", ->
 		describe ".call()", ->
@@ -1331,8 +1341,6 @@ describe "DOM", ->
 		t.zap 'data', '<p>'
 		assert.equal d.select('innerHTML').first(), '&lt;p&gt;'
 	it "escape", -> assert.equal $.HTML.escape("<p>"), "&lt;p&gt;"
-	it "dashName1", -> assert.equal $.dashize("fooBar"), "foo-bar"
-	it "dashName2", -> assert.equal $.dashize("FooBar"), "-foo-bar"
 	it "html1", -> assert.equal $("tr").html().first(), "<td>1,1</td><td>1,2</td>"
 	it "html2", -> assert.equal $("div").html("<span>C</span>").html().first(), "<span>C</span>"
 	describe "append", ->

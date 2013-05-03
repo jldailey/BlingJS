@@ -1391,6 +1391,7 @@ $.plugin
 				waiting.push cb
 				@
 			finish: (result) -> waiting.call(null, result).clear(); @
+			reset: -> err = result = null
 			fail:   (error)  -> waiting.call(error,  null).clear(); @
 		}, $.EventEmitter(obj)
 	Progress = (max = 1.0) ->

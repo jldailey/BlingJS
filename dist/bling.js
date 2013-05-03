@@ -3217,6 +3217,9 @@
           waiting.call(null, result).clear();
           return this;
         },
+        reset: function() {
+          return err = result = null;
+        },
         fail: function(error) {
           waiting.call(error, null).clear();
           return this;

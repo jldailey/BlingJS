@@ -1279,6 +1279,17 @@ describe "Bling", ->
 				p.finish true
 			it "passes the finished data to anything waiting", ->
 				assert pass
+			it "calls back instantly if already finished", ->
+				pass = false
+				p.wait (err, data) -> pass = data
+				assert pass
+			it "can be reset", ->
+				pass = false
+				p.reset()
+				p.wait (err, data) -> pass = data
+				assert.equal pass, false # not fired yet
+				p.finish(true)
+				assert pass
 		describe "inheritance", ->
 			it "works with default constructor", ->
 				class Foo extends $.Promise

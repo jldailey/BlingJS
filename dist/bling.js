@@ -3192,8 +3192,9 @@
     depends: "core,function",
     provides: "promise"
   }, function() {
-    var Progress, Promise, ret;
+    var NoValue, Progress, Promise, ret;
 
+    NoValue = function() {};
     Promise = function(obj) {
       var err, result, waiting;
 
@@ -3201,28 +3202,30 @@
         obj = {};
       }
       waiting = $();
-      err = result = null;
+      err = result = NoValue;
       return $.inherit({
         wait: function(cb) {
-          if (err != null) {
+          if (err !== NoValue) {
             return cb(err, null);
           }
-          if (result != null) {
+          if (result !== NoValue) {
             return cb(null, result);
           }
           waiting.push(cb);
           return this;
         },
-        finish: function(result) {
-          waiting.call(null, result).clear();
+        finish: function(value) {
+          result = value;
+          waiting.call(null, value).clear();
+          return this;
+        },
+        fail: function(error) {
+          err = error;
+          waiting.call(error, null).clear();
           return this;
         },
         reset: function() {
-          return err = result = null;
-        },
-        fail: function(error) {
-          waiting.call(error, null).clear();
-          return this;
+          return err = result = NoValue;
         }
       }, $.EventEmitter(obj));
     };

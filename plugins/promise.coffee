@@ -3,18 +3,23 @@ $.plugin
 	depends: "core,function"
 	provides: "promise"
 , ->
+	NoValue = -> # a totem
 	Promise = (obj = {}) ->
 		waiting = $()
-		err = result = null
+		err = result = NoValue
 		return $.inherit {
 			wait: (cb) ->
-				return cb(err,null) if err?
-				return cb(null,result) if result?
+				return cb(err,null) if err isnt NoValue
+				return cb(null,result) if result isnt NoValue
 				waiting.push cb
 				@
-			finish: (result) -> waiting.call(null, result).clear(); @
-			reset: -> err = result = null
-			fail:   (error)  -> waiting.call(error,  null).clear(); @
+			finish: (value) ->
+				result = value
+				waiting.call(null, value).clear(); @
+			fail:   (error)  ->
+				err = error
+				waiting.call(error, null).clear(); @
+			reset: -> err = result = NoValue
 		}, $.EventEmitter(obj)
 
 	Progress = (max = 1.0) ->

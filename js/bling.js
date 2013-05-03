@@ -3215,17 +3215,18 @@
           return this;
         },
         finish: function(value) {
-          result = value;
-          waiting.call(null, value).clear();
+          waiting.call(null, result = value);
+          waiting.clear();
           return this;
         },
         fail: function(error) {
-          err = error;
-          waiting.call(error, null).clear();
+          waiting.call(err = error, null);
+          waiting.clear();
           return this;
         },
         reset: function() {
-          return err = result = NoValue;
+          err = result = NoValue;
+          return this;
         }
       }, $.EventEmitter(obj));
     };

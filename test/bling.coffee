@@ -827,6 +827,12 @@ describe "Bling", ->
 			a.emit 'smoke'
 			a.emit 'steam'
 			assert.equal pass, 2
+		it "returns itself after binding", ->
+			a = $.EventEmitter()
+			b = a.on( open: -> )
+			c = a.on "close", ->
+			assert.equal a, b
+			assert.equal a, c
 		describe "class extends support", ->
 			class Foo extends $.EventEmitter
 				constructor: ->
@@ -978,6 +984,12 @@ describe "Bling", ->
 			it "text (double quotes)", -> assert.equal $.synth('div "text"').first().toString(), "<div>text</div>"
 			it "entity escaped", -> assert.equal $.synth('div "text&amp;stuff"').first().toString(), "<div>text&amp;stuff</div>"
 			it "entity un-escaped", -> assert.equal $.synth('div "text&stuff"').first().toString(), "<div>text&stuff</div>"
+		it "accepts multiline templates", ->
+			assert.equal $.synth("""
+				div.clsA[type=text]
+					p + span
+				b 'Hello'
+			""").first().toString(), '<div class="clsA" type="text"><p/><span><b>Hello</b></span></div>'
 
 	describe "delay", ->
 		describe ".delay(ms, f)", ->

@@ -2161,7 +2161,7 @@
     return {
       $: {
         EventEmitter: Bling.init.append(function(obj) {
-          var list, listeners;
+          var add, list, listeners;
 
           if (obj == null) {
             obj = {};
@@ -2182,26 +2182,23 @@
               }
               return this;
             },
-            addListener: function(e, h) {
-              var k, v, _results;
+            on: add = function(e, f) {
+              var k, v;
 
               switch ($.type(e)) {
                 case 'object':
-                  _results = [];
                   for (k in e) {
                     v = e[k];
-                    _results.push(this.addListener(k, v));
+                    this.addListener(k, v);
                   }
-                  return _results;
                   break;
                 case 'string':
-                  list(e).push(h);
-                  return this.emit('newListener', e, h);
+                  list(e).push(f);
+                  this.emit('newListener', e, f);
               }
+              return this;
             },
-            on: function(e, f) {
-              return this.addListener(e, f);
-            },
+            addListener: add,
             removeListener: function(e, f) {
               var i, l;
 
@@ -4207,6 +4204,9 @@
         '"': SynthMachine.GO(6),
         "'": SynthMachine.GO(7),
         " ": SynthMachine.GO(8),
+        "\t": SynthMachine.GO(8),
+        "\n": SynthMachine.GO(8),
+        "\r": SynthMachine.GO(8),
         ",": SynthMachine.GO(10),
         "+": SynthMachine.GO(11),
         eof: SynthMachine.GO(13)

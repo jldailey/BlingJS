@@ -933,10 +933,14 @@ $.plugin
 		list = (e) -> (listeners[e] or= [])
 		$.inherit {
 			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-			addListener:        (e, h) -> switch $.type e
-				when 'object' then @addListener(k,v) for k,v of e
-				when 'string' then list(e).push(h); @emit('newListener', e, h)
-			on:                 (e, f) -> @addListener e, f
+			on: add = (e, f) ->
+				switch $.type e
+					when 'object' then @addListener(k,v) for k,v of e
+					when 'string'
+						list(e).push(f)
+						@emit('newListener', e, f)
+				return @
+			addListener: add
 			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
 			removeAllListeners: (e) -> listeners[e] = []
 			setMaxListeners:    (n) -> # who really needs this in the core API?
@@ -1845,6 +1849,9 @@ $.plugin
 			'"': @GO 6
 			"'": @GO 7
 			" ": @GO 8
+			"\t": @GO 8
+			"\n": @GO 8
+			"\r": @GO 8
 			",": @GO 10
 			"+": @GO 11
 			eof: @GO 13

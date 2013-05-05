@@ -55,24 +55,6 @@ extend Bling, do ->
 		data
 $ = Bling
 $.plugin
-	provides: "EventEmitter"
-	depends: "type,hook"
-, ->
-	$: EventEmitter: Bling.init.append (obj = {}) ->
-		listeners = Object.create null
-		list = (e) -> (listeners[e] or= [])
-		$.inherit {
-			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-			addListener:        (e, h) -> switch $.type e
-				when 'object' then @addListener(k,v) for k,v of e
-				when 'string' then list(e).push(h); @emit('newListener', e, h)
-			on:                 (e, f) -> @addListener e, f
-			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
-			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
-			listeners:          (e) -> list(e).slice 0
-		}, obj
-$.plugin
 	depends: "core"
 	provides: "async"
 , ->
@@ -611,14 +593,14 @@ $.plugin
 	provides: "diff"
 , ->
 	lev_memo = Object.create null
-	lev = (s,i,n,t,j,m) ->
-		return lev_memo[[s,i,n,t,j,m]] ?= lev_memo[[t,j,m,s,i,n]] ?= do -> switch true
+	lev = (s,i,n,t,j,m,dw,iw,sw) ->
+		return lev_memo[[s,i,n,t,j,m,dw,iw,sw]] ?= lev_memo[[t,j,m,s,i,n,dw,iw,sw]] ?= do -> switch true
 			when m <= 0 then n
 			when n <= 0 then m
 			else Math.min(
-				1 + lev(s,i+1,n-1, t,j,m),
-				1 + lev(s,i,n, t,j+1,m-1),
-				(s[i] isnt t[j]) + lev(s,i+1,n-1, t,j+1,m-1)
+				dw + lev(s,i+1,n-1, t,j,m,dw,iw,sw),
+				iw + lev(s,i,n, t,j+1,m-1,dw,iw,sw),
+				(sw * (s[i] isnt t[j])) + lev(s,i+1,n-1, t,j+1,m-1,dw,iw,sw)
 			)
 	
 	collapse = (ops) -> # combines similar operations in a sequence
@@ -650,23 +632,27 @@ $.plugin
 	del = (c) -> {op:'del',v:c}
 	ins = (c) -> {op:'ins',v:c}
 	sub = (c,d) -> {op:'sub',v:c,w:d}
-	diff = (s,i,n,t,j,m) ->
-		return diff_memo[[s,i,n,t,j,m]] ?= collapse do -> switch true
-			when m <= 0 then (del(c) for c in s.substr i,n)
-			when n <= 0 then (ins(c) for c in t.substr j,m)
+	diff = (s,i,n,t,j,m,dw,iw,sw) ->
+		return diff_memo[[s,i,n,t,j,m,dw,iw,sw]] ?= collapse do -> switch true
+			when m <= 0 then (del c) for c in s.substr i,n
+			when n <= 0 then (ins c) for c in t.substr j,m
 			else
-				cost = (s[i] isnt t[j])
+				sw *= (s[i] isnt t[j])
+				args =
+					del: [s,i+1,n-1, t,j,m,     1,1.5,1.5]
+					ins: [s,i,n, t,j+1,m-1,     1.5,1,1.5]
+					sub: [s,i+1,n-1, t,j+1,m-1, 1,1,1]
 				costs =
-					del: 1 + lev s,i+1,n-1, t,j,m
-					ins: 1 + lev s,i,n, t,j+1,m-1
-					sub: cost + lev s,i+1,n-1, t,j+1,m-1
+					del: dw + lev args.del...
+					ins: iw + lev args.ins...
+					sub: sw + lev args.sub...
 				switch Math.min costs.del, costs.ins, costs.sub
-					when costs.del then $(del s[i]).concat diff s,i+1,n-1, t,j,m
-					when costs.ins then $(ins t[j]).concat diff s,i,n, t,j+1,m-1
-					when costs.sub then $(sub s[i],t[j]).concat diff s,i+1,n-1, t,j+1,m-1
+					when costs.del then $(del s[i]).concat diff args.del...
+					when costs.ins then $(ins t[j]).concat diff args.ins...
+					when costs.sub then $(sub s[i],t[j]).concat diff args.sub...
 	$:
-		stringDistance: (s, t) -> lev s,0,s.length, t,0,t.length
-		stringDiff: (s, t) -> diff s,0,s.length, t,0,t.length
+		stringDistance: (s, t) -> lev s,0,s.length, t,0,t.length,1,1,1
+		stringDiff: (s, t) -> diff s,0,s.length, t,0,t.length,1,1,1.5
 if $.global.document?
 	$.plugin
 		depends: "function,type"
@@ -939,6 +925,28 @@ if $.global.document?
 				return toNode @[0]
 		}
 $.plugin
+	provides: "EventEmitter"
+	depends: "type,hook"
+, ->
+	$: EventEmitter: Bling.init.append (obj = {}) ->
+		listeners = Object.create null
+		list = (e) -> (listeners[e] or= [])
+		$.inherit {
+			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
+			on: add = (e, f) ->
+				switch $.type e
+					when 'object' then @addListener(k,v) for k,v of e
+					when 'string'
+						list(e).push(f)
+						@emit('newListener', e, f)
+				return @
+			addListener: add
+			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
+			removeAllListeners: (e) -> listeners[e] = []
+			setMaxListeners:    (n) -> # who really needs this in the core API?
+			listeners:          (e) -> list(e).slice 0
+		}, obj
+$.plugin
 	depends: "dom,function,core"
 	provides: "event"
 , ->
@@ -1106,6 +1114,7 @@ $.plugin
 			i = -1
 			-> f[i = ++i % f.length].apply @, arguments
 		bound: (t, f, args = []) ->
+			return $.identity unless f?
 			if $.is "function", f.bind
 				args.splice 0, 0, t
 				r = f.bind.apply f, args
@@ -1376,17 +1385,27 @@ $.plugin
 	depends: "core,function"
 	provides: "promise"
 , ->
+	NoValue = -> # a totem
 	Promise = (obj = {}) ->
 		waiting = $()
-		err = result = null
+		err = result = NoValue
 		return $.inherit {
 			wait: (cb) ->
-				return cb(err,null) if err?
-				return cb(null,result) if result?
+				return cb(err,null) if err isnt NoValue
+				return cb(null,result) if result isnt NoValue
 				waiting.push cb
 				@
-			finish: (result) -> waiting.call(null, result).clear(); @
-			fail:   (error)  -> waiting.call(error,  null).clear(); @
+			finish: (value) ->
+				waiting.call null, result = value
+				waiting.clear()
+				@
+			fail: (error)  ->
+				waiting.call err = error, null
+				waiting.clear()
+				@
+			reset: ->
+				err = result = NoValue
+				@
 		}, $.EventEmitter(obj)
 	Progress = (max = 1.0) ->
 		cur = 0.0
@@ -1589,14 +1608,14 @@ $.plugin
 	$:
 		sortedIndex: (array, item, iterator) ->
 			cmp = switch $.type iterator
-				when "string" then (a,b) -> a[iterator] - b[iterator]
-				when "function" then (a,b) -> iterator(a) - iterator(b)
-				else (a,b) -> a - b
+				when "string" then (a,b) -> a[iterator] < b[iterator]
+				when "function" then (a,b) -> iterator(a) < iterator(b)
+				else (a,b) -> a < b
 			hi = array.length
 			lo = 0
 			while lo < hi
 				mid = (hi + lo)>>>1
-				if cmp(array[mid], item) < 0
+				if cmp(array[mid], item)
 					lo = mid + 1
 				else
 					hi = mid
@@ -1630,18 +1649,28 @@ $.plugin
 			number: safer parseFloat
 			repr:   (s) -> "'#{s}'"
 		array:  { string: safer (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
-		object: { string: safer (o) ->
-			ret = []
-			for k of o
-				try
-					v = o[k]
-				catch err
-					v = "[Error: #{err.message}]"
-				ret.push "#{k}:#{$.toString v}"
-			"{" + ret.join(', ') + "}"
-		}
+		object:
+			string: safer (o) ->
+				ret = []
+				for k of o
+					try
+						v = o[k]
+					catch err
+						v = "[Error: #{err.message}]"
+					ret.push "#{k}:#{$.toString v}"
+				"{" + ret.join(', ') + "}"
+			repr: safer (o) ->
+				ret = []
+				for k of o
+					try
+						v = o[k]
+					catch err
+						v = "[Error: #{err.message}]"
+					ret.push "#{k}:#{$.toRepr v}"
+				"{" + ret.join(', ') + "}"
 		function:
 			string: (f) -> f.toString().replace(/^([^{]*){(?:.|\n|\r)*}$/, '$1{ ... }')
+			repr: (f) -> f.toString()
 		number:
 			repr:   (n) -> String(n)
 			string: safer (n) ->
@@ -1661,6 +1690,13 @@ $.plugin
 			toRepr: (x) -> $.type.lookup(x).repr(x)
 			px: (x, delta=0) -> x? and (parseInt(x,10)+(parseInt(delta)|0))+"px"
 			capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
+			slugize: (phrase) -> phrase
+				.toLowerCase()
+				.replace(/^\s+/, '')
+				.replace(/\s+$/, '')
+				.replace(/\t/g, ' ')
+				.replace(/[^A-Za-z0-9 ]/g, '')
+				.replace(/\s+/g,'-')
 			dashize: (name) ->
 				ret = ""
 				for i in [0...(name?.length|0)]
@@ -1774,7 +1810,11 @@ $.plugin
 			@_mode = null
 			@_lastMode = null
 		GO: (m) -> -> @mode = m
-		@GO: (m) -> -> @mode = m
+		@GO: (m, enter=false) ->
+			->
+				if enter # force enter to trigger
+					@_mode = null
+				@mode = m
 		
 		tick: (c) ->
 			row = @modeline
@@ -1804,11 +1844,14 @@ $.plugin
 	class SynthMachine extends $.StateMachine
 		basic =
 			"#": @GO 2
-			".": @GO 3
+			".": @GO 3, true
 			"[": @GO 4
 			'"': @GO 6
 			"'": @GO 7
 			" ": @GO 8
+			"\t": @GO 8
+			"\n": @GO 8
+			"\r": @GO 8
 			",": @GO 10
 			"+": @GO 11
 			eof: @GO 13
@@ -2173,7 +2216,7 @@ $.plugin
 				css[transformProperty] = trans
 			@css css
 			if callback
-				@delay duration, callback
+				@delay duration, $.bound @, callback
 		hide: (callback) -> # .hide() - each node gets display:none
 			@each ->
 				if @style
@@ -2183,7 +2226,7 @@ $.plugin
 					@style.display = "none"
 			.trigger("hide")
 			if callback
-				@delay updateDelay, callback
+				@delay updateDelay, $.bound @, callback
 			@
 		show: (callback) -> # .show() - show each node
 			@each ->
@@ -2192,11 +2235,11 @@ $.plugin
 					delete @_display
 			.trigger("show")
 			if callback
-				@delay updateDelay, callback
+				@delay updateDelay, $.bound @, callback
 			@
 		toggle: (callback) -> # .toggle() - show each hidden node, hide each visible one
 			@weave(@css("display"))
-				.fold (display, node) ->
+				.fold((display, node) ->
 					if display is "none"
 						node.style.display = node._display or ""
 						delete node._display
@@ -2206,7 +2249,7 @@ $.plugin
 						node.style.display = "none"
 						$(node).trigger "hide"
 					node
-				.delay(updateDelay, callback)
+				).delay(updateDelay, $.bound @, callback)
 		fadeIn: (speed, callback) -> # .fadeIn() - fade each node to opacity 1.0
 			@.css('opacity','0.0')
 				.show ->
@@ -2218,7 +2261,7 @@ $.plugin
 			@transform {
 				opacity:"0.0",
 				translate3d:[x,y,0.0]
-			}, speed, -> @hide(callback)
+			}, speed, -> @hide($.bound @, callback)
 		fadeLeft: (speed, callback) -> @fadeOut speed, callback, "-"+@width().first(), 0.0
 		fadeRight: (speed, callback) -> @fadeOut speed, callback, @width().first(), 0.0
 		fadeUp: (speed, callback) -> @fadeOut speed, callback, 0.0, "-"+@height().first()
@@ -2498,34 +2541,36 @@ $.plugin
 		currentSlide = 0
 		modal = $.dialog(slides[0]).select('parentNode')
 		dialogs = []
-		slideChanger = (delta) ->
-			return $.identity unless slides.length
-			->
+		slideChanger = (delta) -> switch slides.length
+			when 0 then $.identity
+			else ->
 				newSlide = (currentSlide + delta) % slides.length
 				while newSlide < 0
 					newSlide += slides.length
 				return if newSlide is currentSlide
+				$.log "slideChange: #{currentSlide} -> #{newSlide}"
 				currentDialog = $ dialogs[currentSlide]
 				newDialog = $ dialogs[newSlide]
 				width = currentDialog.width()[0]
 				newLeft = if delta < 0 then window.innerWidth - width else 0
+				$.log "newLeft: #{$.px newLeft}"
 				currentDialog.removeClass('wiz-active')
 					.css(left: $.px newLeft)
 					.fadeOut()
-				newDialog.addClass('wiz-active')
-					.centerOn(modal)
-					.fadeIn()
+				newDialog.addClass('wiz-active').css(
+					opacity: 0
+					display: 'block'
+				).centerOn(modal).fadeIn()
 				currentSlide = newSlide
 		modal.delegate '.wiz-next', 'click', slideChanger(+1)
 		modal.delegate '.wiz-back', 'click', slideChanger(-1)
 		for slide in slides.slice(1)
-			d = $.synth('div.dialog div.title + div.content')
-				.css( left: $.px window.innerWidth + 100 )
-				.hide()
-				.appendTo(modal)
+			d = $.synth('div.dialog div.title + div.content').css
+				left: $.px window.innerWidth
 			slide = $.extend $.dialog.getDefaultOptions(), slide
 			d.find('.title').append $.dialog.getContent slide.titleType, slide.title
 			d.find('.content').append $.dialog.getContent slide.contentType, slide.content
+			d.appendTo(modal).fadeOut(0)
 		dialogs = modal.find('.dialog')
 		dialogs.take(1).show()
 		modal

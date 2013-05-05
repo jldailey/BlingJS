@@ -6,9 +6,15 @@ if process.argv.length < 4
 	`return $.log("Usage: watch.coffee 'regex' 'shell command'")`
 
 console.log "Initializing..."
-exec = $.throttle 3000, $.trace 'exec', (file, cmd) -> Proc.exec cmd, (err, stdout, stderr) ->
-	$.log "[stdout]", stdout
-	$.log "[stderr]", stderr
+exec = $.throttle 3000, $.trace 'exec', (file, cmd) ->
+	p = Proc.exec cmd, (err, stdout, stderr) ->
+		if err then throw "Proc.exec error: #{err}"
+	p.stdout.on 'data', (data) ->
+		$.log "[stdout]", data
+	p.stderr.on 'data', (data) ->
+		$.log "[stderr]", data
+	return p
+
 
 recurseDir = (path, cb) ->
 	cb(path)

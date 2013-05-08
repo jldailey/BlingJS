@@ -221,7 +221,13 @@ $.plugin
 
 		# Get a new set containing only items that match _f_. _f_ can be
 		# any of:
-		filter: (f, limit=@length) ->
+		filter: (f, limit, positive) ->
+			if $.is "bool", limit
+				[positive, limit] = [limit, positive]
+			if $.is "number", positive
+				[limit, positive] = [positive, limit]
+			limit ?= @length
+			positive ?= true
 			# The argument _f_ can be any of:
 			g = switch $.type f
 				# * selector string: `.filter("td.selected")`
@@ -233,7 +239,7 @@ $.plugin
 				else throw new Error "unsupported argument to filter: #{$.type f}"
 			a = $()
 			for it in @
-				if g.call(it,it)
+				if (!! g.call it,it) is positive
 					if --limit < 0
 						break
 					a.push it

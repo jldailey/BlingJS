@@ -645,6 +645,11 @@ describe "Bling", ->
 		it "supports an optional limit", -> assert.deepEqual $(["foo","bar","baz"]).filter(/^b/, 0), []
 		it "supports an optional limit", -> assert.deepEqual $(["foo","bar","baz"]).filter(/^b/, 1), ["bar"]
 		it "supports an optional limit", -> assert.deepEqual $(["foo","bar","baz"]).filter(/^b/, 2), ["bar","baz"]
+		it "supports an optional inversion", ->
+			assert.deepEqual $(["foo", "bar", "baz"]).filter(/^b/, false), ["foo"]
+		it "accepts the limit and inversion in either order", ->
+			a = $("foo", "bar", "baz")
+			assert.deepEqual a.filter(/^b/, true, 1), a.filter(/^b/, 1, true)
 
 	describe ".matches()", ->
 		describe "supports", ->
@@ -1017,6 +1022,15 @@ describe "Bling", ->
 			assert.equal $.config.get("NOT_FOUND", "default"), "default"
 		it "can be called directly", ->
 			assert.equal $.config("NOT_FOUND", "default"), "default"
+		it "can parse and set values from string data", ->
+			assert.deepEqual $.config.parse("""NO_LEAD='no leading whitespace'
+				LEADING='ignores leading whitespace'
+				NOQUOTES=does not require any quotes
+			"""), {
+					NO_LEAD: "no leading whitespace"
+					LEADING: "ignores leading whitespace"
+					NOQUOTES: "does not require any quotes"
+				}
 
 	describe ".index(keyMaker)", ->
 		keyMaker = (obj) -> obj.a

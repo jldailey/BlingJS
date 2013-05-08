@@ -155,6 +155,71 @@
   $ = Bling;
 
   $.plugin({
+    provides: "EventEmitter",
+    depends: "type,hook"
+  }, function() {
+    return {
+      $: {
+        EventEmitter: Bling.init.append(function(obj) {
+          var add, list, listeners;
+
+          if (obj == null) {
+            obj = {};
+          }
+          listeners = Object.create(null);
+          list = function(e) {
+            return listeners[e] || (listeners[e] = []);
+          };
+          return $.inherit({
+            emit: function() {
+              var a, e, f, _i, _len, _ref;
+
+              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+              _ref = list(e);
+              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                f = _ref[_i];
+                f.apply(this, a);
+              }
+              return this;
+            },
+            on: add = function(e, f) {
+              var k, v;
+
+              switch ($.type(e)) {
+                case 'object':
+                  for (k in e) {
+                    v = e[k];
+                    this.addListener(k, v);
+                  }
+                  break;
+                case 'string':
+                  list(e).push(f);
+                  this.emit('newListener', e, f);
+              }
+              return this;
+            },
+            addListener: add,
+            removeListener: function(e, f) {
+              var i, l;
+
+              if ((i = (l = list(e)).indexOf(f)) > -1) {
+                return l.splice(i, 1);
+              }
+            },
+            removeAllListeners: function(e) {
+              return listeners[e] = [];
+            },
+            setMaxListeners: function(n) {},
+            listeners: function(e) {
+              return list(e).slice(0);
+            }
+          }, obj);
+        })
+      }
+    };
+  });
+
+  $.plugin({
     depends: "core",
     provides: "async"
   }, function() {
@@ -329,7 +394,7 @@
     provides: 'config',
     depends: 'type'
   }, function() {
-    var get, set;
+    var get, parse, set;
 
     get = function(name, def) {
       var _ref;
@@ -339,11 +404,27 @@
     set = function(name, val) {
       return process.env[name] = val;
     };
+    parse = function(data) {
+      var ret;
+
+      ret = {};
+      $(data.toString("utf8").split("\n")).filter($.isEmpty, false).filter(/^#/, false).map(function() {
+        return this.replace(/^\s+/, '').split('=');
+      }).each(function(kv) {
+        var _ref;
+
+        if ((_ref = kv[0]) != null ? _ref.length : void 0) {
+          return ret[kv[0]] = kv[1].replace(/^["']/, '').replace(/['"]$/, '');
+        }
+      });
+      return ret;
+    };
     return {
       $: {
         config: $.extend(get, {
           get: get,
-          set: set
+          set: set,
+          parse: parse
         })
       }
     };
@@ -809,11 +890,20 @@
         Array.prototype.push.call(this, b);
         return this;
       },
-      filter: function(f, limit) {
-        var a, g, it, _i, _len;
+      filter: function(f, limit, positive) {
+        var a, g, it, _i, _len, _ref, _ref1;
 
+        if ($.is("bool", limit)) {
+          _ref = [limit, positive], positive = _ref[0], limit = _ref[1];
+        }
+        if ($.is("number", positive)) {
+          _ref1 = [positive, limit], limit = _ref1[0], positive = _ref1[1];
+        }
         if (limit == null) {
           limit = this.length;
+        }
+        if (positive == null) {
+          positive = true;
         }
         g = (function() {
           switch ($.type(f)) {
@@ -834,7 +924,7 @@
         a = $();
         for (_i = 0, _len = this.length; _i < _len; _i++) {
           it = this[_i];
-          if (g.call(it, it)) {
+          if ((!!g.call(it, it)) === positive) {
             if (--limit < 0) {
               break;
             }
@@ -2153,71 +2243,6 @@
       };
     });
   }
-
-  $.plugin({
-    provides: "EventEmitter",
-    depends: "type,hook"
-  }, function() {
-    return {
-      $: {
-        EventEmitter: Bling.init.append(function(obj) {
-          var add, list, listeners;
-
-          if (obj == null) {
-            obj = {};
-          }
-          listeners = Object.create(null);
-          list = function(e) {
-            return listeners[e] || (listeners[e] = []);
-          };
-          return $.inherit({
-            emit: function() {
-              var a, e, f, _i, _len, _ref;
-
-              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-              _ref = list(e);
-              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                f = _ref[_i];
-                f.apply(this, a);
-              }
-              return this;
-            },
-            on: add = function(e, f) {
-              var k, v;
-
-              switch ($.type(e)) {
-                case 'object':
-                  for (k in e) {
-                    v = e[k];
-                    this.addListener(k, v);
-                  }
-                  break;
-                case 'string':
-                  list(e).push(f);
-                  this.emit('newListener', e, f);
-              }
-              return this;
-            },
-            addListener: add,
-            removeListener: function(e, f) {
-              var i, l;
-
-              if ((i = (l = list(e)).indexOf(f)) > -1) {
-                return l.splice(i, 1);
-              }
-            },
-            removeAllListeners: function(e) {
-              return listeners[e] = [];
-            },
-            setMaxListeners: function(n) {},
-            listeners: function(e) {
-              return list(e).slice(0);
-            }
-          }, obj);
-        })
-      }
-    };
-  });
 
   $.plugin({
     depends: "dom,function,core",

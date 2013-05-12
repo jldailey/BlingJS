@@ -82,8 +82,16 @@ describe "Bling", ->
 
 	describe ".is()", ->
 		describe "should identify", ->
+			it "'string'", -> assert $.is 'string', ''
+			it "'number'", -> assert $.is 'number', 42
+			it "'undefined'", -> assert.equal $.type(), "undefined"
+			it "'null'", -> assert $.is "null", null
 			it "'array'", -> assert $.is "array", []
 			it "'function'", -> assert $.is "function", ->
+			it "'bool'", -> assert $.is "bool", true
+			it "'regexp'", -> assert $.is "regexp", /^$/
+			it "'window'", -> assert $.is "global", window
+			it "'arguments'", -> assert $.is "arguments", arguments
 
 	describe ".inherit(a,b)", ->
 		a = a: 1
@@ -1188,6 +1196,26 @@ describe "Bling", ->
 			assert not isFinite $.units.convertTo('px', NaN)
 		it "can convert compound units like m/s", ->
 			assert.equal $.units.convertTo("px/ms", "42in/s"), "4.032px/ms"
+	
+	describe ".matches()", ->
+		it "compares an object against a pattern object", ->
+			assert $.matches { a: 1 }, { a: 1 }
+		describe "patterns can be", ->
+			it "strings", ->
+				assert $.matches { a: "foo" }, { a: "foo" }
+			it "numbers", ->
+				assert $.matches { a: 42 }, { a: 42 }
+			it "regexes", ->
+				assert $.matches { a: "foo" }, { a: /oo$/ }
+			it "nested", ->
+				assert $.matches {a: { b: 42 }}, {a: { b: 42 }}
+			it "partial nesting", ->
+				assert $.matches { a: { b: "foo", c: { d: "bar" } } },
+					{ a: { b: /oo$/ } }
+			it "deep nesting", ->
+				assert $.matches { a: { b: "foo", c: { d: "bar" } } },
+					{ a: { c: { d: /^b/ } } }
+
 	
 	describe "pubsub", ->
 		it "defines $.Hub", ->

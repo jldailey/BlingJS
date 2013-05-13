@@ -2941,6 +2941,39 @@
   });
 
   $.plugin({
+    provides: "matches"
+  }, function() {
+    return {
+      $: {
+        matches: function(pattern, obj) {
+          var k, v;
+
+          for (k in pattern) {
+            v = pattern[k];
+            if (!(k in obj)) {
+              return false;
+            }
+            if ($.is('regexp', v)) {
+              if (v.test(obj[k])) {
+                continue;
+              }
+              return false;
+            } else if ($.is('object', v)) {
+              if ($.matches(v, obj[k])) {
+                continue;
+              }
+              return false;
+            } else if (obj[k] !== v) {
+              return false;
+            }
+          }
+          return true;
+        }
+      }
+    };
+  });
+
+  $.plugin({
     provides: "math",
     depends: "core"
   }, function() {
@@ -3344,15 +3377,24 @@
       }
 
       Hub.prototype.publish = function() {
-        var args, channel, f, _base, _i, _len, _ref;
+        var args, channel, listener, _base, _i, _len, _ref;
 
         channel = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-        _ref = ((_base = this.listeners)[channel] || (_base[channel] = []));
+        _ref = (_base = this.listeners)[channel] || (_base[channel] = []);
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          f = _ref[_i];
-          f.apply(null, args);
+          listener = _ref[_i];
+          if (this.filter.apply(this, [listener].concat(__slice.call(args)))) {
+            listener.apply(null, args);
+          }
         }
         return args;
+      };
+
+      Hub.prototype.filter = function(listener, message) {
+        if ('patternObject' in listener) {
+          return $.matches(listener.patternObject, message);
+        }
+        return true;
       };
 
       Hub.prototype.publisher = function(channel, func) {
@@ -3364,9 +3406,14 @@
         };
       };
 
-      Hub.prototype.subscribe = function(channel, func) {
-        var _base;
+      Hub.prototype.subscribe = function() {
+        var args, channel, func, _base;
 
+        channel = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+        func = args.pop();
+        if (args.length > 0) {
+          func.patternObject = args.pop();
+        }
         ((_base = this.listeners)[channel] || (_base[channel] = [])).push(func);
         return func;
       };
@@ -3375,13 +3422,14 @@
         var a, i, _base;
 
         if (func == null) {
-          return this.listeners[channel] = [];
+          this.listeners[channel] = [];
         } else {
           a = ((_base = this.listeners)[channel] || (_base[channel] = []));
           if ((i = a.indexOf(func)) > -1) {
-            return a.splice(i, i);
+            a.splice(i, 1);
           }
         }
+        return func;
       };
 
       return Hub;
@@ -4590,111 +4638,180 @@
     depends: 'type',
     provides: 'TNET'
   }, function() {
-    var parseArray, parseObject, parseOne;
+    var Symbols, Types, packOne, unpackOne;
 
-    parseOne = function(data) {
-      var extra, i, item, len, type;
+    Types = {
+      "number": {
+        symbol: "#",
+        pack: function(n) {
+          return String(n);
+        },
+        unpack: function(s) {
+          return Number(s);
+        }
+      },
+      "string": {
+        symbol: "'",
+        pack: $.identity,
+        unpack: $.identity
+      },
+      "bool": {
+        symbol: "!",
+        pack: function(b) {
+          return String(!!b);
+        },
+        unpack: function(s) {
+          return s === "true";
+        }
+      },
+      "null": {
+        symbol: "~",
+        pack: function(b) {
+          return "";
+        },
+        unpack: function(s) {
+          return null;
+        }
+      },
+      "undefined": {
+        symbol: "_",
+        pack: function(b) {
+          return "";
+        },
+        unpack: function(s) {
+          return void 0;
+        }
+      },
+      "array": {
+        symbol: "]",
+        pack: function(a) {
+          var y;
+
+          return ((function() {
+            var _i, _len, _results;
+
+            _results = [];
+            for (_i = 0, _len = a.length; _i < _len; _i++) {
+              y = a[_i];
+              _results.push(packOne(y));
+            }
+            return _results;
+          })()).join('');
+        },
+        unpack: function(s) {
+          var data, one, _ref;
+
+          data = [];
+          while (s.length > 0) {
+            _ref = unpackOne(s), one = _ref[0], s = _ref[1];
+            data.push(one);
+          }
+          return data;
+        }
+      },
+      "object": {
+        symbol: "}",
+        pack: function(o) {
+          var k, v;
+
+          return ((function() {
+            var _results;
+
+            _results = [];
+            for (k in o) {
+              v = o[k];
+              _results.push(packOne(k) + packOne(v));
+            }
+            return _results;
+          })()).join('');
+        },
+        unpack: function(s) {
+          var data, key, value, _ref, _ref1;
+
+          data = {};
+          while (s.length > 0) {
+            _ref = unpackOne(s), key = _ref[0], s = _ref[1];
+            _ref1 = unpackOne(s), value = _ref1[0], s = _ref1[1];
+            data[key] = value;
+          }
+          return data;
+        }
+      },
+      "function": {
+        symbol: ")",
+        pack: function(f) {
+          var args, body, _ref;
+
+          _ref = f.toString().replace(/function \w*/, '').replace(/\/\*.*\*\//, '').replace(/\n/, '').replace(/^\(/, '').replace(/}$/, '').split(/\) {/), args = _ref[0], body = _ref[1];
+          args = args.split(/, */);
+          body = body.replace(/^\s+/, '').replace(/\s*$/, '');
+          return [args, body].map(packOne).join('');
+        },
+        unpack: function(s) {
+          var args, body, rest, _ref, _ref1;
+
+          _ref = unpackOne(s), args = _ref[0], rest = _ref[1];
+          _ref1 = unpackOne(rest), body = _ref1[0], rest = _ref1[1];
+          args.push(body);
+          return Function.apply(null, args);
+        }
+      },
+      "regexp": {
+        symbol: "/",
+        pack: function(r) {
+          return String(r).slice(1, -1);
+        },
+        unpack: function(s) {
+          return RegExp(s);
+        }
+      }
+    };
+    Symbols = {};
+    (function() {
+      var t, v, _results;
+
+      _results = [];
+      for (t in Types) {
+        v = Types[t];
+        _results.push(Symbols[v.symbol] = v);
+      }
+      return _results;
+    })();
+    unpackOne = function(data) {
+      var extra, i, item, len, symbol, type;
 
       i = data.indexOf(":");
       if (i > 0) {
         len = parseInt(data.slice(0, i), 10);
         item = data.slice(i + 1, i + 1 + len);
-        type = data[i + 1 + len];
+        symbol = data[i + 1 + len];
         extra = data.slice(i + len + 2);
-        item = (function() {
-          switch (type) {
-            case "#":
-              return Number(item);
-            case "'":
-              return String(item);
-            case "!":
-              return item === "true";
-            case "~":
-              return null;
-            case "]":
-              return parseArray(item);
-            case "}":
-              return parseObject(item);
-          }
-        })();
-        return [item, extra];
+        if ((type = Symbols[symbol]) != null) {
+          item = type.unpack(item);
+          return [item, extra];
+        }
       }
       return void 0;
     };
-    parseArray = function(x) {
-      var data, one, _ref;
+    packOne = function(x) {
+      var data, t;
 
-      data = [];
-      while (x.length > 0) {
-        _ref = parseOne(x), one = _ref[0], x = _ref[1];
-        data.push(one);
+      t = Types[$.type(x)];
+      if (t == null) {
+        throw new Error("TNET: cant pack type '" + ($.type(x)) + "'");
       }
-      return data;
-    };
-    parseObject = function(x) {
-      var data, key, value, _ref, _ref1;
-
-      data = {};
-      while (x.length > 0) {
-        _ref = parseOne(x), key = _ref[0], x = _ref[1];
-        _ref1 = parseOne(x), value = _ref1[0], x = _ref1[1];
-        data[key] = value;
-      }
-      return data;
+      data = t.pack(x);
+      return (data.length | 0) + ":" + data + t.symbol;
     };
     return {
       $: {
         TNET: {
-          stringify: function(x) {
-            var data, type, y, _ref;
-
-            _ref = (function() {
-              switch ($.type(x)) {
-                case "number":
-                  return [String(x), "#"];
-                case "string":
-                  return [x, "'"];
-                case "function":
-                  return [String(x), "'"];
-                case "boolean":
-                  return [String(!!x), "!"];
-                case "null":
-                  return ["", "~"];
-                case "undefined":
-                  return ["", "~"];
-                case "array":
-                  return [
-                    ((function() {
-                      var _i, _len, _results;
-
-                      _results = [];
-                      for (_i = 0, _len = x.length; _i < _len; _i++) {
-                        y = x[_i];
-                        _results.push($.TNET.stringify(y));
-                      }
-                      return _results;
-                    })()).join(''), "]"
-                  ];
-                case "object":
-                  return [
-                    ((function() {
-                      var _results;
-
-                      _results = [];
-                      for (y in x) {
-                        _results.push($.TNET.stringify(y) + $.TNET.stringify(x[y]));
-                      }
-                      return _results;
-                    })()).join(''), "}"
-                  ];
-              }
-            })(), data = _ref[0], type = _ref[1];
-            return (data.length | 0) + ":" + data + type;
-          },
+          Types: Types,
+          stringify: packOne,
           parse: function(x) {
             var _ref;
 
-            return (_ref = parseOne(x)) != null ? _ref[0] : void 0;
+            return (_ref = unpackOne(x)) != null ? _ref[0] : void 0;
           }
         }
       }

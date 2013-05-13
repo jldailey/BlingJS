@@ -1323,6 +1323,25 @@ $.plugin
 		style: (src) ->
 			lazy_load "link", { href: src, rel: "stylesheet" }
 $.plugin
+	provides: "matches"
+, ->
+	return {
+		$:
+			matches: (pattern, obj) ->
+				for k, v of pattern
+					unless k of obj
+						return false
+					if ($.is 'regexp', v)
+						continue if v.test obj[k]
+						return false
+					else if ($.is 'object', v)
+						continue if $.matches v, obj[k]
+						return false
+					else if obj[k] isnt v
+						return false
+				return true
+	}
+$.plugin
 	provides: "math"
 	depends: "core"
 , ->
@@ -1464,12 +1483,21 @@ $.plugin
 		constructor: ->
 			@listeners = {} # a mapping of channel name to a list of listeners
 		publish: (channel, args...) ->
-			f.apply null, args for f in (@listeners[channel] or= [])
+			for listener in @listeners[channel] or= []
+				if @filter(listener, args...)
+					listener(args...)
 			args
+		filter: (listener, message) ->
+			if 'patternObject' of listener
+				return $.matches listener.patternObject, message
+			return true
 		publisher: (channel, func) -> # Use as a function decorator
-			t = @
+			t = @ # dont use => because we need both t and @ in the new publisher
 			-> t.publish channel, func.apply @, arguments
-		subscribe: (channel, func) ->
+		subscribe: (channel, args...) ->
+			func = args.pop()
+			if args.length > 0
+				func.patternObject = args.pop()
 			(@listeners[channel] or= []).push func
 			func
 		unsubscribe: (channel, func) ->
@@ -1478,10 +1506,10 @@ $.plugin
 			else
 				a = (@listeners[channel] or= [])
 				if (i = a.indexOf func)  > -1
-					a.splice(i,i)
+					a.splice i,1
+			func
 	return {
-		$: $.extend new Hub(),
-			Hub: Hub
+		$: $.extend new Hub(), { Hub }
 	}
 $.plugin
 	provides: 'random'
@@ -2095,50 +2123,94 @@ $.plugin
 	depends: 'type'
 	provides: 'TNET'
 , -> # TnetStrings plugin
-	parseOne = (data) ->
+	Types =
+		"number":
+			symbol: "#"
+			pack: (n) -> String(n)
+			unpack: (s) -> Number(s)
+		"string":
+			symbol: "'"
+			pack: $.identity
+			unpack: $.identity
+		"bool":
+			symbol: "!"
+			pack: (b) -> String(not not b)
+			unpack: (s) -> s is "true"
+		"null":
+			symbol: "~"
+			pack: (b) -> ""
+			unpack: (s) -> null
+		"undefined":
+			symbol: "_"
+			pack: (b) -> ""
+			unpack: (s) -> undefined
+		"array":
+			symbol: "]"
+			pack: (a) -> (packOne(y) for y in a).join('')
+			unpack: (s) ->
+				data = []
+				while s.length > 0
+					[one, s] = unpackOne(s)
+					data.push(one)
+				data
+		"object":
+			symbol: "}"
+			pack: (o) ->
+					(packOne(k)+packOne(v) for k,v of o).join('')
+			unpack: (s) ->
+				data = {}
+				while s.length > 0
+					[key, s] = unpackOne(s)
+					[value, s] = unpackOne(s)
+					data[key] = value
+				data
+		"function":
+			symbol: ")"
+			pack: (f) ->
+				[args, body] = f.toString()
+					.replace(/function \w*/,'')
+					.replace(/\/\*.*\*\//,'')
+					.replace(/\n/,'')
+					.replace(/^\(/,'')
+					.replace(/}$/,'')
+					.split(/\) {/)
+				args = args.split /, */
+				body = body.replace(/^\s+/,'').replace(/\s*$/,'')
+				return [ args, body ].map(packOne).join ''
+			unpack: (s) ->
+				[args, rest] = unpackOne(s)
+				[body, rest] = unpackOne(rest)
+				args.push body
+				return Function.apply null, args
+		"regexp":
+			symbol: "/"
+			pack: (r) -> String(r).slice(1,-1)
+			unpack: (s) -> RegExp(s)
+	Symbols = {}
+	do -> for t,v of Types
+		Symbols[v.symbol] = v
+	unpackOne = (data) ->
 		i = data.indexOf ":"
 		if i > 0
 			len = parseInt data[0...i], 10
 			item = data[i+1...i+1+len]
-			type = data[i+1+len]
+			symbol = data[i+1+len]
 			extra = data[i+len+2...]
-			item = switch type
-				when "#" then Number(item)
-				when "'" then String(item)
-				when "!" then (item is "true")
-				when "~" then null
-				when "]" then parseArray(item)
-				when "}" then parseObject(item)
-			return [item, extra]
+			if( type = Symbols[symbol] )?
+				item = type.unpack item
+				return [item, extra]
 		return undefined
-	parseArray = (x) ->
-		data = []
-		while x.length > 0
-			[one, x] = parseOne(x)
-			data.push(one)
-		data
-	parseObject = (x) ->
-		data = {}
-		while x.length > 0
-			[key, x] = parseOne(x)
-			[value, x] = parseOne(x)
-			data[key] = value
-		data
+	packOne = (x) ->
+		t = Types[$.type x]
+		unless t?
+			throw new Error("TNET: cant pack type '#{$.type x}'")
+		data = t.pack(x)
+		return (data.length|0) + ":" + data + t.symbol
 	$:
 		TNET:
-			stringify: (x) ->
-				[data, type] = switch $.type x
-					when "number" then [String(x), "#"]
-					when "string" then [x, "'"]
-					when "function" then [String(x), "'"]
-					when "boolean" then [String(not not x), "!"]
-					when "null" then ["", "~"]
-					when "undefined" then ["", "~"]
-					when "array" then [($.TNET.stringify(y) for y in x).join(''), "]"]
-					when "object" then [($.TNET.stringify(y)+$.TNET.stringify(x[y]) for y of x).join(''), "}"]
-				return (data.length|0) + ":" + data + type
-			parse: (x) ->
-				parseOne(x)?[0]
+			Types: Types
+			stringify: packOne
+			parse: (x) -> unpackOne(x)?[0]
 $.plugin
 	provides: "trace"
 	depends: "function,type"

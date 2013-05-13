@@ -1200,23 +1200,39 @@ describe "Bling", ->
 	describe ".matches()", ->
 		it "compares an object against a pattern object", ->
 			assert $.matches { a: 1 }, { a: 1 }
+		it "properly fails to match", ->
+			assert.equal false, $.matches { a: /oo$/ }, { a: "bar" }
 		describe "patterns can be", ->
 			it "strings", ->
 				assert $.matches { a: "foo" }, { a: "foo" }
+			it "strings (false)", ->
+				assert.equal false, $.matches { a: "foo" }, { a: "bar" }
 			it "numbers", ->
 				assert $.matches { a: 42 }, { a: 42 }
+			it "numbers (false)", ->
+				assert.equal false, $.matches { a: 42 }, { a: 43 }
 			it "regexes", ->
-				assert $.matches { a: "foo" }, { a: /oo$/ }
+				assert $.matches { a: /oo$/ }, { a: "foo" }
+			it "regexes (false)", ->
+				assert.equal false, $.matches { a: /oo$/ }, { a: "bar" }
 			it "nested", ->
 				assert $.matches {a: { b: 42 }}, {a: { b: 42 }}
+			it "nested (false)", ->
+				assert.equal false, $.matches {a: { b: 42 }}, {a: { b: 43 }}
 			it "partial nesting", ->
-				assert $.matches { a: { b: "foo", c: { d: "bar" } } },
-					{ a: { b: /oo$/ } }
+				assert $.matches { a: { b: /oo$/ } },
+					{ a: { b: "foo", c: { d: "bar" } } }
+			it "partial nesting (false)", ->
+				assert.equal false, $.matches { a: { b: /oo$/ } },
+					{ a: { b: "bar", c: { d: "foo" } } }
 			it "deep nesting", ->
-				assert $.matches { a: { b: "foo", c: { d: "bar" } } },
-					{ a: { c: { d: /^b/ } } }
+				assert $.matches { a: { c: { d: /^b/ } } },
+					{ a: { b: "foo", c: { d: "bar" } } }
+			it "deep nesting (false)", ->
+				assert.equal false, $.matches { a: { c: { d: /^b/ } } },
+					{ a: { b: "bar", c: { d: "foo" } } }
 
-	
+
 	describe "pubsub", ->
 		it "defines $.Hub", ->
 			assert typeof $.Hub is "function"
@@ -1244,6 +1260,35 @@ describe "Bling", ->
 			$.subscribe 'test-channel', (data) -> pass = data
 			$.publish 'test-channel', true
 			assert pass
+		describe ".subscribe()", ->
+			hub = new $.Hub()
+			it "attaches basic listeners to a channel", ->
+				pass = false
+				hub.subscribe "chan", (data) -> pass = data
+				hub.publish "chan", true
+				assert pass
+			it "accepts an optional pattern object", ->
+				pass = 0
+				hub.subscribe "chan", { op: /oo$/ }, (obj) ->
+					pass += obj.data
+				hub.publish "chan", { op: "bar", data: 1 }
+				hub.publish "chan", { op: "foo", data: 2 }
+				assert.equal pass, 2
+
+		describe ".unsubscribe()", ->
+			hub = new $.Hub()
+			it "can unsub a single listener", ->
+				f = ->
+				hub.subscribe("chan", f)
+				assert.deepEqual hub.listeners["chan"], [ f ]
+				hub.unsubscribe("chan", f)
+				assert.notEqual hub.listeners["chan"][0], f
+			it "can unsub all listeners at once", ->
+				hub.subscribe("chan", ->)
+				hub.subscribe("chan", ->)
+				assert.equal hub.listeners["chan"].length, 2
+				hub.unsubscribe "chan"
+				assert.equal hub.listeners["chan"].length, 0
 	
 	describe "async", ->
 		it "defines series and parallel", ->

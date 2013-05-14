@@ -6,12 +6,14 @@ if process.argv.length < 4
 	`return $.log("Usage: watch.coffee 'regex' 'shell command'")`
 
 console.log "Initializing..."
+execCount = 0
 exec = $.throttle 3000, $.trace 'exec', (file, cmd) ->
+	execCount += 1
 	p = Proc.exec cmd, (err, stdout, stderr) ->
 		if err then throw "Proc.exec error: #{err}"
-	unless process.platform is 'darwin'
-		p.stdout.on 'data', (data) -> $.log "[stdout]", data
-		p.stderr.on 'data', (data) -> $.log "[stderr]", data
+	if execCount > 0 or process.platform isnt 'darwin'
+		p.stdout.on 'data', (data) -> console.log data.replace(/[\r\n]+$/,'')
+		p.stderr.on 'data', (data) -> console.error data.replace(/[\r\n]+$/,'')
 	return p
 
 

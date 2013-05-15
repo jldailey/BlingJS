@@ -1431,31 +1431,30 @@ $.plugin
 				waiting.push cb
 				@
 			finish: (value) ->
-				waiting.call null, result = value
-				waiting.clear()
+				waiting.call(null, result = value).clear()
 				@
 			fail: (error)  ->
-				waiting.call err = error, null
-				waiting.clear()
+				waiting.call(err = error, null).clear()
 				@
 			reset: ->
 				err = result = NoValue
 				@
 		}, $.EventEmitter(obj)
+	Promise.compose = (promises...) ->
+		p = $.Progress(promises.length)
+		$(promises).select('wait').call -> p.finish 1
+		return p
 	Progress = (max = 1.0) ->
 		cur = 0.0
-		progress = (args...) ->
 		return $.inherit {
 			progress: (args...) ->
 				return cur unless args.length
 				cur = args[0]
-				if args.length > 1
-					max = args[1]
-				@finish(cur) if cur >= max
+				max = args[1] if args.length > 1
+				@__proto__.finish(max) if cur >= max
 				@emit 'progress', cur, max
 				@
-			progressInc: (delta = 1) -> @progress cur + delta
-			progressMax: (q) -> max = q
+			finish: (delta = 1) -> @progress cur + delta
 		}, Promise()
 	Promise.xhr = (xhr) ->
 		p = $.Promise()

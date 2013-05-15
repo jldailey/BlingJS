@@ -1425,16 +1425,27 @@ $.plugin
 		waiting = $()
 		err = result = NoValue
 		return $.inherit {
-			wait: (cb) ->
-				return cb(err,null) if err isnt NoValue
+			wait: (timeout, cb) ->
+				if $.is 'function', timeout
+					cb = timeout
+				return cb(err, null) if err isnt NoValue
 				return cb(null,result) if result isnt NoValue
 				waiting.push cb
+				if isFinite timeout
+					cb.timeout = $.delay timeout, ->
+						if (i = waiting.indexOf cb) > -1
+							waiting.splice i, 1
+							cb('timeout', null)
 				@
 			finish: (value) ->
-				waiting.call(null, result = value).clear()
+				waiting.call(null, result = value)
+				waiting.select('timeout.cancel').call()
+				waiting.clear()
 				@
 			fail: (error)  ->
-				waiting.call(err = error, null).clear()
+				waiting.call(err = error, null)
+				waiting.select('timeout.cancel').call()
+				waiting.clear()
 				@
 			reset: ->
 				err = result = NoValue

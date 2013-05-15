@@ -3259,7 +3259,10 @@
       waiting = $();
       err = result = NoValue;
       return $.inherit({
-        wait: function(cb) {
+        wait: function(timeout, cb) {
+          if ($.is('function', timeout)) {
+            cb = timeout;
+          }
           if (err !== NoValue) {
             return cb(err, null);
           }
@@ -3267,14 +3270,28 @@
             return cb(null, result);
           }
           waiting.push(cb);
+          if (isFinite(timeout)) {
+            cb.timeout = $.delay(timeout, function() {
+              var i;
+
+              if ((i = waiting.indexOf(cb)) > -1) {
+                waiting.splice(i, 1);
+                return cb('timeout', null);
+              }
+            });
+          }
           return this;
         },
         finish: function(value) {
-          waiting.call(null, result = value).clear();
+          waiting.call(null, result = value);
+          waiting.select('timeout.cancel').call();
+          waiting.clear();
           return this;
         },
         fail: function(error) {
-          waiting.call(err = error, null).clear();
+          waiting.call(err = error, null);
+          waiting.select('timeout.cancel').call();
+          waiting.clear();
           return this;
         },
         reset: function() {

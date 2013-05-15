@@ -3251,14 +3251,14 @@
 
     NoValue = function() {};
     Promise = function(obj) {
-      var err, result, waiting;
+      var err, result, ret, waiting;
 
       if (obj == null) {
         obj = {};
       }
       waiting = $();
       err = result = NoValue;
-      return $.inherit({
+      ret = $.inherit({
         wait: function(timeout, cb) {
           if ($.is('function', timeout)) {
             cb = timeout;
@@ -3299,6 +3299,17 @@
           return this;
         }
       }, $.EventEmitter(obj));
+      $.defineProperty(ret, 'finished', {
+        get: function() {
+          return result !== NoValue;
+        }
+      });
+      $.defineProperty(ret, 'failed', {
+        get: function() {
+          return err !== NoValue;
+        }
+      });
+      return ret;
     };
     Promise.compose = function() {
       var p, promises;

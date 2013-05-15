@@ -1453,6 +1453,15 @@ describe "Bling", ->
 				f.wait (err, data) -> f.pass = data
 				f.finish true
 				assert f.pass
+		describe ".compose()", ->
+			it "composes promises", ->
+				pass = false
+				a = $.Promise()
+				b = $.Promise()
+				c = $.Promise.compose(a, b).wait -> pass = true
+				a.finish()
+				b.finish()
+				assert pass
 
 	describe "$.Progress", ->
 		it "is a Promise", ->
@@ -1467,8 +1476,8 @@ describe "Bling", ->
 			p.on "progress", (cur, max) ->
 				_cur = cur; _max = max
 			p.wait (err, data) -> _done = data
-			it "p.progressInc(n) adjusts progress by n", ->
-				p.progressInc(1)
+			it "p.finish(n) adjusts progress by n", ->
+				p.finish(1)
 				assert.equal _cur, 1
 				assert.equal _max, 10
 			it "progress() with no args returns current progress", ->
@@ -1476,6 +1485,7 @@ describe "Bling", ->
 			it "progress(cur) is a setter", ->
 				p.progress(9)
 				assert.equal p.progress(), 9
+				assert.equal _done, 0
 			it "completing progress finishes the Promise", ->
 				p.progress(10)
 				assert.equal _done, 10

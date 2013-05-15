@@ -3270,13 +3270,11 @@
           return this;
         },
         finish: function(value) {
-          waiting.call(null, result = value);
-          waiting.clear();
+          waiting.call(null, result = value).clear();
           return this;
         },
         fail: function(error) {
-          waiting.call(err = error, null);
-          waiting.clear();
+          waiting.call(err = error, null).clear();
           return this;
         },
         reset: function() {
@@ -3285,18 +3283,23 @@
         }
       }, $.EventEmitter(obj));
     };
+    Promise.compose = function() {
+      var p, promises;
+
+      promises = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+      p = $.Progress(promises.length);
+      $(promises).select('wait').call(function() {
+        return p.finish(1);
+      });
+      return p;
+    };
     Progress = function(max) {
-      var cur, progress;
+      var cur;
 
       if (max == null) {
         max = 1.0;
       }
       cur = 0.0;
-      progress = function() {
-        var args;
-
-        args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-      };
       return $.inherit({
         progress: function() {
           var args;
@@ -3310,19 +3313,16 @@
             max = args[1];
           }
           if (cur >= max) {
-            this.finish(cur);
+            this.__proto__.finish(max);
           }
           this.emit('progress', cur, max);
           return this;
         },
-        progressInc: function(delta) {
+        finish: function(delta) {
           if (delta == null) {
             delta = 1;
           }
           return this.progress(cur + delta);
-        },
-        progressMax: function(q) {
-          return max = q;
         }
       }, Promise());
     };

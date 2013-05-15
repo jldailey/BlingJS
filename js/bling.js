@@ -3283,15 +3283,19 @@
           return this;
         },
         finish: function(value) {
-          waiting.call(null, result = value);
-          waiting.select('timeout.cancel').call();
-          waiting.clear();
+          if ((err === result && result === NoValue)) {
+            waiting.call(null, result = value);
+            waiting.select('timeout.cancel').call();
+            waiting.clear();
+          }
           return this;
         },
         fail: function(error) {
-          waiting.call(err = error, null);
-          waiting.select('timeout.cancel').call();
-          waiting.clear();
+          if ((err === result && result === NoValue)) {
+            waiting.call(err = error, null);
+            waiting.select('timeout.cancel').call();
+            waiting.clear();
+          }
           return this;
         },
         reset: function() {
@@ -3316,8 +3320,12 @@
 
       promises = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
       p = $.Progress(promises.length);
-      $(promises).select('wait').call(function() {
-        return p.finish(1);
+      $(promises).select('wait').call(function(err, data) {
+        if (err) {
+          return p.fail(err);
+        } else if (!p.failed) {
+          return p.finish(1);
+        }
       });
       return p;
     };
@@ -3330,13 +3338,13 @@
       cur = 0.0;
       return $.inherit({
         progress: function() {
-          var args;
+          var args, _ref;
 
           args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
           if (!args.length) {
             return cur;
           }
-          cur = args[0];
+          cur = (_ref = args[0]) != null ? _ref : cur;
           if (args.length > 1) {
             max = args[1];
           }

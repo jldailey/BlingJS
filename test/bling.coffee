@@ -1411,54 +1411,67 @@ describe "Bling", ->
 		it "renders HTML", ->
 			assert.deepEqual $.stringDiff("Hello", "Hi").toHTML(), "H<del>e</del><ins>i</ins><del>llo</del>"
 	
-	describe "$.Promise", ->
-		describe "basic contract", ->
-			p = $.Promise()
+	describe "$.Promise()", ->
+		p = $.Promise()
+		pass = false
+		it "can be waited on", ->
+			p.wait (err, data) -> pass = data
+		it "can be finished", ->
+			p.finish true
+		it "passes the finished data to listeners", ->
+			assert pass
+		it "calls back instantly if already finished", ->
 			pass = false
-			it "can be waited on", ->
-				p.wait (err, data) -> pass = data
-			it "can be finished", ->
-				p.finish true
-			it "passes the finished data to anything waiting", ->
-				assert pass
-			it "calls back instantly if already finished", ->
+			p.wait (err, data) -> pass = data
+			assert pass
+		it "can be checked", ->
+			assert.equal $.Promise().finished, false
+			assert.equal $.Promise().finish().finished, true
+			assert.equal $.Promise().failed, false
+			assert.equal $.Promise().fail().failed, true
+		it "can be reset", ->
+			pass = false
+			p.reset()
+			p.wait (err, data) -> pass = data
+			assert.equal pass, false # not fired yet
+			p.finish(true)
+			assert pass
+		it "clears callbacks after fire", ->
+			id = 0
+			p.wait (err, data) -> id += data # handler A
+			p.finish 1
+			p.wait (err, data) -> id += data # handler B
+			p.finish 1
+			assert.equal id, 2 # if handler A or B ran more than once, id would be >= 3
+
+		it "ignores more than one call to .finish()", ->
+			pass = 1
+			a = $.Promise().wait -> pass += pass
+			a.finish()
+			a.finish()
+			assert.equal pass, 2 # not 4, if it had run twice
+
+		it "ignores more than one call to .fail()", ->
+			pass = 1
+			a = $.Promise().wait (err, data) -> pass += err
+			a.fail pass
+			a.fail pass
+			assert.equal pass, 2 # not 4, if it had run twice
+
+		describe "optional timeout", ->
+			it "sets error to 'timeout'", (done) ->
+				$.Promise().wait 300, (err, data) ->
+					assert.equal err, 'timeout'
+					done()
+			it "does not fire if the promise is finished", (done) ->
 				pass = false
-				p.wait (err, data) -> pass = data
-				assert pass
-			it "can be checked", ->
-				pass = false
-				assert.equal $.Promise().finished, false
-				assert.equal $.Promise().finish().finished, true
-				assert.equal $.Promise().failed, false
-				assert.equal $.Promise().fail().failed, true
-			it "can be reset", ->
-				pass = false
-				p.reset()
-				p.wait (err, data) -> pass = data
-				assert.equal pass, false # not fired yet
-				p.finish(true)
-				assert pass
-			it "clears callbacks after fire", ->
-				id = 0
-				p.wait (err, data) -> id += data # handler A
-				p.finish 1
-				p.wait (err, data) -> id += data # handler B
-				p.finish 1
-				assert.equal id, 2 # if handler A or B ran more than once, id would be >= 3
-			describe "optional timeout", ->
-				it "sets error to 'timeout'", (done) ->
-					$.Promise().wait 300, (err, data) ->
-						assert.equal err, 'timeout'
-						done()
-				it "does not fire if the promise is finished", (done) ->
-					pass = false
-					$.Promise().wait(300, (err, data) ->
-						assert.equal err, null
-						pass = data
-					).finish true
-					$.delay 500, ->
-						assert.equal pass, true
-						done()
+				$.Promise().wait(300, (err, data) ->
+					assert.equal err, null
+					pass = data
+				).finish true
+				$.delay 500, ->
+					assert.equal pass, true
+					done()
 
 		describe "inheritance", ->
 			it "works with default constructor", ->

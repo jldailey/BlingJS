@@ -21,14 +21,16 @@ $.plugin
 							cb('timeout', null)
 				@
 			finish: (value) ->
-				waiting.call(null, result = value)
-				waiting.select('timeout.cancel').call()
-				waiting.clear()
+				if err is result is NoValue
+					waiting.call(null, result = value)
+					waiting.select('timeout.cancel').call()
+					waiting.clear()
 				@
 			fail: (error)  ->
-				waiting.call(err = error, null)
-				waiting.select('timeout.cancel').call()
-				waiting.clear()
+				if err is result is NoValue
+					waiting.call(err = error, null)
+					waiting.select('timeout.cancel').call()
+					waiting.clear()
 				@
 			reset: ->
 				err = result = NoValue
@@ -45,15 +47,21 @@ $.plugin
 
 	Promise.compose = (promises...) ->
 		p = $.Progress(promises.length)
-		$(promises).select('wait').call -> p.finish 1
+		$(promises).select('wait').call (err, data) ->
+			if err then p.fail err
+			else unless p.failed then p.finish 1
 		return p
 
 	Progress = (max = 1.0) ->
 		cur = 0.0
 		return $.inherit {
+			# .progress() - returns current progress
+			# .progress(cur) - sets progress
+			# .progress(cur, max) - set progress and goal
+			# .progress(null, max) - set goal
 			progress: (args...) ->
 				return cur unless args.length
-				cur = args[0]
+				cur = args[0] ? cur
 				max = args[1] if args.length > 1
 				@__proto__.finish(max) if cur >= max
 				@emit 'progress', cur, max

@@ -1439,6 +1439,21 @@ describe "Bling", ->
 				p.wait (err, data) -> id += data # handler B
 				p.finish 1
 				assert.equal id, 2 # if handler A or B ran more than once, id would be >= 3
+			describe "optional timeout", ->
+				it "sets error to 'timeout'", (done) ->
+					$.Promise().wait 300, (err, data) ->
+						assert.equal err, 'timeout'
+						done()
+				it "does not fire if the promise is finished", (done) ->
+					pass = false
+					$.Promise().wait(300, (err, data) ->
+						assert.equal err, null
+						pass = data
+					).finish true
+					$.delay 500, ->
+						assert.equal pass, true
+						done()
+
 		describe "inheritance", ->
 			it "works with default constructor", ->
 				class Foo extends $.Promise

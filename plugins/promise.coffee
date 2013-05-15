@@ -7,7 +7,7 @@ $.plugin
 	Promise = (obj = {}) ->
 		waiting = $()
 		err = result = NoValue
-		return $.inherit {
+		ret = $.inherit {
 			wait: (timeout, cb) ->
 				if $.is 'function', timeout
 					cb = timeout
@@ -35,6 +35,13 @@ $.plugin
 				# does NOT clear waiting, b/c it should already be empty (or result would already be NoValue)
 				@
 		}, $.EventEmitter(obj)
+
+		$.defineProperty ret, 'finished',
+			get: -> result isnt NoValue
+		$.defineProperty ret, 'failed',
+			get: -> err isnt NoValue
+
+		return ret
 
 	Promise.compose = (promises...) ->
 		p = $.Progress(promises.length)

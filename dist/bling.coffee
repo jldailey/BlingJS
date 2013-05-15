@@ -1424,7 +1424,7 @@ $.plugin
 	Promise = (obj = {}) ->
 		waiting = $()
 		err = result = NoValue
-		return $.inherit {
+		ret = $.inherit {
 			wait: (timeout, cb) ->
 				if $.is 'function', timeout
 					cb = timeout
@@ -1451,6 +1451,11 @@ $.plugin
 				err = result = NoValue
 				@
 		}, $.EventEmitter(obj)
+		$.defineProperty ret, 'finished',
+			get: -> result isnt NoValue
+		$.defineProperty ret, 'failed',
+			get: -> err isnt NoValue
+		return ret
 	Promise.compose = (promises...) ->
 		p = $.Progress(promises.length)
 		$(promises).select('wait').call -> p.finish 1

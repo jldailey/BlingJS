@@ -1425,6 +1425,12 @@ describe "Bling", ->
 				pass = false
 				p.wait (err, data) -> pass = data
 				assert pass
+			it "can be checked", ->
+				pass = false
+				assert.equal $.Promise().finished, false
+				assert.equal $.Promise().finish().finished, true
+				assert.equal $.Promise().failed, false
+				assert.equal $.Promise().fail().failed, true
 			it "can be reset", ->
 				pass = false
 				p.reset()

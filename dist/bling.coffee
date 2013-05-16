@@ -2247,12 +2247,14 @@ $.plugin
 					tracer "#{@name or $.type(@)}.#{label}(#{$(a).map($.toRepr).join ','}): #{(+new Date - start).toFixed 0}ms"
 				r.toString = -> "{Trace '#{label}' of #{f.toString()}"
 				r
-	time = (label, f) ->
+	time = (label, f, logger) ->
 		unless $.is "string", label
-			[f, label] = [label, "trace"]
+			[f, logger, label] = [label, f, "trace"]
+		unless $.is "function", logger
+			logger = $.log
 		start = +new Date
 		do f
-		$.log "[#{label}] #{(+new Date - start).toFixed 0}ms"
+		logger "[#{label}] #{(+new Date - start).toFixed 0}ms"
 		
 	return $:
 		time: time

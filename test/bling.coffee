@@ -212,7 +212,18 @@ describe "Bling", ->
 			f()
 		it "should trace the returned function", ->
 			h "one", "two" # but this will
-			assert.deepEqual g, [ "global.label('one','two'): 0ms" ]
+			assert /global\.label\('one','two'\): \d+ms/.test g[0]
+	
+	describe ".time", ->
+		f = -> 42
+		pass = false
+		it "reports execution time", ->
+			$.time f, (m) ->
+				assert.equal m, "[trace] 0ms"
+				pass = true
+			assert pass, "logger must be called"
+		it "accepts an optional prefix", ->
+			$.time "LABEL", f, (m) -> assert.equal m, "[LABEL] 0ms"
 
 	describe ".px()", ->
 		describe "converts ... to pixel strings", ->

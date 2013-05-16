@@ -63,11 +63,12 @@ $.plugin
 				return cur unless args.length
 				cur = args[0] ? cur
 				max = args[1] if args.length > 1
-				@__proto__.finish(max) if cur >= max
+				@__proto__.__proto__.finish(max) if cur >= max
 				@emit 'progress', cur, max
 				@
-			finish: (delta = 1) -> @progress cur + delta
-		}, Promise()
+			finish: (delta = 1) ->
+				@progress cur + delta
+		}, p = Promise()
 
 	# Helper for wrapping an XHR object in a Promise
 	Promise.xhr = (xhr) ->

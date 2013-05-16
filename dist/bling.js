@@ -3330,7 +3330,7 @@
       return p;
     };
     Progress = function(max) {
-      var cur;
+      var cur, p;
 
       if (max == null) {
         max = 1.0;
@@ -3349,7 +3349,7 @@
             max = args[1];
           }
           if (cur >= max) {
-            this.__proto__.finish(max);
+            this.__proto__.__proto__.finish(max);
           }
           this.emit('progress', cur, max);
           return this;
@@ -3360,7 +3360,7 @@
           }
           return this.progress(cur + delta);
         }
-      }, Promise());
+      }, p = Promise());
     };
     Promise.xhr = function(xhr) {
       var p;

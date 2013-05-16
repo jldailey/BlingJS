@@ -1539,6 +1539,14 @@ describe "Bling", ->
 			it "result of finished Progress is the final progress value", ->
 				p.progress(11.1)
 				assert.equal _done, 10 # the value at the time it was completed
+			it "emits 'progress' events", ->
+				a = $.Progress(2)
+				data = []
+				a.on 'progress', (cur, max) -> data.push [cur, max]
+				a.finish 1
+				a.finish 1
+				assert.deepEqual data, [ [1,2], [2,2] ]
+
 
 
 describe "DOM", ->

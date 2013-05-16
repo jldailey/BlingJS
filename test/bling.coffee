@@ -212,7 +212,7 @@ describe "Bling", ->
 			f()
 		it "should trace the returned function", ->
 			h "one", "two" # but this will
-			assert.deepEqual g, [ "global.label('one','two')" ]
+			assert.deepEqual g, [ "global.label('one','two'): 0ms" ]
 
 	describe ".px()", ->
 		describe "converts ... to pixel strings", ->

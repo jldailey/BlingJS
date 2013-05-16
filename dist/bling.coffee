@@ -2242,16 +2242,26 @@ $.plugin
 			trace: (label, f, tracer) ->
 				label or= f.name
 				r = (a...) ->
-					tracer "#{@name or $.type(@)}.#{label}(#{$(a).map($.toRepr).join ','})"
+					start = +new Date
 					f.apply @, a
+					tracer "#{@name or $.type(@)}.#{label}(#{$(a).map($.toRepr).join ','}): #{(+new Date - start).toFixed 0}ms"
 				r.toString = -> "{Trace '#{label}' of #{f.toString()}"
 				r
-	return $: trace: (label, o, tracer) ->
-		if not $.is "string", label
-			[tracer, o] = [o, label]
-		tracer or= $.log
-		label or= ""
-		$.type.lookup(o).trace(label, o, tracer)
+	time = (label, f) ->
+		unless $.is "string", label
+			[f, label] = [label, "trace"]
+		start = +new Date
+		do f
+		$.log "[#{label}] #{(+new Date - start).toFixed 0}ms"
+		
+	return $:
+		time: time
+		trace: (label, o, tracer) ->
+			unless $.is "string", label
+				[tracer, o] = [o, label]
+			tracer or= $.log
+			label or= ""
+			$.type.lookup(o).trace(label, o, tracer)
 $.plugin
 	depends: "dom"
 , ->

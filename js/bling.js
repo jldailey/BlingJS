@@ -4858,6 +4858,8 @@
     provides: "trace",
     depends: "function,type"
   }, function() {
+    var time;
+
     $.type.extend({
       unknown: {
         trace: $.identity
@@ -4890,11 +4892,12 @@
 
           label || (label = f.name);
           r = function() {
-            var a;
+            var a, start;
 
             a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-            tracer("" + (this.name || $.type(this)) + "." + label + "(" + ($(a).map($.toRepr).join(',')) + ")");
-            return f.apply(this, a);
+            start = +(new Date);
+            f.apply(this, a);
+            return tracer("" + (this.name || $.type(this)) + "." + label + "(" + ($(a).map($.toRepr).join(',')) + "): " + ((+(new Date) - start).toFixed(0)) + "ms");
           };
           r.toString = function() {
             return "{Trace '" + label + "' of " + (f.toString());
@@ -4903,8 +4906,19 @@
         }
       }
     });
+    time = function(label, f) {
+      var start, _ref;
+
+      if (!$.is("string", label)) {
+        _ref = [label, "trace"], f = _ref[0], label = _ref[1];
+      }
+      start = +(new Date);
+      f();
+      return $.log("[" + label + "] " + ((+(new Date) - start).toFixed(0)) + "ms");
+    };
     return {
       $: {
+        time: time,
         trace: function(label, o, tracer) {
           var _ref;
 

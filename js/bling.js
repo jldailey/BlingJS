@@ -4906,15 +4906,18 @@
         }
       }
     });
-    time = function(label, f) {
+    time = function(label, f, logger) {
       var start, _ref;
 
       if (!$.is("string", label)) {
-        _ref = [label, "trace"], f = _ref[0], label = _ref[1];
+        _ref = [label, f, "trace"], f = _ref[0], logger = _ref[1], label = _ref[2];
+      }
+      if (!$.is("function", logger)) {
+        logger = $.log;
       }
       start = +(new Date);
       f();
-      return $.log("[" + label + "] " + ((+(new Date) - start).toFixed(0)) + "ms");
+      return logger("[" + label + "] " + ((+(new Date) - start).toFixed(0)) + "ms");
     };
     return {
       $: {

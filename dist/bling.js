@@ -4907,7 +4907,7 @@
       }
     });
     time = function(label, f, logger) {
-      var start, _ref;
+      var ret, start, _ref;
 
       if (!$.is("string", label)) {
         _ref = [label, f, "trace"], f = _ref[0], logger = _ref[1], label = _ref[2];
@@ -4916,8 +4916,9 @@
         logger = $.log;
       }
       start = +(new Date);
-      f();
-      return logger("[" + label + "] " + ((+(new Date) - start).toFixed(0)) + "ms");
+      ret = f();
+      logger("[" + label + "] " + ((+(new Date) - start).toFixed(0)) + "ms");
+      return ret;
     };
     return {
       $: {

@@ -30,8 +30,9 @@ $.plugin
 		unless $.is "function", logger
 			logger = $.log
 		start = +new Date
-		do f
+		ret = do f
 		logger "[#{label}] #{(+new Date - start).toFixed 0}ms"
+		return ret
 		
 	return $:
 		time: time

@@ -224,6 +224,8 @@ describe "Bling", ->
 			assert pass, "logger must be called"
 		it "accepts an optional prefix", ->
 			$.time "LABEL", f, (m) -> assert.equal m, "[LABEL] 0ms"
+		it "return the value that f returns", ->
+			assert.equal $.time( (->42), (->) ), 42
 
 	describe ".px()", ->
 		describe "converts ... to pixel strings", ->

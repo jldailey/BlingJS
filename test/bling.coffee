@@ -567,7 +567,7 @@ describe "Bling", ->
 
 	describe ".select()", ->
 		selectObjects = $ [
-			{id: 1, pX: 2, pY: 3, parent: { id: 2 }, children: [ { id: 3 } ] },
+			{id: 1, pX: 2, pY: 3, parent: { id: 2 }, children: [ { id: 3 }, { id: 5} ] },
 			{id: 2, pX: 3, pY: 4, parent: { id: 4 }, children: [ { id: 6 } ] },
 			{id: 3, pX: 4, pY: 5, parent: { id: 6 }, children: [ { id: 9 } ] },
 		]
@@ -595,6 +595,8 @@ describe "Bling", ->
 				{ pX: 3, pY: 4, id: 4 },
 				{ pX: 4, pY: 5, id: 6 }
 			]
+		it "supports the * (read: flatten) operator", ->
+			assert.deepEqual selectObjects.select("children.*.id"), [3,5,6,9]
 
 	describe ".zap()", ->
 		it "assigns values to properties of items in a set", ->
@@ -1550,25 +1552,41 @@ describe "Bling", ->
 
 
 describe "DOM", ->
-	it "parse", ->
-		d = $.HTML.parse "<div><a></a><b></b><c></c></div>"
-		assert.equal $.type(d), "node"
-		assert.equal d.nodeName, "DIV"
-	it "stringify", -> assert.equal $.HTML.stringify($.HTML.parse(h = "<div><a/><b/><c/></div>")), h
-	it "select_childNodes", -> assert.equal( $("<div><a></a><b></b><c></c></div>").select("childNodes").flatten().map($.type).toRepr(), "$(['node', 'node', 'node'])" )
-	it "child", -> i = 0; d = $("<div><a></a><b></b><c></c></div>"); assert.equal( d.select('childNodes').flatten().map( () -> d.child(i++) ).toRepr(), "$([$([<a/>]), $([<b/>]), $([<c/>])])")
-	it "child2", -> assert.equal($("tr").child(0).select('nodeName').toRepr(), "$(['TD', 'TD', 'TD', 'TD'])")
-	it "textData", ->
+	describe "$.HTML", ->
+		it "can parse HTML strings", ->
+			d = $.HTML.parse "<div><a></a><b></b><c></c></div>"
+			assert.equal $.type(d), "node"
+			assert.equal d.nodeName, "DIV"
+		it "can stringify DOM nodes", ->
+			assert.equal $.HTML.stringify($.HTML.parse(h = "<div><a/><b/><c/></div>")), h
+		it "can escape HTML strings", ->
+			assert.equal $.HTML.escape("<p>"), "&lt;p&gt;"
+	describe ".child(n)", ->
+		it "returns the n-th child", ->
+			i = 0
+			d = $("<div><a></a><b></b><c></c></div>")
+			assert.equal d.child(0).toRepr(), "$([<a/>])"
+			assert.equal d.child(1).toRepr(), "$([<b/>])"
+			assert.equal d.child(2).toRepr(), "$([<c/>])"
+		it "works on found nodes", ->
+			assert.equal $("tr").child(0).select('nodeName').toRepr(),
+				"$(['TD', 'TD', 'TD', 'TD'])"
+	describe "Text Nodes", ->
 		d = $("<div>&nbsp;</div>")
-		assert.equal d.toRepr(), "$([<div>&nbsp;</div>])"
 		t = d.child 0
-		assert.equal t.toRepr(), "$([&nbsp;])"
-		t.zap 'data', '<p>'
-		assert.equal d.select('innerHTML').first(), '&lt;p&gt;'
-	it "escape", -> assert.equal $.HTML.escape("<p>"), "&lt;p&gt;"
-	it "html1", -> assert.equal $("tr").html().first(), "<td>1,1</td><td>1,2</td>"
-	it "html2", -> assert.equal $("div").html("<span>C</span>").html().first(), "<span>C</span>"
-	describe "append", ->
+		it "are rendered by toRepr()", ->
+			assert.equal d.toRepr(), "$([<div>&nbsp;</div>])"
+		it "are rendered even when on their own", ->
+			assert.equal t.toRepr(), "$([&nbsp;])"
+		it "escape data assigned to .data", ->
+			t.zap 'data', '<p>'
+			assert.equal d.select('innerHTML').first(), '&lt;p&gt;'
+	describe ".html()", ->
+		it "renders a DOM node's contents as HTML", ->
+			assert.equal $("tr").html().first(), "<td>1,1</td><td>1,2</td>"
+		it "replaces a node's content with (parsed) HTML", ->
+			assert.equal $("div").html("<span>C</span>").html().first(), "<span>C</span>"
+	describe ".append()", ->
 		it "appends simple HTML", ->
 			try
 				assert.equal($("tr td.d").append("<span>Hi</span>").html().first(), "3,2<span>Hi</span>")
@@ -1580,45 +1598,42 @@ describe "DOM", ->
 			finally
 				$("tr td.d span").remove()
 				$("tr td.d br").remove()
-	describe "appendText", ->
+	describe ".appendText()", ->
 		it "appends plain text", ->
 			try
 				assert.equal($("tr td.d").appendText("Hi").html().first(), "3,2Hi")
 			finally
 				$("tr td.d").html("3,2")
-
-	it "appendTo1", -> assert.equal($("<span>Hi</span>").toRepr(), "$([<span>Hi</span>])")
-	it "appendTo2", ->
-		try
-			assert.equal($("<span>Hi</span>").appendTo("tr td.d").toRepr(), "$([<span>Hi</span>])")
-		finally
-			$("tr td.d span").remove()
-	it "appendTo3", ->
-		try
-			assert.equal($("<span>Hi</span>").appendTo("tr td.d").select('parentNode').toRepr(), '$([<td class="d">3,2<span>Hi</span></td>])')
-		finally
-			$("tr td.d span").remove()
-	it "appendTo4", ->
-		try
-			assert.equal($("<span>Hi</span>").appendTo("tr td.d").select('parentNode').html().first(), "3,2<span>Hi</span>")
-		finally
-			$("tr td.d span").remove()
-	it "prepend", ->
-		try
-			assert.equal($("tr td.d").prepend("<span>Hi</span>").html().first(), "<span>Hi</span>3,2")
-		finally
-			$("tr td.d span").remove()
-	it "prependTo", ->
-		try
-			assert.equal($("<span>Hi</span>").prependTo("tr td.d").select('parentNode').html().first(), "<span>Hi</span>3,2")
-		finally
-			$("tr td.d span").remove()
+	
+	describe ".appendTo() appends nodes", ->
+		it "to CSS selectors", ->
+			try assert.equal($("<span>Hi</span>").appendTo("tr td.d").toRepr(), "$([<span>Hi</span>])")
+			finally $("tr td.d span").remove()
+		it "to Blings", ->
+			try assert.equal($("<span>Hi</span>").appendTo($ "tr td.d").toRepr(), "$([<span>Hi</span>])")
+			finally $("tr td.d span").remove()
+		it "to HTML", ->
+			assert.equal($("<span>Hi</span>").appendTo("<div></div>").select('parentNode').toRepr(), "$([<div><span>Hi</span></div>])")
+		it "always at the end", ->
+			try assert.equal($("<span>Hi</span>").appendTo("tr td.d").select('parentNode').toRepr(), '$([<td class="d">3,2<span>Hi</span></td>])')
+			finally $("tr td.d span").remove()
+	describe ".prepend(x)", ->
+		it "makes x the first child of this", ->
+			try assert.equal $("tr td.d").prepend("<span>Hi</span>").html().first(),
+				"<span>Hi</span>3,2"
+			finally $("tr td.d span").remove()
+	describe ".prependTo(x)", ->
+		it "makes this the first child of x", ->
+			try assert.equal $("<span>Hi</span>").prependTo("tr td.d").select('parentNode').html().first(),
+				"<span>Hi</span>3,2"
+			finally $("tr td.d span").remove()
 	it "before", -> assert.equal($("<a><b></b></a>").find("b").before("<c></c>").select('parentNode').toRepr(), "$([<a><c/><b/></a>])")
 	it "after1", -> assert.equal($("<a><b></b></a>").find("b").after("<c></c>").select('parentNode').toRepr(), "$([<a><b/><c/></a>])")
 	it "after2", -> assert.equal($("<b></b>").after("<c></c>").select('parentNode').toRepr(), "$([<b/><c/>])")
 	it "wrap", -> assert.equal($("<b></b>").wrap("<a></a>").select('parentNode').toRepr(), "$([<a><b/></a>])")
 	it "unwrap", -> assert.equal($("<a><b/></a>").find("b").unwrap().first().parentNode, null)
 	it "replace", -> assert.equal($("<a><b/><c/><b/></a>").find("b").replace("<p/>").eq(0).select('parentNode').toRepr(), "$([<a><p/><c/><p/></a>])")
+	it "replace (regexp)", -> assert.equal $(["abc","bbc","cbc"]).replace(/bc$/,'').join(','), 'a,b,c'
 	describe ".attr()", ->
 		it "can read attributes from DOM nodes", ->
 			assert.equal "#", $("<a href='#'></a>").attr("href").first()

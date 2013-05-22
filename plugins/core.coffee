@@ -123,7 +123,8 @@ $.plugin
 				switch type = $.type p
 					when 'regexp' then selectMany.call @, p
 					when 'string'
-						if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
+						if p is "*" then @flatten()
+						else if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
 						else @map(getter p)
 					else $()
 			selectMany = (a...) ->

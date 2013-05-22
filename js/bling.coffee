@@ -260,7 +260,8 @@ $.plugin
 				switch type = $.type p
 					when 'regexp' then selectMany.call @, p
 					when 'string'
-						if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
+						if p is "*" then @flatten()
+						else if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
 						else @map(getter p)
 					else $()
 			selectMany = (a...) ->
@@ -834,7 +835,10 @@ if $.global.document?
 						@parentNode.parentNode.replaceChild(@, @parentNode)
 					else if @parentNode
 						@parentNode.removeChild(@)
-			replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
+			replace: (n) -> # .replace(/n/) - replace each node with a clone of n
+				if $.is 'regexp', n
+					r = arguments[1]
+					return @map (s) -> s.replace(n, r)
 				n = toNode n
 				clones = @map(-> n.cloneNode true)
 				for i in [0...clones.length] by 1
@@ -1535,7 +1539,8 @@ $.plugin
 	provides: 'random'
 	depends: 'type'
 , ->
-	alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split ""
+	englishAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split ""
+	uuidAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	$: random: do -> # Mersenne Twister algorithm, from the psuedocode on wikipedia
 		MT = new Array(624)
 		index = 0
@@ -1575,7 +1580,7 @@ $.plugin
 					[min,max] = [0,min]
 				($.random() * (max - min)) + min
 			integer: integer = (min, max) -> Math.floor $.random.real(min,max)
-			string: string = (len, prefix="") ->
+			string: string = (len, prefix="", alphabet=englishAlphabet) ->
 				prefix += $.random.element(alphabet) while prefix.length < len
 				prefix
 			coin: coin = (balance=.5) -> $.random() <= balance
@@ -1603,6 +1608,8 @@ $.plugin
 				$( die(faces) for _ in [0...n] by 1 )
 			die: die = (faces) ->
 				$.random.integer(1,faces+1)
+			uuid: ->
+				$(8,4,4,4,12).map(-> $.random.string @,'',uuidAlphabet).join '-'
 $.plugin
 	depends: "core"
 	provides: "request-queue"

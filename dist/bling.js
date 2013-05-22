@@ -706,7 +706,9 @@
             case 'regexp':
               return selectMany.call(this, p);
             case 'string':
-              if ((i = p.indexOf('.')) > -1) {
+              if (p === "*") {
+                return this.flatten();
+              } else if ((i = p.indexOf('.')) > -1) {
                 return this.select(p.substr(0, i)).select(p.substr(i + 1));
               } else {
                 return this.map(getter(p));
@@ -1990,8 +1992,14 @@
           });
         },
         replace: function(n) {
-          var clones, i, _i, _ref, _ref1;
+          var clones, i, r, _i, _ref, _ref1;
 
+          if ($.is('regexp', n)) {
+            r = arguments[1];
+            return this.map(function(s) {
+              return s.replace(n, r);
+            });
+          }
           n = toNode(n);
           clones = this.map(function() {
             return n.cloneNode(true);

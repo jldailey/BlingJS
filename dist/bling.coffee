@@ -260,7 +260,8 @@ $.plugin
 				switch type = $.type p
 					when 'regexp' then selectMany.call @, p
 					when 'string'
-						if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
+						if p is "*" then @flatten()
+						else if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
 						else @map(getter p)
 					else $()
 			selectMany = (a...) ->
@@ -834,7 +835,10 @@ if $.global.document?
 						@parentNode.parentNode.replaceChild(@, @parentNode)
 					else if @parentNode
 						@parentNode.removeChild(@)
-			replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
+			replace: (n) -> # .replace(/n/) - replace each node with a clone of n
+				if $.is 'regexp', n
+					r = arguments[1]
+					return @map (s) -> s.replace(n, r)
 				n = toNode n
 				clones = @map(-> n.cloneNode true)
 				for i in [0...clones.length] by 1

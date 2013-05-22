@@ -1539,7 +1539,8 @@ $.plugin
 	provides: 'random'
 	depends: 'type'
 , ->
-	alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split ""
+	englishAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split ""
+	uuidAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	$: random: do -> # Mersenne Twister algorithm, from the psuedocode on wikipedia
 		MT = new Array(624)
 		index = 0
@@ -1579,7 +1580,7 @@ $.plugin
 					[min,max] = [0,min]
 				($.random() * (max - min)) + min
 			integer: integer = (min, max) -> Math.floor $.random.real(min,max)
-			string: string = (len, prefix="") ->
+			string: string = (len, prefix="", alphabet=englishAlphabet) ->
 				prefix += $.random.element(alphabet) while prefix.length < len
 				prefix
 			coin: coin = (balance=.5) -> $.random() <= balance
@@ -1607,6 +1608,8 @@ $.plugin
 				$( die(faces) for _ in [0...n] by 1 )
 			die: die = (faces) ->
 				$.random.integer(1,faces+1)
+			uuid: ->
+				$(8,4,4,4,12).map(-> $.random.string @,'',uuidAlphabet).join '-'
 $.plugin
 	depends: "core"
 	provides: "request-queue"

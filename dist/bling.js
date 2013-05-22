@@ -3490,9 +3490,10 @@
     provides: 'random',
     depends: 'type'
   }, function() {
-    var alphabet;
+    var englishAlphabet, uuidAlphabet;
 
-    alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    englishAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    uuidAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     return {
       $: {
         random: (function() {
@@ -3559,9 +3560,12 @@
             integer: integer = function(min, max) {
               return Math.floor($.random.real(min, max));
             },
-            string: string = function(len, prefix) {
+            string: string = function(len, prefix, alphabet) {
               if (prefix == null) {
                 prefix = "";
+              }
+              if (alphabet == null) {
+                alphabet = englishAlphabet;
               }
               while (prefix.length < len) {
                 prefix += $.random.element(alphabet);
@@ -3636,6 +3640,11 @@
             },
             die: die = function(faces) {
               return $.random.integer(1, faces + 1);
+            },
+            uuid: function() {
+              return $(8, 4, 4, 4, 12).map(function() {
+                return $.random.string(this, '', uuidAlphabet);
+              }).join('-');
             }
           });
         })()

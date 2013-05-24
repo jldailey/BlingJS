@@ -161,6 +161,30 @@ describe "DOM", ->
 		assert.equal( typeof c.a, "string")
 	it "toFragment", ->
 		assert.equal($("td").clone().toFragment().childNodes.length, 8)
+
+	describe ".synth()", ->
+		it "creates DOM nodes", ->
+			assert $.is 'node', $.synth('div').first()
+		it "uses CSS-like selectors", ->
+			assert.equal $.synth('div.cls#id[a=b][c=d] span p "text"').first().toString(), '<div id="id" class="cls" a="b" c="d"><span><p>text</p></span></div>'
+		describe "supports CSS selectors:", ->
+			it "id", -> assert.equal $.synth('div#id').first().id, "id"
+			it "class", -> assert.equal $.synth('div.cls').first().className, "cls"
+			it "multiple classes", ->
+				assert.equal $.synth('div.clsA.clsB').first().className, "clsA clsB"
+			it "attributes", -> assert.equal $.synth('div[foo=bar]').first().attributes.foo, "bar"
+			it "attributes (multiple)", -> assert.deepEqual $.synth('div[a=b][c=d]').first().attributes, {a:'b',c:'d'}
+			it "text (single quotes)", -> assert.equal $.synth("div 'text'").first().toString(), "<div>text</div>"
+			it "text (double quotes)", -> assert.equal $.synth('div "text"').first().toString(), "<div>text</div>"
+			it "entity escaped", -> assert.equal $.synth('div "text&amp;stuff"').first().toString(), "<div>text&amp;stuff</div>"
+			it "entity un-escaped", -> assert.equal $.synth('div "text&stuff"').first().toString(), "<div>text&stuff</div>"
+		it "accepts multiline templates", ->
+			assert.equal $.synth("""
+				div.clsA[type=text]
+					p + span
+				b 'Hello'
+			""").first().toString(), '<div class="clsA" type="text"><p/><span><b>Hello</b></span></div>'
+
 	describe ".rect()", ->
 		it "returns a ClientRect for each DOM node", ->
 			assert.deepEqual $("td").take(2)

@@ -7,7 +7,7 @@ COFFEE=node_modules/.bin/coffee
 JLDOM=node_modules/jldom
 MOCHA=node_modules/.bin/mocha
 MOCHA_OPTS=--compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R dot
-TEST_FILES=test/EventEmitter.coffee test/StateMachine.coffee test/bling.coffee test/core.coffee test/dom.coffee test/math.coffee test/string.coffee test/tnet.coffee
+TEST_FILES=$(shell ls test/*.coffee | grep -v setup.coffee )
 
 all: dist report
 

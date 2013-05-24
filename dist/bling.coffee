@@ -1334,22 +1334,20 @@ $.plugin
 $.plugin
 	provides: "matches"
 , ->
-	return {
-		$:
-			matches: (pattern, obj) ->
+	matches = (pattern, obj) ->
+		switch $.type pattern
+			when 'function'
+				if pattern is matches.Any then return true
+				return obj is pattern
+			when 'regexp' then return pattern.test obj
+			when 'object', 'array'
 				for k, v of pattern
-					unless k of obj
-						return false
-					if ($.is 'regexp', v)
-						continue if v.test obj[k]
-						return false
-					else if ($.is 'object', v)
-						continue if $.matches v, obj[k]
-						return false
-					else if obj[k] isnt v
+					unless matches v, obj[k]
 						return false
 				return true
-	}
+			else return obj is pattern
+	matches.Any = -> # magic token
+	return $: matches: matches
 $.plugin
 	provides: "math"
 	depends: "core"

@@ -1,6 +1,31 @@
 [$, assert] = require './setup'
 
 describe "String plugin:", ->
+	describe ".px()", ->
+		describe "converts ... to pixel strings", ->
+			it "integers", -> assert.equal $.px(100), "100px"
+			it "floats", -> assert.equal $.px(-100.1), "-100px"
+			it "negatives", -> assert.equal $.px(-100.2), "-100px"
+			it "pixel strings", -> assert.equal $.px("100.0px"), "100px"
+		describe "adjusts by a delta while converting", ->
+			it "with a number delta", ->
+				assert.equal "20px", $.px("10px", 10)
+			it "with a px delta", ->
+				assert.equal "20px", $.px("10px", "10px")
+			it "with NaN", ->
+				assert.equal "10px", $.px("10px", NaN)
+			it "with Infinity", ->
+				assert.equal "10px", $.px("10px", Infinity)
+			it "with null", ->
+				assert.equal "10px", $.px("10px", null)
+	describe ".repeat(x, n)", ->
+		it "can repeat strings", ->
+			assert.equal $.repeat("abc", 3), "abcabcabc"
+		it "does not crash with large N", ->
+			assert.equal $.repeat("a", 99999).length, 99999
+		it "can repeat objects", ->
+			assert.deepEqual $.repeat({a:1}, 3),
+				[ {a:1}, {a:1}, {a:1} ]
 	describe ".padLeft()", ->
 		it "adds padding when needed", ->
 			assert.equal $.padLeft("foo", 5), "  foo"
@@ -60,3 +85,36 @@ describe "String plugin:", ->
 			assert.equal $.dashize("fooBar"), "foo-bar"
 		it "all capital letters get dashed", ->
 			assert.equal $.dashize("FooBar"), "-foo-bar"
+
+	describe ".stringDistance()", ->
+		it "equal strings are zero distance", ->
+			assert.equal $.stringDistance("a","a"), 0
+			assert.equal $.stringDistance("ab","ab"), 0
+		it "inserts are one distance", ->
+			assert.equal $.stringDistance('a','ab'), 1
+		it "deletes are one distance", ->
+			assert.equal $.stringDistance('ab', 'a'), 1
+		it "replaces are one distance", ->
+			assert.equal $.stringDistance('a','b'), 1
+		it "can mix inserts/deletes/replaces", ->
+			assert.equal $.stringDistance('Hoy','aHi'), 3
+		it "memoizes without corrupting results", ->
+			assert.equal $.stringDistance('Hoy','aHi'), 3
+	
+	describe ".stringDiff()", ->
+		it "handles all inserts", ->
+			assert.deepEqual $.stringDiff("", "abc"), [{op:'ins',v:'abc'}]
+		it "handles all deletes", ->
+			assert.deepEqual $.stringDiff("abc", ""), [{op:'del',v:'abc'}]
+		it "handles replaces", ->
+			assert.deepEqual $.stringDiff("a", "b"), [{op:'sub',v:'a',w:'b'}]
+		it "handles all replaces", ->
+			assert.deepEqual $.stringDiff("aaa", "bbb"), [{op:'sub',v:'aaa',w:'bbb'}]
+		it "handles saves", ->
+			assert.deepEqual $.stringDiff('a','a'), [{op:'sav',v:'a'}]
+		it "handles all saves", ->
+			assert.deepEqual $.stringDiff('aaa','aaa'), [{op:'sav',v:'aaa'}]
+		it "handles mixed operations", ->
+			assert.deepEqual $.stringDiff("ab", "bbd"), [{op:'sub',v:'a',w:'b'},{op:'sav',v:'b'},{op:'ins',v:'d'}]
+		it "renders HTML", ->
+			assert.deepEqual $.stringDiff("Hello", "Hi").toHTML(), "H<del>e</del><ins>i</ins><del>llo</del>"

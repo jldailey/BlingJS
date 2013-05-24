@@ -2961,32 +2961,36 @@
   $.plugin({
     provides: "matches"
   }, function() {
-    return {
-      $: {
-        matches: function(pattern, obj) {
-          var k, v;
+    var matches;
 
+    matches = function(pattern, obj) {
+      var k, v;
+
+      switch ($.type(pattern)) {
+        case 'function':
+          if (pattern === matches.Any) {
+            return true;
+          }
+          return obj === pattern;
+        case 'regexp':
+          return pattern.test(obj);
+        case 'object':
+        case 'array':
           for (k in pattern) {
             v = pattern[k];
-            if (!(k in obj)) {
-              return false;
-            }
-            if ($.is('regexp', v)) {
-              if (v.test(obj[k])) {
-                continue;
-              }
-              return false;
-            } else if ($.is('object', v)) {
-              if ($.matches(v, obj[k])) {
-                continue;
-              }
-              return false;
-            } else if (obj[k] !== v) {
+            if (!matches(v, obj[k])) {
               return false;
             }
           }
           return true;
-        }
+        default:
+          return obj === pattern;
+      }
+    };
+    matches.Any = function() {};
+    return {
+      $: {
+        matches: matches
       }
     };
   });

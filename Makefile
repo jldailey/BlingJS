@@ -7,14 +7,15 @@ COFFEE=node_modules/.bin/coffee
 JLDOM=node_modules/jldom
 MOCHA=node_modules/.bin/mocha
 MOCHA_OPTS=--compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R dot
+TEST_FILES=test/bling.coffee test/dom.coffee
 
 all: dist report
 
 test: dist test/pass
 	@echo "All tests are passing."
 
-test/pass: $(MOCHA) $(JLDOM) test/bling.coffee $(DIST)/bling.coffee
-	$(MOCHA) $(MOCHA_OPTS) test/bling.coffee && touch test/pass
+test/pass: $(MOCHA) $(JLDOM) $(TEST_FILES) test/setup.coffee $(DIST)/bling.coffee
+	$(MOCHA) $(MOCHA_OPTS) $(TEST_FILES) && touch test/pass
 
 $(MOCHA):
 	npm install mocha

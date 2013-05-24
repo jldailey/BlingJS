@@ -5,6 +5,7 @@ extend = (a, b...) ->
 		a[k] = v for k,v of obj # when v?
 	a
 class Bling # extends (new Array)
+	"Bling:nomunge"
 	constructor: (args...) ->
 		`return Bling.init(args)`
 Bling.prototype = []
@@ -197,9 +198,13 @@ $.plugin
 					a[0] = "#{prefix} #{a[0]}"
 				else
 					a.unshift prefix
-				console.log a...
+				$.log.out a...
 				return a[a.length-1] if a.length
-			, prefixSize: 5)
+			, {
+				out: console.log
+				prefixSize: 5
+			})
+			logger: (prefix) -> (m...) -> m.unshift(prefix); $.log m...
 			assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 			coalesce: (a...) -> $(a).coalesce()
 			keysOf: (o) -> $(k for k of o)

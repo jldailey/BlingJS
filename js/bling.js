@@ -43,7 +43,7 @@
   };
 
   Bling = (function() {
-    function Bling() {
+    "Bling:nomunge";    function Bling() {
       var args;
 
       args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
@@ -451,7 +451,7 @@
     return {
       $: {
         log: $.extend(function() {
-          var a, prefix;
+          var a, prefix, _ref;
 
           a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
           prefix = "+" + ($.padLeft(String($.now - baseTime), $.log.prefixSize, '0')) + ":";
@@ -463,13 +463,23 @@
           } else {
             a.unshift(prefix);
           }
-          console.log.apply(console, a);
+          (_ref = $.log).out.apply(_ref, a);
           if (a.length) {
             return a[a.length - 1];
           }
         }, {
+          out: console.log,
           prefixSize: 5
         }),
+        logger: function(prefix) {
+          return function() {
+            var m;
+
+            m = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+            m.unshift(prefix);
+            return $.log.apply($, m);
+          };
+        },
         assert: function(c, m) {
           if (m == null) {
             m = "";

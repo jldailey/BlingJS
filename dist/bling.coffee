@@ -5,6 +5,7 @@ extend = (a, b...) ->
 		a[k] = v for k,v of obj # when v?
 	a
 class Bling # extends (new Array)
+	"Bling:nomunge"
 	constructor: (args...) ->
 		`return Bling.init(args)`
 Bling.prototype = []
@@ -197,9 +198,13 @@ $.plugin
 					a[0] = "#{prefix} #{a[0]}"
 				else
 					a.unshift prefix
-				console.log a...
+				$.log.out a...
 				return a[a.length-1] if a.length
-			, prefixSize: 5)
+			, {
+				out: console.log
+				prefixSize: 5
+			})
+			logger: (prefix) -> (m...) -> m.unshift(prefix); $.log m...
 			assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 			coalesce: (a...) -> $(a).coalesce()
 			keysOf: (o) -> $(k for k of o)
@@ -260,7 +265,8 @@ $.plugin
 				switch type = $.type p
 					when 'regexp' then selectMany.call @, p
 					when 'string'
-						if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
+						if p is "*" then @flatten()
+						else if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
 						else @map(getter p)
 					else $()
 			selectMany = (a...) ->
@@ -834,7 +840,10 @@ if $.global.document?
 						@parentNode.parentNode.replaceChild(@, @parentNode)
 					else if @parentNode
 						@parentNode.removeChild(@)
-			replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
+			replace: (n) -> # .replace(/n/) - replace each node with a clone of n
+				if $.is 'regexp', n
+					r = arguments[1]
+					return @map (s) -> s.replace(n, r)
 				n = toNode n
 				clones = @map(-> n.cloneNode true)
 				for i in [0...clones.length] by 1
@@ -1325,22 +1334,20 @@ $.plugin
 $.plugin
 	provides: "matches"
 , ->
-	return {
-		$:
-			matches: (pattern, obj) ->
+	matches = (pattern, obj) ->
+		switch $.type pattern
+			when 'function'
+				if pattern is matches.Any then return true
+				return obj is pattern
+			when 'regexp' then return pattern.test obj
+			when 'object', 'array'
 				for k, v of pattern
-					unless k of obj
-						return false
-					if ($.is 'regexp', v)
-						continue if v.test obj[k]
-						return false
-					else if ($.is 'object', v)
-						continue if $.matches v, obj[k]
-						return false
-					else if obj[k] isnt v
+					unless matches v, obj[k]
 						return false
 				return true
-	}
+			else return obj is pattern
+	matches.Any = -> # magic token
+	return $: matches: matches
 $.plugin
 	provides: "math"
 	depends: "core"
@@ -1535,7 +1542,8 @@ $.plugin
 	provides: 'random'
 	depends: 'type'
 , ->
-	alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split ""
+	englishAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split ""
+	uuidAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	$: random: do -> # Mersenne Twister algorithm, from the psuedocode on wikipedia
 		MT = new Array(624)
 		index = 0
@@ -1575,7 +1583,7 @@ $.plugin
 					[min,max] = [0,min]
 				($.random() * (max - min)) + min
 			integer: integer = (min, max) -> Math.floor $.random.real(min,max)
-			string: string = (len, prefix="") ->
+			string: string = (len, prefix="", alphabet=englishAlphabet) ->
 				prefix += $.random.element(alphabet) while prefix.length < len
 				prefix
 			coin: coin = (balance=.5) -> $.random() <= balance
@@ -1603,6 +1611,8 @@ $.plugin
 				$( die(faces) for _ in [0...n] by 1 )
 			die: die = (faces) ->
 				$.random.integer(1,faces+1)
+			uuid: ->
+				$(8,4,4,4,12).map(-> $.random.string @,'',uuidAlphabet).join '-'
 $.plugin
 	depends: "core"
 	provides: "request-queue"

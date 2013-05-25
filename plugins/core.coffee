@@ -28,9 +28,13 @@ $.plugin
 					a[0] = "#{prefix} #{a[0]}"
 				else
 					a.unshift prefix
-				console.log a...
+				$.log.out a...
 				return a[a.length-1] if a.length
-			, prefixSize: 5)
+			, {
+				out: console.log
+				prefixSize: 5
+			})
+			logger: (prefix) -> (m...) -> m.unshift(prefix); $.log m...
 			assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 			coalesce: (a...) -> $(a).coalesce()
 			keysOf: (o) -> $(k for k of o)
@@ -123,7 +127,8 @@ $.plugin
 				switch type = $.type p
 					when 'regexp' then selectMany.call @, p
 					when 'string'
-						if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
+						if p is "*" then @flatten()
+						else if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
 						else @map(getter p)
 					else $()
 			selectMany = (a...) ->

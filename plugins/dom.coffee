@@ -184,7 +184,10 @@ if $.global.document?
 					else if @parentNode
 						@parentNode.removeChild(@)
 
-			replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
+			replace: (n) -> # .replace(/n/) - replace each node with a clone of n
+				if $.is 'regexp', n
+					r = arguments[1]
+					return @map (s) -> s.replace(n, r)
 				n = toNode n
 				clones = @map(-> n.cloneNode true)
 				for i in [0...clones.length] by 1

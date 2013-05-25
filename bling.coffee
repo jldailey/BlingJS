@@ -2,7 +2,7 @@
 
 # Philoshopy
 # ----------
-# 1. Always work on _sets_, scalars are annoying.
+# 1. Always work on _sets_.
 #    If you always write code to handle sets, you usually handle the scalar case for free.
 # 2. Don't alter global prototypes; play _nice_ with others.
 # 3. Have _fun_ and learn; about the DOM, about jQuery, about JavaScript and CoffeeScript.
@@ -50,6 +50,7 @@ extend = (a, b...) ->
 # So, the Bling constructor should not be called as `new Bling`,
 # rather it should be used python style: `Bling(stuff)`.
 class Bling # extends (new Array)
+	"Bling:nomunge"
 	constructor: (args...) ->
 		### See: plugins/hook.coffee ###
 		`return Bling.init(args)`

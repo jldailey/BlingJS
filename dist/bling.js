@@ -43,7 +43,7 @@
   };
 
   Bling = (function() {
-    function Bling() {
+    "Bling:nomunge";    function Bling() {
       var args;
 
       args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
@@ -451,7 +451,7 @@
     return {
       $: {
         log: $.extend(function() {
-          var a, prefix;
+          var a, prefix, _ref;
 
           a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
           prefix = "+" + ($.padLeft(String($.now - baseTime), $.log.prefixSize, '0')) + ":";
@@ -463,13 +463,23 @@
           } else {
             a.unshift(prefix);
           }
-          console.log.apply(console, a);
+          (_ref = $.log).out.apply(_ref, a);
           if (a.length) {
             return a[a.length - 1];
           }
         }, {
+          out: console.log,
           prefixSize: 5
         }),
+        logger: function(prefix) {
+          return function() {
+            var m;
+
+            m = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+            m.unshift(prefix);
+            return $.log.apply($, m);
+          };
+        },
         assert: function(c, m) {
           if (m == null) {
             m = "";
@@ -706,7 +716,9 @@
             case 'regexp':
               return selectMany.call(this, p);
             case 'string':
-              if ((i = p.indexOf('.')) > -1) {
+              if (p === "*") {
+                return this.flatten();
+              } else if ((i = p.indexOf('.')) > -1) {
                 return this.select(p.substr(0, i)).select(p.substr(i + 1));
               } else {
                 return this.map(getter(p));
@@ -1990,8 +2002,14 @@
           });
         },
         replace: function(n) {
-          var clones, i, _i, _ref, _ref1;
+          var clones, i, r, _i, _ref, _ref1;
 
+          if ($.is('regexp', n)) {
+            r = arguments[1];
+            return this.map(function(s) {
+              return s.replace(n, r);
+            });
+          }
           n = toNode(n);
           clones = this.map(function() {
             return n.cloneNode(true);
@@ -2943,32 +2961,36 @@
   $.plugin({
     provides: "matches"
   }, function() {
-    return {
-      $: {
-        matches: function(pattern, obj) {
-          var k, v;
+    var matches;
 
+    matches = function(pattern, obj) {
+      var k, v;
+
+      switch ($.type(pattern)) {
+        case 'function':
+          if (pattern === matches.Any) {
+            return true;
+          }
+          return obj === pattern;
+        case 'regexp':
+          return pattern.test(obj);
+        case 'object':
+        case 'array':
           for (k in pattern) {
             v = pattern[k];
-            if (!(k in obj)) {
-              return false;
-            }
-            if ($.is('regexp', v)) {
-              if (v.test(obj[k])) {
-                continue;
-              }
-              return false;
-            } else if ($.is('object', v)) {
-              if ($.matches(v, obj[k])) {
-                continue;
-              }
-              return false;
-            } else if (obj[k] !== v) {
+            if (!matches(v, obj[k])) {
               return false;
             }
           }
           return true;
-        }
+        default:
+          return obj === pattern;
+      }
+    };
+    matches.Any = function() {};
+    return {
+      $: {
+        matches: matches
       }
     };
   });
@@ -3482,9 +3504,10 @@
     provides: 'random',
     depends: 'type'
   }, function() {
-    var alphabet;
+    var englishAlphabet, uuidAlphabet;
 
-    alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    englishAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    uuidAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     return {
       $: {
         random: (function() {
@@ -3551,9 +3574,12 @@
             integer: integer = function(min, max) {
               return Math.floor($.random.real(min, max));
             },
-            string: string = function(len, prefix) {
+            string: string = function(len, prefix, alphabet) {
               if (prefix == null) {
                 prefix = "";
+              }
+              if (alphabet == null) {
+                alphabet = englishAlphabet;
               }
               while (prefix.length < len) {
                 prefix += $.random.element(alphabet);
@@ -3628,6 +3654,11 @@
             },
             die: die = function(faces) {
               return $.random.integer(1, faces + 1);
+            },
+            uuid: function() {
+              return $(8, 4, 4, 4, 12).map(function() {
+                return $.random.string(this, '', uuidAlphabet);
+              }).join('-');
             }
           });
         })()

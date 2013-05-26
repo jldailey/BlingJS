@@ -1308,38 +1308,60 @@
               add: function(f, n) {
                 var i, _i, _ref;
 
-                f.order = n + $.now;
+                $.extend(f, {
+                  order: n + $.now,
+                  timeout: setTimeout(next(this), n)
+                });
                 for (i = _i = 0, _ref = this.length; _i <= _ref; i = _i += 1) {
                   if (i === this.length || this[i].order > f.order) {
                     this.splice(i, 0, f);
                     break;
                   }
                 }
-                setTimeout(next(this), n);
                 return this;
               },
               cancel: function(f) {
-                var i, _i, _ref;
+                var i;
 
-                for (i = _i = 0, _ref = this.length; _i < _ref; i = _i += 1) {
-                  if (this[i] === f) {
-                    this.splice(i, 1);
-                    break;
-                  }
+                if ((i = this.indexOf(f)) > -1) {
+                  this.splice(i, 1);
+                  clearTimeout(f.timeout);
+                } else {
+                  $.log("Warning: attempted to cancel a delay that wasn't waiting:", f);
                 }
                 return this;
               }
             };
           })());
           return function(n, f) {
-            if ($.is("function", f)) {
-              timeoutQueue.add(f, parseInt(n));
+            var b, k, v;
+
+            if ($.is('object', n)) {
+              b = $((function() {
+                var _results;
+
+                _results = [];
+                for (k in n) {
+                  v = n[k];
+                  _results.push($.delay(k, v));
+                }
+                return _results;
+              })()).select('cancel');
+              return {
+                cancel: function() {
+                  return b.call();
+                }
+              };
+            } else if ($.is('function', f)) {
+              timeoutQueue.add(f, parseInt(n, 10));
+              return {
+                cancel: function() {
+                  return timeoutQueue.cancel(f);
+                }
+              };
+            } else {
+              return $.log("Warning: bad arguments to $.delay (expected: int,function given: " + ($.type(n)) + "," + ($.type(f)) + ")");
             }
-            return {
-              cancel: function() {
-                return timeoutQueue.cancel(f);
-              }
-            };
           };
         })(),
         immediate: (function() {
@@ -1355,11 +1377,28 @@
           }
         })(),
         interval: function(n, f) {
-          var g;
+          var g, paused, ret;
 
-          return $.delay(n, g = function() {
-            f();
+          paused = false;
+          ret = $.delay(n, g = function() {
+            if (!paused) {
+              f();
+            }
             return $.delay(n, g);
+          });
+          return $.extend(ret, {
+            pause: function(p) {
+              if (p == null) {
+                p = true;
+              }
+              return paused = p;
+            },
+            resume: function(p) {
+              if (p == null) {
+                p = true;
+              }
+              return paused = !p;
+            }
           });
         }
       },

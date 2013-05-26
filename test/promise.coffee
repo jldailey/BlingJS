@@ -52,7 +52,7 @@ describe "$.Promise()", ->
 			$.Promise().wait 300, (err, data) ->
 				assert.equal err, 'timeout'
 				done()
-		it "does not fire if the promise is finished", (done) ->
+		it "does not fire an error if the promise is finished in time", (done) ->
 			pass = false
 			$.Promise().wait(300, (err, data) ->
 				assert.equal err, null
@@ -76,6 +76,15 @@ describe "$.Promise()", ->
 			f.wait (err, data) -> f.pass = data
 			f.finish true
 			assert f.pass
+	describe ".proxy()", ->
+		it "joins one promise to another", ->
+			pass = false
+			a = $.Promise()
+			a.wait (err, data) -> pass = data
+			b = $.Promise()
+			a.proxy b
+			b.finish true
+			assert pass
 	describe ".compose()", ->
 		it "composes promises", ->
 			pass = false

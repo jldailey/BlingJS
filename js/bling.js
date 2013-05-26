@@ -3320,6 +3320,15 @@
           }
           return this;
         },
+        join: function(promise) {
+          return promise.wait(function(err, data) {
+            if (err) {
+              return this.fail(err);
+            } else {
+              return this.finish(data);
+            }
+          });
+        },
         reset: function() {
           err = result = NoValue;
           return this;
@@ -4769,6 +4778,33 @@
           var data, one, _ref;
 
           data = [];
+          while (s.length > 0) {
+            _ref = unpackOne(s), one = _ref[0], s = _ref[1];
+            data.push(one);
+          }
+          return data;
+        }
+      },
+      "bling": {
+        symbol: "$",
+        pack: function(a) {
+          var y;
+
+          return ((function() {
+            var _i, _len, _results;
+
+            _results = [];
+            for (_i = 0, _len = a.length; _i < _len; _i++) {
+              y = a[_i];
+              _results.push(packOne(y));
+            }
+            return _results;
+          })()).join('');
+        },
+        unpack: function(s) {
+          var data, one, _ref;
+
+          data = $();
           while (s.length > 0) {
             _ref = unpackOne(s), one = _ref[0], s = _ref[1];
             data.push(one);

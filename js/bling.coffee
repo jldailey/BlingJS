@@ -1456,6 +1456,10 @@ $.plugin
 					waiting.select('timeout.cancel').call()
 					waiting.clear()
 				@
+			join: (promise) ->
+				promise.wait (err, data) ->
+					if err then @fail err
+					else @finish data
 			reset: ->
 				err = result = NoValue
 				@
@@ -2179,6 +2183,15 @@ $.plugin
 			pack: (a) -> (packOne(y) for y in a).join('')
 			unpack: (s) ->
 				data = []
+				while s.length > 0
+					[one, s] = unpackOne(s)
+					data.push(one)
+				data
+		"bling":
+			symbol: "$"
+			pack: (a) -> (packOne(y) for y in a).join('')
+			unpack: (s) ->
+				data = $()
 				while s.length > 0
 					[one, s] = unpackOne(s)
 					data.push(one)

@@ -468,7 +468,9 @@
             return a[a.length - 1];
           }
         }, {
-          out: console.log,
+          out: function() {
+            return console.log.apply(console, arguments);
+          },
           prefixSize: 5
         }),
         logger: function(prefix) {

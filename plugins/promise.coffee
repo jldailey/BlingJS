@@ -32,6 +32,10 @@ $.plugin
 					waiting.select('timeout.cancel').call()
 					waiting.clear()
 				@
+			join: (promise) ->
+				promise.wait (err, data) ->
+					if err then @fail err
+					else @finish data
 			reset: ->
 				err = result = NoValue
 				# does NOT clear waiting, b/c it should already be empty (or result would already be NoValue)

@@ -235,6 +235,16 @@ describe "Core plugin:", ->
 				$.delay 500, ->
 					assert pass
 					done()
+			it "accepts multiple timeouts at once", (done) ->
+				count = 0
+				$.delay
+					50: -> count += 1
+					100: -> count += 2
+					200: -> count += 3
+					300: ->
+						assert.equal count, 6
+						done()
+				
 		describe ".immediate(f)", ->
 			it "runs f on the next tick", (done) ->
 				pass = false

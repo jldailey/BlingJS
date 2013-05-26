@@ -30,9 +30,8 @@ $.plugin
 				cancel: (f) ->
 					if (i = @indexOf f) > -1
 						@splice i, 1
-					else $.log "Warning: attempted to cancel a delay that wasn't waiting:", f
-					if 'timeout' of f
 						clearTimeout f.timeout
+					else $.log "Warning: attempted to cancel a delay that wasn't waiting:", f
 					@
 
 			# Note that this reverses the order of _n_ and _f_
@@ -40,8 +39,13 @@ $.plugin
 			# to put the simple things first, to improve code flow:
 			# > `$.delay 5, ->` is better than `$.delay (->), 5`
 			(n, f) ->
-				if $.is("function",f) then timeoutQueue.add(f, parseInt n)
-				cancel: -> timeoutQueue.cancel(f)
+				if $.is 'object', n
+					b = $($.delay(k,v) for k,v of n).select('cancel')
+					cancel: -> b.call()
+				else if $.is('function', f)
+					timeoutQueue.add f, parseInt(n,10)
+					cancel: -> timeoutQueue.cancel(f)
+				else $.log "Warning: bad arguments to $.delay (expected: int,function given: #{$.type n},#{$.type f})"
 
 		immediate: do ->
 			return switch true

@@ -1325,25 +1325,43 @@
 
                 if ((i = this.indexOf(f)) > -1) {
                   this.splice(i, 1);
+                  clearTimeout(f.timeout);
                 } else {
                   $.log("Warning: attempted to cancel a delay that wasn't waiting:", f);
-                }
-                if ('timeout' in f) {
-                  clearTimeout(f.timeout);
                 }
                 return this;
               }
             };
           })());
           return function(n, f) {
-            if ($.is("function", f)) {
-              timeoutQueue.add(f, parseInt(n));
+            var b, k, v;
+
+            if ($.is('object', n)) {
+              b = $((function() {
+                var _results;
+
+                _results = [];
+                for (k in n) {
+                  v = n[k];
+                  _results.push($.delay(k, v));
+                }
+                return _results;
+              })()).select('cancel');
+              return {
+                cancel: function() {
+                  return b.call();
+                }
+              };
+            } else if ($.is('function', f)) {
+              timeoutQueue.add(f, parseInt(n, 10));
+              return {
+                cancel: function() {
+                  return timeoutQueue.cancel(f);
+                }
+              };
+            } else {
+              return $.log("Warning: bad arguments to $.delay (expected: int,function given: " + ($.type(n)) + "," + ($.type(f)) + ")");
             }
-            return {
-              cancel: function() {
-                return timeoutQueue.cancel(f);
-              }
-            };
           };
         })(),
         immediate: (function() {

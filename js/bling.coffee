@@ -1456,8 +1456,8 @@ $.plugin
 					waiting.select('timeout.cancel').call()
 					waiting.clear()
 				@
-			join: (promise) ->
-				promise.wait (err, data) ->
+			proxy: (promise) ->
+				promise.wait (err, data) =>
 					if err then @fail err
 					else @finish data
 			reset: ->

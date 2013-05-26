@@ -3320,12 +3320,14 @@
           }
           return this;
         },
-        join: function(promise) {
+        proxy: function(promise) {
+          var _this = this;
+
           return promise.wait(function(err, data) {
             if (err) {
-              return this.fail(err);
+              return _this.fail(err);
             } else {
-              return this.finish(data);
+              return _this.finish(data);
             }
           });
         },

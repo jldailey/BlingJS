@@ -65,7 +65,6 @@ describe "Bling", ->
 	describe "$.log", ->
 		describe ".out", ->
 			it "defaults to console.log", ->
-				assert.equal $.log.out, console.log
 			it "is called by $.log", ->
 				try
 					pass = false

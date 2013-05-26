@@ -31,7 +31,7 @@ $.plugin
 				$.log.out a...
 				return a[a.length-1] if a.length
 			, {
-				out: console.log
+				out: -> console.log.apply console, arguments
 				prefixSize: 5
 			})
 			logger: (prefix) -> (m...) -> m.unshift(prefix); $.log m...

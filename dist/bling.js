@@ -1308,24 +1308,28 @@
               add: function(f, n) {
                 var i, _i, _ref;
 
-                f.order = n + $.now;
+                $.extend(f, {
+                  order: n + $.now,
+                  timeout: setTimeout(next(this), n)
+                });
                 for (i = _i = 0, _ref = this.length; _i <= _ref; i = _i += 1) {
                   if (i === this.length || this[i].order > f.order) {
                     this.splice(i, 0, f);
                     break;
                   }
                 }
-                setTimeout(next(this), n);
                 return this;
               },
               cancel: function(f) {
-                var i, _i, _ref;
+                var i;
 
-                for (i = _i = 0, _ref = this.length; _i < _ref; i = _i += 1) {
-                  if (this[i] === f) {
-                    this.splice(i, 1);
-                    break;
-                  }
+                if ((i = this.indexOf(f)) > -1) {
+                  this.splice(i, 1);
+                } else {
+                  $.log("Warning: attempted to cancel a delay that wasn't waiting:", f);
+                }
+                if ('timeout' in f) {
+                  clearTimeout(f.timeout);
                 }
                 return this;
               }
@@ -1355,11 +1359,28 @@
           }
         })(),
         interval: function(n, f) {
-          var g;
+          var g, paused, ret;
 
-          return $.delay(n, g = function() {
-            f();
+          paused = false;
+          ret = $.delay(n, g = function() {
+            if (!paused) {
+              f();
+            }
             return $.delay(n, g);
+          });
+          return $.extend(ret, {
+            pause: function(p) {
+              if (p == null) {
+                p = true;
+              }
+              return paused = p;
+            },
+            resume: function(p) {
+              if (p == null) {
+                p = true;
+              }
+              return paused = !p;
+            }
           });
         }
       },

@@ -228,9 +228,34 @@ describe "Core plugin:", ->
 					delta = Math.abs(($.now - t) - 100)
 					assert delta < 25
 					done()
+			it "can be cancelled", (done) ->
+				pass = true
+				d = $.delay 300, -> pass = false
+				$.delay 100, -> d.cancel()
+				$.delay 500, ->
+					assert pass
+					done()
 		describe ".immediate(f)", ->
 			it "runs f on the next tick", (done) ->
 				pass = false
 				$.immediate ->
 					assert pass = true
 					done()
+		describe ".interval(ms, f)", ->
+			it "runs f repeatedly", (done) ->
+				count = 0
+				i = $.interval 100, -> count += 1
+				$.delay 1000, ->
+					assert 9 <= count <= 11, "Count: #{count} is not between 9 and 11"
+					i.cancel()
+					done()
+			it "can be paused/resumed", (done) ->
+				count = 0
+				i = $.interval 100, -> count += 1
+				$.delay 300, -> i.pause()
+				$.delay 700, -> i.resume()
+				$.delay 1000, ->
+					assert 5 <= count <= 7, "Count: #{count} is not between 5 and 7"
+					i.cancel()
+					done()
+

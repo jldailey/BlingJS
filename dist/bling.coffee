@@ -484,35 +484,41 @@ $.plugin
 	depends: "function"
 , ->
 	$:
-		delay: (->
-			timeoutQueue = $.extend [], (->
+		delay: do ->
+			timeoutQueue = $.extend [], do ->
 				next = (a) -> -> a.shift()() if a.length
 				add: (f, n) ->
-					f.order = n + $.now
+					$.extend f,
+						order: n + $.now
+						timeout: setTimeout next(@), n
 					for i in [0..@length] by 1
 						if i is @length or @[i].order > f.order
 							@splice i,0,f
 							break
-					setTimeout next(@), n
 					@
 				cancel: (f) ->
-					for i in [0...@length] by 1
-						if @[i] == f
-							@splice i, 1
-							break
+					if (i = @indexOf f) > -1
+						@splice i, 1
+					else $.log "Warning: attempted to cancel a delay that wasn't waiting:", f
+					if 'timeout' of f
+						clearTimeout f.timeout
 					@
-			)()
 			(n, f) ->
 				if $.is("function",f) then timeoutQueue.add(f, parseInt n)
 				cancel: -> timeoutQueue.cancel(f)
-		)()
 		immediate: do ->
 			return switch true
 				when 'setImmediate' of $.global then $.global.setImmediate
 				when process?.nextTick? then process.nextTick
 				else (f) -> setTimeout(f, 0)
 		interval: (n, f) ->
-			$.delay n, g = -> f(); $.delay n, g
+			paused = false
+			ret = $.delay n, g = ->
+				unless paused then do f
+				$.delay n, g
+			$.extend ret,
+				pause: (p=true) -> paused = p
+				resume: (p=true) -> paused = not p
 	delay: (n, f) ->
 		$.delay n, f
 		@

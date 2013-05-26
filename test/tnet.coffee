@@ -16,6 +16,8 @@ describe "$.TNET", ->
 				assert.equal $.TNET.parse("0:_"), undefined
 			it "array", ->
 				assert.deepEqual $.TNET.parse("12:1:1#1:2#1:3#]"), [1,2,3]
+			it "bling", ->
+				assert.deepEqual $.TNET.parse("12:1:1#1:2#1:3#$"), $(1,2,3)
 			it "object", ->
 				assert.deepEqual $.TNET.parse("16:1:a'1:1#1:b'1:2#}"), {a:1,b:2}
 			it "function", ->
@@ -41,6 +43,8 @@ describe "$.TNET", ->
 				assert.equal $.TNET.stringify(undefined), "0:_"
 			it "array", ->
 				assert.equal $.TNET.stringify([1,2,3]), "12:1:1#1:2#1:3#]"
+			it "bling", ->
+				assert.equal $.TNET.stringify($ 1,2,3), "12:1:1#1:2#1:3#$"
 			it "object", ->
 				assert.equal $.TNET.stringify({a:1,b:2}), "16:1:a'1:1#1:b'1:2#}"
 			it "function", ->

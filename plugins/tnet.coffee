@@ -32,6 +32,15 @@ $.plugin
 					[one, s] = unpackOne(s)
 					data.push(one)
 				data
+		"bling":
+			symbol: "$"
+			pack: (a) -> (packOne(y) for y in a).join('')
+			unpack: (s) ->
+				data = $()
+				while s.length > 0
+					[one, s] = unpackOne(s)
+					data.push(one)
+				data
 		"object":
 			symbol: "}"
 			pack: (o) ->

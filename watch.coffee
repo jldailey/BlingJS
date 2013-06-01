@@ -5,17 +5,9 @@
 if process.argv.length < 4
 	`return $.log("Usage: watch.coffee 'regex' 'shell command'")`
 
-console.log "Initializing..."
-execCount = 0
-exec = $.throttle 3000, $.trace 'exec', (file, cmd) ->
-	execCount += 1
-	p = Proc.exec cmd, (err, stdout, stderr) ->
-		if err then throw "Proc.exec error: #{err}"
-	if execCount > 0 or process.platform isnt 'darwin'
-		p.stdout.on 'data', (data) -> console.log data.replace(/[\r\n]+$/,'')
-		p.stderr.on 'data', (data) -> console.error data.replace(/[\r\n]+$/,'')
-	return p
+log = $.logger "[watch]"
 
+log "Initializing..."
 
 recurseDir = (path, cb) ->
 	cb(path)
@@ -25,12 +17,32 @@ recurseDir = (path, cb) ->
 				if stat?.isDirectory()
 					recurseDir dir, cb
 
-[pattern, command] = $(process.argv).last(2)
-console.log "Listening for changes..."
-
+[pattern, command, args] = do ->
+	pattern = null
+	command = null
+	args = []
+	started = false
+	for arg in process.argv
+		if (not started) and /watch.coffee/.test arg
+			started = true
+		else if started
+			if pattern is null
+				pattern = arg.replace(/^\//,'').replace(/\/$/,'')
+			else if command is null
+				command = arg
+			else
+				args.push arg
+	[ pattern, command, args ]
 pattern = (try new RegExp pattern) or $.log 'bad pattern, using', /^[^.]/
+log "Pattern:", pattern
+log "Command:", command
+log "Args:", args
+
+launch = $.throttle 5000, $.trace 'launch', ->
+	log "Spawning:", command, args
+	Proc.spawn(command, args, stdio: 'inherit')
 
 recurseDir '.', (dir) ->
 	Fs.watch dir, (op, file) ->
-		console.log op, file
-		pattern.test(file) and exec file, command
+		if pattern.test(file) then launch()
+log "Listening for changes..."

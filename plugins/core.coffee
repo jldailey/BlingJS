@@ -118,7 +118,9 @@ $.plugin
 		# Get a new set of properties from every item in _this_.
 		select: do ->
 			# First, a private helper that will read property `prop` from some object later.
-			getter = (prop) -> -> if $.is("function",v = @[prop]) then $.bound(@,v) else v
+			getter = (prop) ->
+				->
+					if $.is("function",v = @[prop]) then $.bound(@,v) else v
 			# Recursively split `p` on `.` and map the getter helper
 			# to read a set of complex `p` values from an object.
 			# > `$([x]).select("name") == [ x.name ]`
@@ -134,22 +136,42 @@ $.plugin
 			selectMany = (a...) ->
 				n = @length
 				lists = Object.create(null)
+				# Use each property in the arguments to select a list of values,
+				# so that's one list per property, and each list has one member per input object
 				for p in a
+					# Selecting with a regexp should expand the regexp so that:
+					#    $('*').select(/Width$/)
+					# is the same as:
+					#    $('*').select('innerWidth','clientWidth',etc...)
 					if $.is 'regexp', p
-						for match in $.keysOf(@first()).filter(p)
+						# TODO: currently only expanded based on the keys of the first object
+						# should it be the distinct union of all keys or something?
+						for match in $.keysOf(@[0]).filter(p)
 							lists[match] = @select(match)
+					# Otherwise, just select a simple list of property values.
 					else lists[p] = @select(p)
 				i = 0
+				# Now, pivot all these lists into one list of objects,
+				# each object in the output gets one property from each list.
 				@map ->
+					# Create one output object
 					obj = Object.create(null)
 					for p of lists
-						obj[$(p.split '.').last()] = lists[p][i]
+						# If you originally asked to select "propA.propB.propC",
+						# store that under "propC" on the output objects.
+						key = p.split('.').pop()
+						val = lists[p][i]
+						# If the key was not defined on the original objects,
+						# dont define it on the output objects.
+						unless val is undefined
+							obj[key] = val
 					i++
 					obj
 			return ->
 				switch arguments.length
+					when 0 then @
 					when 1 then selectOne.apply @, arguments
-					when 2 then selectMany.apply @, arguments
+					else selectMany.apply @, arguments
 
 		# Replace any false-ish items in _this_ with _x_.
 		# > `$("<a>").select('parentNode').or(document)`

@@ -114,6 +114,12 @@ describe "Core plugin:", ->
 			]
 		it "supports the * (read: flatten) operator", ->
 			assert.deepEqual selectObjects.select("children.*.id"), [3,5,6,9]
+		it "does not fail to select when asked for missing columns", ->
+			assert.deepEqual selectObjects.select("pX","noExist","pY"), [
+				{ pX: 2, pY: 3 }
+				{ pX: 3, pY: 4 }
+				{ pX: 4, pY: 5 }
+			]
 
 	describe ".zap()", ->
 		it "assigns values to properties of items in a set", ->

@@ -14,7 +14,7 @@
 	},
 	"bin": {
 		"watch": "./watch.coffee"
-	}
+	},
 	"devDependencies": {
 		"coffee-script": "latest",
 		"jldom": "latest",

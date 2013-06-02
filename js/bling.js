@@ -739,7 +739,7 @@
           for (_i = 0, _len = a.length; _i < _len; _i++) {
             p = a[_i];
             if ($.is('regexp', p)) {
-              _ref = $.keysOf(this.first()).filter(p);
+              _ref = $.keysOf(this[0]).filter(p);
               for (_j = 0, _len1 = _ref.length; _j < _len1; _j++) {
                 match = _ref[_j];
                 lists[match] = this.select(match);
@@ -750,11 +750,15 @@
           }
           i = 0;
           return this.map(function() {
-            var obj;
+            var key, obj, val;
 
             obj = Object.create(null);
             for (p in lists) {
-              obj[$(p.split('.')).last()] = lists[p][i];
+              key = p.split('.').pop();
+              val = lists[p][i];
+              if (val !== void 0) {
+                obj[key] = val;
+              }
             }
             i++;
             return obj;
@@ -762,9 +766,11 @@
         };
         return function() {
           switch (arguments.length) {
+            case 0:
+              return this;
             case 1:
               return selectOne.apply(this, arguments);
-            case 2:
+            default:
               return selectMany.apply(this, arguments);
           }
         };

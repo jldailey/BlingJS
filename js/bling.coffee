@@ -260,7 +260,9 @@ $.plugin
 				@swap --i, Math.floor(Math.random() * i)
 			@
 		select: do ->
-			getter = (prop) -> -> if $.is("function",v = @[prop]) then $.bound(@,v) else v
+			getter = (prop) ->
+				->
+					if $.is("function",v = @[prop]) then $.bound(@,v) else v
 			selectOne = (p) ->
 				switch type = $.type p
 					when 'regexp' then selectMany.call @, p
@@ -274,20 +276,24 @@ $.plugin
 				lists = Object.create(null)
 				for p in a
 					if $.is 'regexp', p
-						for match in $.keysOf(@first()).filter(p)
+						for match in $.keysOf(@[0]).filter(p)
 							lists[match] = @select(match)
 					else lists[p] = @select(p)
 				i = 0
 				@map ->
 					obj = Object.create(null)
 					for p of lists
-						obj[$(p.split '.').last()] = lists[p][i]
+						key = p.split('.').pop()
+						val = lists[p][i]
+						unless val is undefined
+							obj[key] = val
 					i++
 					obj
 			return ->
 				switch arguments.length
+					when 0 then @
 					when 1 then selectOne.apply @, arguments
-					when 2 then selectMany.apply @, arguments
+					else selectMany.apply @, arguments
 		or: (x) -> @[i] or= x for i in [0...@length]; @
 		zap: (p, v) ->
 			if ($.is 'object', p) and not v?

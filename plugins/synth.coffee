@@ -24,13 +24,11 @@ $.plugin
 			@_lastMode = null
 
 		# static and instance versions of a state-changer factory
-		GO: (m) -> -> @mode = m
-		@GO: (m, enter=false) ->
-			->
-				if enter # force enter to trigger
-					@_mode = null
-				@mode = m
-
+		GO: go = (m, enter=false) -> ->
+			if enter # force enter to trigger
+				@_mode = null
+			@mode = m
+		@GO: go
 		
 		tick: (c) ->
 			row = @modeline

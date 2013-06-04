@@ -57,8 +57,8 @@ class Bling # extends (new Array)
 
 # We specify an inheritance similar to `class Bling extends (new Array)`,
 # if such a thing were supported by the syntax directly.
-Bling.prototype = []
-Bling.prototype.constructor = Bling
+Bling:: = []
+Bling::constructor = Bling
 Bling.global = if window? then window else global
 
 # $.plugin( [ opts ], func )
@@ -80,24 +80,23 @@ Bling.plugin = (opts, constructor) ->
 		constructor = opts
 		opts = {}
 
-	# Support a { depends: } option as a shortcut for `$.depends`.
+	# If this plugin depends on anything, then defer.
 	if "depends" of opts
 		return @depends opts.depends, =>
-			# Pass along the { provides: } option.
+			# Pass along any { provides: } option.
 			@plugin { provides: opts.provides }, constructor
 	try
 		# We call the plugin constructor and expect that it returns an
-		# object full of things to extend either Bling or it's prototype.
+		# object full of keys to extend either Bling or it's prototype.
 		if typeof (plugin = constructor?.call @,@) is "object"
 			# Record that this plugin loaded.
 			(Bling.plugin[opts.provides ? ""] or= []).push plugin
 			# If the plugin has a `$` key, extend the root with static items.
 			extend @, plugin?.$
-			# Clear off the static stuff.
-			delete plugin.$
 			# What remains extends the Bling prototype.
+			delete plugin.$
 			extend @prototype, plugin
-			# Finally, add static wrappers for anything that doesn't have one.
+			# Add static wrappers for anything that doesn't have one.
 			for key of plugin then do (key) =>
 				@[key] or= (a...) => (@::[key].apply Bling(a[0]), a[1...])
 			# Honor the { provides: } option.
@@ -119,7 +118,6 @@ extend Bling, do ->
 	incomplete = (n) ->
 		(if (typeof n) is "string" then n.split /, */ else n)
 		.filter (x) -> not (x of complete)
-
 	depends: depend = (needs, func) ->
 		if (needs = incomplete needs).length is 0 then func()
 		else

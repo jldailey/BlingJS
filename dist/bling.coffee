@@ -1476,6 +1476,8 @@ $.plugin
 				promise.wait (err, data) =>
 					if err then @fail err
 					else @finish data
+			compose: (promises...) ->
+				@proxy $.Promise.compose promises...
 			reset: ->
 				err = result = NoValue
 				@

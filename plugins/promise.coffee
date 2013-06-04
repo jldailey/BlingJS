@@ -36,6 +36,8 @@ $.plugin
 				promise.wait (err, data) =>
 					if err then @fail err
 					else @finish data
+			compose: (promises...) ->
+				@proxy $.Promise.compose promises...
 			reset: ->
 				err = result = NoValue
 				# does NOT clear waiting, b/c it should already be empty (or result would already be NoValue)

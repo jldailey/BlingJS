@@ -3378,6 +3378,12 @@
             }
           });
         },
+        compose: function() {
+          var promises, _ref;
+
+          promises = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+          return this.proxy((_ref = $.Promise).compose.apply(_ref, promises));
+        },
         reset: function() {
           err = result = NoValue;
           return this;

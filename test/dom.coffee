@@ -97,7 +97,6 @@ describe "DOM", ->
 	it "wrap", -> assert.equal($("<b></b>").wrap("<a></a>").select('parentNode').toRepr(), "$([<a><b/></a>])")
 	it "unwrap", -> assert.equal($("<a><b/></a>").find("b").unwrap().first().parentNode, null)
 	it "replace", -> assert.equal($("<a><b/><c/><b/></a>").find("b").replace("<p/>").eq(0).select('parentNode').toRepr(), "$([<a><p/><c/><p/></a>])")
-	it "replace (regexp)", -> assert.equal $(["abc","bbc","cbc"]).replace(/bc$/,'').join(','), 'a,b,c'
 	describe ".attr()", ->
 		it "can read attributes from DOM nodes", ->
 			assert.equal "#", $("<a href='#'></a>").attr("href").first()

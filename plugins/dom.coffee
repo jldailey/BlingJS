@@ -3,7 +3,7 @@
 # Only works if there is a global document.
 if $.global.document?
 	$.plugin
-		depends: "function,type"
+		depends: "function,type,string"
 		provides: "dom"
 	, ->
 		bNodelistsAreSpecial = false

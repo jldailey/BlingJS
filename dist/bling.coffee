@@ -715,7 +715,7 @@ $.plugin
 		stringDiff: (s, t) -> diff s,0,s.length, t,0,t.length,1,1,1.5
 if $.global.document?
 	$.plugin
-		depends: "function,type"
+		depends: "function,type,string"
 		provides: "dom"
 	, ->
 		bNodelistsAreSpecial = false
@@ -1860,6 +1860,8 @@ $.plugin
 				@
 		toString: -> $.toString @
 		toRepr: -> $.toRepr @
+		replace: (patt, repl) ->
+			@map (s) -> s.replace(patt, repl)
 	}
 $.plugin
 	provides: "symbol"

@@ -183,4 +183,6 @@ $.plugin
 				@
 		toString: -> $.toString @
 		toRepr: -> $.toRepr @
+		replace: (patt, repl) ->
+			@map (s) -> s.replace(patt, repl)
 	}

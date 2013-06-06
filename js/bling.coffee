@@ -715,7 +715,7 @@ $.plugin
 		stringDiff: (s, t) -> diff s,0,s.length, t,0,t.length,1,1,1.5
 if $.global.document?
 	$.plugin
-		depends: "function,type"
+		depends: "function,type,string"
 		provides: "dom"
 	, ->
 		bNodelistsAreSpecial = false
@@ -1476,6 +1476,8 @@ $.plugin
 				promise.wait (err, data) =>
 					if err then @fail err
 					else @finish data
+			compose: (promises...) ->
+				@proxy $.Promise.compose promises...
 			reset: ->
 				err = result = NoValue
 				@
@@ -1858,6 +1860,8 @@ $.plugin
 				@
 		toString: -> $.toString @
 		toRepr: -> $.toRepr @
+		replace: (patt, repl) ->
+			@map (s) -> s.replace(patt, repl)
 	}
 $.plugin
 	provides: "symbol"

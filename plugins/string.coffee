@@ -185,4 +185,11 @@ $.plugin
 		toRepr: -> $.toRepr @
 		replace: (patt, repl) ->
 			@map (s) -> s.replace(patt, repl)
+		indexOf: (target) ->
+			if $.is 'regexp', target
+				for i in [0...@length] by 1
+					if target.test @[i]
+						return i
+				return -1
+			else Array::indexOf.apply @, target
 	}

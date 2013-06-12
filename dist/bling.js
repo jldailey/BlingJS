@@ -804,6 +804,10 @@
         }
         g = (function() {
           switch ($.type(f)) {
+            case "object":
+              return function(x) {
+                return $.matches(f, x);
+              };
             case "string":
               return function(x) {
                 return x.matchesSelector(f);
@@ -1549,7 +1553,7 @@
 
   if ($.global.document != null) {
     $.plugin({
-      depends: "function,type",
+      depends: "function,type,string",
       provides: "dom"
     }, function() {
       var after, bNodelistsAreSpecial, before, computeCSSProperty, escaper, getOrSetRect, parser, selectChain, toFrag, toNode;
@@ -3199,6 +3203,11 @@
             }
           });
         },
+        compose: function() {
+          var promises, _ref;
+          promises = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+          return this.proxy((_ref = $.Promise).compose.apply(_ref, promises));
+        },
         reset: function() {
           err = result = NoValue;
           return this;
@@ -4020,6 +4029,11 @@
       },
       toRepr: function() {
         return $.toRepr(this);
+      },
+      replace: function(patt, repl) {
+        return this.map(function(s) {
+          return s.replace(patt, repl);
+        });
       }
     };
   });

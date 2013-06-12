@@ -85,6 +85,10 @@ describe "String plugin:", ->
 			assert.equal $.dashize("fooBar"), "foo-bar"
 		it "all capital letters get dashed", ->
 			assert.equal $.dashize("FooBar"), "-foo-bar"
+	describe "::replace", ->
+		it "maps replace over a set of strings", ->
+			assert.deepEqual $(["abc","bbc","cbc"]).replace(/bc$/,''),
+				['a','b','c']
 
 	describe ".stringDistance()", ->
 		it "equal strings are zero distance", ->

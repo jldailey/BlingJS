@@ -8,8 +8,8 @@ class Bling # extends (new Array)
 	"Bling:nomunge"
 	constructor: (args...) ->
 		`return Bling.init(args)`
-Bling.prototype = []
-Bling.prototype.constructor = Bling
+Bling:: = []
+Bling::constructor = Bling
 Bling.global = if window? then window else global
 Bling.plugin = (opts, constructor) ->
 	if not constructor
@@ -55,28 +55,6 @@ extend Bling, do ->
 				else i++
 		data
 $ = Bling
-$.plugin
-	provides: "EventEmitter"
-	depends: "type,hook"
-, ->
-	$: EventEmitter: Bling.init.append (obj = {}) ->
-		listeners = Object.create null
-		list = (e) -> (listeners[e] or= [])
-		$.inherit {
-			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-			on: add = (e, f) ->
-				switch $.type e
-					when 'object' then @addListener(k,v) for k,v of e
-					when 'string'
-						list(e).push(f)
-						@emit('newListener', e, f)
-				return @
-			addListener: add
-			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
-			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
-			listeners:          (e) -> list(e).slice 0
-		}, obj
 $.plugin
 	depends: "core"
 	provides: "async"
@@ -333,6 +311,7 @@ $.plugin
 			limit ?= @length
 			positive ?= true
 			g = switch $.type f
+				when "object" then (x) -> $.matches f,x
 				when "string" then (x) -> x.matchesSelector(f)
 				when "regexp" then (x) -> f.test(x)
 				when "function" then f
@@ -987,6 +966,28 @@ if $.global.document?
 					return df
 				return toNode @[0]
 		}
+$.plugin
+	provides: "EventEmitter"
+	depends: "type,hook"
+, ->
+	$: EventEmitter: Bling.init.append (obj = {}) ->
+		listeners = Object.create null
+		list = (e) -> (listeners[e] or= [])
+		$.inherit {
+			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
+			on: add = (e, f) ->
+				switch $.type e
+					when 'object' then @addListener(k,v) for k,v of e
+					when 'string'
+						list(e).push(f)
+						@emit('newListener', e, f)
+				return @
+			addListener: add
+			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
+			removeAllListeners: (e) -> listeners[e] = []
+			setMaxListeners:    (n) -> # who really needs this in the core API?
+			listeners:          (e) -> list(e).slice 0
+		}, obj
 $.plugin
 	depends: "dom,function,core"
 	provides: "event"
@@ -1907,12 +1908,11 @@ $.plugin
 		reset: ->
 			@_mode = null
 			@_lastMode = null
-		GO: (m) -> -> @mode = m
-		@GO: (m, enter=false) ->
-			->
-				if enter # force enter to trigger
-					@_mode = null
-				@mode = m
+		GO: go = (m, enter=false) -> ->
+			if enter # force enter to trigger
+				@_mode = null
+			@mode = m
+		@GO: go
 		
 		tick: (c) ->
 			row = @modeline

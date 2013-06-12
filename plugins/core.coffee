@@ -257,6 +257,8 @@ $.plugin
 			positive ?= true
 			# The argument _f_ can be any of:
 			g = switch $.type f
+				# * pattern object: `.filter({ enabled: true })`
+				when "object" then (x) -> $.matches f,x
 				# * selector string: `.filter("td.selected")`
 				when "string" then (x) -> x.matchesSelector(f)
 				# * RegExp object: `.filter(/^prefix-/)`

@@ -311,6 +311,7 @@ $.plugin
 			limit ?= @length
 			positive ?= true
 			g = switch $.type f
+				when "object" then (x) -> $.matches f,x
 				when "string" then (x) -> x.matchesSelector(f)
 				when "regexp" then (x) -> f.test(x)
 				when "function" then f

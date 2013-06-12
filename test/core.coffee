@@ -183,6 +183,12 @@ describe "Core plugin:", ->
 			assert $.is 'bling', $([1,2]).push(3)
 
 	describe ".filter()", ->
+		it "accepts a pattern object", ->
+			assert.deepEqual $(
+				{ x: 1, a: true }
+				{ x: 2, a: false }
+				{ x: 3, a: true }
+			).filter( a: true ).select('x'), [ 1, 3 ]
 		it "filters by a function", -> assert.deepEqual $([1,2,3,4,5]).filter((x) -> x % 2), [1,3,5]
 		it "supports regular expressions", -> assert.deepEqual $(["foo","bar","baz"]).filter(/^ba/), ["bar","baz"]
 		it "can chain DOM filters", -> assert.equal $("*").filter("td").filter(".d").length, 1

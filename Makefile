@@ -40,7 +40,7 @@ site: dist
 	@git show master:$(DIST)/bling.js > js/bling.js
 	@git show master:$(DIST)/bling.map > js/bling.map
 	@git show master:package.json > js/package.json
-	@git show master:test/dialog.html | sed 's@../dist/bling@/js/bling@' > test/dialog.html
+	@git show master:test/html/dialog.html | sed 's@../../dist/bling@/js/bling@' > test/dialog.html
 	@git commit -am "make site" || true
 	@sleep 1
 	@git checkout master

@@ -147,6 +147,67 @@
   $ = Bling;
 
   $.plugin({
+    provides: "EventEmitter",
+    depends: "type,hook"
+  }, function() {
+    return {
+      $: {
+        EventEmitter: Bling.init.append(function(obj) {
+          var add, list, listeners;
+          if (obj == null) {
+            obj = {};
+          }
+          listeners = Object.create(null);
+          list = function(e) {
+            return listeners[e] || (listeners[e] = []);
+          };
+          return $.inherit({
+            emit: function() {
+              var a, e, f, _i, _len, _ref;
+              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+              _ref = list(e);
+              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                f = _ref[_i];
+                f.apply(this, a);
+              }
+              return this;
+            },
+            on: add = function(e, f) {
+              var k, v;
+              switch ($.type(e)) {
+                case 'object':
+                  for (k in e) {
+                    v = e[k];
+                    this.addListener(k, v);
+                  }
+                  break;
+                case 'string':
+                  list(e).push(f);
+                  this.emit('newListener', e, f);
+              }
+              return this;
+            },
+            addListener: add,
+            removeListener: function(e, f) {
+              var i, l;
+              if ((i = (l = list(e)).indexOf(f)) > -1) {
+                return l.splice(i, 1);
+              }
+            },
+            removeAllListeners: function(e) {
+              return listeners[e] = [];
+            },
+            setMaxListeners: function(n) {},
+            listeners: function(e) {
+              return list(e).slice(0);
+            }
+          }, obj);
+        })
+      }
+    };
+  });
+
+  $.plugin({
     depends: "core",
     provides: "async"
   }, function() {
@@ -2134,73 +2195,12 @@
   }
 
   $.plugin({
-    provides: "EventEmitter",
-    depends: "type,hook"
-  }, function() {
-    return {
-      $: {
-        EventEmitter: Bling.init.append(function(obj) {
-          var add, list, listeners;
-          if (obj == null) {
-            obj = {};
-          }
-          listeners = Object.create(null);
-          list = function(e) {
-            return listeners[e] || (listeners[e] = []);
-          };
-          return $.inherit({
-            emit: function() {
-              var a, e, f, _i, _len, _ref;
-              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-              _ref = list(e);
-              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                f = _ref[_i];
-                f.apply(this, a);
-              }
-              return this;
-            },
-            on: add = function(e, f) {
-              var k, v;
-              switch ($.type(e)) {
-                case 'object':
-                  for (k in e) {
-                    v = e[k];
-                    this.addListener(k, v);
-                  }
-                  break;
-                case 'string':
-                  list(e).push(f);
-                  this.emit('newListener', e, f);
-              }
-              return this;
-            },
-            addListener: add,
-            removeListener: function(e, f) {
-              var i, l;
-              if ((i = (l = list(e)).indexOf(f)) > -1) {
-                return l.splice(i, 1);
-              }
-            },
-            removeAllListeners: function(e) {
-              return listeners[e] = [];
-            },
-            setMaxListeners: function(n) {},
-            listeners: function(e) {
-              return list(e).slice(0);
-            }
-          }, obj);
-        })
-      }
-    };
-  });
-
-  $.plugin({
     depends: "dom,function,core",
     provides: "event"
   }, function() {
     var EVENTSEP_RE, bindReady, binder, events, register_live, ret, triggerReady, unregister_live;
     EVENTSEP_RE = /,* +/;
-    events = ['mousemove', 'mousedown', 'mouseup', 'mouseover', 'mouseout', 'blur', 'focus', 'load', 'unload', 'reset', 'submit', 'keyup', 'keydown', 'change', 'abort', 'cut', 'copy', 'paste', 'selection', 'drag', 'drop', 'orientationchange', 'touchstart', 'touchmove', 'touchend', 'touchcancel', 'gesturestart', 'gestureend', 'gesturecancel', 'hashchange'];
+    events = ['mousemove', 'mousedown', 'mouseup', 'mouseover', 'mouseout', 'blur', 'focus', 'load', 'unload', 'reset', 'submit', 'keyup', 'keydown', 'keypress', 'change', 'abort', 'cut', 'copy', 'paste', 'selection', 'drag', 'drop', 'orientationchange', 'touchstart', 'touchmove', 'touchend', 'touchcancel', 'gesturestart', 'gestureend', 'gesturecancel', 'hashchange'];
     binder = function(e) {
       return function(f) {
         if ($.is("function", f)) {
@@ -2345,15 +2345,22 @@
               rotation: 0.0
             }, args);
             e.initGestureEvent(evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY, args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey, args.target, args.scale, args.rotation);
+          } else if (evt_i === "keydown" || evt_i === "keypress" || evt_i === "keyup") {
+            e = document.createEvent("KeyboardEvents");
+            args = $.extend({
+              view: null,
+              ctrlKey: false,
+              altKey: false,
+              shiftKey: false,
+              metaKey: false,
+              keyCode: 0,
+              charCode: 0
+            }, args);
+            e.initKeyboardEvent(evt_i, args.bubbles, args.cancelable, $.global, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey, args.keyCode, args.charCode);
           } else {
             e = document.createEvent("Events");
             e.initEvent(evt_i, args.bubbles, args.cancelable);
-            try {
-              e = $.extend(e, args);
-            } catch (_error) {
-              err = _error;
-              $.log("Error in dispatch: ", err);
-            }
+            e = $.extend(e, args);
           }
           if (!e) {
             continue;
@@ -2827,12 +2834,22 @@
   });
 
   $.plugin({
-    depends: "dom",
+    depends: "dom,promise",
     provides: "lazy"
   }, function() {
     var lazy_load;
     lazy_load = function(elementName, props) {
-      return $("head").append($.extend(document.createElement(elementName), props));
+      var elem, ret;
+      ret = $.Promise();
+      document.head.appendChild(elem = $.extend(document.createElement(elementName), props, {
+        onload: function() {
+          return ret.finish(elem);
+        },
+        onerror: function() {
+          return ret.fail.apply(ret, arguments);
+        }
+      }));
+      return ret;
     };
     return {
       $: {
@@ -4034,6 +4051,19 @@
         return this.map(function(s) {
           return s.replace(patt, repl);
         });
+      },
+      indexOf: function(target) {
+        var i, _i, _ref;
+        if ($.is('regexp', target)) {
+          for (i = _i = 0, _ref = this.length; _i < _ref; i = _i += 1) {
+            if (target.test(this[i])) {
+              return i;
+            }
+          }
+          return -1;
+        } else {
+          return Array.prototype.indexOf.apply(this, arguments);
+        }
       }
     };
   });

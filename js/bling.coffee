@@ -56,6 +56,28 @@ extend Bling, do ->
 		data
 $ = Bling
 $.plugin
+	provides: "EventEmitter"
+	depends: "type,hook"
+, ->
+	$: EventEmitter: Bling.init.append (obj = {}) ->
+		listeners = Object.create null
+		list = (e) -> (listeners[e] or= [])
+		$.inherit {
+			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
+			on: add = (e, f) ->
+				switch $.type e
+					when 'object' then @addListener(k,v) for k,v of e
+					when 'string'
+						list(e).push(f)
+						@emit('newListener', e, f)
+				return @
+			addListener: add
+			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
+			removeAllListeners: (e) -> listeners[e] = []
+			setMaxListeners:    (n) -> # who really needs this in the core API?
+			listeners:          (e) -> list(e).slice 0
+		}, obj
+$.plugin
 	depends: "core"
 	provides: "async"
 , ->
@@ -967,34 +989,12 @@ if $.global.document?
 				return toNode @[0]
 		}
 $.plugin
-	provides: "EventEmitter"
-	depends: "type,hook"
-, ->
-	$: EventEmitter: Bling.init.append (obj = {}) ->
-		listeners = Object.create null
-		list = (e) -> (listeners[e] or= [])
-		$.inherit {
-			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-			on: add = (e, f) ->
-				switch $.type e
-					when 'object' then @addListener(k,v) for k,v of e
-					when 'string'
-						list(e).push(f)
-						@emit('newListener', e, f)
-				return @
-			addListener: add
-			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
-			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
-			listeners:          (e) -> list(e).slice 0
-		}, obj
-$.plugin
 	depends: "dom,function,core"
 	provides: "event"
 , ->
 	EVENTSEP_RE = /,* +/
 	events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
-		'load','unload','reset','submit','keyup','keydown','change',
+		'load','unload','reset','submit','keyup','keydown','keypress','change',
 		'abort','cut','copy','paste','selection','drag','drop','orientationchange',
 		'touchstart','touchmove','touchend','touchcancel',
 		'gesturestart','gestureend','gesturecancel',
@@ -1100,16 +1100,28 @@ $.plugin
 						scale: 1.0,
 						rotation: 0.0
 					}, args
-					e.initGestureEvent evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
-						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+					e.initGestureEvent evt_i, args.bubbles, args.cancelable, $.global,
+						args.detail, args.screenX, args.screenY, args.clientX, args.clientY,
+						args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
 						args.target, args.scale, args.rotation
+				else if evt_i in [ "keydown", "keypress", "keyup" ]
+					e = document.createEvent "KeyboardEvents"
+					args = $.extend {
+						view: null,
+						ctrlKey: false,
+						altKey: false,
+						shiftKey: false,
+						metaKey: false,
+						keyCode: 0,
+						charCode: 0
+					}, args
+					e.initKeyboardEvent evt_i, args.bubbles, args.cancelable, $.global,
+						args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+						args.keyCode, args.charCode
 				else
 					e = document.createEvent "Events"
 					e.initEvent evt_i, args.bubbles, args.cancelable
-					try
-						e = $.extend e, args
-					catch err
-						$.log "Error in dispatch: ", err
+					e = $.extend e, args
 				if not e
 					continue
 				else
@@ -1338,11 +1350,15 @@ $.depends 'hook', ->
 				null
 		}, obj
 $.plugin
-	depends: "dom"
+	depends: "dom,promise"
 	provides: "lazy"
 , ->
 	lazy_load = (elementName, props) ->
-		$("head").append $.extend document.createElement(elementName), props
+		ret = $.Promise()
+		document.head.appendChild elem = $.extend document.createElement(elementName), props,
+			onload: -> ret.finish elem
+			onerror: -> ret.fail.apply ret, arguments
+		ret
 	$:
 		script: (src) ->
 			lazy_load "script", { src: src }
@@ -1863,6 +1879,13 @@ $.plugin
 		toRepr: -> $.toRepr @
 		replace: (patt, repl) ->
 			@map (s) -> s.replace(patt, repl)
+		indexOf: (target) ->
+			if $.is 'regexp', target
+				for i in [0...@length] by 1
+					if target.test @[i]
+						return i
+				return -1
+			else Array::indexOf.apply @, arguments
 	}
 $.plugin
 	provides: "symbol"

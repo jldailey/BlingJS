@@ -10,7 +10,7 @@ $.plugin
 	# these will get a short-hand version like: `$("...").mouseup()`.
 	# "click" is handled specially.
 	events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
-		'load','unload','reset','submit','keyup','keydown','change',
+		'load','unload','reset','submit','keyup','keydown','keypress','change',
 		'abort','cut','copy','paste','selection','drag','drop','orientationchange',
 		'touchstart','touchmove','touchend','touchcancel',
 		'gesturestart','gestureend','gesturecancel',
@@ -136,9 +136,25 @@ $.plugin
 						scale: 1.0,
 						rotation: 0.0
 					}, args
-					e.initGestureEvent evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
-						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+					e.initGestureEvent evt_i, args.bubbles, args.cancelable, $.global,
+						args.detail, args.screenX, args.screenY, args.clientX, args.clientY,
+						args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
 						args.target, args.scale, args.rotation
+
+				else if evt_i in [ "keydown", "keypress", "keyup" ]
+					e = document.createEvent "KeyboardEvents"
+					args = $.extend {
+						view: null,
+						ctrlKey: false,
+						altKey: false,
+						shiftKey: false,
+						metaKey: false,
+						keyCode: 0,
+						charCode: 0
+					}, args
+					e.initKeyboardEvent evt_i, args.bubbles, args.cancelable, $.global,
+						args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+						args.keyCode, args.charCode
 
 				# iphone events that are not supported yet (dont know how to create yet, needs research)
 				# iphone events that we cant properly emulate (because we cant create our own Clipboard objects)
@@ -148,10 +164,7 @@ $.plugin
 				else
 					e = document.createEvent "Events"
 					e.initEvent evt_i, args.bubbles, args.cancelable
-					try
-						e = $.extend e, args
-					catch err
-						$.log "Error in dispatch: ", err
+					e = $.extend e, args
 
 				if not e
 					continue

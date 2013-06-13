@@ -865,6 +865,10 @@
         }
         g = (function() {
           switch ($.type(f)) {
+            case "object":
+              return function(x) {
+                return $.matches(f, x);
+              };
             case "string":
               return function(x) {
                 return x.matchesSelector(f);
@@ -4104,6 +4108,8 @@
     return {
       $: {
         StateMachine: StateMachine = (function() {
+          var go;
+
           function StateMachine(stateTable) {
             this.debug = false;
             this.reset();
@@ -4137,13 +4143,7 @@
             return this._lastMode = null;
           };
 
-          StateMachine.prototype.GO = function(m) {
-            return function() {
-              return this.mode = m;
-            };
-          };
-
-          StateMachine.GO = function(m, enter) {
+          StateMachine.prototype.GO = go = function(m, enter) {
             if (enter == null) {
               enter = false;
             }
@@ -4154,6 +4154,8 @@
               return this.mode = m;
             };
           };
+
+          StateMachine.GO = go;
 
           StateMachine.prototype.tick = function(c) {
             var ret, row;

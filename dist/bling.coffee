@@ -8,8 +8,8 @@ class Bling # extends (new Array)
 	"Bling:nomunge"
 	constructor: (args...) ->
 		`return Bling.init(args)`
-Bling.prototype = []
-Bling.prototype.constructor = Bling
+Bling:: = []
+Bling::constructor = Bling
 Bling.global = if window? then window else global
 Bling.plugin = (opts, constructor) ->
 	if not constructor
@@ -333,6 +333,7 @@ $.plugin
 			limit ?= @length
 			positive ?= true
 			g = switch $.type f
+				when "object" then (x) -> $.matches f,x
 				when "string" then (x) -> x.matchesSelector(f)
 				when "regexp" then (x) -> f.test(x)
 				when "function" then f
@@ -1930,12 +1931,11 @@ $.plugin
 		reset: ->
 			@_mode = null
 			@_lastMode = null
-		GO: (m) -> -> @mode = m
-		@GO: (m, enter=false) ->
-			->
-				if enter # force enter to trigger
-					@_mode = null
-				@mode = m
+		GO: go = (m, enter=false) -> ->
+			if enter # force enter to trigger
+				@_mode = null
+			@mode = m
+		@GO: go
 		
 		tick: (c) ->
 			row = @modeline

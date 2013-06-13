@@ -191,5 +191,5 @@ $.plugin
 					if target.test @[i]
 						return i
 				return -1
-			else Array::indexOf.apply @, target
+			else Array::indexOf.apply @, arguments
 	}

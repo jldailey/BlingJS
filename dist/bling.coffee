@@ -1337,11 +1337,15 @@ $.depends 'hook', ->
 				null
 		}, obj
 $.plugin
-	depends: "dom"
+	depends: "dom,promise"
 	provides: "lazy"
 , ->
 	lazy_load = (elementName, props) ->
-		$("head").append $.extend document.createElement(elementName), props
+		ret = $.Promise()
+		document.head.appendChild elem = $.extend document.createElement(elementName), props,
+			onload: -> ret.finish elem
+			onerror: -> ret.fail.apply ret, arguments
+		ret
 	$:
 		script: (src) ->
 			lazy_load "script", { src: src }
@@ -1862,6 +1866,13 @@ $.plugin
 		toRepr: -> $.toRepr @
 		replace: (patt, repl) ->
 			@map (s) -> s.replace(patt, repl)
+		indexOf: (target) ->
+			if $.is 'regexp', target
+				for i in [0...@length] by 1
+					if target.test @[i]
+						return i
+				return -1
+			else Array::indexOf.apply @, arguments
 	}
 $.plugin
 	provides: "symbol"

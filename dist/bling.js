@@ -2823,12 +2823,22 @@
   });
 
   $.plugin({
-    depends: "dom",
+    depends: "dom,promise",
     provides: "lazy"
   }, function() {
     var lazy_load;
     lazy_load = function(elementName, props) {
-      return $("head").append($.extend(document.createElement(elementName), props));
+      var elem, ret;
+      ret = $.Promise();
+      document.head.appendChild(elem = $.extend(document.createElement(elementName), props, {
+        onload: function() {
+          return ret.finish(elem);
+        },
+        onerror: function() {
+          return ret.fail.apply(ret, arguments);
+        }
+      }));
+      return ret;
     };
     return {
       $: {
@@ -4030,6 +4040,19 @@
         return this.map(function(s) {
           return s.replace(patt, repl);
         });
+      },
+      indexOf: function(target) {
+        var i, _i, _ref;
+        if ($.is('regexp', target)) {
+          for (i = _i = 0, _ref = this.length; _i < _ref; i = _i += 1) {
+            if (target.test(this[i])) {
+              return i;
+            }
+          }
+          return -1;
+        } else {
+          return Array.prototype.indexOf.apply(this, arguments);
+        }
       }
     };
   });

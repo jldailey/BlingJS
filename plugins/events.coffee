@@ -57,13 +57,13 @@ $.plugin
 					evt.preventAll()
 				ret
 			@each ->
-				(@addEventListener i, h, false) for i in c
+				(@addEventListener i, h, true) for i in c
 
 		# __.unbind(e, [f])__ remove handler[s] for event _e_. If _f_ is
 		# not passed, then remove all handlers.
 		unbind: (e, f) ->
 			c = (e or "").split EVENTSEP_RE
-			@each -> (@removeEventListener i, f, null) for i in c
+			@each -> (@removeEventListener i, f, true) for i in c
 
 		# __.trigger(e, [args])__ creates (and fires) a fake event on some DOM nodes.
 		trigger: (evt, args = {}) ->

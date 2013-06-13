@@ -1032,10 +1032,10 @@ $.plugin
 					evt.preventAll()
 				ret
 			@each ->
-				(@addEventListener i, h, false) for i in c
+				(@addEventListener i, h, true) for i in c
 		unbind: (e, f) ->
 			c = (e or "").split EVENTSEP_RE
-			@each -> (@removeEventListener i, f, null) for i in c
+			@each -> (@removeEventListener i, f, true) for i in c
 		trigger: (evt, args = {}) ->
 			args = $.extend
 				bubbles: true

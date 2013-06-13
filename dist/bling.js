@@ -2260,7 +2260,7 @@
           _results = [];
           for (_i = 0, _len = c.length; _i < _len; _i++) {
             i = c[_i];
-            _results.push(this.addEventListener(i, h, false));
+            _results.push(this.addEventListener(i, h, true));
           }
           return _results;
         });
@@ -2273,7 +2273,7 @@
           _results = [];
           for (_i = 0, _len = c.length; _i < _len; _i++) {
             i = c[_i];
-            _results.push(this.removeEventListener(i, f, null));
+            _results.push(this.removeEventListener(i, f, true));
           }
           return _results;
         });

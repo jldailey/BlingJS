@@ -169,11 +169,11 @@ $.plugin
 				if not e
 					continue
 				else
-					try
-						@each ->
+					@each ->
+						try
 							@dispatchEvent e
-					catch err
-						$.log "dispatchEvent error:", err
+						catch err
+							$.log "dispatchEvent error:", err
 			@
 
 		# __.delegate(selector, e, f)__ bind _f_ to handle event _e_ for child nodes that will exist in the future

@@ -1125,11 +1125,11 @@ $.plugin
 				if not e
 					continue
 				else
-					try
-						@each ->
+					@each ->
+						try
 							@dispatchEvent e
-					catch err
-						$.log "dispatchEvent error:", err
+						catch err
+							$.log "dispatchEvent error:", err
 			@
 		delegate: (selector, e, f) ->
 			context = @

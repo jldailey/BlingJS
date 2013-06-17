@@ -2279,7 +2279,7 @@
         });
       },
       trigger: function(evt, args) {
-        var e, err, evt_i, _i, _len, _ref;
+        var e, evt_i, _i, _len, _ref;
         if (args == null) {
           args = {};
         }
@@ -2365,14 +2365,15 @@
           if (!e) {
             continue;
           } else {
-            try {
-              this.each(function() {
+            this.each(function() {
+              var err;
+              try {
                 return this.dispatchEvent(e);
-              });
-            } catch (_error) {
-              err = _error;
-              $.log("dispatchEvent error:", err);
-            }
+              } catch (_error) {
+                err = _error;
+                return $.log("dispatchEvent error:", err);
+              }
+            });
           }
         }
         return this;

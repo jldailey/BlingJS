@@ -2192,8 +2192,8 @@ $.plugin
 	Types =
 		"number":
 			symbol: "#"
-			pack: (n) -> String(n)
-			unpack: (s) -> Number(s)
+			pack: String
+			unpack: Number
 		"string":
 			symbol: "'"
 			pack: $.identity
@@ -2204,12 +2204,12 @@ $.plugin
 			unpack: (s) -> s is "true"
 		"null":
 			symbol: "~"
-			pack: (b) -> ""
-			unpack: (s) -> null
+			pack: -> ""
+			unpack: -> null
 		"undefined":
 			symbol: "_"
-			pack: (b) -> ""
-			unpack: (s) -> undefined
+			pack: -> ""
+			unpack: -> undefined
 		"array":
 			symbol: "]"
 			pack: (a) -> (packOne(y) for y in a).join('')
@@ -2261,24 +2261,20 @@ $.plugin
 			symbol: "/"
 			pack: (r) -> String(r).slice(1,-1)
 			unpack: (s) -> RegExp(s)
-	Symbols = {}
+	Symbols = {} # Reverse lookup table, for use during unpacking
 	do -> for t,v of Types
 		Symbols[v.symbol] = v
 	unpackOne = (data) ->
-		i = data.indexOf ":"
-		if i > 0
-			len = parseInt data[0...i], 10
-			item = data[i+1...i+1+len]
-			symbol = data[i+1+len]
-			extra = data[i+len+2...]
-			if( type = Symbols[symbol] )?
-				item = type.unpack item
-				return [item, extra]
+		if (i = data.indexOf ":") > 0
+			x = i+1+parseInt data[0...i], 10
+			return [
+				Symbols[data[x]]?.unpack(data[i+1...x]),
+				data[x+1...]
+			]
 		return undefined
 	packOne = (x) ->
-		t = Types[$.type x]
-		unless t?
-			throw new Error("TNET: cant pack type '#{$.type x}'")
+		unless (t = Types[tx = $.type x])?
+			throw new Error("TNET: cant pack type '#{tx}'")
 		data = t.pack(x)
 		return (data.length|0) + ":" + data + t.symbol
 	$:

@@ -1356,7 +1356,7 @@
     };
     injectCSS = function() {
       $('head style.dialog').remove();
-      return $.synth(("style.dialog '			.dialog, .modal { position: absolute; }			.modal {				background: rgba(0,0,0,.3);				opacity: 0;			}			.dialog {				box-shadow: 8px 8px 4px rgba(0,0,0,.4);				border-radius: 8px;				background: white;				padding: 6px; " + (transition("left", ".15s")) + "			}			.dialog > .title {				text-align: center;				width: 100%;			}			.dialog > .content {				width: 100%;			}		'").replace(/\t+|\n+/g, ' ')).prependTo("head");
+      return $.synth(("style.dialog '			.dialog, .modal { position: absolute; }			.modal { background: rgba(0,0,0,.3); opacity: 0; }			.dialog { box-shadow: 8px 8px 4px rgba(0,0,0,.4); border-radius: 8px; background: white; padding: 6px; " + (transition("left", ".15s")) + " }			.dialog > .title { text-align: center; width: 100%; }			.dialog > .content { width: 100%; }		'").replace(/\t+|\n+/g, ' ')).prependTo("head");
     };
     createDialog = function(opts) {
       var contentNode, dialog, dialogSynth, modal, titleNode;
@@ -2279,7 +2279,7 @@
         });
       },
       trigger: function(evt, args) {
-        var e, err, evt_i, _i, _len, _ref;
+        var e, evt_i, _i, _len, _ref;
         if (args == null) {
           args = {};
         }
@@ -2365,14 +2365,15 @@
           if (!e) {
             continue;
           } else {
-            try {
-              this.each(function() {
+            this.each(function() {
+              var err;
+              try {
                 return this.dispatchEvent(e);
-              });
-            } catch (_error) {
-              err = _error;
-              $.log("dispatchEvent error:", err);
-            }
+              } catch (_error) {
+                err = _error;
+                return $.log("dispatchEvent error:", err);
+              }
+            });
           }
         }
         return this;
@@ -2884,6 +2885,9 @@
           return pattern.test(obj);
         case 'object':
         case 'array':
+          if (obj == null) {
+            return false;
+          }
           for (k in pattern) {
             v = pattern[k];
             if (!matches(v, obj[k])) {
@@ -5631,6 +5635,55 @@
           }
         }
         return this;
+      }
+    };
+  });
+
+  $.plugin({
+    provides: "url,URL"
+  }, function() {
+    var clean, parse, stringify, url_re;
+    url_re = /\b(?:([a-z]+):)(?:\/*([^:?\/#]+))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i;
+    parse = function(str) {
+      var m, _ref, _ref1;
+      m = str != null ? str.match(url_re) : void 0;
+      if (m != null) {
+        return {
+          protocol: m[1],
+          host: m[2],
+          port: m[3],
+          path: m[4],
+          query: (_ref = m[5]) != null ? _ref.replace(/^\?/, '') : void 0,
+          hash: (_ref1 = m[6]) != null ? _ref1.replace(/^#/, '') : void 0
+        };
+      } else {
+        return null;
+      }
+    };
+    clean = function(val, re, prefix, suffix) {
+      var x;
+      if (prefix == null) {
+        prefix = '';
+      }
+      if (suffix == null) {
+        suffix = '';
+      }
+      x = val != null ? val : "";
+      if (x && !re.test(x)) {
+        return prefix + x + suffix;
+      } else {
+        return x;
+      }
+    };
+    stringify = function(url) {
+      return [clean(url.protocol, /:$/, '', ':'), clean(url.host, /^\//, '//'), clean(url.port, /^:/, ':'), clean(url.path, /^\//, '/'), clean(url.query, /^\?/, '?'), clean(url.hash, /^#/, '#')].join('');
+    };
+    return {
+      $: {
+        URL: {
+          parse: parse,
+          stringify: stringify
+        }
       }
     };
   });

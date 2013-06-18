@@ -2885,6 +2885,9 @@
           return pattern.test(obj);
         case 'object':
         case 'array':
+          if (obj == null) {
+            return false;
+          }
           for (k in pattern) {
             v = pattern[k];
             if (!matches(v, obj[k])) {
@@ -5632,6 +5635,55 @@
           }
         }
         return this;
+      }
+    };
+  });
+
+  $.plugin({
+    provides: "url,URL"
+  }, function() {
+    var clean, parse, stringify, url_re;
+    url_re = /\b(?:([a-z]+):)(?:\/*([^:?\/#]+))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i;
+    parse = function(str) {
+      var m, _ref, _ref1;
+      m = str != null ? str.match(url_re) : void 0;
+      if (m != null) {
+        return {
+          protocol: m[1],
+          host: m[2],
+          port: m[3],
+          path: m[4],
+          query: (_ref = m[5]) != null ? _ref.replace(/^\?/, '') : void 0,
+          hash: (_ref1 = m[6]) != null ? _ref1.replace(/^#/, '') : void 0
+        };
+      } else {
+        return null;
+      }
+    };
+    clean = function(val, re, prefix, suffix) {
+      var x;
+      if (prefix == null) {
+        prefix = '';
+      }
+      if (suffix == null) {
+        suffix = '';
+      }
+      x = val != null ? val : "";
+      if (x && !re.test(x)) {
+        return prefix + x + suffix;
+      } else {
+        return x;
+      }
+    };
+    stringify = function(url) {
+      return [clean(url.protocol, /:$/, '', ':'), clean(url.host, /^\//, '//'), clean(url.port, /^:/, ':'), clean(url.path, /^\//, '/'), clean(url.query, /^\?/, '?'), clean(url.hash, /^#/, '#')].join('');
+    };
+    return {
+      $: {
+        URL: {
+          parse: parse,
+          stringify: stringify
+        }
       }
     };
   });

@@ -49,6 +49,8 @@ describe ".matches()", ->
 				{ a: { b: "bar", c: { d: "foo" } } }
 	it "what happens when patterns are an array", ->
 		assert $.matches [1,2,3], [1,2,3,4]
+	it "does not crash when the matching object is null", ->
+		assert not $.matches {a:1}, null
 	it "fallbacks to basic comparisons if you dont pass a pattern", ->
 		it "(strings)", ->
 			assert $.matches "a", "a"

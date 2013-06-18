@@ -8,6 +8,8 @@ $.plugin
 				return obj is pattern
 			when 'regexp' then return pattern.test obj
 			when 'object', 'array'
+				unless obj?
+					return false
 				for k, v of pattern
 					unless matches v, obj[k]
 						return false

@@ -548,23 +548,10 @@ $.plugin
 		$('head style.dialog').remove()
 		$.synth("style.dialog '
 			.dialog, .modal { position: absolute; }
-			.modal {
-				background: rgba(0,0,0,.3);
-				opacity: 0;
-			}
-			.dialog {
-				box-shadow: 8px 8px 4px rgba(0,0,0,.4);
-				border-radius: 8px;
-				background: white;
-				padding: 6px; #{transition "left", ".15s"}
-			}
-			.dialog > .title {
-				text-align: center;
-				width: 100%;
-			}
-			.dialog > .content {
-				width: 100%;
-			}
+			.modal { background: rgba(0,0,0,.3); opacity: 0; }
+			.dialog { box-shadow: 8px 8px 4px rgba(0,0,0,.4); border-radius: 8px; background: white; padding: 6px; #{transition "left", ".15s"} }
+			.dialog > .title { text-align: center; width: 100%; }
+			.dialog > .content { width: 100%; }
 		'".replace(/\t+|\n+/g,' ')).prependTo("head")
 	createDialog = (opts) ->
 		opts = $.extend createDialog.getDefaultOptions(), opts

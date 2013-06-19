@@ -14,7 +14,6 @@ $.plugin
 	# > hook(2)
 	# 16
 
-
 	hook = ->
 		chain = []
 		return $.extend ((args) ->

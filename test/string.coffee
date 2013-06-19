@@ -61,6 +61,8 @@ describe "String plugin:", ->
 			it "functions", ->
 				assert.equal $.toString(-> $.log), "function () { ... }"
 			it "objects", ->assert.equal $.toString({a:{b:1}}), "{a:{b:1}}"
+			it "null", -> assert.equal $.toString(null), "null"
+			it "undefined", -> assert.equal $.toString(undefined), "undefined"
 		it "should not fail", ->
 			obj = a: 1
 			$.defineProperty obj, 'xxx',

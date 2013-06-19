@@ -1783,7 +1783,7 @@ $.plugin
 	return {
 		$:
 			toString: (x) ->
-				if not x? then "function Bling(selector, context) { [ ... ] }"
+				if arguments.length is 0 then "function Bling() { [ ... ] }"
 				else
 					try
 						$.type.lookup(x).string(x)

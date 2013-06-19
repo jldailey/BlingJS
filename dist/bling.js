@@ -3877,8 +3877,8 @@
       $: {
         toString: function(x) {
           var err;
-          if (x == null) {
-            return "function Bling(selector, context) { [ ... ] }";
+          if (arguments.length === 0) {
+            return "function Bling() { [ ... ] }";
           } else {
             try {
               return $.type.lookup(x).string(x);

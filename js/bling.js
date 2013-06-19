@@ -3877,8 +3877,8 @@
       $: {
         toString: function(x) {
           var err;
-          if (x == null) {
-            return "function Bling(selector, context) { [ ... ] }";
+          if (arguments.length === 0) {
+            return "function Bling() { [ ... ] }";
           } else {
             try {
               return $.type.lookup(x).string(x);
@@ -4569,12 +4569,8 @@
     Types = {
       "number": {
         symbol: "#",
-        pack: function(n) {
-          return String(n);
-        },
-        unpack: function(s) {
-          return Number(s);
-        }
+        pack: String,
+        unpack: Number
       },
       "string": {
         symbol: "'",
@@ -4592,19 +4588,19 @@
       },
       "null": {
         symbol: "~",
-        pack: function(b) {
+        pack: function() {
           return "";
         },
-        unpack: function(s) {
+        unpack: function() {
           return null;
         }
       },
       "undefined": {
         symbol: "_",
-        pack: function(b) {
+        pack: function() {
           return "";
         },
-        unpack: function(s) {
+        unpack: function() {
           return void 0;
         }
       },
@@ -4719,25 +4715,17 @@
       return _results;
     })();
     unpackOne = function(data) {
-      var extra, i, item, len, symbol, type;
-      i = data.indexOf(":");
-      if (i > 0) {
-        len = parseInt(data.slice(0, i), 10);
-        item = data.slice(i + 1, i + 1 + len);
-        symbol = data[i + 1 + len];
-        extra = data.slice(i + len + 2);
-        if ((type = Symbols[symbol]) != null) {
-          item = type.unpack(item);
-          return [item, extra];
-        }
+      var i, x, _ref;
+      if ((i = data.indexOf(":")) > 0) {
+        x = i + 1 + parseInt(data.slice(0, i), 10);
+        return [(_ref = Symbols[data[x]]) != null ? _ref.unpack(data.slice(i + 1, x)) : void 0, data.slice(x + 1)];
       }
       return void 0;
     };
     packOne = function(x) {
-      var data, t;
-      t = Types[$.type(x)];
-      if (t == null) {
-        throw new Error("TNET: cant pack type '" + ($.type(x)) + "'");
+      var data, t, tx;
+      if ((t = Types[tx = $.type(x)]) == null) {
+        throw new Error("TNET: cant pack type '" + tx + "'");
       }
       data = t.pack(x);
       return (data.length | 0) + ":" + data + t.symbol;

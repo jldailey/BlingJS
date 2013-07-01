@@ -260,7 +260,7 @@ $.plugin
 				# * pattern object: `.filter({ enabled: true })`
 				when "object" then (x) -> $.matches f,x
 				# * selector string: `.filter("td.selected")`
-				when "string" then (x) -> x.matchesSelector(f)
+				when "string" then (x) -> x.matchesSelector?(f) ? false
 				# * RegExp object: `.filter(/^prefix-/)`
 				when "regexp" then (x) -> f.test(x)
 				# * function: `.filter (x) -> (x%2) is 1`

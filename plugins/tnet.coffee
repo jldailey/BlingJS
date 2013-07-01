@@ -80,6 +80,7 @@ $.plugin
 		Symbols[v.symbol] = v
 
 	unpackOne = (data) ->
+		return data unless data?
 		if (i = data.indexOf ":") > 0
 			x = i+1+parseInt data[0...i], 10
 			return [

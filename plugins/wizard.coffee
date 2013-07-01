@@ -20,8 +20,8 @@ $.plugin
 				newDialog = $ dialogs[newSlide]
 				# adjust style.left to transition the old slide out of the way
 				width = currentDialog.width()[0]
-				newLeft = if delta < 0 then window.innerWidth - width else 0
-				$.log "newLeft: #{$.px newLeft}"
+				newLeft = if delta < 0 then window.innerWidth - width else -(width+10)
+				$.log "newLeft: #{$.px newLeft} (delta: #{delta})"
 				currentDialog.removeClass('wiz-active')
 					.css(left: $.px newLeft)
 					.fadeOut()
@@ -33,6 +33,8 @@ $.plugin
 		modal.delegate '.wiz-next', 'click', slideChanger(+1)
 		modal.delegate '.wiz-back', 'click', slideChanger(-1)
 
+		if $("style.dialog").length is 0
+			$.synth("style").text
 		for slide in slides.slice(1)
 			d = $.synth('div.dialog div.title + div.content').css
 				left: $.px window.innerWidth

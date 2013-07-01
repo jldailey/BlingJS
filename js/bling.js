@@ -871,7 +871,8 @@
               };
             case "string":
               return function(x) {
-                return x.matchesSelector(f);
+                var _ref2;
+                return (_ref2 = typeof x.matchesSelector === "function" ? x.matchesSelector(f) : void 0) != null ? _ref2 : false;
               };
             case "regexp":
               return function(x) {
@@ -977,6 +978,163 @@
       },
       clear: function() {
         return this.splice(0, this.length);
+      }
+    };
+  });
+
+  $.plugin({
+    provides: "css,CSS"
+  }, function() {
+    var compact, flatten, parse, specialOps, stripComments, trim;
+    flatten = function(o, prefix, into) {
+      var k, nk, v;
+      if (!(prefix in into)) {
+        into[prefix] = [];
+      }
+      for (k in o) {
+        v = o[k];
+        switch (typeof v) {
+          case "string":
+          case "number":
+            nk = k.replace(/([a-z]+)([A-Z]+)/g, "$1-$2").toLowerCase();
+            into[prefix].push("" + nk + ": " + v + ";");
+            break;
+          case "object":
+            nk = prefix ? prefix + k : k;
+            flatten(v, nk, into);
+            break;
+          default:
+            throw new Error("unexpected type in css: " + (typeof v));
+        }
+      }
+      return into;
+    };
+    trim = function(str) {
+      return str.replace(/^\s+/, '').replace(/\s+$/, '');
+    };
+    stripComments = function(str) {
+      var i, j;
+      while ((i = str.indexOf("/*")) > -1) {
+        if ((j = str.indexOf("*/", i)) === -1) {
+          break;
+        }
+        str = str.substring(0, i) + str.substring(j + 2);
+      }
+      return str;
+    };
+    parse = function(str, into) {
+      var body, colon, key, m, rest, rule, selector, value, _i, _len;
+      if (m = str.match(/([^{]+){/)) {
+        selector = trim(m[1]);
+        rest = str.substring(m[0].length);
+        into[selector] || (into[selector] = {});
+        if (m = rest.match(/([^}]+)}/)) {
+          body = m[1].split(';');
+          rest = rest.substring(m[0].length);
+          for (_i = 0, _len = body.length; _i < _len; _i++) {
+            rule = body[_i];
+            colon = rule.indexOf(':');
+            if (!(key = rule.substring(0, colon))) {
+              continue;
+            }
+            key = trim(key);
+            value = trim(rule.substring(colon + 1));
+            into[selector][key] = value;
+          }
+        }
+        if (rest.length > 0) {
+          return parse(rest, into);
+        }
+      }
+      return into;
+    };
+    specialOps = '>+~';
+    compact = function(obj) {
+      var cur, first, op, part, parts, phaseTwo, ret, rules, selector, _i, _j, _len, _len1;
+      ret = {};
+      for (selector in obj) {
+        rules = obj[selector];
+        for (_i = 0, _len = specialOps.length; _i < _len; _i++) {
+          op = specialOps[_i];
+          selector = selector.replace(op, " " + op + " ");
+        }
+        parts = selector.split(/\s+/);
+        switch (parts.length) {
+          case 0:
+            continue;
+          case 1:
+            $.extend((ret[selector] || (ret[selector] = {})), rules);
+            break;
+          default:
+            cur = ret;
+            first = true;
+            for (_j = 0, _len1 = parts.length; _j < _len1; _j++) {
+              part = parts[_j];
+              if (!first) {
+                part = " " + part;
+              }
+              cur = cur[part] || (cur[part] = {});
+              first = false;
+            }
+            $.extend(cur, rules);
+        }
+      }
+      phaseTwo = function(cur) {
+        var key, modified, subkeys, val;
+        modified = false;
+        for (key in cur) {
+          val = cur[key];
+          if ($.is('object', val)) {
+            subkeys = Object.keys(val);
+            switch (subkeys.length) {
+              case 0:
+                delete cur[key];
+                break;
+              default:
+                if (subkeys.length === 1 && $.is('object', val[subkeys[0]])) {
+                  cur[key + subkeys[0]] = val[subkeys[0]];
+                  delete cur[key];
+                  phaseTwo(cur);
+                }
+            }
+            phaseTwo(val);
+          }
+        }
+        return cur;
+      };
+      return phaseTwo(ret);
+    };
+    return {
+      $: {
+        CSS: {
+          parse: function(str, packed) {
+            var ret;
+            if (packed == null) {
+              packed = false;
+            }
+            ret = parse(stripComments(str), {});
+            if (packed) {
+              return compact(ret);
+            } else {
+              return ret;
+            }
+          },
+          stringify: function(obj) {
+            var x, y;
+            return ((function() {
+              var _ref, _results;
+              _ref = flatten(obj, "", {});
+              _results = [];
+              for (x in _ref) {
+                y = _ref[x];
+                if (y.length > 0) {
+                  _results.push("" + x + " { " + (y.join(' ')) + " }");
+                }
+              }
+              return _results;
+            })()).join(' ');
+          }
+        }
       }
     };
   });
@@ -2290,77 +2448,102 @@
         _ref = (evt || "").split(EVENTSEP_RE);
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           evt_i = _ref[_i];
-          if (evt_i === "click" || evt_i === "mousemove" || evt_i === "mousedown" || evt_i === "mouseup" || evt_i === "mouseover" || evt_i === "mouseout") {
-            e = document.createEvent("MouseEvents");
-            args = $.extend({
-              detail: 1,
-              screenX: 0,
-              screenY: 0,
-              clientX: 0,
-              clientY: 0,
-              ctrlKey: false,
-              altKey: false,
-              shiftKey: false,
-              metaKey: false,
-              button: 0,
-              relatedTarget: null
-            }, args);
-            e.initMouseEvent(evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY, args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey, args.button, args.relatedTarget);
-          } else if (evt_i === "blur" || evt_i === "focus" || evt_i === "reset" || evt_i === "submit" || evt_i === "abort" || evt_i === "change" || evt_i === "load" || evt_i === "unload") {
-            e = document.createEvent("UIEvents");
-            e.initUIEvent(evt_i, args.bubbles, args.cancelable, $.global, 1);
-          } else if (evt_i === "touchstart" || evt_i === "touchmove" || evt_i === "touchend" || evt_i === "touchcancel") {
-            e = document.createEvent("TouchEvents");
-            args = $.extend({
-              detail: 1,
-              screenX: 0,
-              screenY: 0,
-              clientX: 0,
-              clientY: 0,
-              ctrlKey: false,
-              altKey: false,
-              shiftKey: false,
-              metaKey: false,
-              touches: [],
-              targetTouches: [],
-              changedTouches: [],
-              scale: 1.0,
-              rotation: 0.0
-            }, args);
-            e.initTouchEvent(evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY, args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey, args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation);
-          } else if (evt_i === "gesturestart" || evt_i === "gestureend" || evt_i === "gesturecancel") {
-            e = document.createEvent("GestureEvents");
-            args = $.extend({
-              detail: 1,
-              screenX: 0,
-              screenY: 0,
-              clientX: 0,
-              clientY: 0,
-              ctrlKey: false,
-              altKey: false,
-              shiftKey: false,
-              metaKey: false,
-              target: null,
-              scale: 1.0,
-              rotation: 0.0
-            }, args);
-            e.initGestureEvent(evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY, args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey, args.target, args.scale, args.rotation);
-          } else if (evt_i === "keydown" || evt_i === "keypress" || evt_i === "keyup") {
-            e = document.createEvent("KeyboardEvents");
-            args = $.extend({
-              view: null,
-              ctrlKey: false,
-              altKey: false,
-              shiftKey: false,
-              metaKey: false,
-              keyCode: 0,
-              charCode: 0
-            }, args);
-            e.initKeyboardEvent(evt_i, args.bubbles, args.cancelable, $.global, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey, args.keyCode, args.charCode);
-          } else {
-            e = document.createEvent("Events");
-            e.initEvent(evt_i, args.bubbles, args.cancelable);
-            e = $.extend(e, args);
+          switch (evt_i) {
+            case "click":
+            case "mousemove":
+            case "mousedown":
+            case "mouseup":
+            case "mouseover":
+            case "mouseout":
+              e = document.createEvent("MouseEvents");
+              args = $.extend({
+                detail: 1,
+                screenX: 0,
+                screenY: 0,
+                clientX: 0,
+                clientY: 0,
+                ctrlKey: false,
+                altKey: false,
+                shiftKey: false,
+                metaKey: false,
+                button: 0,
+                relatedTarget: null
+              }, args);
+              e.initMouseEvent(evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY, args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey, args.button, args.relatedTarget);
+              break;
+            case "blur":
+            case "focus":
+            case "reset":
+            case "submit":
+            case "abort":
+            case "change":
+            case "load":
+            case "unload":
+              e = document.createEvent("UIEvents");
+              e.initUIEvent(evt_i, args.bubbles, args.cancelable, $.global, 1);
+              break;
+            case "touchstart":
+            case "touchmove":
+            case "touchend":
+            case "touchcancel":
+              e = document.createEvent("TouchEvents");
+              args = $.extend({
+                detail: 1,
+                screenX: 0,
+                screenY: 0,
+                clientX: 0,
+                clientY: 0,
+                ctrlKey: false,
+                altKey: false,
+                shiftKey: false,
+                metaKey: false,
+                touches: [],
+                targetTouches: [],
+                changedTouches: [],
+                scale: 1.0,
+                rotation: 0.0
+              }, args);
+              e.initTouchEvent(evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY, args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey, args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation);
+              break;
+            case "gesturestart":
+            case "gestureend":
+            case "gesturecancel":
+              e = document.createEvent("GestureEvents");
+              args = $.extend({
+                detail: 1,
+                screenX: 0,
+                screenY: 0,
+                clientX: 0,
+                clientY: 0,
+                ctrlKey: false,
+                altKey: false,
+                shiftKey: false,
+                metaKey: false,
+                target: null,
+                scale: 1.0,
+                rotation: 0.0
+              }, args);
+              e.initGestureEvent(evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY, args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey, args.target, args.scale, args.rotation);
+              break;
+            case "keydown":
+            case "keypress":
+            case "keyup":
+              e = document.createEvent("KeyboardEvents");
+              args = $.extend({
+                view: null,
+                ctrlKey: false,
+                altKey: false,
+                shiftKey: false,
+                metaKey: false,
+                keyCode: 0,
+                charCode: 0
+              }, args);
+              e.initKeyboardEvent(evt_i, args.bubbles, args.cancelable, $.global, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey, args.keyCode, args.charCode);
+              break;
+            default:
+              e = document.createEvent("Events");
+              e.initEvent(evt_i, args.bubbles, args.cancelable);
+              e = $.extend(e, args);
           }
           if (!e) {
             continue;
@@ -2975,13 +3158,16 @@
             return _results;
           })());
         },
-        zeros: function(n) {
+        zeros: function(n, z) {
           var i;
+          if (z == null) {
+            z = 0;
+          }
           return $((function() {
             var _i, _results;
             _results = [];
             for (i = _i = 0; 0 <= n ? _i < n : _i > n; i = 0 <= n ? ++_i : --_i) {
-              _results.push(0);
+              _results.push(z);
             }
             return _results;
           })());
@@ -4007,43 +4193,46 @@
             case n < 1:
               return "";
             case $.is("string", x):
-              return $.zeros(n).map(function() {
-                return x;
-              }).join('');
+              return $.zeros(n, x).join('');
             default:
-              return $.zeros(n).map(function() {
-                return x;
-              });
+              return $.zeros(n, x);
           }
         },
-        stringBuilder: function() {
-          var items,
-            _this = this;
-          if ($.is("global", this)) {
-            return new $.stringBuilder();
-          }
-          items = [];
-          this.length = 0;
-          this.append = function(s) {
-            items.push(s);
-            return _this.length += (s != null ? s.toString().length : void 0) | 0;
+        stringBuilder: (function() {
+          var len;
+          len = function(s) {
+            return (s != null ? s.toString().length : void 0) | 0;
           };
-          this.prepend = function(s) {
-            items.splice(0, 0, s);
-            return _this.length += (s != null ? s.toString().length : void 0) | 0;
-          };
-          this.clear = function() {
-            var ret;
-            ret = _this.toString();
+          return function() {
+            var items,
+              _this = this;
+            if ($.is("global", this)) {
+              return new $.stringBuilder();
+            }
             items = [];
-            _this.length = 0;
-            return ret;
+            return $.extend(this, {
+              length: 0,
+              append: function(s) {
+                items.push(s);
+                return _this.length += len(s);
+              },
+              prepend: function(s) {
+                items.splice(0, 0, s);
+                return _this.length += len(s);
+              },
+              clear: function() {
+                var ret;
+                ret = _this.toString();
+                items = [];
+                _this.length = 0;
+                return ret;
+              },
+              toString: function() {
+                return items.join("");
+              }
+            });
           };
-          this.toString = function() {
-            return items.join("");
-          };
-          return this;
-        }
+        })()
       },
       toString: function() {
         return $.toString(this);
@@ -4716,6 +4905,9 @@
     })();
     unpackOne = function(data) {
       var i, x, _ref;
+      if (data == null) {
+        return data;
+      }
       if ((i = data.indexOf(":")) > 0) {
         x = i + 1 + parseInt(data.slice(0, i), 10);
         return [(_ref = Symbols[data[x]]) != null ? _ref.unpack(data.slice(i + 1, x)) : void 0, data.slice(x + 1)];
@@ -5709,8 +5901,8 @@
                   currentDialog = $(dialogs[currentSlide]);
                   newDialog = $(dialogs[newSlide]);
                   width = currentDialog.width()[0];
-                  newLeft = delta < 0 ? window.innerWidth - width : 0;
-                  $.log("newLeft: " + ($.px(newLeft)));
+                  newLeft = delta < 0 ? window.innerWidth - width : -(width + 10);
+                  $.log("newLeft: " + ($.px(newLeft)) + " (delta: " + delta + ")");
                   currentDialog.removeClass('wiz-active').css({
                     left: $.px(newLeft)
                   }).fadeOut();
@@ -5724,6 +5916,9 @@
           };
           modal.delegate('.wiz-next', 'click', slideChanger(+1));
           modal.delegate('.wiz-back', 'click', slideChanger(-1));
+          if ($("style.dialog").length === 0) {
+            $.synth("style").text;
+          }
           _ref1 = slides.slice(1);
           for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
             slide = _ref1[_i];

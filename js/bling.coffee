@@ -334,7 +334,7 @@ $.plugin
 			positive ?= true
 			g = switch $.type f
 				when "object" then (x) -> $.matches f,x
-				when "string" then (x) -> x.matchesSelector(f)
+				when "string" then (x) -> x.matchesSelector?(f) ? false
 				when "regexp" then (x) -> f.test(x)
 				when "function" then f
 				else throw new Error "unsupported argument to filter: #{$.type f}"
@@ -387,6 +387,91 @@ $.plugin
 			@__proto__ = Array::
 			@ # no copies, yay?
 		clear: -> @splice 0, @length
+	}
+$.plugin
+	provides: "css,CSS"
+, ->
+	flatten = (o, prefix, into) ->
+		unless prefix of into
+			into[prefix] = []
+		for k,v of o
+			switch typeof v
+				when "string","number"
+					nk = k.replace(/([a-z]+)([A-Z]+)/g, "$1-$2").toLowerCase()
+					into[prefix].push "#{nk}: #{v};"
+				when "object"
+					nk = if prefix then (prefix + k) else k
+					flatten(v, nk, into)
+				else throw new Error("unexpected type in css: #{typeof v}")
+		return into
+	trim = (str) -> str.replace(/^\s+/, '').replace(/\s+$/, '')
+	stripComments = (str) ->
+		while (i = str.indexOf "/*") > -1
+			if (j = str.indexOf "*/", i) is -1
+				break # Unclosed comments
+			str = str.substring(0,i) + str.substring(j+2)
+		str
+	
+	parse = (str, into) ->
+		if m = str.match /([^{]+){/
+			selector = trim m[1]
+			rest = str.substring m[0].length
+			into[selector] or= {}
+			if m = rest.match /([^}]+)}/
+				body = m[1].split ';'
+				rest = rest.substring m[0].length
+				for rule in body
+					colon = rule.indexOf ':'
+					continue unless key = rule.substring(0,colon)
+					key = trim key
+					value = trim rule.substring(colon+1)
+					into[selector][key] = value
+			if rest.length > 0
+				return parse(rest, into)
+		return into
+	
+	specialOps = '>+~'
+	compact = (obj) ->
+		ret = {}
+		for selector, rules of obj
+			for op in specialOps
+				selector = selector.replace op, " #{op} "
+			parts = selector.split(/\s+/)
+			switch parts.length
+				when 0 then continue
+				when 1 then $.extend (ret[selector] or= {}), rules
+				else
+					cur = ret
+					first = true
+					for part in parts
+						unless first then part = " " + part
+						cur = cur[part] or= {}
+						first = false
+					$.extend cur, rules
+		phaseTwo = (cur) ->
+			modified = false
+			for key, val of cur
+				if $.is 'object', val
+					subkeys = Object.keys(val)
+					switch subkeys.length
+						when 0
+							delete cur[key]
+						else
+							if subkeys.length is 1 and $.is 'object', val[subkeys[0]]
+								cur[key + subkeys[0]] = val[subkeys[0]] # lift sub-value up into a merged key
+								delete cur[key] # delete old key
+								phaseTwo cur # restart recursion from the top, in case we need to keep folding up into the root
+					phaseTwo val
+			cur
+		return phaseTwo ret
+	return {
+		$:
+			CSS:
+				parse: (str, packed=false) ->
+					ret = parse stripComments(str), {}
+					return if packed then compact ret else ret
+				stringify: (obj) ->
+					return ("#{x} { #{y.join ' '} }" for x,y of flatten(obj, "", {}) when y.length > 0).join ' '
 	}
 $.plugin
 	provides: 'date'
@@ -1029,86 +1114,87 @@ $.plugin
 				cancelable: true
 			, args
 			for evt_i in (evt or "").split(EVENTSEP_RE)
-				if evt_i in ["click", "mousemove", "mousedown", "mouseup", "mouseover", "mouseout"] # mouse events
-					e = document.createEvent "MouseEvents"
-					args = $.extend
-						detail: 1,
-						screenX: 0,
-						screenY: 0,
-						clientX: 0,
-						clientY: 0,
-						ctrlKey: false,
-						altKey: false,
-						shiftKey: false,
-						metaKey: false,
-						button: 0,
-						relatedTarget: null
-					, args
-					e.initMouseEvent evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
-						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-						args.button, args.relatedTarget
-				else if evt_i in ["blur", "focus", "reset", "submit", "abort", "change", "load", "unload"] # UI events
-					e = document.createEvent "UIEvents"
-					e.initUIEvent evt_i, args.bubbles, args.cancelable, $.global, 1
-				else if evt_i in ["touchstart", "touchmove", "touchend", "touchcancel"] # touch events
-					e = document.createEvent "TouchEvents"
-					args = $.extend
-						detail: 1,
-						screenX: 0,
-						screenY: 0,
-						clientX: 0,
-						clientY: 0,
-						ctrlKey: false,
-						altKey: false,
-						shiftKey: false,
-						metaKey: false,
-						touches: [],
-						targetTouches: [],
-						changedTouches: [],
-						scale: 1.0,
-						rotation: 0.0
-					, args
-					e.initTouchEvent(evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
-						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-						args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
-				else if evt_i in ["gesturestart", "gestureend", "gesturecancel"] # gesture events
-					e = document.createEvent "GestureEvents"
-					args = $.extend {
-						detail: 1,
-						screenX: 0,
-						screenY: 0,
-						clientX: 0,
-						clientY: 0,
-						ctrlKey: false,
-						altKey: false,
-						shiftKey: false,
-						metaKey: false,
-						target: null,
-						scale: 1.0,
-						rotation: 0.0
-					}, args
-					e.initGestureEvent evt_i, args.bubbles, args.cancelable, $.global,
-						args.detail, args.screenX, args.screenY, args.clientX, args.clientY,
-						args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-						args.target, args.scale, args.rotation
-				else if evt_i in [ "keydown", "keypress", "keyup" ]
-					e = document.createEvent "KeyboardEvents"
-					args = $.extend {
-						view: null,
-						ctrlKey: false,
-						altKey: false,
-						shiftKey: false,
-						metaKey: false,
-						keyCode: 0,
-						charCode: 0
-					}, args
-					e.initKeyboardEvent evt_i, args.bubbles, args.cancelable, $.global,
-						args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-						args.keyCode, args.charCode
-				else
-					e = document.createEvent "Events"
-					e.initEvent evt_i, args.bubbles, args.cancelable
-					e = $.extend e, args
+				switch evt_i
+					when "click", "mousemove", "mousedown", "mouseup", "mouseover", "mouseout" # mouse events
+						e = document.createEvent "MouseEvents"
+						args = $.extend
+							detail: 1,
+							screenX: 0,
+							screenY: 0,
+							clientX: 0,
+							clientY: 0,
+							ctrlKey: false,
+							altKey: false,
+							shiftKey: false,
+							metaKey: false,
+							button: 0,
+							relatedTarget: null
+						, args
+						e.initMouseEvent evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
+							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+							args.button, args.relatedTarget
+					when "blur", "focus", "reset", "submit", "abort", "change", "load", "unload" # UI events
+						e = document.createEvent "UIEvents"
+						e.initUIEvent evt_i, args.bubbles, args.cancelable, $.global, 1
+					when "touchstart", "touchmove", "touchend", "touchcancel" # touch events
+						e = document.createEvent "TouchEvents"
+						args = $.extend
+							detail: 1,
+							screenX: 0,
+							screenY: 0,
+							clientX: 0,
+							clientY: 0,
+							ctrlKey: false,
+							altKey: false,
+							shiftKey: false,
+							metaKey: false,
+							touches: [],
+							targetTouches: [],
+							changedTouches: [],
+							scale: 1.0,
+							rotation: 0.0
+						, args
+						e.initTouchEvent(evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
+							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+							args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
+					when "gesturestart", "gestureend", "gesturecancel" # gesture events
+						e = document.createEvent "GestureEvents"
+						args = $.extend {
+							detail: 1,
+							screenX: 0,
+							screenY: 0,
+							clientX: 0,
+							clientY: 0,
+							ctrlKey: false,
+							altKey: false,
+							shiftKey: false,
+							metaKey: false,
+							target: null,
+							scale: 1.0,
+							rotation: 0.0
+						}, args
+						e.initGestureEvent evt_i, args.bubbles, args.cancelable, $.global,
+							args.detail, args.screenX, args.screenY, args.clientX, args.clientY,
+							args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+							args.target, args.scale, args.rotation
+					when  "keydown", "keypress", "keyup"
+						e = document.createEvent "KeyboardEvents"
+						args = $.extend {
+							view: null,
+							ctrlKey: false,
+							altKey: false,
+							shiftKey: false,
+							metaKey: false,
+							keyCode: 0,
+							charCode: 0
+						}, args
+						e.initKeyboardEvent evt_i, args.bubbles, args.cancelable, $.global,
+							args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+							args.keyCode, args.charCode
+					else
+						e = document.createEvent "Events"
+						e.initEvent evt_i, args.bubbles, args.cancelable
+						e = $.extend e, args
 				if not e
 					continue
 				else
@@ -1393,7 +1479,7 @@ $.plugin
 			if not end? then (end = start; start = 0)
 			step *= -1 if end < start and step > 0 # force step to have the same sign as start->end
 			$( (start + (i*step)) for i in [0...Math.ceil( (end - start) / step )] )
-		zeros: (n) -> $( 0 for i in [0...n] )
+		zeros: (n, z = 0) -> $( z for i in [0...n] )
 		ones: (n) -> $( 1 for i in [0...n] )
 		deg2rad: (n) -> n * Math.PI / 180
 		rad2deg: (n) -> n * 180 / Math.PI
@@ -1853,17 +1939,19 @@ $.plugin
 				switch true
 					when n is 1 then x
 					when n < 1 then ""
-					when $.is "string", x then $.zeros(n).map(-> x).join('')
-					else $.zeros(n).map(-> x)
-			stringBuilder: ->
-				if $.is("global", @) then return new $.stringBuilder()
-				items = []
-				@length   = 0
-				@append   = (s) => items.push s; @length += s?.toString().length|0
-				@prepend  = (s) => items.splice 0,0,s; @length += s?.toString().length|0
-				@clear    = ( ) => ret = @toString(); items = []; @length = 0; ret
-				@toString = ( ) => items.join("")
-				@
+					when $.is "string", x then $.zeros(n, x).join ''
+					else $.zeros(n, x)
+			stringBuilder: do ->
+				len = (s) -> s?.toString().length | 0
+				->
+					if $.is("global", @) then return new $.stringBuilder()
+					items = []
+					$.extend @,
+						length: 0
+						append:  (s) => items.push s; @length += len s
+						prepend: (s) => items.splice 0,0,s; @length += len s
+						clear:       => ret = @toString(); items = []; @length = 0; ret
+						toString:    => items.join("")
 		toString: -> $.toString @
 		toRepr: -> $.toRepr @
 		replace: (patt, repl) ->
@@ -2265,6 +2353,7 @@ $.plugin
 	do -> for t,v of Types
 		Symbols[v.symbol] = v
 	unpackOne = (data) ->
+		return data unless data?
 		if (i = data.indexOf ":") > 0
 			x = i+1+parseInt data[0...i], 10
 			return [
@@ -2752,8 +2841,8 @@ $.plugin
 				currentDialog = $ dialogs[currentSlide]
 				newDialog = $ dialogs[newSlide]
 				width = currentDialog.width()[0]
-				newLeft = if delta < 0 then window.innerWidth - width else 0
-				$.log "newLeft: #{$.px newLeft}"
+				newLeft = if delta < 0 then window.innerWidth - width else -(width+10)
+				$.log "newLeft: #{$.px newLeft} (delta: #{delta})"
 				currentDialog.removeClass('wiz-active')
 					.css(left: $.px newLeft)
 					.fadeOut()
@@ -2764,6 +2853,8 @@ $.plugin
 				currentSlide = newSlide
 		modal.delegate '.wiz-next', 'click', slideChanger(+1)
 		modal.delegate '.wiz-back', 'click', slideChanger(-1)
+		if $("style.dialog").length is 0
+			$.synth("style").text
 		for slide in slides.slice(1)
 			d = $.synth('div.dialog div.title + div.content').css
 				left: $.px window.innerWidth

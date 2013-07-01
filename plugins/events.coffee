@@ -73,98 +73,99 @@ $.plugin
 			, args
 
 			for evt_i in (evt or "").split(EVENTSEP_RE)
-				if evt_i in ["click", "mousemove", "mousedown", "mouseup", "mouseover", "mouseout"] # mouse events
-					e = document.createEvent "MouseEvents"
-					args = $.extend
-						detail: 1,
-						screenX: 0,
-						screenY: 0,
-						clientX: 0,
-						clientY: 0,
-						ctrlKey: false,
-						altKey: false,
-						shiftKey: false,
-						metaKey: false,
-						button: 0,
-						relatedTarget: null
-					, args
-					e.initMouseEvent evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
-						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-						args.button, args.relatedTarget
+				switch evt_i
+					when "click", "mousemove", "mousedown", "mouseup", "mouseover", "mouseout" # mouse events
+						e = document.createEvent "MouseEvents"
+						args = $.extend
+							detail: 1,
+							screenX: 0,
+							screenY: 0,
+							clientX: 0,
+							clientY: 0,
+							ctrlKey: false,
+							altKey: false,
+							shiftKey: false,
+							metaKey: false,
+							button: 0,
+							relatedTarget: null
+						, args
+						e.initMouseEvent evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
+							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+							args.button, args.relatedTarget
 
-				else if evt_i in ["blur", "focus", "reset", "submit", "abort", "change", "load", "unload"] # UI events
-					e = document.createEvent "UIEvents"
-					e.initUIEvent evt_i, args.bubbles, args.cancelable, $.global, 1
+					when "blur", "focus", "reset", "submit", "abort", "change", "load", "unload" # UI events
+						e = document.createEvent "UIEvents"
+						e.initUIEvent evt_i, args.bubbles, args.cancelable, $.global, 1
 
-				else if evt_i in ["touchstart", "touchmove", "touchend", "touchcancel"] # touch events
-					e = document.createEvent "TouchEvents"
-					args = $.extend
-						detail: 1,
-						screenX: 0,
-						screenY: 0,
-						clientX: 0,
-						clientY: 0,
-						ctrlKey: false,
-						altKey: false,
-						shiftKey: false,
-						metaKey: false,
-						# touch values:
-						touches: [],
-						targetTouches: [],
-						changedTouches: [],
-						scale: 1.0,
-						rotation: 0.0
-					, args
-					e.initTouchEvent(evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
-						args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-						args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
+					when "touchstart", "touchmove", "touchend", "touchcancel" # touch events
+						e = document.createEvent "TouchEvents"
+						args = $.extend
+							detail: 1,
+							screenX: 0,
+							screenY: 0,
+							clientX: 0,
+							clientY: 0,
+							ctrlKey: false,
+							altKey: false,
+							shiftKey: false,
+							metaKey: false,
+							# touch values:
+							touches: [],
+							targetTouches: [],
+							changedTouches: [],
+							scale: 1.0,
+							rotation: 0.0
+						, args
+						e.initTouchEvent(evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
+							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+							args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
 
-				else if evt_i in ["gesturestart", "gestureend", "gesturecancel"] # gesture events
-					e = document.createEvent "GestureEvents"
-					args = $.extend {
-						detail: 1,
-						screenX: 0,
-						screenY: 0,
-						clientX: 0,
-						clientY: 0,
-						ctrlKey: false,
-						altKey: false,
-						shiftKey: false,
-						metaKey: false,
-						# gesture values:
-						target: null,
-						scale: 1.0,
-						rotation: 0.0
-					}, args
-					e.initGestureEvent evt_i, args.bubbles, args.cancelable, $.global,
-						args.detail, args.screenX, args.screenY, args.clientX, args.clientY,
-						args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-						args.target, args.scale, args.rotation
+					when "gesturestart", "gestureend", "gesturecancel" # gesture events
+						e = document.createEvent "GestureEvents"
+						args = $.extend {
+							detail: 1,
+							screenX: 0,
+							screenY: 0,
+							clientX: 0,
+							clientY: 0,
+							ctrlKey: false,
+							altKey: false,
+							shiftKey: false,
+							metaKey: false,
+							# gesture values:
+							target: null,
+							scale: 1.0,
+							rotation: 0.0
+						}, args
+						e.initGestureEvent evt_i, args.bubbles, args.cancelable, $.global,
+							args.detail, args.screenX, args.screenY, args.clientX, args.clientY,
+							args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+							args.target, args.scale, args.rotation
 
-				else if evt_i in [ "keydown", "keypress", "keyup" ]
-					e = document.createEvent "KeyboardEvents"
-					args = $.extend {
-						view: null,
-						ctrlKey: false,
-						altKey: false,
-						shiftKey: false,
-						metaKey: false,
-						keyCode: 0,
-						charCode: 0
-					}, args
-					e.initKeyboardEvent evt_i, args.bubbles, args.cancelable, $.global,
-						args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-						args.keyCode, args.charCode
+					when  "keydown", "keypress", "keyup"
+						e = document.createEvent "KeyboardEvents"
+						args = $.extend {
+							view: null,
+							ctrlKey: false,
+							altKey: false,
+							shiftKey: false,
+							metaKey: false,
+							keyCode: 0,
+							charCode: 0
+						}, args
+						e.initKeyboardEvent evt_i, args.bubbles, args.cancelable, $.global,
+							args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+							args.keyCode, args.charCode
 
-				# iphone events that are not supported yet (dont know how to create yet, needs research)
-				# iphone events that we cant properly emulate (because we cant create our own Clipboard objects)
-				# iphone events that are just plain events
-				# and general events
-				# else if evt_i in ["drag", "drop", "selection", "cut", "copy", "paste", "orientationchange"]
-				else
-					e = document.createEvent "Events"
-					e.initEvent evt_i, args.bubbles, args.cancelable
-					e = $.extend e, args
+					# iphone events that are not supported yet (dont know how to create yet, needs research)
+					# iphone events that we cant properly emulate (because we cant create our own Clipboard objects)
+					# iphone events that are just plain events
+					# and general events
+					# else if evt_i in ["drag", "drop", "selection", "cut", "copy", "paste", "orientationchange"]
+					else
+						e = document.createEvent "Events"
+						e.initEvent evt_i, args.bubbles, args.cancelable
+						e = $.extend e, args
 
 				if not e
 					continue

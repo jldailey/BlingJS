@@ -167,20 +167,22 @@ $.plugin
 				switch true
 					when n is 1 then x
 					when n < 1 then ""
-					when $.is "string", x then $.zeros(n).map(-> x).join('')
-					else $.zeros(n).map(-> x)
+					when $.is "string", x then $.zeros(n, x).join ''
+					else $.zeros(n, x)
 
 			# Return a string-builder, which uses arrays to defer all string
 			# concatenation until you call `builder.toString()`.
-			stringBuilder: ->
-				if $.is("global", @) then return new $.stringBuilder()
-				items = []
-				@length   = 0
-				@append   = (s) => items.push s; @length += s?.toString().length|0
-				@prepend  = (s) => items.splice 0,0,s; @length += s?.toString().length|0
-				@clear    = ( ) => ret = @toString(); items = []; @length = 0; ret
-				@toString = ( ) => items.join("")
-				@
+			stringBuilder: do ->
+				len = (s) -> s?.toString().length | 0
+				->
+					if $.is("global", @) then return new $.stringBuilder()
+					items = []
+					$.extend @,
+						length: 0
+						append:  (s) => items.push s; @length += len s
+						prepend: (s) => items.splice 0,0,s; @length += len s
+						clear:       => ret = @toString(); items = []; @length = 0; ret
+						toString:    => items.join("")
 		toString: -> $.toString @
 		toRepr: -> $.toRepr @
 		replace: (patt, repl) ->

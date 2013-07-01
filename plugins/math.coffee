@@ -28,7 +28,7 @@ $.plugin
 			step *= -1 if end < start and step > 0 # force step to have the same sign as start->end
 			$( (start + (i*step)) for i in [0...Math.ceil( (end - start) / step )] )
 		# Get an array of zeros.
-		zeros: (n) -> $( 0 for i in [0...n] )
+		zeros: (n, z = 0) -> $( z for i in [0...n] )
 		# Get an array of ones.
 		ones: (n) -> $( 1 for i in [0...n] )
 		deg2rad: (n) -> n * Math.PI / 180

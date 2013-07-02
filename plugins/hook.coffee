@@ -25,21 +25,8 @@ $.plugin
 			append: (obj) -> chain.push(obj); obj
 		}
 
+	# The hook used by the constructor
 	Bling.init = hook()
 
-	Bling.init.prepend (args) ->
-		# If there was only one argument,
-		if args.length is 1
-			# Classify the type to get a type-instance.
-			# Then convert to an array-like
-			args = $.type.lookup(args[0]).array(args[0])
-		b = $.inherit Bling, args
-		# Firefox clobbers the length when you change the inheritance chain on an array, so we patch it up here
-		if args.length is 0 and args[0] isnt undefined
-			i = 0
-			i++ while args[i] isnt undefined
-			b.length = i
-		b
-
-	$: hook: hook
+	return $: hook: hook
 

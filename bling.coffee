@@ -52,8 +52,20 @@ extend = (a, b...) ->
 class Bling # extends (new Array)
 	"Bling:nomunge"
 	constructor: (args...) ->
-		### See: plugins/hook.coffee ###
-		`return Bling.init(args)`
+		# If there was only one argument,
+		if args.length is 1
+			# Classify the type to get a type-instance.
+			# Then convert to an array-like
+			args = $.type.lookup(args[0]).array(args[0])
+		b = $.inherit Bling, args
+		# Firefox clobbers the length when you change the inheritance chain on an array, so we patch it up here
+		if args.length is 0 and args[0] isnt undefined
+			i = 0
+			i++ while args[i] isnt undefined
+			b.length = i
+		if 'init' of Bling
+			return Bling.init(b)
+		return b
 
 # We specify an inheritance similar to `class Bling extends (new Array)`,
 # if such a thing were supported by the syntax directly.

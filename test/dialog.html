@@ -64,8 +64,20 @@
 		<div class='bottom'>
 			<button id='wizard'>Wizard</button>
 			<button id='left-wizard'>Left Wizard</button>
+			<button id='prompt'>Prompt</button>
+			<button id='confirm'>Confirm</button>
 		</div>
 		<script type="text/javascript">
+			$('button#confirm').click(function() {
+				$.confirm("Yes or no?", function(value) {
+					console.log(value);
+				})
+			})
+			$('button#prompt').click(function() {
+				$.prompt("Enter a secret", "password", function(pw) {
+					console.log(pw);
+				})
+			})
 			var show = function() {
 				$.dialog({
 					title: "Steal This Message",

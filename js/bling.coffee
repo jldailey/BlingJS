@@ -7,7 +7,16 @@ extend = (a, b...) ->
 class Bling # extends (new Array)
 	"Bling:nomunge"
 	constructor: (args...) ->
-		`return Bling.init(args)`
+		if args.length is 1
+			args = $.type.lookup(args[0]).array(args[0])
+		b = $.inherit Bling, args
+		if args.length is 0 and args[0] isnt undefined
+			i = 0
+			i++ while args[i] isnt undefined
+			b.length = i
+		if 'init' of Bling
+			return Bling.init(b)
+		return b
 Bling:: = []
 Bling::constructor = Bling
 Bling.global = if window? then window else global
@@ -1334,16 +1343,7 @@ $.plugin
 			append: (obj) -> chain.push(obj); obj
 		}
 	Bling.init = hook()
-	Bling.init.prepend (args) ->
-		if args.length is 1
-			args = $.type.lookup(args[0]).array(args[0])
-		b = $.inherit Bling, args
-		if args.length is 0 and args[0] isnt undefined
-			i = 0
-			i++ while args[i] isnt undefined
-			b.length = i
-		b
-	$: hook: hook
+	return $: hook: hook
 $.plugin
 	depends: "dom"
 	provides: "http"
@@ -1422,6 +1422,77 @@ $.depends 'hook', ->
 					return map[keyMaker][key] if key of map[keyMaker]
 				null
 		}, obj
+$.plugin
+	provides: 'keyName,keyNames'
+	depends: "math"
+, ->
+	keyCode =
+		"Backspace": 8
+		"BS": 8
+		"Tab": 9
+		'\t': 9
+		"Enter": 13
+		'\n': 12
+		"Shift": 16
+		"Ctrl": 17
+		"Alt": 18
+		"Pause": 19
+		"Break": 19
+		"Caps": 20
+		"Caps Lock": 20
+		"Esc": 27
+		"Escape": 27
+		"Space": 32
+		" ": 32
+		"PgUp": 33
+		"Page Up": 33
+		"PgDn": 34
+		"End": 35
+		"Home": 36
+		"Left": 37
+		"Up": 38
+		"Right": 39
+		"Down": 40
+		"Insert": 45
+		"Del": 46
+		"Delete": 46
+		"Times": 106
+		"*": 106
+		"Plus": 107
+		"+": 107
+		"Minus": 109
+		"-": 109
+		"Div": 111
+		"Divide": 111
+		"/": 111
+		"Semi-Colon": 186
+		";": 187
+		"Equal": 187
+		"=": 187
+		"Comma": 188
+		",": 188
+		"Dash": 189
+		"-": 189
+		"Dot": 190
+		"Period": 190
+		".": 190
+		"Forward Slash": 191
+		"/": 191
+		"Back Slash": 220
+		"\\": 220
+		"Single Quote": 222
+		"'": 222
+	for a in "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		keyCode[a] = keyCode[a.toLowerCase()] = a.charCodeAt(0)
+	for a in $.range(1,13)
+		keyCode["F"+a] = keyCode["f"+a] = 111 + a
+	keyName = {}
+	for name, code of keyCode
+		keyName[code] or= name
+	
+	return $:
+		keyCode: (name) -> keyCode[name] ? name
+		keyName: (code) -> keyName[code] ? code
 $.plugin
 	depends: "dom,promise"
 	provides: "lazy"
@@ -1616,6 +1687,86 @@ $.plugin
 			image.src = src
 			return p
 	ret = { $: { Promise, Progress } }
+$.plugin
+	provides: 'prompt,confirm',
+	depends: 'synth,keyName'
+, ->
+	_prompt_css = ->
+		unless $("head .prompt").length
+			$("head").append "<style class='prompt'>" + $.CSS.stringify(
+				".prompt":
+					position: "absolute"
+					top: 0, left: 0
+					width: "100%", height: "100%"
+					zIndex: "999999"
+					background: "rgba(0,0,0,.4)"
+					fontSize: "12px"
+					" input":
+						padding: "2px"
+						margin: "0px 0px 4px -4px"
+						width: "100%"
+					" button":
+						fontSize: "13px"
+						".done":
+							fontSize: "14px"
+					" > center":
+						width: "200px"
+						height: "44px"
+						margin: "20px auto"
+						padding: "16px"
+						background: "#ffc"
+						borderRadius: "5px"
+			) + "</style>"
+	_prompt = (label, type, cb) ->
+		_prompt_css()
+		dialog = $.synth("""
+			div.prompt center
+				input[type=#{type}][placeholder=#{label}] + br +
+				button.cancel 'Cancel' +
+				button.done 'Done'
+		""").appendTo("body").first()
+		input = dialog.querySelector("input")
+		input.onkeydown = (evt) ->
+			switch $.keyName evt.keyCode
+				when "Enter"
+					done input.value
+				when "Esc"
+					done null
+		doneButton = dialog.querySelector "button.done"
+		cancelButton = dialog.querySelector "button.cancel"
+		done = (value) ->
+			delete doneButton.onclick
+			delete cancelButton.onclick
+			dialog.parentNode.removeChild(dialog)
+			cb value
+		doneButton.onclick = -> done input.value
+		cancelButton.onclick = -> done null
+		null
+	_confirm = (args...) ->
+		cb = args.pop()
+		label = args.shift()
+		if args.length > 0
+			buttons = args
+		else
+			buttons = { Yes: true, No: false }
+		_prompt_css()
+		dialog = $.synth("""
+			div.prompt center
+				span '#{label}' + br
+		""").appendTo("body")
+		center = dialog.find('center')
+		switch $.type(buttons)
+			when 'array','bling'
+				for label in buttons
+					$.synth("button[value=#{label}] '#{label}'").appendTo center
+			when 'object'
+				for label,value of buttons
+					$.synth("button[value=#{value}] '#{label}'").appendTo center
+		dialog.find("button").bind "click", (evt) ->
+			dialog.remove()
+			cb evt.target.getAttribute('value')
+		null
+	return $: { prompt: _prompt, confirm: _confirm }
 $.plugin
 	depends: "core"
 	provides: "pubsub"
@@ -2618,7 +2769,7 @@ $.plugin
 	UNIT_RE = null
 	do makeUnitRegex = ->
 		joined = units.filter(/.+/).join '|'
-		UNIT_RE = new RegExp "(\\d+\\.*\\d*)((?:#{joined})/*(?:#{joined})*)"
+		UNIT_RE = new RegExp "(\\d+\\.*\\d*)((?:#{joined})/*(?:#{joined})*)$"
 	parseUnits = (s) ->
 		if UNIT_RE.test(s)
 			return UNIT_RE.exec(s)[2]

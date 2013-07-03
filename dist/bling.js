@@ -42,9 +42,23 @@
   Bling = (function() {
     "Bling:nomunge";
     function Bling() {
-      var args;
+      var args, b, i;
       args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-      return Bling.init(args);
+      if (args.length === 1) {
+        args = $.type.lookup(args[0]).array(args[0]);
+      }
+      b = $.inherit(Bling, args);
+      if (args.length === 0 && args[0] !== void 0) {
+        i = 0;
+        while (args[i] !== void 0) {
+          i++;
+        }
+        b.length = i;
+      }
+      if ('init' in Bling) {
+        return Bling.init(b);
+      }
+      return b;
     }
 
     return Bling;
@@ -2857,21 +2871,6 @@
       });
     };
     Bling.init = hook();
-    Bling.init.prepend(function(args) {
-      var b, i;
-      if (args.length === 1) {
-        args = $.type.lookup(args[0]).array(args[0]);
-      }
-      b = $.inherit(Bling, args);
-      if (args.length === 0 && args[0] !== void 0) {
-        i = 0;
-        while (args[i] !== void 0) {
-          i++;
-        }
-        b.length = i;
-      }
-      return b;
-    });
     return {
       $: {
         hook: hook
@@ -3015,6 +3014,97 @@
         }
       }, obj);
     });
+  });
+
+  $.plugin({
+    provides: 'keyName,keyNames',
+    depends: "math"
+  }, function() {
+    var a, code, keyCode, keyName, name, _i, _j, _len, _len1, _ref, _ref1;
+    keyCode = {
+      "Backspace": 8,
+      "BS": 8,
+      "Tab": 9,
+      '\t': 9,
+      "Enter": 13,
+      '\n': 12,
+      "Shift": 16,
+      "Ctrl": 17,
+      "Alt": 18,
+      "Pause": 19,
+      "Break": 19,
+      "Caps": 20,
+      "Caps Lock": 20,
+      "Esc": 27,
+      "Escape": 27,
+      "Space": 32,
+      " ": 32,
+      "PgUp": 33,
+      "Page Up": 33,
+      "PgDn": 34,
+      "End": 35,
+      "Home": 36,
+      "Left": 37,
+      "Up": 38,
+      "Right": 39,
+      "Down": 40,
+      "Insert": 45,
+      "Del": 46,
+      "Delete": 46,
+      "Times": 106,
+      "*": 106,
+      "Plus": 107,
+      "+": 107,
+      "Minus": 109,
+      "-": 109,
+      "Div": 111,
+      "Divide": 111,
+      "/": 111,
+      "Semi-Colon": 186,
+      ";": 187,
+      "Equal": 187,
+      "=": 187,
+      "Comma": 188,
+      ",": 188,
+      "Dash": 189,
+      "-": 189,
+      "Dot": 190,
+      "Period": 190,
+      ".": 190,
+      "Forward Slash": 191,
+      "/": 191,
+      "Back Slash": 220,
+      "\\": 220,
+      "Single Quote": 222,
+      "'": 222
+    };
+    _ref = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      a = _ref[_i];
+      keyCode[a] = keyCode[a.toLowerCase()] = a.charCodeAt(0);
+    }
+    _ref1 = $.range(1, 13);
+    for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+      a = _ref1[_j];
+      keyCode["F" + a] = keyCode["f" + a] = 111 + a;
+    }
+    keyName = {};
+    for (name in keyCode) {
+      code = keyCode[name];
+      keyName[code] || (keyName[code] = name);
+    }
+    return {
+      $: {
+        keyCode: function(name) {
+          var _ref2;
+          return (_ref2 = keyCode[name]) != null ? _ref2 : name;
+        },
+        keyName: function(code) {
+          var _ref2;
+          return (_ref2 = keyName[code]) != null ? _ref2 : code;
+        }
+      }
+    };
   });
 
   $.plugin({
@@ -3509,6 +3599,119 @@
       $: {
         Promise: Promise,
         Progress: Progress
+      }
+    };
+  });
+
+  $.plugin({
+    provides: 'prompt,confirm',
+    depends: 'synth,keyName'
+  }, function() {
+    var _confirm, _prompt, _prompt_css;
+    _prompt_css = function() {
+      if (!$("head .prompt").length) {
+        return $("head").append("<style class='prompt'>" + $.CSS.stringify({
+          ".prompt": {
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            zIndex: "999999",
+            background: "rgba(0,0,0,.4)",
+            fontSize: "12px",
+            " input": {
+              padding: "2px",
+              margin: "0px 0px 4px -4px",
+              width: "100%"
+            },
+            " button": {
+              fontSize: "13px",
+              ".done": {
+                fontSize: "14px"
+              }
+            },
+            " > center": {
+              width: "200px",
+              height: "44px",
+              margin: "20px auto",
+              padding: "16px",
+              background: "#ffc",
+              borderRadius: "5px"
+            }
+          }
+        }) + "</style>");
+      }
+    };
+    _prompt = function(label, type, cb) {
+      var cancelButton, dialog, done, doneButton, input;
+      _prompt_css();
+      dialog = $.synth("div.prompt center\n	input[type=" + type + "][placeholder=" + label + "] + br +\n	button.cancel 'Cancel' +\n	button.done 'Done'").appendTo("body").first();
+      input = dialog.querySelector("input");
+      input.onkeydown = function(evt) {
+        switch ($.keyName(evt.keyCode)) {
+          case "Enter":
+            return done(input.value);
+          case "Esc":
+            return done(null);
+        }
+      };
+      doneButton = dialog.querySelector("button.done");
+      cancelButton = dialog.querySelector("button.cancel");
+      done = function(value) {
+        delete doneButton.onclick;
+        delete cancelButton.onclick;
+        dialog.parentNode.removeChild(dialog);
+        return cb(value);
+      };
+      doneButton.onclick = function() {
+        return done(input.value);
+      };
+      cancelButton.onclick = function() {
+        return done(null);
+      };
+      return null;
+    };
+    _confirm = function() {
+      var args, buttons, cb, center, dialog, label, value, _i, _len;
+      args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+      cb = args.pop();
+      label = args.shift();
+      if (args.length > 0) {
+        buttons = args;
+      } else {
+        buttons = {
+          Yes: true,
+          No: false
+        };
+      }
+      _prompt_css();
+      dialog = $.synth("div.prompt center\n	span '" + label + "' + br").appendTo("body");
+      center = dialog.find('center');
+      switch ($.type(buttons)) {
+        case 'array':
+        case 'bling':
+          for (_i = 0, _len = buttons.length; _i < _len; _i++) {
+            label = buttons[_i];
+            $.synth("button[value=" + label + "] '" + label + "'").appendTo(center);
+          }
+          break;
+        case 'object':
+          for (label in buttons) {
+            value = buttons[label];
+            $.synth("button[value=" + value + "] '" + label + "'").appendTo(center);
+          }
+      }
+      dialog.find("button").bind("click", function(evt) {
+        dialog.remove();
+        return cb(evt.target.getAttribute('value'));
+      });
+      return null;
+    };
+    return {
+      $: {
+        prompt: _prompt,
+        confirm: _confirm
       }
     };
   });
@@ -5440,7 +5643,7 @@
     (makeUnitRegex = function() {
       var joined;
       joined = units.filter(/.+/).join('|');
-      return UNIT_RE = new RegExp("(\\d+\\.*\\d*)((?:" + joined + ")/*(?:" + joined + ")*)");
+      return UNIT_RE = new RegExp("(\\d+\\.*\\d*)((?:" + joined + ")/*(?:" + joined + ")*)$");
     })();
     parseUnits = function(s) {
       if (UNIT_RE.test(s)) {

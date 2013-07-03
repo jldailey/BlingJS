@@ -14,7 +14,7 @@ $.plugin
 	UNIT_RE = null
 	do makeUnitRegex = ->
 		joined = units.filter(/.+/).join '|'
-		UNIT_RE = new RegExp "(\\d+\\.*\\d*)((?:#{joined})/*(?:#{joined})*)"
+		UNIT_RE = new RegExp "(\\d+\\.*\\d*)((?:#{joined})/*(?:#{joined})*)$"
 
 	# Return the units portion of a string: "4.2px" yields "px"
 	parseUnits = (s) ->

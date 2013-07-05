@@ -53,9 +53,9 @@ $.plugin
 			else
 				sw *= (s[i] isnt t[j])
 				args =
-					del: [s,i+1,n-1, t,j,m,     1,1.5,1.5]
-					ins: [s,i,n, t,j+1,m-1,     1.5,1,1.5]
-					sub: [s,i+1,n-1, t,j+1,m-1, 1,1,1]
+					del: [s+0,i+1,n-1,t+0,j+0,m+0,  1.00,1.50,1.50]
+					ins: [s+0,i+0,n+0,t+0,j+1,m-1,  1.50,1.00,1.50]
+					sub: [s+0,i+1,n-1,t+0,j+1,m-1,  1.00,1.00,1.00]
 				costs =
 					del: dw + lev args.del...
 					ins: iw + lev args.ins...

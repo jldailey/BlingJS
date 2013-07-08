@@ -1752,9 +1752,9 @@
           default:
             sw *= s[i] !== t[j];
             args = {
-              del: [s, i + 1, n - 1, t, j, m, 1, 1.5, 1.5],
-              ins: [s, i, n, t, j + 1, m - 1, 1.5, 1, 1.5],
-              sub: [s, i + 1, n - 1, t, j + 1, m - 1, 1, 1, 1]
+              del: [s + 0, i + 1, n - 1, t + 0, j + 0, m + 0, 1.00, 1.50, 1.50],
+              ins: [s + 0, i + 0, n + 0, t + 0, j + 1, m - 1, 1.50, 1.00, 1.50],
+              sub: [s + 0, i + 1, n - 1, t + 0, j + 1, m - 1, 1.00, 1.00, 1.00]
             };
             costs = {
               del: dw + lev.apply(null, args.del),
@@ -6026,22 +6026,36 @@
     provides: "url,URL"
   }, function() {
     var clean, parse, stringify, url_re;
-    url_re = /\b(?:([a-z]+):)(?:\/*([^:?\/#]+))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i;
-    parse = function(str) {
-      var m, _ref, _ref1;
-      m = str != null ? str.match(url_re) : void 0;
-      if (m != null) {
-        return {
-          protocol: m[1],
-          host: m[2],
-          port: m[3],
-          path: m[4],
-          query: (_ref = m[5]) != null ? _ref.replace(/^\?/, '') : void 0,
-          hash: (_ref1 = m[6]) != null ? _ref1.replace(/^#/, '') : void 0
-        };
-      } else {
-        return null;
+    url_re = /\b(?:([a-z+]+):)(?:\/*([^:?\/#]+))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i;
+    parse = function(str, parseQuery) {
+      var i, m, pair, query, ret, _i, _len, _ref, _ref1, _ref2, _ref3;
+      if (parseQuery == null) {
+        parseQuery = false;
       }
+      m = str != null ? str.match(url_re) : void 0;
+      ret = m != null ? {
+        protocol: m[1],
+        host: m[2],
+        port: m[3],
+        path: m[4],
+        query: (_ref = m[5]) != null ? _ref.replace(/^\?/, '') : void 0,
+        hash: (_ref1 = m[6]) != null ? _ref1.replace(/^#/, '') : void 0
+      } : null;
+      if (parseQuery) {
+        query = (_ref2 = ret != null ? ret.query : void 0) != null ? _ref2 : "";
+        ret.query = {};
+        _ref3 = query.split('&');
+        for (_i = 0, _len = _ref3.length; _i < _len; _i++) {
+          pair = _ref3[_i];
+          if ((i = pair.indexOf('=')) > -1) {
+            ret.query[pair.substring(0, i)] = unescape(pair.substring(i + 1));
+          } else if (pair.length > 0) {
+            ret.query[pair] = null;
+          }
+        }
+        delete ret.query[""];
+      }
+      return ret;
     };
     clean = function(val, re, prefix, suffix) {
       var x;
@@ -6059,6 +6073,19 @@
       }
     };
     stringify = function(url) {
+      var k, v;
+      if ($.is('object', url.query)) {
+        url.query = ((function() {
+          var _ref, _results;
+          _ref = url.query;
+          _results = [];
+          for (k in _ref) {
+            v = _ref[k];
+            _results.push("" + k + "=" + v);
+          }
+          return _results;
+        })()).join("&");
+      }
       return [clean(url.protocol, /:$/, '', ':'), clean(url.host, /^\//, '//'), clean(url.port, /^:/, ':'), clean(url.path, /^\//, '/'), clean(url.query, /^\?/, '?'), clean(url.hash, /^#/, '#')].join('');
     };
     return {

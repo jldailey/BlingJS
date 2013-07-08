@@ -24,3 +24,36 @@ describe '$.URL', ->
 			do (str=testData[i],pattern=testData[i+1]) ->
 				it "parses #{str}", ->
 					assert $.matches pattern, $.URL.parse str
+
+		queryTestData = [
+			"p://host?key=value",
+			{ key: "value" },
+
+			"p://host?=value",
+			{ },
+
+			"p://host?a=b&c=d",
+			{ a: "b", c: "d" },
+
+			"p://host?key=",
+			{ key: "" },
+
+			"p://host?KeY=Value",
+			{ "KeY": "Value" },
+
+			"p://host?‰=€",
+			{ "‰": "€" }
+			
+			"p://host?&a==s p a c e s",
+			{ "a": "=s p a c e s" },
+
+			"p://host?&a=%20zzz%20",
+			{ "a": " zzz " }
+
+		]
+
+		for i in [0...queryTestData.length-1] by 2
+			do (str=queryTestData[i],pattern=queryTestData[i+1]) ->
+				it "parses query params: #{str}", ->
+					q = $.URL.parse(str, true).query
+					assert.deepEqual pattern, q

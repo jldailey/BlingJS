@@ -781,9 +781,9 @@ $.plugin
 			else
 				sw *= (s[i] isnt t[j])
 				args =
-					del: [s,i+1,n-1, t,j,m,     1,1.5,1.5]
-					ins: [s,i,n, t,j+1,m-1,     1.5,1,1.5]
-					sub: [s,i+1,n-1, t,j+1,m-1, 1,1,1]
+					del: [s+0,i+1,n-1,t+0,j+0,m+0,  1.00,1.50,1.50]
+					ins: [s+0,i+0,n+0,t+0,j+1,m-1,  1.50,1.00,1.50]
+					sub: [s+0,i+1,n-1,t+0,j+1,m-1,  1.00,1.00,1.00]
 				costs =
 					del: dw + lev args.del...
 					ins: iw + lev args.ins...
@@ -2946,22 +2946,34 @@ $.plugin
 $.plugin
 	provides: "url,URL"
 , ->
-	url_re = /\b(?:([a-z]+):)(?:\/*([^:?\/#]+))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i
-	parse = (str) ->
+	url_re = /\b(?:([a-z+]+):)(?:\/*([^:?\/#]+))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i
+	parse = (str, parseQuery=false) ->
 		m = str?.match url_re
-		return if m? then {
+		ret = if m? then {
 			protocol: m[1]
 			host:     m[2]
 			port:     m[3]
 			path:     m[4]
-			query:    m[5]?.replace /^\?/   ,''
-			hash:     m[6]?.replace /^#/    ,''
+			query:    m[5]?.replace /^\?/,''
+			hash:     m[6]?.replace /^#/, ''
 		} else null
-	
+		
+		if parseQuery
+			query = ret?.query ? ""
+			ret.query = {}
+			for pair in query.split('&')
+				if (i = pair.indexOf '=') > -1
+					ret.query[pair.substring 0,i] = unescape pair.substring i+1
+				else if pair.length > 0
+					ret.query[pair] = null
+			delete ret.query[""]
+		return ret
 	clean = (val, re, prefix = '', suffix ='') ->
 		x = val ? ""
 		return if x and not re.test x then prefix+x+suffix else x
 	stringify = (url) ->
+		if $.is 'object', url.query
+			url.query = ("#{k}=#{v}" for k,v of url.query).join("&")
 		return [
 			clean(url.protocol, /:$/, '', ':'),
 			clean(url.host, /^\//, '//'),

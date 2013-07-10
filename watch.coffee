@@ -22,6 +22,11 @@ $.log opts = Optimist.options('t', {
 		describe: "Execute 'command [args...]' immediately."
 	})
 	.boolean('i')
+	.options('x', {
+		alias: 'exclude'
+		default: 'node_modules'
+		describe: "Pattern for directories to avoid watching (node_modules)"
+	})
 	.demand(2)
 	.usage("Usage: $0 [options...] 'pattern' command [args...]")
 	.argv
@@ -30,12 +35,18 @@ log = $.logger "[watch]"
 
 log "Initializing..."
 
+if opts.x
+	exc_re = new RegExp(opts.x)
+	$.log exc_re
+exclude = (dir) ->
+	opts.x and exc_re.test dir
+
 recurseDir = (path, cb) ->
 	cb(path)
 	Fs.readdir path, (err, files) ->
 		$(files).filter(/^[^.]/).each (file) ->
 			Fs.stat dir = Path.join(path, file), (err, stat) ->
-				if stat?.isDirectory()
+				if stat?.isDirectory() and not exclude(dir)
 					recurseDir dir, cb
 pattern = opts._[0]
 command = opts._[1]
@@ -50,6 +61,7 @@ launch = $.throttle +opts.throttle * 1000, $.trace 'launch', ->
 	log "Spawning:", command, args
 	p = Proc.spawn(command, args, stdio: 'inherit')
 	p.on 'close', (code) ->
+		log "Exit Code:", code
 		if code is +opts.r
 			log "Respawning..."
 			$.immediate launch

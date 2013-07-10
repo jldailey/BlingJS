@@ -1,9 +1,30 @@
 #!/usr/bin/env coffee
 
-[Bling,Fs,Path,Proc] = ['./dist/bling.js','fs','path','child_process'].map require
+[ Bling, Fs, Path, Proc, Optimist ] = [
+	'./dist/bling.js','fs',
+	'path','child_process',
+	'optimist'
+].map require
 
-if process.argv.length < 4
-	`return $.log("Usage: watch.coffee 'regex' 'shell command'")`
+$.log opts = Optimist.options('t', {
+		alias: 'throttle'
+		default: 7
+		describe: "Seconds to wait between restart attempts."
+	})
+	.options('r', {
+		alias: 'restart-code'
+		default: 1
+		describe: "Process exit code to request a restart [0-255]."
+	})
+	.options('i', {
+		alias: 'immediate'
+		default: false
+		describe: "Execute 'command [args...]' immediately."
+	})
+	.boolean('i')
+	.demand(2)
+	.usage("Usage: $0 [options...] 'pattern' command [args...]")
+	.argv
 
 log = $.logger "[watch]"
 
@@ -16,31 +37,24 @@ recurseDir = (path, cb) ->
 			Fs.stat dir = Path.join(path, file), (err, stat) ->
 				if stat?.isDirectory()
 					recurseDir dir, cb
+pattern = opts._[0]
+command = opts._[1]
+args = opts._[2..]
 
-[pattern, command, args] = do ->
-	pattern = null
-	command = null
-	args = []
-	started = false
-	for arg in process.argv
-		if (not started) and /watch.coffee/.test arg
-			started = true
-		else if started
-			if pattern is null
-				pattern = arg.replace(/^\//,'').replace(/\/$/,'')
-			else if command is null
-				command = arg
-			else
-				args.push arg
-	[ pattern, command, args ]
 pattern = (try new RegExp pattern) or $.log 'bad pattern, using', /^[^.]/
 log "Pattern:", pattern
 log "Command:", command
 log "Args:", args
 
-launch = $.throttle 5000, $.trace 'launch', ->
+launch = $.throttle +opts.throttle * 1000, $.trace 'launch', ->
 	log "Spawning:", command, args
-	Proc.spawn(command, args, stdio: 'inherit')
+	p = Proc.spawn(command, args, stdio: 'inherit')
+	p.on 'close', (code) ->
+		if code is +opts.r
+			log "Respawning..."
+			$.immediate launch
+
+if opts.immediate then $.immediate launch
 
 recurseDir '.', (dir) ->
 	Fs.watch dir, (op, file) ->

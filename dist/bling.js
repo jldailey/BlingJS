@@ -283,6 +283,106 @@
   });
 
   $.plugin({
+    provides: "cache",
+    depends: "core, sortBy"
+  }, function() {
+    var EffCache;
+    EffCache = (function() {
+      var log;
+
+      log = $.logger("[LRU]");
+
+      function EffCache(capacity) {
+        var autoEvict, eff, index, noValue, order, reIndex, rePosition,
+          _this = this;
+        this.capacity = capacity != null ? capacity : 1000;
+        this.capacity = Math.max(0, this.capacity);
+        this.evictCount = Math.max(3, Math.floor(this.capacity * .1));
+        index = Object.create(null);
+        order = [];
+        eff = function(o) {
+          return -o.r / o.w;
+        };
+        autoEvict = function() {
+          var k;
+          if (order.length >= _this.capacity) {
+            while (order.length + _this.evictCount - 1 > _this.capacity) {
+              delete index[k = order.pop().k];
+            }
+          }
+          return null;
+        };
+        reIndex = function(i, j) {
+          var x, _i;
+          for (x = _i = i; i <= j ? _i <= j : _i >= j; x = i <= j ? ++_i : --_i) {
+            index[order[x].k] = x;
+          }
+          return null;
+        };
+        rePosition = function(i) {
+          var j, obj;
+          obj = order[i];
+          j = $.sortedIndex(order, obj, eff);
+          if (j !== i) {
+            order.splice(i, 1);
+            order.splice(j, 0, obj);
+            reIndex(i, j);
+          }
+          return null;
+        };
+        noValue = {
+          v: void 0
+        };
+        $.extend(this, {
+          debug: function() {
+            return order;
+          },
+          set: function(k, v) {
+            var d, i, item;
+            if (k in index) {
+              d = order[i = index[k]];
+              d.v = v;
+              d.w += 1;
+              rePosition(i);
+            } else {
+              item = {
+                k: k,
+                v: v,
+                r: 0,
+                w: 1
+              };
+              i = $.sortedIndex(order, item, eff);
+              order.splice(i, 0, item);
+              reIndex(i, order.length - 1);
+            }
+            return v;
+          },
+          get: function(k) {
+            var i, ret;
+            autoEvict();
+            ret = noValue;
+            if (k in index) {
+              i = index[k];
+              ret = order[i];
+              ret.r += 1;
+              rePosition(i);
+            }
+            return ret.v;
+          }
+        });
+      }
+
+      return EffCache;
+
+    })();
+    return {
+      $: {
+        Cache: $.extend(EffCache, new EffCache())
+      }
+    };
+  });
+
+  $.plugin({
     provides: "cartesian"
   }, function() {
     return {
@@ -4100,8 +4200,14 @@
   }, function() {
     return {
       $: {
-        sortedIndex: function(array, item, iterator) {
-          var cmp, hi, lo, mid;
+        sortedIndex: function(array, item, iterator, lo, hi) {
+          var cmp, mid;
+          if (lo == null) {
+            lo = 0;
+          }
+          if (hi == null) {
+            hi = array.length;
+          }
           cmp = (function() {
             switch ($.type(iterator)) {
               case "string":
@@ -4118,8 +4224,6 @@
                 };
             }
           })();
-          hi = array.length;
-          lo = 0;
           while (lo < hi) {
             mid = (hi + lo) >>> 1;
             if (cmp(array[mid], item)) {

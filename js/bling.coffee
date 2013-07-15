@@ -120,6 +120,60 @@ $.plugin
 				@[i](finish_one(i))
 	}
 $.plugin
+	provides: "cache"
+	depends: "core, sortBy"
+, ->
+	class EffCache
+		log = $.logger "[LRU]"
+		constructor: (@capacity = 1000) ->
+			@capacity = Math.max 0, @capacity
+			@evictCount = Math.max 3, Math.floor @capacity * .1
+			index = Object.create null
+			order = []
+			eff = (o) -> -o.r / o.w
+			autoEvict = =>
+				if order.length >= @capacity
+					while order.length + @evictCount - 1 > @capacity
+						delete index[k = order.pop().k]
+				null
+			reIndex = (i, j) ->
+				for x in [i..j]
+					index[order[x].k] = x
+				null
+			rePosition = (i) ->
+				obj = order[i]
+				j = $.sortedIndex order, obj, eff
+				if j isnt i
+					order.splice i, 1
+					order.splice j, 0, obj
+					reIndex i, j
+				null
+			noValue	= v: undefined
+			$.extend @,
+				debug: -> return order
+				set: (k, v) ->
+					if k of index
+						d = order[i = index[k]]
+						d.v = v
+						d.w += 1
+						rePosition i
+					else
+						item = { k, v, r: 0, w: 1 }
+						i = $.sortedIndex order, item, eff
+						order.splice i, 0, item
+						reIndex i, order.length - 1
+					v
+				get: (k) ->
+					autoEvict()
+					ret = noValue
+					if k of index
+						i = index[k]
+						ret = order[i]
+						ret.r += 1
+						rePosition i
+					ret.v
+	return $: Cache: $.extend EffCache, new EffCache()
+$.plugin
 	provides: "cartesian"
 , ->
 	$:
@@ -1945,13 +1999,11 @@ $.plugin
 	provides: "sortBy,sortedIndex"
 , ->
 	$:
-		sortedIndex: (array, item, iterator) ->
+		sortedIndex: (array, item, iterator, lo = 0, hi = array.length) ->
 			cmp = switch $.type iterator
 				when "string" then (a,b) -> a[iterator] < b[iterator]
 				when "function" then (a,b) -> iterator(a) < iterator(b)
 				else (a,b) -> a < b
-			hi = array.length
-			lo = 0
 			while lo < hi
 				mid = (hi + lo)>>>1
 				if cmp(array[mid], item)

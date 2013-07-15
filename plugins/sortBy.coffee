@@ -2,13 +2,11 @@ $.plugin
 	provides: "sortBy,sortedIndex"
 , ->
 	$:
-		sortedIndex: (array, item, iterator) ->
+		sortedIndex: (array, item, iterator, lo = 0, hi = array.length) ->
 			cmp = switch $.type iterator
 				when "string" then (a,b) -> a[iterator] < b[iterator]
 				when "function" then (a,b) -> iterator(a) < iterator(b)
 				else (a,b) -> a < b
-			hi = array.length
-			lo = 0
 			while lo < hi
 				mid = (hi + lo)>>>1
 				if cmp(array[mid], item)

@@ -48,5 +48,3 @@ describe "$.Cache", ->
 				# 'b' will have been preserved b/c of it's efficiency
 				[ undefined, 2, undefined, undefined, 5, 6 ]
 
-
-

@@ -1,6 +1,29 @@
 [$, assert] = require './setup'
 
 describe "Core plugin:", ->
+	describe "$.log", ->
+		describe ".out", ->
+			it "defaults to console.log", ->
+			it "is called by $.log", ->
+				try
+					pass = false
+					$.log.out = (arg) -> pass = arg
+					$.log true
+					assert pass
+				finally
+					$.log.out = console.log
+
+	describe "$.logger", ->
+		it "creates a logger with a fixed prefix", ->
+			f = $.logger('[magic]')
+			message = ""
+			try
+				$.log.out = (a...) -> message = a.join " "
+				f "message"
+				assert message.indexOf("[magic] message") > -1
+			finally
+				$.log.out = console.log
+
 	describe ".eq()", ->
 		it "selects a new set with only one element", ->
 			assert.equal $([1,2,3]).eq(1)[0], 2

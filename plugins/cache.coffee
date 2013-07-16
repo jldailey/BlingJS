@@ -12,8 +12,9 @@ $.plugin
 		log = $.logger "[LRU]"
 
 		constructor: (@capacity = 1000) ->
-			@capacity = Math.max 0, @capacity
-			# at least 3, as much as 10%
+			# at least 1 capacity
+			@capacity = Math.max 1, @capacity
+			# evict at least 3, as much as 10%
 			@evictCount = Math.max 3, Math.floor @capacity * .1
 			index = Object.create null
 			order = []
@@ -23,7 +24,7 @@ $.plugin
 
 			autoEvict = =>
 				if order.length >= @capacity
-					while order.length + @evictCount - 1 > @capacity
+					while order.length + @evictCount - 1 >= @capacity
 						delete index[k = order.pop().k]
 				null
 
@@ -46,6 +47,7 @@ $.plugin
 			$.extend @,
 				# eff: -> ({ k: order[i], eff: eff(i) } for i in [0...order.length] by 1)
 				debug: -> return order
+				has: (k) -> k of index
 				set: (k, v) ->
 					if k of index
 						d = order[i = index[k]]
@@ -53,13 +55,13 @@ $.plugin
 						d.w += 1
 						rePosition i
 					else
+						autoEvict()
 						item = { k, v, r: 0, w: 1 }
 						i = $.sortedIndex order, item, eff
 						order.splice i, 0, item
 						reIndex i, order.length - 1
 					v
 				get: (k) ->
-					autoEvict()
 					ret = noValue
 					if k of index
 						# the current index
@@ -69,8 +71,8 @@ $.plugin
 						rePosition i
 					ret.v
 
-
 	# $.Cache is both a class: new $.Cache(1200)
-	# and, a global instance: $.Cache.get(key), etc...
-	return $: Cache: $.extend EffCache, new EffCache()
+	# and, a static instance: $.Cache.get(key), $.Cache.set(key,val), $.Cache.has(key)
+	# The static instance has 10000 max-items
+	return $: Cache: $.extend EffCache, new EffCache(10000)
 

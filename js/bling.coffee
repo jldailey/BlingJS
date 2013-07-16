@@ -126,14 +126,14 @@ $.plugin
 	class EffCache
 		log = $.logger "[LRU]"
 		constructor: (@capacity = 1000) ->
-			@capacity = Math.max 0, @capacity
+			@capacity = Math.max 1, @capacity
 			@evictCount = Math.max 3, Math.floor @capacity * .1
 			index = Object.create null
 			order = []
 			eff = (o) -> -o.r / o.w
 			autoEvict = =>
 				if order.length >= @capacity
-					while order.length + @evictCount - 1 > @capacity
+					while order.length + @evictCount - 1 >= @capacity
 						delete index[k = order.pop().k]
 				null
 			reIndex = (i, j) ->
@@ -151,6 +151,7 @@ $.plugin
 			noValue	= v: undefined
 			$.extend @,
 				debug: -> return order
+				has: (k) -> k of index
 				set: (k, v) ->
 					if k of index
 						d = order[i = index[k]]
@@ -158,13 +159,13 @@ $.plugin
 						d.w += 1
 						rePosition i
 					else
+						autoEvict()
 						item = { k, v, r: 0, w: 1 }
 						i = $.sortedIndex order, item, eff
 						order.splice i, 0, item
 						reIndex i, order.length - 1
 					v
 				get: (k) ->
-					autoEvict()
 					ret = noValue
 					if k of index
 						i = index[k]
@@ -172,7 +173,7 @@ $.plugin
 						ret.r += 1
 						rePosition i
 					ret.v
-	return $: Cache: $.extend EffCache, new EffCache()
+	return $: Cache: $.extend EffCache, new EffCache(10000)
 $.plugin
 	provides: "cartesian"
 , ->
@@ -1333,16 +1334,22 @@ $.plugin
 	$.type.extend
 		unknown: { hash: (o) -> $.checksum $.toString o }
 		object:  { hash: (o) ->
-			$.hash(Object) +
+			1970931729 + # $.hash(Object)
 				$($.hash(k) + $.hash(v) for k,v of o).sum()
 		}
-		array:   { hash: (o) ->
-			$.hash(Array) + $(o.map $.hash).reduce(((a,x) -> ((a*a)+(x|0)) % maxHash), 1)
+		array:   { hash: array_hash = (o) ->
+			1816922041 + # $.hash(Array)
+				$($.hash(x) for x in o).reduce(((a,x) -> ((a*a)+(x|0)) % maxHash), 1)
+		}
+		arguments: { hash: (o) ->
+			298517431 + # $.hash('Arguments')
+				array_hash o
 		}
 		bool:    { hash: (o) -> parseInt(1 if o) }
 	return {
 		$:
-			hash: (x) -> $.type.lookup(x).hash(x)
+			hash: (x) ->
+				$.type.lookup(x).hash(x)
 		hash: -> $.hash @
 	}
 $.plugin ->
@@ -1642,19 +1649,28 @@ $.plugin
 	deg2rad: -> @filter( isFinite ).map -> @ * Math.PI / 180
 	rad2deg: -> @filter( isFinite ).map -> @ * 180 / Math.PI
 $.plugin
-	depends: 'function'
+	depends: 'function,hash'
 	provides: 'memoize'
 , ->
+	plainCache = ->
+		data = {}
+		return {
+			has: (k) -> k of data
+			get: (k) -> data[k]
+			set: (k,v) -> data[k] = v
+		}
 	$:
 		memoize: (opts) ->
 			if $.is 'function', opts
 				opts = f: opts
 			if not $.is 'object', opts
 				throw new Error "Argument Error: memoize requires either a function or object as first argument"
-			opts.cache or= Object.create(null)
-			opts.hash or= $.identity
+			opts.cache or= plainCache()
+			opts.hash or= $.hash
 			return ->
-				opts.cache[opts.hash(arguments)] ?= opts.f.apply @, arguments
+				key = opts.hash arguments
+				if opts.cache.has key then opts.cache.get key
+				else opts.cache.set key, opts.f.apply @, arguments
 	
 $.plugin
 	depends: "core,function"
@@ -2040,6 +2056,7 @@ $.plugin
 			number: safer parseFloat
 			repr:   (s) -> "'#{s}'"
 		array:  { string: safer (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
+		arguments: { string: safer (a) -> "{arguments[#{($.toString(x) for x in a).join(",")}]}" }
 		object:
 			string: safer (o) ->
 				ret = []

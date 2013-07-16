@@ -11,14 +11,21 @@
 #
 # $.memoize(opts)
 #   f: (required, can be the lone argument)
-#   async: bool (default: false)
 #   hash: function (default: $.hash)
 #   cache: object (default: new object)
 # If opts is a function, that becomes opts
 $.plugin
-	depends: 'function'
+	depends: 'function,hash'
 	provides: 'memoize'
 , ->
+	plainCache = ->
+		data = {}
+		return {
+			has: (k) -> k of data
+			get: (k) -> data[k]
+			set: (k,v) -> data[k] = v
+		}
+
 	$:
 		# __$.memoize(f)__ returns a new function that caches function calls to f, based on hashing the arguments.
 		memoize: (opts) ->
@@ -26,9 +33,11 @@ $.plugin
 				opts = f: opts
 			if not $.is 'object', opts
 				throw new Error "Argument Error: memoize requires either a function or object as first argument"
-			opts.cache or= Object.create(null)
-			opts.hash or= $.identity
+			opts.cache or= plainCache()
+			opts.hash or= $.hash
 			return ->
-				opts.cache[opts.hash(arguments)] ?= opts.f.apply @, arguments
+				key = opts.hash arguments
+				if opts.cache.has key then opts.cache.get key
+				else opts.cache.set key, opts.f.apply @, arguments
 
 	

@@ -23,6 +23,7 @@ $.plugin
 			number: safer parseFloat
 			repr:   (s) -> "'#{s}'"
 		array:  { string: safer (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
+		arguments: { string: safer (a) -> "{arguments[#{($.toString(x) for x in a).join(",")}]}" }
 		object:
 			string: safer (o) ->
 				ret = []

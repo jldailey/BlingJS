@@ -296,7 +296,7 @@
         var autoEvict, eff, index, noValue, order, reIndex, rePosition,
           _this = this;
         this.capacity = capacity != null ? capacity : 1000;
-        this.capacity = Math.max(0, this.capacity);
+        this.capacity = Math.max(1, this.capacity);
         this.evictCount = Math.max(3, Math.floor(this.capacity * .1));
         index = Object.create(null);
         order = [];
@@ -306,7 +306,7 @@
         autoEvict = function() {
           var k;
           if (order.length >= _this.capacity) {
-            while (order.length + _this.evictCount - 1 > _this.capacity) {
+            while (order.length + _this.evictCount - 1 >= _this.capacity) {
               delete index[k = order.pop().k];
             }
           }
@@ -337,6 +337,9 @@
           debug: function() {
             return order;
           },
+          has: function(k) {
+            return k in index;
+          },
           set: function(k, v) {
             var d, i, item;
             if (k in index) {
@@ -345,6 +348,7 @@
               d.w += 1;
               rePosition(i);
             } else {
+              autoEvict();
               item = {
                 k: k,
                 v: v,
@@ -359,7 +363,6 @@
           },
           get: function(k) {
             var i, ret;
-            autoEvict();
             ret = noValue;
             if (k in index) {
               i = index[k];
@@ -377,7 +380,7 @@
     })();
     return {
       $: {
-        Cache: $.extend(EffCache, new EffCache())
+        Cache: $.extend(EffCache, new EffCache(10000))
       }
     };
   });
@@ -2845,7 +2848,7 @@
     provides: "hash",
     depends: "type"
   }, function() {
-    var maxHash;
+    var array_hash, maxHash;
     maxHash = Math.pow(2, 32);
     $.type.extend({
       unknown: {
@@ -2856,7 +2859,7 @@
       object: {
         hash: function(o) {
           var k, v;
-          return $.hash(Object) + $((function() {
+          return 1970931729 + $((function() {
             var _results;
             _results = [];
             for (k in o) {
@@ -2868,10 +2871,24 @@
         }
       },
       array: {
-        hash: function(o) {
-          return $.hash(Array) + $(o.map($.hash)).reduce((function(a, x) {
+        hash: array_hash = function(o) {
+          var x;
+          return 1816922041 + $((function() {
+            var _i, _len, _results;
+            _results = [];
+            for (_i = 0, _len = o.length; _i < _len; _i++) {
+              x = o[_i];
+              _results.push($.hash(x));
+            }
+            return _results;
+          })()).reduce((function(a, x) {
             return ((a * a) + (x | 0)) % maxHash;
           }), 1);
+        }
+      },
+      "arguments": {
+        hash: function(o) {
+          return 298517431 + array_hash(o);
         }
       },
       bool: {
@@ -3513,9 +3530,25 @@
   });
 
   $.plugin({
-    depends: 'function',
+    depends: 'function,hash',
     provides: 'memoize'
   }, function() {
+    var plainCache;
+    plainCache = function() {
+      var data;
+      data = {};
+      return {
+        has: function(k) {
+          return k in data;
+        },
+        get: function(k) {
+          return data[k];
+        },
+        set: function(k, v) {
+          return data[k] = v;
+        }
+      };
+    };
     return {
       $: {
         memoize: function(opts) {
@@ -3527,11 +3560,16 @@
           if (!$.is('object', opts)) {
             throw new Error("Argument Error: memoize requires either a function or object as first argument");
           }
-          opts.cache || (opts.cache = Object.create(null));
-          opts.hash || (opts.hash = $.identity);
+          opts.cache || (opts.cache = plainCache());
+          opts.hash || (opts.hash = $.hash);
           return function() {
-            var _base, _name;
-            return (_base = opts.cache)[_name = opts.hash(arguments)] != null ? (_base = opts.cache)[_name = opts.hash(arguments)] : _base[_name] = opts.f.apply(this, arguments);
+            var key;
+            key = opts.hash(arguments);
+            if (opts.cache.has(key)) {
+              return opts.cache.get(key);
+            } else {
+              return opts.cache.set(key, opts.f.apply(this, arguments));
+            }
           };
         }
       }
@@ -4310,6 +4348,20 @@
             }
             return _results;
           })()).join(",") + "]";
+        })
+      },
+      "arguments": {
+        string: safer(function(a) {
+          var x;
+          return "{arguments[" + (((function() {
+            var _i, _len, _results;
+            _results = [];
+            for (_i = 0, _len = a.length; _i < _len; _i++) {
+              x = a[_i];
+              _results.push($.toString(x));
+            }
+            return _results;
+          })()).join(",")) + "]}";
         })
       },
       object: {

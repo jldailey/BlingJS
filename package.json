@@ -16,7 +16,8 @@
 		"watch": "./watch.coffee"
 	},
 	"dependencies": {
-		"optimist": "latest"
+		"optimist": "latest",
+		"extra": "latest"
 	},
 	"devDependencies": {
 		"coffee-script": "latest",

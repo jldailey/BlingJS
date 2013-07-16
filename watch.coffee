@@ -1,9 +1,9 @@
 #!/usr/bin/env coffee
 
-[ Bling, Fs, Path, Proc, Optimist ] = [
+[ Bling, Fs, Path, Proc, Extra, Optimist ] = [
 	'./dist/bling.js','fs',
 	'path','child_process',
-	'optimist'
+	'extra', 'optimist'
 ].map require
 
 $.log opts = Optimist.options('t', {
@@ -27,8 +27,8 @@ $.log opts = Optimist.options('t', {
 		default: 'node_modules'
 		describe: "Pattern for directories to avoid watching (node_modules)"
 	})
-	.demand(2)
-	.usage("Usage: $0 [options...] 'pattern' command [args...]")
+	.demand(1)
+	.usage("Usage: $0 [options...] -- 'pattern' -- [ENV=val] command [args...]")
 	.argv
 
 log = $.logger "[watch]"
@@ -37,29 +37,16 @@ log "Initializing..."
 
 if opts.x
 	exc_re = new RegExp(opts.x)
-	$.log exc_re
+	$.log "Excluding:", exc_re
 exclude = (dir) ->
 	opts.x and exc_re.test dir
 
-recurseDir = (path, cb) ->
-	cb(path)
-	Fs.readdir path, (err, files) ->
-		$(files).filter(/^[^.]/).each (file) ->
-			Fs.stat dir = Path.join(path, file), (err, stat) ->
-				if stat?.isDirectory() and not exclude(dir)
-					recurseDir dir, cb
 pattern = opts._[0]
-command = opts._[1]
-args = opts._[2..]
 
 pattern = (try new RegExp pattern) or $.log 'bad pattern, using', /^[^.]/
-log "Pattern:", pattern
-log "Command:", command
-log "Args:", args
 
 launch = $.throttle +opts.throttle * 1000, $.trace 'launch', ->
-	log "Spawning:", command, args
-	p = Proc.spawn(command, args, stdio: 'inherit')
+	p = Extra.spawn( stdio: 'inherit' )
 	p.on 'close', (code) ->
 		log "Exit Code:", code
 		if code is +opts.r
@@ -68,6 +55,13 @@ launch = $.throttle +opts.throttle * 1000, $.trace 'launch', ->
 
 if opts.immediate then $.immediate launch
 
+recurseDir = (path, cb) ->
+	cb(path)
+	Fs.readdir path, (err, files) ->
+		$(files).filter(/^[^.]/).each (file) ->
+			Fs.stat dir = Path.join(path, file), (err, stat) ->
+				if stat?.isDirectory() and not exclude(dir)
+					recurseDir dir, cb
 recurseDir '.', (dir) ->
 	Fs.watch dir, (op, file) ->
 		if pattern.test(file) then launch()

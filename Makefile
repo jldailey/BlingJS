@@ -23,7 +23,7 @@ test/bling.coffee.pass: test/bling.coffee bling.coffee
 	@echo Running $<
 	@$(MOCHA) $(MOCHA_OPTS) $< && touch $@
 
-test/%.coffee.pass: test/%.coffee plugins/%.coffee $(DIST)/min.bling.js
+test/%.coffee.pass: test/%.coffee plugins/%.coffee bling.coffee
 	@echo Running $<
 	@$(MOCHA) $(MOCHA_OPTS) $< && touch $@
 

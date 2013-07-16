@@ -87,6 +87,57 @@ $.plugin
 			listeners:          (e) -> list(e).slice 0
 		}, obj
 $.plugin
+	provides: "StateMachine"
+	depends: "type"
+, ->
+	$: StateMachine: class StateMachine
+		constructor: (stateTable) ->
+			@debug = false
+			@reset()
+			@table = stateTable
+			Object.defineProperty @, "modeline",
+				get: -> @table[@_mode]
+			Object.defineProperty @, "mode",
+				set: (m) ->
+					@_lastMode = @_mode
+					@_mode = m
+					if @_mode isnt @_lastMode and @modeline? and 'enter' of @modeline
+						ret = @modeline['enter'].call @
+						while $.is("function",ret)
+							ret = ret.call @
+					m
+				get: -> @_mode
+		reset: ->
+			@_mode = null
+			@_lastMode = null
+		GO: go = (m, enter=false) -> ->
+			if enter # force enter to trigger
+				@_mode = null
+			@mode = m
+		@GO: go
+		
+		tick: (c) ->
+			row = @modeline
+			if not row?
+				ret = null
+			else if c of row
+				ret = row[c]
+			else if 'def' of row
+				ret = row['def']
+			while $.is "function",ret
+				ret = ret.call @, c
+			ret
+		run: (inputs) ->
+			@mode = 0
+			for c in inputs
+				ret = @tick(c)
+			if $.is "function",@modeline?.eof
+				ret = @modeline.eof.call @
+			while $.is "function",ret
+				ret = ret.call @
+			@reset()
+			return @
+$.plugin
 	depends: "core"
 	provides: "async"
 , ->
@@ -2206,56 +2257,6 @@ $.plugin
 			Bling.symbol = "Bling"
 			Bling
 $.plugin
-	provides: "StateMachine"
-, ->
-	$: StateMachine: class StateMachine
-		constructor: (stateTable) ->
-			@debug = false
-			@reset()
-			@table = stateTable
-			Object.defineProperty @, "modeline",
-				get: -> @table[@_mode]
-			Object.defineProperty @, "mode",
-				set: (m) ->
-					@_lastMode = @_mode
-					@_mode = m
-					if @_mode isnt @_lastMode and @modeline? and 'enter' of @modeline
-						ret = @modeline['enter'].call @
-						while $.is("function",ret)
-							ret = ret.call @
-					m
-				get: -> @_mode
-		reset: ->
-			@_mode = null
-			@_lastMode = null
-		GO: go = (m, enter=false) -> ->
-			if enter # force enter to trigger
-				@_mode = null
-			@mode = m
-		@GO: go
-		
-		tick: (c) ->
-			row = @modeline
-			if not row?
-				ret = null
-			else if c of row
-				ret = row[c]
-			else if 'def' of row
-				ret = row['def']
-			while $.is "function",ret
-				ret = ret.call @, c
-			ret
-		run: (inputs) ->
-			@mode = 0
-			for c in inputs
-				ret = @tick(c)
-			if $.is "function",@modeline?.eof
-				ret = @modeline.eof.call @
-			while $.is "function",ret
-				ret = ret.call @
-			@reset()
-			return @
-$.plugin
 	provides: "synth"
 	depends: "StateMachine, type"
 , ->
@@ -2364,35 +2365,31 @@ $.plugin
 				else
 					$(s.fragment)
 	}
-do ($ = Bling) ->
-	$.plugin () -> # Template plugin, pythonic style: %(value).2f
-		current_engine = null
-		engines = {}
-		template = {
-			register_engine: (name, render_func) ->
-				engines[name] = render_func
-				if not current_engine?
-					current_engine = name
-			render: (text, args) ->
-				if current_engine of engines
-					engines[current_engine](text, args)
-		}
-		template.__defineSetter__ 'engine', (v) ->
-			if not v of engines
-				throw new Error "invalid template engine: #{v} not one of #{Object.Keys(engines)}"
-			else
-				current_engine = v
-		template.__defineGetter__ 'engine', () -> current_engine
-		return {
-			name: 'Template'
-			$:
-				template: template
-		}
+$.plugin
+	depends: "StateMachine"
+	provides: "template"
+, -> # Template plugin, pythonic style: %(value).2f
+	current_engine = null
+	engines = {}
+	template = {
+		register_engine: (name, render_func) ->
+			engines[name] = render_func
+			if not current_engine?
+				current_engine = name
+		render: (text, args) ->
+			if current_engine of engines
+				engines[current_engine](text, args)
+	}
+	template.__defineSetter__ 'engine', (v) ->
+		if not v of engines
+			throw new Error "invalid template engine: #{v} not one of #{Object.Keys(engines)}"
+		else
+			current_engine = v
+	template.__defineGetter__ 'engine', -> current_engine
 	
-	$.template.register_engine 'null', (() ->
+	template.register_engine 'null', do ->
 		return (text, values) ->
 			text
-	)()
 	match_forward = (text, find, against, start, stop = -1) -> # a brace-matcher, useful in most template parsing steps
 		count = 1
 		if stop < 0
@@ -2406,7 +2403,7 @@ do ($ = Bling) ->
 			if count is 0
 				return i
 		return -1
-	$.template.register_engine 'pythonic', (() ->
+	template.register_engine 'pythonic', do ->
 		type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/ # '%.2f' becomes [key, pad, fixed, type, remainder]
 		chunk_re = /%[\(\/]/
 		compile = (text) ->
@@ -2457,8 +2454,7 @@ do ($ = Bling) ->
 				output[j++] = rest
 			output.join ""
 		return render
-	)()
-	$.template.register_engine 'js-eval', (() -> # work in progress...
+	template.register_engine 'js-eval', do -> # work in progress...
 		class TemplateMachine extends $.StateMachine
 			@STATE_TABLE = [
 				{ # 0: START
@@ -2472,7 +2468,7 @@ do ($ = Bling) ->
 			
 		return (text, values) ->
 			text
-	)()
+	return $: { template }
 $.plugin
 	provides: "throttle"
 	depends: "core"

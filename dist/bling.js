@@ -222,6 +222,103 @@
   });
 
   $.plugin({
+    provides: "StateMachine",
+    depends: "type"
+  }, function() {
+    var StateMachine;
+    return {
+      $: {
+        StateMachine: StateMachine = (function() {
+          var go;
+
+          function StateMachine(stateTable) {
+            this.debug = false;
+            this.reset();
+            this.table = stateTable;
+            Object.defineProperty(this, "modeline", {
+              get: function() {
+                return this.table[this._mode];
+              }
+            });
+            Object.defineProperty(this, "mode", {
+              set: function(m) {
+                var ret;
+                this._lastMode = this._mode;
+                this._mode = m;
+                if (this._mode !== this._lastMode && (this.modeline != null) && 'enter' in this.modeline) {
+                  ret = this.modeline['enter'].call(this);
+                  while ($.is("function", ret)) {
+                    ret = ret.call(this);
+                  }
+                }
+                return m;
+              },
+              get: function() {
+                return this._mode;
+              }
+            });
+          }
+
+          StateMachine.prototype.reset = function() {
+            this._mode = null;
+            return this._lastMode = null;
+          };
+
+          StateMachine.prototype.GO = go = function(m, enter) {
+            if (enter == null) {
+              enter = false;
+            }
+            return function() {
+              if (enter) {
+                this._mode = null;
+              }
+              return this.mode = m;
+            };
+          };
+
+          StateMachine.GO = go;
+
+          StateMachine.prototype.tick = function(c) {
+            var ret, row;
+            row = this.modeline;
+            if (row == null) {
+              ret = null;
+            } else if (c in row) {
+              ret = row[c];
+            } else if ('def' in row) {
+              ret = row['def'];
+            }
+            while ($.is("function", ret)) {
+              ret = ret.call(this, c);
+            }
+            return ret;
+          };
+
+          StateMachine.prototype.run = function(inputs) {
+            var c, ret, _i, _len, _ref;
+            this.mode = 0;
+            for (_i = 0, _len = inputs.length; _i < _len; _i++) {
+              c = inputs[_i];
+              ret = this.tick(c);
+            }
+            if ($.is("function", (_ref = this.modeline) != null ? _ref.eof : void 0)) {
+              ret = this.modeline.eof.call(this);
+            }
+            while ($.is("function", ret)) {
+              ret = ret.call(this);
+            }
+            this.reset();
+            return this;
+          };
+
+          return StateMachine;
+
+        })()
+      }
+    };
+  });
+
+  $.plugin({
     depends: "core",
     provides: "async"
   }, function() {
@@ -4654,102 +4751,6 @@
   });
 
   $.plugin({
-    provides: "StateMachine"
-  }, function() {
-    var StateMachine;
-    return {
-      $: {
-        StateMachine: StateMachine = (function() {
-          var go;
-
-          function StateMachine(stateTable) {
-            this.debug = false;
-            this.reset();
-            this.table = stateTable;
-            Object.defineProperty(this, "modeline", {
-              get: function() {
-                return this.table[this._mode];
-              }
-            });
-            Object.defineProperty(this, "mode", {
-              set: function(m) {
-                var ret;
-                this._lastMode = this._mode;
-                this._mode = m;
-                if (this._mode !== this._lastMode && (this.modeline != null) && 'enter' in this.modeline) {
-                  ret = this.modeline['enter'].call(this);
-                  while ($.is("function", ret)) {
-                    ret = ret.call(this);
-                  }
-                }
-                return m;
-              },
-              get: function() {
-                return this._mode;
-              }
-            });
-          }
-
-          StateMachine.prototype.reset = function() {
-            this._mode = null;
-            return this._lastMode = null;
-          };
-
-          StateMachine.prototype.GO = go = function(m, enter) {
-            if (enter == null) {
-              enter = false;
-            }
-            return function() {
-              if (enter) {
-                this._mode = null;
-              }
-              return this.mode = m;
-            };
-          };
-
-          StateMachine.GO = go;
-
-          StateMachine.prototype.tick = function(c) {
-            var ret, row;
-            row = this.modeline;
-            if (row == null) {
-              ret = null;
-            } else if (c in row) {
-              ret = row[c];
-            } else if ('def' in row) {
-              ret = row['def'];
-            }
-            while ($.is("function", ret)) {
-              ret = ret.call(this, c);
-            }
-            return ret;
-          };
-
-          StateMachine.prototype.run = function(inputs) {
-            var c, ret, _i, _len, _ref;
-            this.mode = 0;
-            for (_i = 0, _len = inputs.length; _i < _len; _i++) {
-              c = inputs[_i];
-              ret = this.tick(c);
-            }
-            if ($.is("function", (_ref = this.modeline) != null ? _ref.eof : void 0)) {
-              ret = this.modeline.eof.call(this);
-            }
-            while ($.is("function", ret)) {
-              ret = ret.call(this);
-            }
-            this.reset();
-            return this;
-          };
-
-          return StateMachine;
-
-        })()
-      }
-    };
-  });
-
-  $.plugin({
     provides: "synth",
     depends: "StateMachine, type"
   }, function() {
@@ -4913,43 +4914,37 @@
     };
   });
 
-  (function($) {
-    var match_forward;
-    $.plugin(function() {
-      var current_engine, engines, template;
-      current_engine = null;
-      engines = {};
-      template = {
-        register_engine: function(name, render_func) {
-          engines[name] = render_func;
-          if (current_engine == null) {
-            return current_engine = name;
-          }
-        },
-        render: function(text, args) {
-          if (current_engine in engines) {
-            return engines[current_engine](text, args);
-          }
+  $.plugin({
+    depends: "StateMachine",
+    provides: "template"
+  }, function() {
+    var current_engine, engines, match_forward, template;
+    current_engine = null;
+    engines = {};
+    template = {
+      register_engine: function(name, render_func) {
+        engines[name] = render_func;
+        if (current_engine == null) {
+          return current_engine = name;
         }
-      };
-      template.__defineSetter__('engine', function(v) {
-        if (!v in engines) {
-          throw new Error("invalid template engine: " + v + " not one of " + (Object.Keys(engines)));
-        } else {
-          return current_engine = v;
+      },
+      render: function(text, args) {
+        if (current_engine in engines) {
+          return engines[current_engine](text, args);
         }
-      });
-      template.__defineGetter__('engine', function() {
-        return current_engine;
-      });
-      return {
-        name: 'Template',
-        $: {
-          template: template
-        }
-      };
+      }
+    };
+    template.__defineSetter__('engine', function(v) {
+      if (!v in engines) {
+        throw new Error("invalid template engine: " + v + " not one of " + (Object.Keys(engines)));
+      } else {
+        return current_engine = v;
+      }
     });
-    $.template.register_engine('null', (function() {
+    template.__defineGetter__('engine', function() {
+      return current_engine;
+    });
+    template.register_engine('null', (function() {
       return function(text, values) {
         return text;
       };
@@ -4976,7 +4971,7 @@
       }
       return -1;
     };
-    $.template.register_engine('pythonic', (function() {
+    template.register_engine('pythonic', (function() {
       var chunk_re, compile, render, type_re;
       type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/;
       chunk_re = /%[\(\/]/;
@@ -5044,7 +5039,7 @@
       };
       return render;
     })());
-    return $.template.register_engine('js-eval', (function() {
+    template.register_engine('js-eval', (function() {
       var TemplateMachine, _ref;
       TemplateMachine = (function(_super) {
         __extends(TemplateMachine, _super);
@@ -5070,7 +5065,12 @@
         return text;
       };
     })());
-  })(Bling);
+    return {
+      $: {
+        template: template
+      }
+    };
+  });
 
   $.plugin({
     provides: "throttle",

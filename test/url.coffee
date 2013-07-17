@@ -18,6 +18,9 @@ describe '$.URL', ->
 			"P://H?A=B#H",
 			{ protocol: "P", host: "H", query: "A=B", hash: "H" }
 
+			"proto://"
+			{ protocol: "proto" }
+
 		]
 
 		for i in [0...testData.length-1] by 2

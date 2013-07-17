@@ -3011,7 +3011,7 @@ $.plugin
 $.plugin
 	provides: "url,URL"
 , ->
-	url_re = /\b(?:([a-z+]+):)(?:\/*([^:?\/#]+))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i
+	url_re = /\b(?:([a-z+]+):)(?:\/*([^:?\/#]*))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i
 	parse = (str, parseQuery=false) ->
 		m = str?.match url_re
 		ret = if m? then {

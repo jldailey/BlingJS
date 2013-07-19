@@ -324,7 +324,7 @@ if $.global.document?
 
 			# Get [or set] each item's position.
 			position: (left, top) ->
-				switch true
+				switch
 					# If called with no arguments, just return the position.
 					when not left? then @rect()
 					# If called with only one argument, only set "left".

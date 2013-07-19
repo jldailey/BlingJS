@@ -48,11 +48,10 @@ $.plugin
 			repr: (f) -> f.toString()
 		number:
 			repr:   (n) -> String(n)
-			string: safer (n) ->
-				switch true
-					when n.precision? then n.toPrecision(n.precision)
-					when n.fixed? then n.toFixed(n.fixed)
-					else String(n)
+			string: safer (n) -> switch
+				when n.precision? then n.toPrecision(n.precision)
+				when n.fixed? then n.toFixed(n.fixed)
+				else String(n)
 
 	# Return a bunch of root-level string functions.
 	return {
@@ -164,12 +163,11 @@ $.plugin
 				(b << 16) | a
 
 			# __$.repeat(x, n)__ repeats x, n times.
-			repeat: (x, n=2) ->
-				switch true
-					when n is 1 then x
-					when n < 1 then ""
-					when $.is "string", x then $.zeros(n, x).join ''
-					else $.zeros(n, x)
+			repeat: (x, n=2) -> switch
+				when n is 1 then x
+				when n < 1 then ""
+				when $.is "string", x then $.zeros(n, x).join ''
+				else $.zeros(n, x)
 
 			# Return a string-builder, which uses arrays to defer all string
 			# concatenation until you call `builder.toString()`.

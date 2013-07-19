@@ -717,11 +717,10 @@ $.plugin
 					timeoutQueue.add f, parseInt(n,10)
 					cancel: -> timeoutQueue.cancel(f)
 				else $.log "Warning: bad arguments to $.delay (expected: int,function given: #{$.type n},#{$.type f})"
-		immediate: do ->
-			return switch true
-				when 'setImmediate' of $.global then $.global.setImmediate
-				when process?.nextTick? then process.nextTick
-				else (f) -> setTimeout(f, 0)
+		immediate: do -> switch
+			when 'setImmediate' of $.global then $.global.setImmediate
+			when process?.nextTick? then process.nextTick
+			else (f) -> setTimeout(f, 0)
 		interval: (n, f) ->
 			paused = false
 			ret = $.delay n, g = ->
@@ -842,7 +841,7 @@ $.plugin
 , ->
 	lev_memo = Object.create null
 	lev = (s,i,n,t,j,m,dw,iw,sw) ->
-		return lev_memo[[s,i,n,t,j,m,dw,iw,sw]] ?= lev_memo[[t,j,m,s,i,n,dw,iw,sw]] ?= do -> switch true
+		return lev_memo[[s,i,n,t,j,m,dw,iw,sw]] ?= lev_memo[[t,j,m,s,i,n,dw,iw,sw]] ?= do -> switch
 			when m <= 0 then n
 			when n <= 0 then m
 			else Math.min(
@@ -881,7 +880,7 @@ $.plugin
 	ins = (c) -> {op:'ins',v:c}
 	sub = (c,d) -> {op:'sub',v:c,w:d}
 	diff = (s,i,n,t,j,m,dw,iw,sw) ->
-		return diff_memo[[s,i,n,t,j,m,dw,iw,sw]] ?= collapse do -> switch true
+		return diff_memo[[s,i,n,t,j,m,dw,iw,sw]] ?= collapse do -> switch
 			when m <= 0 then (del c) for c in s.substr i,n
 			when n <= 0 then (ins c) for c in t.substr j,m
 			else
@@ -1146,7 +1145,7 @@ if $.global.document?
 			bottom: getOrSetRect("bottom")
 			right: getOrSetRect("right")
 			position: (left, top) ->
-				switch true
+				switch
 					when not left? then @rect()
 					when not top? then @css("left", $.px(left))
 					else @css({top: $.px(top), left: $.px(left)})
@@ -2132,11 +2131,10 @@ $.plugin
 			repr: (f) -> f.toString()
 		number:
 			repr:   (n) -> String(n)
-			string: safer (n) ->
-				switch true
-					when n.precision? then n.toPrecision(n.precision)
-					when n.fixed? then n.toFixed(n.fixed)
-					else String(n)
+			string: safer (n) -> switch
+				when n.precision? then n.toPrecision(n.precision)
+				when n.fixed? then n.toFixed(n.fixed)
+				else String(n)
 	return {
 		$:
 			toString: (x) ->
@@ -2206,12 +2204,11 @@ $.plugin
 					a = (a + s.charCodeAt(i)) % 65521
 					b = (b + a) % 65521
 				(b << 16) | a
-			repeat: (x, n=2) ->
-				switch true
-					when n is 1 then x
-					when n < 1 then ""
-					when $.is "string", x then $.zeros(n, x).join ''
-					else $.zeros(n, x)
+			repeat: (x, n=2) -> switch
+				when n is 1 then x
+				when n < 1 then ""
+				when $.is "string", x then $.zeros(n, x).join ''
+				else $.zeros(n, x)
 			stringBuilder: do ->
 				len = (s) -> s?.toString().length | 0
 				->

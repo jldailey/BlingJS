@@ -1670,10 +1670,10 @@
           };
         })(),
         immediate: (function() {
-          switch (true) {
-            case 'setImmediate' in $.global:
+          switch (false) {
+            case !('setImmediate' in $.global):
               return $.global.setImmediate;
-            case (typeof process !== "undefined" && process !== null ? process.nextTick : void 0) != null:
+            case (typeof process !== "undefined" && process !== null ? process.nextTick : void 0) == null:
               return process.nextTick;
             default:
               return function(f) {
@@ -1857,10 +1857,10 @@
     lev = function(s, i, n, t, j, m, dw, iw, sw) {
       var _name, _name1;
       return lev_memo[_name = [s, i, n, t, j, m, dw, iw, sw]] != null ? lev_memo[_name = [s, i, n, t, j, m, dw, iw, sw]] : lev_memo[_name] = lev_memo[_name1 = [t, j, m, s, i, n, dw, iw, sw]] != null ? lev_memo[_name1 = [t, j, m, s, i, n, dw, iw, sw]] : lev_memo[_name1] = (function() {
-        switch (true) {
-          case m <= 0:
+        switch (false) {
+          case !(m <= 0):
             return n;
-          case n <= 0:
+          case !(n <= 0):
             return m;
           default:
             return Math.min(dw + lev(s, i + 1, n - 1, t, j, m, dw, iw, sw), iw + lev(s, i, n, t, j + 1, m - 1, dw, iw, sw), (sw * (s[i] !== t[j])) + lev(s, i + 1, n - 1, t, j + 1, m - 1, dw, iw, sw));
@@ -1930,8 +1930,8 @@
       var _name;
       return diff_memo[_name = [s, i, n, t, j, m, dw, iw, sw]] != null ? diff_memo[_name = [s, i, n, t, j, m, dw, iw, sw]] : diff_memo[_name] = collapse((function() {
         var args, c, costs, _i, _j, _len, _len1, _ref, _ref1, _results, _results1;
-        switch (true) {
-          case m <= 0:
+        switch (false) {
+          case !(m <= 0):
             _ref = s.substr(i, n);
             _results = [];
             for (_i = 0, _len = _ref.length; _i < _len; _i++) {
@@ -1940,7 +1940,7 @@
             }
             return _results;
             break;
-          case n <= 0:
+          case !(n <= 0):
             _ref1 = t.substr(j, m);
             _results1 = [];
             for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
@@ -2490,10 +2490,10 @@
         bottom: getOrSetRect("bottom"),
         right: getOrSetRect("right"),
         position: function(left, top) {
-          switch (true) {
-            case left == null:
+          switch (false) {
+            case !(left == null):
               return this.rect();
-            case top == null:
+            case !(top == null):
               return this.css("left", $.px(left));
             default:
               return this.css({
@@ -4504,10 +4504,10 @@
           return String(n);
         },
         string: safer(function(n) {
-          switch (true) {
-            case n.precision != null:
+          switch (false) {
+            case n.precision == null:
               return n.toPrecision(n.precision);
-            case n.fixed != null:
+            case n.fixed == null:
               return n.toFixed(n.fixed);
             default:
               return String(n);
@@ -4643,12 +4643,12 @@
           if (n == null) {
             n = 2;
           }
-          switch (true) {
-            case n === 1:
+          switch (false) {
+            case n !== 1:
               return x;
-            case n < 1:
+            case !(n < 1):
               return "";
-            case $.is("string", x):
+            case !$.is("string", x):
               return $.zeros(n, x).join('');
             default:
               return $.zeros(n, x);

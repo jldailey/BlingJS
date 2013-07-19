@@ -5,7 +5,7 @@ $.plugin
 	lev_memo = Object.create null
 	lev = (s,i,n,t,j,m,dw,iw,sw) ->
 		# distance is symmetric so we cache under two keys at once
-		return lev_memo[[s,i,n,t,j,m,dw,iw,sw]] ?= lev_memo[[t,j,m,s,i,n,dw,iw,sw]] ?= do -> switch true
+		return lev_memo[[s,i,n,t,j,m,dw,iw,sw]] ?= lev_memo[[t,j,m,s,i,n,dw,iw,sw]] ?= do -> switch
 			when m <= 0 then n
 			when n <= 0 then m
 			else Math.min(
@@ -47,7 +47,7 @@ $.plugin
 	sub = (c,d) -> {op:'sub',v:c,w:d}
 	diff = (s,i,n,t,j,m,dw,iw,sw) ->
 		# diffs are not symmetric, so only cache under one key
-		return diff_memo[[s,i,n,t,j,m,dw,iw,sw]] ?= collapse do -> switch true
+		return diff_memo[[s,i,n,t,j,m,dw,iw,sw]] ?= collapse do -> switch
 			when m <= 0 then (del c) for c in s.substr i,n
 			when n <= 0 then (ins c) for c in t.substr j,m
 			else

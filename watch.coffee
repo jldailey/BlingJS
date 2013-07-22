@@ -6,7 +6,7 @@
 	'extra', 'optimist'
 ].map require
 
-$.log opts = Optimist.options('t', {
+opts = Optimist.options('t', {
 		alias: 'throttle'
 		default: 7
 		describe: "Seconds to wait between restart attempts."
@@ -25,7 +25,7 @@ $.log opts = Optimist.options('t', {
 	.options('x', {
 		alias: 'exclude'
 		default: 'node_modules'
-		describe: "Pattern for directories to avoid watching (node_modules)"
+		describe: "Pattern for directories to avoid watching"
 	})
 	.demand(1)
 	.usage("Usage: $0 [options...] -- 'pattern' -- [ENV=val] command [args...]")
@@ -33,11 +33,16 @@ $.log opts = Optimist.options('t', {
 
 log = $.logger "[watch]"
 
+log "Options:"
+log " Run immediately: #{opts.immediate}"
+log " Restart throttle: #{opts.throttle} sec"
+log " Exclude pattern: /#{opts.exclude}/"
+log " Restart exit code: #{opts.r}"
+
 log "Initializing..."
 
 if opts.x
 	exc_re = new RegExp(opts.x)
-	$.log "Excluding:", exc_re
 exclude = (dir) ->
 	opts.x and exc_re.test dir
 

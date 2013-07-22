@@ -21,12 +21,21 @@ describe '$.URL', ->
 			"proto://"
 			{ protocol: "proto" }
 
+			"sqlite://:memory:"
+			{ protocol: "sqlite", path:"/:memory:" }
+
+			"sqlite:///:memory:"
+			{ protocol: "sqlite", path:"/:memory:" }
+
+			"sqlite:///usr/local/data/file.db"
+			{ protocol: "sqlite", path:"/usr/local/data/file.db" }
+
 		]
 
 		for i in [0...testData.length-1] by 2
 			do (str=testData[i],pattern=testData[i+1]) ->
 				it "parses #{str}", ->
-					assert $.matches pattern, $.URL.parse str
+					assert ($.matches pattern, $.URL.parse str), "#{JSON.stringify pattern} matches #{JSON.stringify $.URL.parse str}"
 
 		queryTestData = [
 			"p://host?key=value",

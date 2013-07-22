@@ -27,6 +27,12 @@ opts = Optimist.options('t', {
 		default: 'node_modules'
 		describe: "Pattern for directories to avoid watching"
 	})
+	.options('v', {
+		alias: 'verbose'
+		default: false
+		describe: 'Verbose output'
+	})
+	.boolean('v')
 	.demand(1)
 	.usage("Usage: $0 [options...] -- 'pattern' -- [ENV=val] command [args...]")
 	.argv
@@ -37,9 +43,8 @@ log "Options:"
 log " Run immediately: #{opts.immediate}"
 log " Restart throttle: #{opts.throttle} sec"
 log " Exclude pattern: /#{opts.exclude}/"
-log " Restart exit code: #{opts.r}"
-
-log "Initializing..."
+log " Restart on exit code: #{opts.r}"
+log " Verbose: #{opts.v}"
 
 if opts.x
 	exc_re = new RegExp(opts.x)
@@ -50,7 +55,7 @@ pattern = opts._[0]
 
 pattern = (try new RegExp pattern) or $.log 'bad pattern, using', /^[^.]/
 
-launch = $.throttle +opts.throttle * 1000, $.trace 'launch', ->
+launch = $.throttle +opts.throttle * 1000, ->
 	p = Extra.spawn( stdio: 'inherit' )
 	p.on 'close', (code) ->
 		log "Exit Code:", code
@@ -61,13 +66,28 @@ launch = $.throttle +opts.throttle * 1000, $.trace 'launch', ->
 if opts.immediate then $.immediate launch
 
 recurseDir = (path, cb) ->
-	cb(path)
+	done = $.Progress(1)
 	Fs.readdir path, (err, files) ->
-		$(files).filter(/^[^.]/).each (file) ->
-			Fs.stat dir = Path.join(path, file), (err, stat) ->
-				if stat?.isDirectory() and not exclude(dir)
-					recurseDir dir, cb
-recurseDir '.', (dir) ->
+		cb(path)
+		$(files)
+			.filter(/^[^.]/)
+			# Set the maximum progress to the number of files we will stat
+			.tap(-> done.progress 0, @length; @ )
+			.each (file) ->
+				Fs.stat dir = Path.join(path, file), (err, stat) ->
+					if stat?.isDirectory() and not exclude(dir)
+						# If we recurse, include it's progress as part of ours
+						done.include recurseDir dir, cb
+					# Mark this file as complete
+					done.finish(1)
+	done
+
+dirsWatched = 0
+recurseDir('.', (dir) ->
+	dirsWatched += 1
+	if opts.verbose then log "Watching", dir
 	Fs.watch dir, (op, file) ->
 		if pattern.test(file) then launch()
-log "Listening for changes..."
+).wait (err) ->
+	log "Watching #{dirsWatched} folders for changes."
+	if err then log "Error:", err

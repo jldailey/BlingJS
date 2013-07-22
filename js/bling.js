@@ -3725,7 +3725,7 @@
           }
           return this;
         },
-        proxy: function(promise) {
+        join: function(promise) {
           var _this = this;
           return promise.wait(function(err, data) {
             if (err) {
@@ -3738,7 +3738,7 @@
         compose: function() {
           var promises, _ref;
           promises = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-          return this.proxy((_ref = $.Promise).compose.apply(_ref, promises));
+          return this.join((_ref = $.Promise).compose.apply(_ref, promises));
         },
         reset: function() {
           err = result = NoValue;
@@ -3798,6 +3798,16 @@
             delta = 1;
           }
           return this.progress(cur + delta);
+        },
+        include: function(promise) {
+          var _this = this;
+          this.progress(cur, max + 1);
+          return promise.wait(function(err) {
+            if (err) {
+              return _this.fail(err);
+            }
+            return _this.finish(1);
+          });
         }
       }, p = Promise());
     };

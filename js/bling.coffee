@@ -1755,12 +1755,12 @@ $.plugin
 					waiting.select('timeout.cancel').call()
 					waiting.clear()
 				@
-			proxy: (promise) ->
+			join: (promise) ->
 				promise.wait (err, data) =>
 					if err then @fail err
 					else @finish data
 			compose: (promises...) ->
-				@proxy $.Promise.compose promises...
+				@join $.Promise.compose promises...
 			reset: ->
 				err = result = NoValue
 				@
@@ -1788,6 +1788,11 @@ $.plugin
 				@
 			finish: (delta = 1) ->
 				@progress cur + delta
+			include: (promise) ->
+				@progress cur, max + 1
+				promise.wait (err) =>
+					return @fail(err) if err
+					@finish(1)
 		}, p = Promise()
 	Promise.xhr = (xhr) ->
 		p = $.Promise()

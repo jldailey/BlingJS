@@ -49,16 +49,16 @@ describe "$.Promise()", ->
 
 	describe "optional timeout", ->
 		it "sets error to 'timeout'", (done) ->
-			$.Promise().wait 300, (err, data) ->
+			$.Promise().wait 100, (err, data) ->
 				assert.equal err, 'timeout'
 				done()
 		it "does not fire an error if the promise is finished in time", (done) ->
 			pass = false
-			$.Promise().wait(300, (err, data) ->
+			$.Promise().wait(100, (err, data) ->
 				assert.equal err, null
 				pass = data
 			).finish true
-			$.delay 500, ->
+			$.delay 200, ->
 				assert.equal pass, true
 				done()
 
@@ -76,13 +76,13 @@ describe "$.Promise()", ->
 			f.wait (err, data) -> f.pass = data
 			f.finish true
 			assert f.pass
-	describe ".proxy()", ->
+	describe ".join()", ->
 		it "joins one promise to another", ->
 			pass = false
 			a = $.Promise()
 			a.wait (err, data) -> pass = data
 			b = $.Promise()
-			a.proxy b
+			a.join b
 			b.finish true
 			assert pass
 	describe ".compose()", ->
@@ -131,4 +131,38 @@ describe "$.Progress", ->
 			a.finish 1
 			a.finish 1
 			assert.deepEqual data, [ [1,2], [2,2] ]
+		it "can 'include' other promises", ->
+			a = $.Progress(2)
+			b = $.Promise()
+			a.include(b)
+			a.finish 1
+			a.finish 1
+			assert.equal a.finished, false
+			b.finish()
+			assert.equal a.finished, true
+		it "can 'include' other progress", ->
+			a = $.Progress(2)
+			b = $.Progress(2)
+			a.include(b)
+			a.finish 1
+			a.finish 1
+			assert.equal a.finished, false
+			b.finish 1
+			assert.equal a.finished, false
+			b.finish 1
+			assert.equal a.finished, true
+		it "can 'include' recursively", (ok) ->
+			run = (level, cb) ->
+				unless level > 0
+					$.immediate cb
+					return $.Promise().finish()
+				done = $.Progress(2)
+				done.include run level-1, ->
+					done.finish(1)
+					assert.equal done.finished, true
+				done.finish(1)
+				assert.equal done.finished, false
+				$.immediate cb
+				done
+			run 5, ok
 

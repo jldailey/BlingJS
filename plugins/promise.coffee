@@ -32,12 +32,12 @@ $.plugin
 					waiting.select('timeout.cancel').call()
 					waiting.clear()
 				@
-			proxy: (promise) ->
+			join: (promise) ->
 				promise.wait (err, data) =>
 					if err then @fail err
 					else @finish data
 			compose: (promises...) ->
-				@proxy $.Promise.compose promises...
+				@join $.Promise.compose promises...
 			reset: ->
 				err = result = NoValue
 				# does NOT clear waiting, b/c it should already be empty (or result would already be NoValue)
@@ -74,6 +74,11 @@ $.plugin
 				@
 			finish: (delta = 1) ->
 				@progress cur + delta
+			include: (promise) ->
+				@progress cur, max + 1
+				promise.wait (err) =>
+					return @fail(err) if err
+					@finish(1)
 		}, p = Promise()
 
 	# Helper for wrapping an XHR object in a Promise

@@ -6182,7 +6182,7 @@
     provides: "url,URL"
   }, function() {
     var clean, parse, stringify, url_re;
-    url_re = /\b(?:([a-z+]+):)(?:\/*([^:?\/#]*))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i;
+    url_re = /\b(?:([a-z+]+):)(?:\/{1,2}([^:?\/#]*))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i;
     parse = function(str, parseQuery) {
       var i, m, pair, query, ret, _i, _len, _ref, _ref1, _ref2, _ref3;
       if (parseQuery == null) {

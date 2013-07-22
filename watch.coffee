@@ -85,7 +85,7 @@ recurseDir = (path, cb) ->
 dirsWatched = 0
 recurseDir('.', (dir) ->
 	dirsWatched += 1
-	if opts.verbose then log "Watching", dir
+	if opts.verbose then log "Watching", dir, "(#{dirsWatched})"
 	Fs.watch dir, (op, file) ->
 		if pattern.test(file) then launch()
 ).wait (err) ->

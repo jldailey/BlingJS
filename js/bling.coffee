@@ -425,7 +425,11 @@ $.plugin
 				when "function" then @zap p, @select(p).map(v)
 				else @each -> @[p] = v
 			@
-		clean: (prop) -> @each -> delete @[prop]
+		clean: (props...) ->
+			@each ->
+				for prop in props
+					delete @[prop]
+				null
 		take: (n = 1) ->
 			end = Math.min n, @length
 			$( @[i] for i in [0...end] by 1 )

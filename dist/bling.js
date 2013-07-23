@@ -977,9 +977,16 @@
         }
         return this;
       },
-      clean: function(prop) {
+      clean: function() {
+        var props;
+        props = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
         return this.each(function() {
-          return delete this[prop];
+          var prop, _i, _len;
+          for (_i = 0, _len = props.length; _i < _len; _i++) {
+            prop = props[_i];
+            delete this[prop];
+          }
+          return null;
         });
       },
       take: function(n) {

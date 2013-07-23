@@ -215,7 +215,11 @@ $.plugin
 			@
 
 		# Remove a property from each item.
-		clean: (prop) -> @each -> delete @[prop]
+		clean: (props...) ->
+			@each ->
+				for prop in props
+					delete @[prop]
+				null
 
 		# Get a new set with only the first _n_ items from _this_.
 		take: (n = 1) ->

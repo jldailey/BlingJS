@@ -156,6 +156,12 @@ describe "Core plugin:", ->
 			assert.deepEqual $( {a: 1}, {a: 2}, {a: 3} ).zap({b: 2, c: 3}),
 				[ {a:1,b:2,c:3}, {a:2,b:2,c:3}, {a:3,b:2,c:3} ]
 
+	describe ".clean()", ->
+		it "removes properties", ->
+			assert.deepEqual $({a:1,b:2},{a:2,b:3}).clean('b').select('a'), [1, 2]
+		it "removes multiple properties", ->
+			assert.deepEqual $({a:1,b:2,c:3},{a:2,b:3,c:4}).clean('b','c').select('a'), [1, 2]
+
 	describe ".take()", ->
 		it "take0", -> assert.deepEqual $([1,2,3,4]).take(0), []
 		it "take1", -> assert.deepEqual $([1,2,3,4]).take(1), [1]
@@ -182,9 +188,9 @@ describe "Core plugin:", ->
 	describe ".last()", ->
 		a = $([1,2,3,4])
 		it "returns last element", -> assert.equal a.last(), 4
-		it "returns multiple if asked", -> assert.deepEqual a.last(5), [1,2,3,4]
 		it "returns multiple if asked", -> assert.deepEqual a.last(2), [3,4]
-		it "returns multiple if asked", -> assert.deepEqual a.last(0), []
+		it "returns empty if asked", -> assert.deepEqual a.last(0), []
+		it "returns as much as it can", -> assert.deepEqual a.last(5), [1,2,3,4]
 
 	describe ".slice()", ->
 		a = $([1,2,3,4,5])

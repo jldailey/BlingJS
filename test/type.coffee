@@ -28,15 +28,30 @@ describe "Type plugin:", ->
 			it "'arguments'", -> assert $.is "arguments", arguments
 
 	describe ".inherit(a,b)", ->
-		a = a: 1
-		b = b: 2
-		$.inherit a, b
 		it "should set b's __proto__ to a", ->
+			a = a: 1
+			b = b: 2
+			$.inherit a, b
 			assert.equal b.__proto__, a
 		it "b should inherit properties from a", ->
+			a = a: 1
+			b = b: 2
+			$.inherit a, b
 			assert.equal b.a, 1
 		it "but b should not own those properties", ->
+			a = a: 1
+			b = b: 2
+			$.inherit a, b
 			assert not b.hasOwnProperty "a"
+		it "can do a chain on inheritance all at once", ->
+			a = a: 1
+			b = b: 2
+			c = c: 3
+			d = $.inherit a, b, c
+			assert.equal d, c
+			assert.equal c.__proto__, b
+			assert.equal b.__proto__, a
+			assert.equal c.a, 1
 
 	describe ".extend(a,b)", ->
 		a = a: 1
@@ -65,7 +80,7 @@ describe "Type plugin:", ->
 				assert.equal a.getter, 2
 			it "should be enumerable", ->
 				assert.notEqual -1, Object.keys(a).indexOf("getter")
-			it "should be configurable"
+			it "should be configurable" # pending: dont know how to test yet
 		describe "setters", ->
 			a = {}
 			$.defineProperty a, "setter",

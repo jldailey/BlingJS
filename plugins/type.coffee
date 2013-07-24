@@ -26,8 +26,9 @@ $.plugin
 	# coffee's `class X extends Y`, because it expects the target `child`
 	# to be an _instance_, and the `parent` can either be an _instance_ or a
 	# __constructor__.
-	inherit = (parent, obj) ->
-		return unless obj?
+	inherit = (parent, objs...) ->
+		return unless objs.length > 0
+		obj = objs.shift()
 		if typeof parent is "function"
 			parent = parent.prototype
 		# if the parent isn't bringing it's own __proto__ chain
@@ -35,7 +36,9 @@ $.plugin
 			# splice the new parent such that the original chain is preserved
 			parent.__proto__ = obj.__proto__
 		obj.__proto__ = parent
-		obj
+		return if objs.length > 0
+			inherit obj, objs...
+		else obj
 
 	# Now, let's begin to build the classifier for `$.type(obj)`.
 	_type = do ->

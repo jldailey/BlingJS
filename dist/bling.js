@@ -5575,11 +5575,13 @@
         return ((o.constructor != null) && (o.constructor === T || o.constructor.name === T)) || Object.prototype.toString.apply(o) === ("[object " + T + "]") || isType(T, o.__proto__);
       }
     };
-    inherit = function(parent, obj) {
-      var _ref;
-      if (obj == null) {
+    inherit = function() {
+      var obj, objs, parent, _ref;
+      parent = arguments[0], objs = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+      if (!(objs.length > 0)) {
         return;
       }
+      obj = objs.shift();
       if (typeof parent === "function") {
         parent = parent.prototype;
       }
@@ -5587,7 +5589,11 @@
         parent.__proto__ = obj.__proto__;
       }
       obj.__proto__ = parent;
-      return obj;
+      if (objs.length > 0) {
+        return inherit.apply(null, [obj].concat(__slice.call(objs)));
+      } else {
+        return obj;
+      }
     };
     _type = (function() {
       var base, cache, lookup, order, register, _extend;

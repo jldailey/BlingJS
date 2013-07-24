@@ -2758,14 +2758,17 @@ $.plugin
 		else (o.constructor? and (o.constructor is T or o.constructor.name is T)) or
 			Object::toString.apply(o) is "[object #{T}]" or
 			isType T, o.__proto__ # recursive
-	inherit = (parent, obj) ->
-		return unless obj?
+	inherit = (parent, objs...) ->
+		return unless objs.length > 0
+		obj = objs.shift()
 		if typeof parent is "function"
 			parent = parent.prototype
 		if parent.__proto__ in [Object.prototype, null, undefined]
 			parent.__proto__ = obj.__proto__
 		obj.__proto__ = parent
-		obj
+		return if objs.length > 0
+			inherit obj, objs...
+		else obj
 	_type = do ->
 		cache = {}
 		base =

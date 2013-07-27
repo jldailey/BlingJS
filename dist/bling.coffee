@@ -1738,8 +1738,8 @@ $.plugin
 			wait: (timeout, cb) ->
 				if $.is 'function', timeout
 					cb = timeout
-				return cb(err, null) if err isnt NoValue
-				return cb(null,result) if result isnt NoValue
+				return $.immediate(-> cb err, null) if err isnt NoValue
+				return $.immediate(-> cb null,result) if result isnt NoValue
 				waiting.push cb
 				if isFinite timeout
 					cb.timeout = $.delay timeout, ->

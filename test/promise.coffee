@@ -9,10 +9,13 @@ describe "$.Promise()", ->
 		p.finish true
 	it "passes the finished data to listeners", ->
 		assert pass
-	it "calls back instantly if already finished", ->
+	it "calls back in next tick if already finished", (done) ->
 		pass = false
 		p.wait (err, data) -> pass = data
-		assert pass
+		assert.equal pass, false # hasn't been touched yet in this tick
+		$.immediate ->
+			assert pass
+			done()
 	it "can be checked", ->
 		assert.equal $.Promise().finished, false
 		assert.equal $.Promise().finish().finished, true
@@ -25,13 +28,20 @@ describe "$.Promise()", ->
 		assert.equal pass, false # not fired yet
 		p.finish(true)
 		assert pass
-	it "clears callbacks after fire", ->
+	it "clears callbacks after fire", (done) ->
 		id = 0
-		p.wait (err, data) -> id += data # handler A
+		# register handler A
+		p.wait (err, data) -> id += data
+		# schedule A to run immediately
 		p.finish 1
+		# handler B
 		p.wait (err, data) -> id += data # handler B
+		# schedule B to run immediately
 		p.finish 1
-		assert.equal id, 2 # if handler A or B ran more than once, id would be >= 3
+		# if A or B runs twice, id will be >= 3
+		$.immediate ->
+			assert.equal id, 2
+			done()
 
 	it "ignores more than one call to .finish()", ->
 		pass = 1
@@ -159,7 +169,8 @@ describe "$.Progress", ->
 				done = $.Progress(2)
 				done.include run level-1, ->
 					done.finish(1)
-					assert.equal done.finished, true
+					$.immediate ->
+						assert.equal done.finished, true
 				done.finish(1)
 				assert.equal done.finished, false
 				$.immediate cb

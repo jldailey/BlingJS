@@ -1,11 +1,20 @@
 #!/bin/sh
 
-echo Making new release: $2 from current release: $1...
+if [ -z "$2" ]; then
+	exit 0
+fi
 
-sed -i .bak -e "s/$1/$2/" package.json && \
+echo Making new release: $2 from current release: $1... && \
+	echo Patching package.json && \
+	sed -i .bak -e "s/$1/$2/" package.json && \
 	rm package.json.bak && \
-	git commit package.json -m "v$2" && \
-	make site && \
+	echo Committing package.json && \
+	git commit package.json -m "v$2" > /dev/null && \
+	echo Building public site && \
+	make site > /dev/null && \
+	echo Deploying site && \
 	git push && \
+	echo Publishing to github && \
 	git push github && \
+	echo Publishing to npm && \
 	npm publish

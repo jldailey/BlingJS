@@ -3699,10 +3699,14 @@
             cb = timeout;
           }
           if (err !== NoValue) {
-            return cb(err, null);
+            return $.immediate(function() {
+              return cb(err, null);
+            });
           }
           if (result !== NoValue) {
-            return cb(null, result);
+            return $.immediate(function() {
+              return cb(null, result);
+            });
           }
           waiting.push(cb);
           if (isFinite(timeout)) {

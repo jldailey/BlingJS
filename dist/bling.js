@@ -5130,7 +5130,7 @@
     depends: 'type',
     provides: 'TNET'
   }, function() {
-    var Symbols, Types, packOne, unpackOne;
+    var Symbols, Types, class_index, classes, makeFunction, packOne, register, unpackOne;
     Types = {
       "number": {
         symbol: "#",
@@ -5226,7 +5226,9 @@
             _results = [];
             for (k in o) {
               v = o[k];
-              _results.push(packOne(k) + packOne(v));
+              if (k !== "constructor" && o.hasOwnProperty(k)) {
+                _results.push(packOne(k) + packOne(v));
+              }
             }
             return _results;
           })()).join('');
@@ -5245,18 +5247,24 @@
       "function": {
         symbol: ")",
         pack: function(f) {
-          var args, body, _ref;
-          _ref = f.toString().replace(/function \w*/, '').replace(/\/\*.*\*\//, '').replace(/\n/, '').replace(/^\(/, '').replace(/}$/, '').split(/\) {/), args = _ref[0], body = _ref[1];
+          var args, body, name, name_re, s, _ref;
+          s = f.toString().replace(/(?:\n|\r)+\s*/g, ' ');
+          name = "";
+          name_re = /function\s*(\w+)\(.*/g;
+          if (name_re.test(s)) {
+            name = s.replace(name_re, "$1");
+          }
+          _ref = s.replace(/function\s*\w*\(/, '').replace(/\/\*.*\*\//g, '').replace(/}$/, '').split(/\) {/), args = _ref[0], body = _ref[1];
           args = args.split(/, */);
           body = body.replace(/^\s+/, '').replace(/\s*$/, '');
-          return [args, body].map(packOne).join('');
+          return $(name, args, body).map(packOne).join('');
         },
         unpack: function(s) {
-          var args, body, rest, _ref, _ref1;
-          _ref = unpackOne(s), args = _ref[0], rest = _ref[1];
-          _ref1 = unpackOne(rest), body = _ref1[0], rest = _ref1[1];
-          args.push(body);
-          return Function.apply(null, args);
+          var args, body, name, rest, _ref, _ref1, _ref2;
+          _ref = unpackOne(s), name = _ref[0], rest = _ref[1];
+          _ref1 = unpackOne(rest), args = _ref1[0], rest = _ref1[1];
+          _ref2 = unpackOne(rest), body = _ref2[0], rest = _ref2[1];
+          return makeFunction(name, args.join(), body);
         }
       },
       "regexp": {
@@ -5267,7 +5275,39 @@
         unpack: function(s) {
           return RegExp(s);
         }
+      },
+      "class instance": {
+        symbol: "C",
+        pack: function(o) {
+          if (!('constructor' in o)) {
+            throw new Error("TNET: cant pack non-class as class");
+          }
+          if (!(o.constructor in class_index)) {
+            throw new Error("TNET: cant pack unregistered class (name: " + o.constructor.name + ", text: " + (o.constructor.toString()));
+          }
+          return packOne(class_index[o.constructor]) + packOne(o, "object");
+        },
+        unpack: function(s) {
+          var i, obj, rest, _ref, _ref1;
+          _ref = unpackOne(s), i = _ref[0], rest = _ref[1];
+          _ref1 = unpackOne(rest), obj = _ref1[0], rest = _ref1[1];
+          if (i <= classes.length) {
+            obj.__proto__ = classes[i - 1].prototype;
+          } else {
+            throw new Error("TNET: attempt to unpack unregistered class index: " + i);
+          }
+          return obj;
+        }
       }
+    };
+    makeFunction = function(name, args, body) {
+      eval("var f = function " + name + "(" + args + "){" + body + "}");
+      return f;
+    };
+    classes = [];
+    class_index = {};
+    register = function(klass) {
+      return class_index[klass] || (class_index[klass] = classes.push(klass));
     };
     Symbols = {};
     (function() {
@@ -5290,10 +5330,18 @@
       }
       return void 0;
     };
-    packOne = function(x) {
-      var data, t, tx;
-      if ((t = Types[tx = $.type(x)]) == null) {
-        throw new Error("TNET: cant pack type '" + tx + "'");
+    packOne = function(x, forceType) {
+      var data, t, tx, _ref;
+      if (forceType != null) {
+        tx = forceType;
+      } else {
+        tx = $.type(x);
+        if (tx === "object" && ((_ref = x.constructor) != null ? _ref.name : void 0) !== "Object") {
+          tx = "class instance";
+        }
+      }
+      if ((t = Types[tx]) == null) {
+        throw new Error("TNET: dont know how to pack type '" + tx + "'");
       }
       data = t.pack(x);
       return (data.length | 0) + ":" + data + t.symbol;
@@ -5302,6 +5350,7 @@
       $: {
         TNET: {
           Types: Types,
+          registerClass: register,
           stringify: packOne,
           parse: function(x) {
             var _ref;

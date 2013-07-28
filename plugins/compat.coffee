@@ -34,20 +34,10 @@ $.plugin ->
 			@stopPropagation()
 			@cancelBubble = true
 
-	# Make sure we have Element functions: `matchesSelector`, and
-	# `cloneNode`.
+	# Make sure we have Element functions: `matchesSelector`
 	if Element?
 		Element::matchesSelector = Element::webkitMatchesSelector or
 			Element::mozMatchesSelector or
 			Element::matchesSelector
-		# If cloneNode does not take a 'deep' argument, add support.
-		if Element::cloneNode.length is 0
-			oldClone = Element::cloneNode
-			Element::cloneNode = (deep = false) ->
-				n = oldClone.call(@)
-				if deep
-					for i in @childNodes
-						n.appendChild i.cloneNode true
-				return n
 
 	return { }

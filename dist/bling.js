@@ -512,7 +512,7 @@
   });
 
   $.plugin(function() {
-    var oldClone, _base, _base1, _base2, _base3;
+    var _base, _base1, _base2, _base3;
     (_base = String.prototype).trimLeft || (_base.trimLeft = function() {
       return this.replace(/^\s+/, "");
     });
@@ -561,24 +561,6 @@
     }
     if (typeof Element !== "undefined" && Element !== null) {
       Element.prototype.matchesSelector = Element.prototype.webkitMatchesSelector || Element.prototype.mozMatchesSelector || Element.prototype.matchesSelector;
-      if (Element.prototype.cloneNode.length === 0) {
-        oldClone = Element.prototype.cloneNode;
-        Element.prototype.cloneNode = function(deep) {
-          var i, n, _i, _len, _ref;
-          if (deep == null) {
-            deep = false;
-          }
-          n = oldClone.call(this);
-          if (deep) {
-            _ref = this.childNodes;
-            for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-              i = _ref[_i];
-              n.appendChild(i.cloneNode(true));
-            }
-          }
-          return n;
-        };
-      }
     }
     return {};
   });

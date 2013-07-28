@@ -267,14 +267,6 @@ $.plugin ->
 		Element::matchesSelector = Element::webkitMatchesSelector or
 			Element::mozMatchesSelector or
 			Element::matchesSelector
-		if Element::cloneNode.length is 0
-			oldClone = Element::cloneNode
-			Element::cloneNode = (deep = false) ->
-				n = oldClone.call(@)
-				if deep
-					for i in @childNodes
-						n.appendChild i.cloneNode true
-				return n
 	return { }
 $.plugin
 	provides: 'config'

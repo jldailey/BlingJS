@@ -1480,6 +1480,7 @@ $.plugin
 					timeout: 0 # milliseconds, 0 is forever
 					followRedirects: false
 					withCredentials: false
+					headers: {}
 				}, opts
 				opts.state = $.bound(xhr, opts.state)
 				opts.success = $.bound(xhr, opts.success)
@@ -1501,6 +1502,8 @@ $.plugin
 								opts.success xhr.responseText
 							else
 								opts.error xhr.status, xhr.statusText
+				for k,v of opts.headers
+					xhr.setRequestHeader k, v
 				xhr.send opts.data
 				return $(xhr)
 			post: (url, opts = {}) ->

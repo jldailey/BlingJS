@@ -1456,8 +1456,10 @@ $.plugin
 	provides: "http"
 , ->
 	formencode = (obj) -> # create &foo=bar strings from object properties
-		o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
-		("#{i}=#{escape o[i]}" for i of o).join "&"
+		return if $.is 'object', obj
+			o = JSON.parse JSON.stringify obj # quickly remove all non-stringable items
+			("#{i}=#{escape o[i]}" for i of o).join "&"
+		else obj
 	$.type.register "http",
 		match: (o) -> $.isType 'XMLHttpRequest', o
 		array: (o) -> [o]

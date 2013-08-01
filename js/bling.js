@@ -3088,15 +3088,19 @@
     var formencode;
     formencode = function(obj) {
       var i, o;
-      o = JSON.parse(JSON.stringify(obj));
-      return ((function() {
-        var _results;
-        _results = [];
-        for (i in o) {
-          _results.push("" + i + "=" + (escape(o[i])));
-        }
-        return _results;
-      })()).join("&");
+      if ($.is('object', obj)) {
+        o = JSON.parse(JSON.stringify(obj));
+        return ((function() {
+          var _results;
+          _results = [];
+          for (i in o) {
+            _results.push("" + i + "=" + (escape(o[i])));
+          }
+          return _results;
+        })()).join("&");
+      } else {
+        return obj;
+      }
     };
     $.type.register("http", {
       match: function(o) {

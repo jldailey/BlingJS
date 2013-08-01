@@ -15,6 +15,6 @@ echo Making new release: $2 from current release: $1... && \
 	echo Deploying site && \
 	git push &> dev/null && \
 	echo Publishing to github && \
-	git push github &> dev/null && \
+	git push github &> /dev/null && \
 	echo Publishing to npm && \
 	npm publish &> /dev/null

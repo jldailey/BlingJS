@@ -33,6 +33,7 @@ $.plugin
 					timeout: 0 # milliseconds, 0 is forever
 					followRedirects: false
 					withCredentials: false
+					headers: {}
 				}, opts
 				# Bind all the event handlers.
 				opts.state = $.bound(xhr, opts.state)
@@ -60,6 +61,8 @@ $.plugin
 								opts.success xhr.responseText
 							else
 								opts.error xhr.status, xhr.statusText
+				for k,v of opts.headers
+					xhr.setRequestHeader k, v
 				# Send the request body.
 				xhr.send opts.data
 				# Return the wrapped xhr object (for cancelling mostly)

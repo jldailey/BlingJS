@@ -3113,7 +3113,7 @@
     return {
       $: {
         http: function(url, opts) {
-          var xhr;
+          var k, v, xhr, _ref;
           if (opts == null) {
             opts = {};
           }
@@ -3133,7 +3133,8 @@
             asBlob: false,
             timeout: 0,
             followRedirects: false,
-            withCredentials: false
+            withCredentials: false,
+            headers: {}
           }, opts);
           opts.state = $.bound(xhr, opts.state);
           opts.success = $.bound(xhr, opts.success);
@@ -3162,6 +3163,11 @@
               }
             }
           });
+          _ref = opts.headers;
+          for (k in _ref) {
+            v = _ref[k];
+            xhr.setRequestHeader(k, v);
+          }
           xhr.send(opts.data);
           return $(xhr);
         },

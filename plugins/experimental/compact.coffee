@@ -1,44 +1,56 @@
-(($) ->
-	$.plugin
-		depends: "experimental"
-	, ->
-		pruners = {}
-		register = (type, f) -> (pruners[type] = f)
-		lookup = (obj) -> pruners[obj.t or obj.type]
-		stack = []
+$ = require 'bling'
 
-		$.type.extend null,        { compact: (o) -> $.toString(o) }
-		$.type.extend "undefined", { compact: (o) -> "" }
-		$.type.extend "null",      { compact: (o) -> "" }
-		$.type.extend "string",    { compact: $.identity }
-		$.type.extend "array",     { compact: (o) -> (Object.Compact(x) for x in o).join("") }
-		$.type.extend "bling",     { compact: (o) -> o.map(Object.Compact).join("") }
-		$.type.extend "object",    { compact: (o) -> Object.Compact(lookup(o)?.call o, o) }
+$.plugin
+	provides: "compact"
+	depends: "function"
+, ->
+	stack = []
+	compact = (o, opts) ->
+		stack.push(o)
+		try return $.type.lookup(o)?.compact(o, opts)
+		finally stack.pop()
+		return ""
 
-		Object.Compact = (o) ->
-			stack.push(o)
-			$.type.lookup(o)?.compact(o)
-			stack.pop()
-		$.extend Object.Compact,
-			register: register
-			lookup: lookup
+	$.type.extend null,       compact: $.toString
+	$.type.extend "undefined",compact: empty = (o) -> ""
+	$.type.extend "null",     compact: empty
+	$.type.extend "string",   compact: $.identity
+	$.type.extend "array",    compact: array_compact = (o, opts) -> (compact(x, opts) for x in o).join ''
+	$.type.extend "bling",    compact: array_compact
+	$.type.extend "function", compact: (f, opts) -> compact (f opts), opts
 
-		register 'page', -> [
-			"<!DOCTYPE html><html><head>",
-				@head,
-			"</head><body>",
-				@body,
-			"</body></html>"
-		]
-		register 'text', -> @EN
-		register 'link', ->
-			a = $(["<a"])
-			a.extend(" ",k,"='",@[k],"'") for k in ["href","name","target"] when k of @
-			a.extend(">",node.content,"</a>")
+	handlers = {}
+	register = (type, f) -> (handlers[type] = f)
+	$.type.extend "object",   compact: (o, opts) ->
+		try return compact handlers[o.t or o.type]?.call(o, o, opts), opts
+		catch err then return $.log "err:", err
 
-		$.assert(Object.Compact({ t: "page", head: [], body: {type: "text", EN: "Hello World"} }) is
-			"<!DOCTYPE html><html><head></head><body>Hello World</body></html>")
+	$.extend compact,
+		register: register
 
-		return { name: "Compact" }
-)(Bling)
+	register 'html', -> [
+		"<!DOCTYPE html><html><head>"
+			@head
+		"</head><body>"
+			@body
+		"</body></html>"
+	]
+	register 'text', (o, opts) ->
+		o[opts.lang ? "EN"]
+	register 'link', ->
+		a = $ ["<a"]
+		a.extend([" ",k,"='",@[k],"'"]) for k in ["href","name","target"] when k of @
+		a.extend [">",@content,"</a>"]
+	
+	return $: compact: (o, opts = {}) -> compact o, opts
 
+$.depends "compact", ->
+	$.log $.compact { t: "html", body: [
+		{ t: "text", EN: "Hello", FR: "Bonjour" }
+		"&nbsp;"
+		{ t: "link", href: "#home", content: [
+			{ t: "text", EN: "World", FR: "l'Monde" }
+		] }
+	] },
+	{ lang: "FR" }
+	

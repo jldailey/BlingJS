@@ -56,6 +56,12 @@ $.plugin
 		# When classifying an object, this array of names will control
 		# the order of the calls to `match` (and thus, the _type precedence_).
 		order = []
+		_with_cache = {} # for fast lookups of every type with a certain method { method: [ types ] }
+		_with_insert = (method, type) ->
+			a = (_with_cache[method] or= [])
+			if (i = a.indexOf type) is -1
+				a.push type
+			
 
 		# When adding a new type to the regisry:
 		register = (name, data) ->
@@ -65,6 +71,8 @@ $.plugin
 			cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
 			# * Fill-in the identity conversion (from name to name).
 			cache[name][name] = (o) -> o
+			for key of cache[name]
+				_with_insert key, cache[name]
 
 		# Later, plugins can `extend` previously registered types with new
 		# functionality.
@@ -73,8 +81,10 @@ $.plugin
 			if typeof name is "string"
 				# But, if you attempt to extend a type that was not registered yet,
 				# it will be automatically registered.
-				cache[name] ?= register name, {}
+				cache[name] or= register name, {}
 				cache[name] = extend cache[name], data
+				for method of data
+					_with_insert method, cache[name]
 			# But you can also extend a bunch of types at once, by passing a
 			# 2-level deep object, where the first level of keys are type
 			# names and the second level of keys are objects full of
@@ -116,8 +126,10 @@ $.plugin
 			register: register
 			lookup: lookup
 			extend: _extend
+			get: (t) -> cache[t]
 			is: (t, o) -> cache[t]?.match.call o, o
 			as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
+			with: (f) -> _with_cache[f]
 
 		# Example: Calling $.type directly will get you the simple name of the
 		# best match.

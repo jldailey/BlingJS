@@ -25,7 +25,7 @@ $.plugin
 
 		# Given a set of async functions, call them all at once,
 		# when they are all finished, fin (the final callback) is given the set of results
-		parallel: (fin) ->
+		parallel: (fin = $.identity) ->
 			ret = $()
 			todo = @length
 			unless todo > 0

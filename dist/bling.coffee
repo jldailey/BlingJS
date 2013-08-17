@@ -156,7 +156,7 @@ $.plugin
 				else next(done)
 			do next = (i=0) => $.immediate => @[i](finish_one(i))
 			return @
-		parallel: (fin) ->
+		parallel: (fin = $.identity) ->
 			ret = $()
 			todo = @length
 			unless todo > 0
@@ -239,6 +239,53 @@ $.plugin
 				null
 			helper [], -1
 			return $(ret)
+$.plugin
+	provides: "compact"
+	depends: "function"
+, ->
+	compact = (o, opts) ->
+		types = $.type.with('compact')
+		for t in types when t.match.call o, o
+			return t.compact o, opts
+		""
+	$.type.extend null,       compact: default_compact = $.toString
+	$.type.extend "undefined",compact: null_compact = (o) -> ""
+	$.type.extend "null",     compact: null_compact
+	$.type.extend "string",   compact: $.identity
+	$.type.extend "array",    compact: array_compact = (o, opts) -> (compact(x, opts) for x in o).join('')
+	$.type.extend "bling",    compact: array_compact
+	$.type.extend "function", compact: func_compact = (f, opts) -> f opts
+	handlers = {}
+	register = (type, f) -> (handlers[type] = f)
+	$.type.extend "object",   compact: object_compact = (o, opts) ->
+		compact handlers[o.t or o.type]?.call(o, o, opts), opts
+	register 'html', -> [
+		"<!DOCTYPE html><html><head>"
+			@head
+		"</head><body>"
+			@body
+		"</body></html>"
+	]
+	register 'text', (o, opts) ->
+		o[opts.lang ? "EN"]
+	register 'link', -> [
+		"<a"
+			[" ",k,"='",@[k],"'"] for k in ["href","name","target"] when k of @
+		">",@content,"</a>"
+	]
+	register 'let', (o, opts) ->
+		save = opts[o.name]
+		opts[o.name] = o.value
+		try return compact o.content, opts
+		finally
+			if save?
+				opts[o.name] = save
+			else delete opts[o.name]
+	register 'get', (o, opts) -> opts[o.name]
+	
+	return $: compact: $.extend ((o, opts = {}) -> compact o, opts), {
+		register: register
+	}
 $.plugin ->
 	String::trimLeft or= -> @replace(/^\s+/, "")
 	String::split or= (sep) ->
@@ -498,6 +545,10 @@ $.plugin
 			@__proto__ = Array::
 			@ # no copies, yay?
 		clear: -> @splice 0, @length
+		indexWhere: (f) ->
+			for x,i in @
+				return i if (f.call x,x)
+			return -1
 	}
 $.plugin
 	provides: "css,CSS"
@@ -2174,6 +2225,12 @@ $.plugin
 				while (i = name?.indexOf('-')) > -1
 					name = $.stringSplice(name, i, i+2, name[i+1].toUpperCase())
 				name
+			commaize: (num, comma=',',dot='.') ->
+				s = String(num)
+				[a, b] = s.split dot
+				if a.length > 3
+					a = $.stringReverse $.stringReverse(a).match(/\d{1,3}/g).join()
+				return if b? then "#{a}.#{b}" else a
 			padLeft: (s, n, c = " ") ->
 				while s.length < n
 					s = c + s
@@ -2204,6 +2261,8 @@ $.plugin
 				if start < 0
 					start += nn
 				s.substring(0,start) + n + s.substring(end)
+			
+			stringReverse: (s) -> s.split(//).reverse().join('')
 			checksum: (s) ->
 				a = 1; b = 0
 				for i in [0...s.length]
@@ -2806,14 +2865,24 @@ $.plugin
 			name: 'unknown'
 			match: (o) -> true
 		order = []
+		_with_cache = {} # for fast lookups of every type with a certain method { method: [ types ] }
+		_with_insert = (method, type) ->
+			a = (_with_cache[method] or= [])
+			if (i = a.indexOf type) is -1
+				a.push type
+			
 		register = (name, data) ->
 			order.unshift name if not (name of cache)
 			cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
 			cache[name][name] = (o) -> o
+			for key of cache[name]
+				_with_insert key, cache[name]
 		_extend = (name, data) ->
 			if typeof name is "string"
-				cache[name] ?= register name, {}
+				cache[name] or= register name, {}
 				cache[name] = extend cache[name], data
+				for method of data
+					_with_insert method, cache[name]
 			else if typeof name is "object"
 				(_extend k, name[k]) for k of name
 		lookup = (obj) ->
@@ -2837,8 +2906,10 @@ $.plugin
 			register: register
 			lookup: lookup
 			extend: _extend
+			get: (t) -> cache[t]
 			is: (t, o) -> cache[t]?.match.call o, o
 			as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
+			with: (f) -> _with_cache[f]
 	_type.extend
 		unknown:   { array: (o) -> [o] }
 		null:      { array: (o) -> [] }
@@ -2992,62 +3063,6 @@ $.plugin
 			@map (x) ->
 				f.call((n = parseFloat x), n) + parseUnits x
 	}
-$.plugin
-	provides: "unittest"
-	depends: "core,function"
-, ->
-	testCount = passCount = failCount = 0
-	failed = []
-	invokeTest = (group, name, func) ->
-		return if not $.is "function", func
-		_log = (msg) -> $.log "#{group}: #{name}... #{msg}"
-		shouldFail = name.toLowerCase().indexOf("fail") isnt -1
-		done = $.once (err) ->
-			testCount--
-			if (!!err isnt shouldFail)
-				_log "fail: #{err}"
-				failCount++
-				failed.push name
-			else
-				_log "pass"
-				passCount++
-				$.provide name
-		f = (done) ->
-			try func(done)
-			catch err then done(err)
-			finally
-				if name.toLowerCase().indexOf("async") is -1 then done()
-		testCount++
-		try f(done)
-		catch err then done(err)
-	testReport = $.once ->
-		$.log "Passed: #{passCount} Failed: #{failCount} [#{failed}]"
-		if failCount > 0
-			try process.exit(failCount)
-	$:
-		approx: (a, b, margin=.1) -> Math.abs(a - b) < margin
-		assert: (cnd, msg = "no message") -> if not cnd then throw new Error "Assertion failed: #{msg}"
-		assertEqual: (a, b, label) ->
-			if a isnt b
-				throw Error "#{label or ''} (#{a?.toString()}) should equal (#{b?.toString()})"
-		assertArrayEqual: (a, b, label) ->
-			for i in [0...a.length] by 1
-				try
-					$.assertEqual(a[i], b[i], label)
-				catch err
-					throw Error "#{label or ''} #{a?.toString()} should equal #{b?.toString()}"
-		testGroup: (name, funcs) ->
-			interval = setInterval (-> if testCount is 0 then clearInterval(interval); testReport()), 50
-			for k,func of funcs
-				invokeTest(name, k, func)
-	assertEqual: (args...) ->
-		if args.length > 1 # short-cut the trivial cases
-			args = args.map (x) => # call any functions passed as arguments
-				if $.is "function", x then x.call(@,@) else x
-			a = args[0]
-			for i in [1...args.length]
-				$.assertEqual a, args[i]
-		return @
 $.plugin
 	provides: "url,URL"
 , ->

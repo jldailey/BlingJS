@@ -355,6 +355,9 @@
       },
       parallel: function(fin) {
         var done, finish_one, i, ret, todo, _i, _results;
+        if (fin == null) {
+          fin = $.identity;
+        }
         ret = $();
         todo = this.length;
         if (!(todo > 0)) {
@@ -507,6 +510,123 @@
           helper([], -1);
           return $(ret);
         }
+      }
+    };
+  });
+
+  $.plugin({
+    provides: "compact",
+    depends: "function"
+  }, function() {
+    var array_compact, compact, default_compact, func_compact, handlers, null_compact, object_compact, register;
+    compact = function(o, opts) {
+      var t, types, _i, _len;
+      types = $.type["with"]('compact');
+      for (_i = 0, _len = types.length; _i < _len; _i++) {
+        t = types[_i];
+        if (t.match.call(o, o)) {
+          return t.compact(o, opts);
+        }
+      }
+      return "";
+    };
+    $.type.extend(null, {
+      compact: default_compact = $.toString
+    });
+    $.type.extend("undefined", {
+      compact: null_compact = function(o) {
+        return "";
+      }
+    });
+    $.type.extend("null", {
+      compact: null_compact
+    });
+    $.type.extend("string", {
+      compact: $.identity
+    });
+    $.type.extend("array", {
+      compact: array_compact = function(o, opts) {
+        var x;
+        return ((function() {
+          var _i, _len, _results;
+          _results = [];
+          for (_i = 0, _len = o.length; _i < _len; _i++) {
+            x = o[_i];
+            _results.push(compact(x, opts));
+          }
+          return _results;
+        })()).join('');
+      }
+    });
+    $.type.extend("bling", {
+      compact: array_compact
+    });
+    $.type.extend("function", {
+      compact: func_compact = function(f, opts) {
+        return f(opts);
+      }
+    });
+    handlers = {};
+    register = function(type, f) {
+      return handlers[type] = f;
+    };
+    $.type.extend("object", {
+      compact: object_compact = function(o, opts) {
+        var _ref;
+        return compact((_ref = handlers[o.t || o.type]) != null ? _ref.call(o, o, opts) : void 0, opts);
+      }
+    });
+    register('html', function() {
+      return ["<!DOCTYPE html><html><head>", this.head, "</head><body>", this.body, "</body></html>"];
+    });
+    register('text', function(o, opts) {
+      var _ref;
+      return o[(_ref = opts.lang) != null ? _ref : "EN"];
+    });
+    register('link', function() {
+      var k;
+      return [
+        "<a", (function() {
+          var _i, _len, _ref, _results;
+          _ref = ["href", "name", "target"];
+          _results = [];
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            k = _ref[_i];
+            if (k in this) {
+              _results.push([" ", k, "='", this[k], "'"]);
+            }
+          }
+          return _results;
+        }).call(this), ">", this.content, "</a>"
+      ];
+    });
+    register('let', function(o, opts) {
+      var save;
+      save = opts[o.name];
+      opts[o.name] = o.value;
+      try {
+        return compact(o.content, opts);
+      } finally {
+        if (save != null) {
+          opts[o.name] = save;
+        } else {
+          delete opts[o.name];
+        }
+      }
+    });
+    register('get', function(o, opts) {
+      return opts[o.name];
+    });
+    return {
+      $: {
+        compact: $.extend((function(o, opts) {
+          if (opts == null) {
+            opts = {};
+          }
+          return compact(o, opts);
+        }), {
+          register: register
+        })
       }
     };
   });
@@ -1181,6 +1301,16 @@
       },
       clear: function() {
         return this.splice(0, this.length);
+      },
+      indexWhere: function(f) {
+        var i, x, _i, _len;
+        for (i = _i = 0, _len = this.length; _i < _len; i = ++_i) {
+          x = this[i];
+          if (f.call(x, x)) {
+            return i;
+          }
+        }
+        return -1;
       }
     };
   });
@@ -4581,6 +4711,25 @@
           }
           return name;
         },
+        commaize: function(num, comma, dot) {
+          var a, b, s, _ref;
+          if (comma == null) {
+            comma = ',';
+          }
+          if (dot == null) {
+            dot = '.';
+          }
+          s = String(num);
+          _ref = s.split(dot), a = _ref[0], b = _ref[1];
+          if (a.length > 3) {
+            a = $.stringReverse($.stringReverse(a).match(/\d{1,3}/g).join());
+          }
+          if (b != null) {
+            return "" + a + "." + b;
+          } else {
+            return a;
+          }
+        },
         padLeft: function(s, n, c) {
           if (c == null) {
             c = " ";
@@ -4641,6 +4790,9 @@
             start += nn;
           }
           return s.substring(0, start) + n + s.substring(end);
+        },
+        stringReverse: function(s) {
+          return s.split(/(?:)/).reverse().join('');
         },
         checksum: function(s) {
           var a, b, i, _i, _ref;
@@ -5641,7 +5793,7 @@
       }
     };
     _type = (function() {
-      var base, cache, lookup, order, register, _extend;
+      var base, cache, lookup, order, register, _extend, _with_cache, _with_insert;
       cache = {};
       base = {
         name: 'unknown',
@@ -5650,28 +5802,45 @@
         }
       };
       order = [];
+      _with_cache = {};
+      _with_insert = function(method, type) {
+        var a, i;
+        a = (_with_cache[method] || (_with_cache[method] = []));
+        if ((i = a.indexOf(type)) === -1) {
+          return a.push(type);
+        }
+      };
       register = function(name, data) {
+        var key, _results;
         if (!(name in cache)) {
           order.unshift(name);
         }
         cache[data.name = name] = base !== data ? inherit(base, data) : data;
-        return cache[name][name] = function(o) {
+        cache[name][name] = function(o) {
           return o;
         };
+        _results = [];
+        for (key in cache[name]) {
+          _results.push(_with_insert(key, cache[name]));
+        }
+        return _results;
       };
       _extend = function(name, data) {
-        var k, _results;
+        var k, method, _results, _results1;
         if (typeof name === "string") {
-          if (cache[name] == null) {
-            cache[name] = register(name, {});
-          }
-          return cache[name] = extend(cache[name], data);
-        } else if (typeof name === "object") {
+          cache[name] || (cache[name] = register(name, {}));
+          cache[name] = extend(cache[name], data);
           _results = [];
-          for (k in name) {
-            _results.push(_extend(k, name[k]));
+          for (method in data) {
+            _results.push(_with_insert(method, cache[name]));
           }
           return _results;
+        } else if (typeof name === "object") {
+          _results1 = [];
+          for (k in name) {
+            _results1.push(_extend(k, name[k]));
+          }
+          return _results1;
         }
       };
       lookup = function(obj) {
@@ -5757,6 +5926,9 @@
         register: register,
         lookup: lookup,
         extend: _extend,
+        get: function(t) {
+          return cache[t];
+        },
         is: function(t, o) {
           var _ref;
           return (_ref = cache[t]) != null ? _ref.match.call(o, o) : void 0;
@@ -5765,6 +5937,9 @@
           var o, rest, t, _base;
           t = arguments[0], o = arguments[1], rest = 3 <= arguments.length ? __slice.call(arguments, 2) : [];
           return typeof (_base = lookup(o))[t] === "function" ? _base[t].apply(_base, [o].concat(__slice.call(rest))) : void 0;
+        },
+        "with": function(f) {
+          return _with_cache[f];
         }
       });
     })();
@@ -6113,135 +6288,6 @@
           var n;
           return f.call((n = parseFloat(x)), n) + parseUnits(x);
         });
-      }
-    };
-  });
-
-  $.plugin({
-    provides: "unittest",
-    depends: "core,function"
-  }, function() {
-    var failCount, failed, invokeTest, passCount, testCount, testReport;
-    testCount = passCount = failCount = 0;
-    failed = [];
-    invokeTest = function(group, name, func) {
-      var done, err, f, shouldFail, _log;
-      if (!$.is("function", func)) {
-        return;
-      }
-      _log = function(msg) {
-        return $.log("" + group + ": " + name + "... " + msg);
-      };
-      shouldFail = name.toLowerCase().indexOf("fail") !== -1;
-      done = $.once(function(err) {
-        testCount--;
-        if (!!err !== shouldFail) {
-          _log("fail: " + err);
-          failCount++;
-          return failed.push(name);
-        } else {
-          _log("pass");
-          passCount++;
-          return $.provide(name);
-        }
-      });
-      f = function(done) {
-        var err;
-        try {
-          return func(done);
-        } catch (_error) {
-          err = _error;
-          return done(err);
-        } finally {
-          if (name.toLowerCase().indexOf("async") === -1) {
-            done();
-          }
-        }
-      };
-      testCount++;
-      try {
-        return f(done);
-      } catch (_error) {
-        err = _error;
-        return done(err);
-      }
-    };
-    testReport = $.once(function() {
-      $.log("Passed: " + passCount + " Failed: " + failCount + " [" + failed + "]");
-      if (failCount > 0) {
-        try {
-          return process.exit(failCount);
-        } catch (_error) {}
-      }
-    });
-    return {
-      $: {
-        approx: function(a, b, margin) {
-          if (margin == null) {
-            margin = .1;
-          }
-          return Math.abs(a - b) < margin;
-        },
-        assert: function(cnd, msg) {
-          if (msg == null) {
-            msg = "no message";
-          }
-          if (!cnd) {
-            throw new Error("Assertion failed: " + msg);
-          }
-        },
-        assertEqual: function(a, b, label) {
-          if (a !== b) {
-            throw Error("" + (label || '') + " (" + (a != null ? a.toString() : void 0) + ") should equal (" + (b != null ? b.toString() : void 0) + ")");
-          }
-        },
-        assertArrayEqual: function(a, b, label) {
-          var err, i, _i, _ref, _results;
-          _results = [];
-          for (i = _i = 0, _ref = a.length; _i < _ref; i = _i += 1) {
-            try {
-              _results.push($.assertEqual(a[i], b[i], label));
-            } catch (_error) {
-              err = _error;
-              throw Error("" + (label || '') + " " + (a != null ? a.toString() : void 0) + " should equal " + (b != null ? b.toString() : void 0));
-            }
-          }
-          return _results;
-        },
-        testGroup: function(name, funcs) {
-          var func, interval, k, _results;
-          interval = setInterval((function() {
-            if (testCount === 0) {
-              clearInterval(interval);
-              return testReport();
-            }
-          }), 50);
-          _results = [];
-          for (k in funcs) {
-            func = funcs[k];
-            _results.push(invokeTest(name, k, func));
-          }
-          return _results;
-        }
-      },
-      assertEqual: function() {
-        var a, args, i, _i, _ref,
-          _this = this;
-        args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-        if (args.length > 1) {
-          args = args.map(function(x) {
-            if ($.is("function", x)) {
-              return x.call(_this, _this);
-            } else {
-              return x;
-            }
-          });
-          a = args[0];
-          for (i = _i = 1, _ref = args.length; 1 <= _ref ? _i < _ref : _i > _ref; i = 1 <= _ref ? ++_i : --_i) {
-            $.assertEqual(a, args[i]);
-          }
-        }
-        return this;
       }
     };
   });

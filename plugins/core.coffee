@@ -355,4 +355,10 @@ $.plugin
 		# Remove all items
 		clear: -> @splice 0, @length
 
+		# Find the index of the first item that matches
+		indexWhere: (f) ->
+			for x,i in @
+				return i if (f.call x,x)
+			return -1
+
 	}

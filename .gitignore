@@ -13,3 +13,4 @@ js/*
 web.config
 node_modules
 test/*.pass
+bench/*.time

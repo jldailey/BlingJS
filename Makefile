@@ -7,12 +7,17 @@ COFFEE=node_modules/.bin/coffee
 JLDOM=node_modules/jldom
 MOCHA=node_modules/.bin/mocha
 MOCHA_OPTS=--compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R dot
+WATCH="coffee watch.coffee"
 
 TEST_FILES=$(shell ls test/*.coffee | grep -v setup.coffee )
 PASS_FILES=$(subst .coffee,.coffee.pass,$(shell ls test/*.coffee | grep -v setup.coffee ))
+TIME_FILES=$(subst .coffee,.coffee.time,$(shell ls bench/*.coffee | grep -v setup.coffee ))
 
 
 all: dist report
+
+watch: dist
+	coffee watch.coffee -i -- '.coffee' -- make test
 
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
@@ -26,6 +31,13 @@ test/bling.coffee.pass: test/bling.coffee bling.coffee
 test/%.coffee.pass: test/%.coffee plugins/%.coffee bling.coffee
 	@echo Running $<
 	@$(MOCHA) $(MOCHA_OPTS) $< && touch $@
+
+bench: dist $(TIME_FILES)
+	@echo "All benchmarks are complete."
+
+bench/%.coffee.time: bench/%.coffee plugins/%.coffee test/%.coffee.pass bench/setup.coffee bling.coffee Makefile
+	@echo Running $<
+	@$(COFFEE) $< | tee $@
 
 site: test
 	@git stash save &> /dev/null

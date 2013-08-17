@@ -76,6 +76,13 @@ describe "String plugin:", ->
 			assert.equal $.camelize("foo-bar"), "fooBar"
 		it "converts all dashed letter to captials", ->
 			assert.equal $.camelize("-foo-bar"), "FooBar"
+	describe ".commaize", ->
+		it "adds comma to long numbers", ->
+			assert.equal $.commaize(1004023), "1,004,023"
+		it "works with floating point numbers", ->
+			assert.equal $.commaize(4267.5398), "4,267.5398"
+		it "works with really long numbers", ->
+			assert.equal $.commaize(1234567890), "1,234,567,890"
 	describe ".slugize", ->
 		it "converts a phrase to a slug", ->
 			assert.equal $.slugize("foo bar"), "foo-bar"

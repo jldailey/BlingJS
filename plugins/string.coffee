@@ -113,6 +113,14 @@ $.plugin
 					name = $.stringSplice(name, i, i+2, name[i+1].toUpperCase())
 				name
 
+			# Add decorative commas to long numbers
+			commaize: (num, comma=',',dot='.') ->
+				s = String(num)
+				[a, b] = s.split dot
+				if a.length > 3
+					a = $.stringReverse $.stringReverse(a).match(/\d{1,3}/g).join()
+				return if b? then "#{a}.#{b}" else a
+
 			# Fill the left side of a string to make it a fixed width.
 			padLeft: (s, n, c = " ") ->
 				while s.length < n
@@ -153,6 +161,8 @@ $.plugin
 				if start < 0
 					start += nn
 				s.substring(0,start) + n + s.substring(end)
+			
+			stringReverse: (s) -> s.split(//).reverse().join('')
 
 			# __$.checksum(s)__ computes the Adler32 checksum of a string.
 			checksum: (s) ->

@@ -26,6 +26,13 @@ describe "Type plugin:", ->
 			it "'regexp'", -> assert $.is "regexp", /^$/
 			it "'window'", -> assert $.is "global", window
 			it "'arguments'", -> assert $.is "arguments", arguments
+	
+	describe ".with()", ->
+		$.type.extend 'object', blerg: -> "blerg"
+		$.type.extend 'array', blerg: -> "blurg"
+
+		it "selects type with a given method", ->
+			assert.deepEqual $($.type.with 'blerg').select('name'), [ 'object', 'array' ]
 
 	describe ".inherit(a,b)", ->
 		it "should set b's __proto__ to a", ->

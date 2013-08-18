@@ -12,7 +12,7 @@ describe "Sort plugin:", ->
 		it "can use a field for comparison", ->
 			assert.equal $.sortedIndex([{a:1},{a:2},{a:4}], {a:3}, 'a'), 2
 		it "can use a comparison function", ->
-			assert.equal $.sortedIndex([1,2,4], 3, null, (x)->Math.pow(x,2)), 2
+			assert.equal $.sortedIndex([1,2,4], 3, (x)->Math.pow(x,2)), 2
 
 	describe ".sortBy(field,cmp)", ->
 		it "can sort", ->

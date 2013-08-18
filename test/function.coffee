@@ -1,6 +1,19 @@
 [$, assert] = require './setup'
 
 describe "Functions plugin:", ->
+	describe ".identity()", ->
+		it "should be a function", -> assert $.is "function", $.identity
+		it "should echo anything", -> assert.equal $.identity(a = {}), a
+
+	describe ".bound()", ->
+		f = -> @value
+		a = value:'a'
+		b = value:'b'
+		it "binding to a should return a's value", ->
+			assert.equal do $.bound(a, f), 'a'
+		it "binding to b should return b's value", ->
+			assert.equal do $.bound(b, f), 'b'
+
 	describe ".call()", ->
 		it "calls every function in the set", ->
 			assert.deepEqual $([((x) -> x*2), ((x) -> x*x)]).call(4), [8, 16]

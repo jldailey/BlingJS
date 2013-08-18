@@ -222,6 +222,103 @@
   });
 
   $.plugin({
+    provides: "StateMachine",
+    depends: "type"
+  }, function() {
+    var StateMachine;
+    return {
+      $: {
+        StateMachine: StateMachine = (function() {
+          var go;
+
+          function StateMachine(stateTable) {
+            this.debug = false;
+            this.reset();
+            this.table = stateTable;
+            Object.defineProperty(this, "modeline", {
+              get: function() {
+                return this.table[this._mode];
+              }
+            });
+            Object.defineProperty(this, "mode", {
+              set: function(m) {
+                var ret;
+                this._lastMode = this._mode;
+                this._mode = m;
+                if (this._mode !== this._lastMode && (this.modeline != null) && 'enter' in this.modeline) {
+                  ret = this.modeline['enter'].call(this);
+                  while ($.is("function", ret)) {
+                    ret = ret.call(this);
+                  }
+                }
+                return m;
+              },
+              get: function() {
+                return this._mode;
+              }
+            });
+          }
+
+          StateMachine.prototype.reset = function() {
+            this._mode = null;
+            return this._lastMode = null;
+          };
+
+          StateMachine.prototype.GO = go = function(m, enter) {
+            if (enter == null) {
+              enter = false;
+            }
+            return function() {
+              if (enter) {
+                this._mode = null;
+              }
+              return this.mode = m;
+            };
+          };
+
+          StateMachine.GO = go;
+
+          StateMachine.prototype.tick = function(c) {
+            var ret, row;
+            row = this.modeline;
+            if (row == null) {
+              ret = null;
+            } else if (c in row) {
+              ret = row[c];
+            } else if ('def' in row) {
+              ret = row['def'];
+            }
+            while ($.is("function", ret)) {
+              ret = ret.call(this, c);
+            }
+            return ret;
+          };
+
+          StateMachine.prototype.run = function(inputs) {
+            var c, ret, _i, _len, _ref;
+            this.mode = 0;
+            for (_i = 0, _len = inputs.length; _i < _len; _i++) {
+              c = inputs[_i];
+              ret = this.tick(c);
+            }
+            if ($.is("function", (_ref = this.modeline) != null ? _ref.eof : void 0)) {
+              ret = this.modeline.eof.call(this);
+            }
+            while ($.is("function", ret)) {
+              ret = ret.call(this);
+            }
+            this.reset();
+            return this;
+          };
+
+          return StateMachine;
+
+        })()
+      }
+    };
+  });
+
+  $.plugin({
     depends: "core",
     provides: "async"
   }, function() {
@@ -258,6 +355,9 @@
       },
       parallel: function(fin) {
         var done, finish_one, i, ret, todo, _i, _results;
+        if (fin == null) {
+          fin = $.identity;
+        }
         ret = $();
         todo = this.length;
         if (!(todo > 0)) {
@@ -278,6 +378,109 @@
           _results.push(this[i](finish_one(i)));
         }
         return _results;
+      }
+    };
+  });
+
+  $.plugin({
+    provides: "cache",
+    depends: "core, sortBy"
+  }, function() {
+    var EffCache;
+    EffCache = (function() {
+      var log;
+
+      log = $.logger("[LRU]");
+
+      function EffCache(capacity) {
+        var autoEvict, eff, index, noValue, order, reIndex, rePosition,
+          _this = this;
+        this.capacity = capacity != null ? capacity : 1000;
+        this.capacity = Math.max(1, this.capacity);
+        this.evictCount = Math.max(3, Math.floor(this.capacity * .1));
+        index = Object.create(null);
+        order = [];
+        eff = function(o) {
+          return -o.r / o.w;
+        };
+        autoEvict = function() {
+          var k;
+          if (order.length >= _this.capacity) {
+            while (order.length + _this.evictCount - 1 >= _this.capacity) {
+              delete index[k = order.pop().k];
+            }
+          }
+          return null;
+        };
+        reIndex = function(i, j) {
+          var x, _i;
+          for (x = _i = i; i <= j ? _i <= j : _i >= j; x = i <= j ? ++_i : --_i) {
+            index[order[x].k] = x;
+          }
+          return null;
+        };
+        rePosition = function(i) {
+          var j, obj;
+          obj = order[i];
+          j = $.sortedIndex(order, obj, eff);
+          if (j !== i) {
+            order.splice(i, 1);
+            order.splice(j, 0, obj);
+            reIndex(i, j);
+          }
+          return null;
+        };
+        noValue = {
+          v: void 0
+        };
+        $.extend(this, {
+          debug: function() {
+            return order;
+          },
+          has: function(k) {
+            return k in index;
+          },
+          set: function(k, v) {
+            var d, i, item;
+            if (k in index) {
+              d = order[i = index[k]];
+              d.v = v;
+              d.w += 1;
+              rePosition(i);
+            } else {
+              autoEvict();
+              item = {
+                k: k,
+                v: v,
+                r: 0,
+                w: 1
+              };
+              i = $.sortedIndex(order, item, eff);
+              order.splice(i, 0, item);
+              reIndex(i, order.length - 1);
+            }
+            return v;
+          },
+          get: function(k) {
+            var i, ret;
+            ret = noValue;
+            if (k in index) {
+              i = index[k];
+              ret = order[i];
+              ret.r += 1;
+              rePosition(i);
+            }
+            return ret.v;
+          }
+        });
+      }
+
+      return EffCache;
+
+    })();
+    return {
+      $: {
+        Cache: $.extend(EffCache, new EffCache(10000))
       }
     };
   });
@@ -311,8 +514,125 @@
     };
   });
 
+  $.plugin({
+    provides: "compact",
+    depends: "function"
+  }, function() {
+    var array_compact, compact, default_compact, func_compact, handlers, null_compact, object_compact, register;
+    compact = function(o, opts) {
+      var t, types, _i, _len;
+      types = $.type["with"]('compact');
+      for (_i = 0, _len = types.length; _i < _len; _i++) {
+        t = types[_i];
+        if (t.match.call(o, o)) {
+          return t.compact(o, opts);
+        }
+      }
+      return "";
+    };
+    $.type.extend(null, {
+      compact: default_compact = $.toString
+    });
+    $.type.extend("undefined", {
+      compact: null_compact = function(o) {
+        return "";
+      }
+    });
+    $.type.extend("null", {
+      compact: null_compact
+    });
+    $.type.extend("string", {
+      compact: $.identity
+    });
+    $.type.extend("array", {
+      compact: array_compact = function(o, opts) {
+        var x;
+        return ((function() {
+          var _i, _len, _results;
+          _results = [];
+          for (_i = 0, _len = o.length; _i < _len; _i++) {
+            x = o[_i];
+            _results.push(compact(x, opts));
+          }
+          return _results;
+        })()).join('');
+      }
+    });
+    $.type.extend("bling", {
+      compact: array_compact
+    });
+    $.type.extend("function", {
+      compact: func_compact = function(f, opts) {
+        return f(opts);
+      }
+    });
+    handlers = {};
+    register = function(type, f) {
+      return handlers[type] = f;
+    };
+    $.type.extend("object", {
+      compact: object_compact = function(o, opts) {
+        var _ref;
+        return compact((_ref = handlers[o.t || o.type]) != null ? _ref.call(o, o, opts) : void 0, opts);
+      }
+    });
+    register('html', function() {
+      return ["<!DOCTYPE html><html><head>", this.head, "</head><body>", this.body, "</body></html>"];
+    });
+    register('text', function(o, opts) {
+      var _ref;
+      return o[(_ref = opts.lang) != null ? _ref : "EN"];
+    });
+    register('link', function() {
+      var k;
+      return [
+        "<a", (function() {
+          var _i, _len, _ref, _results;
+          _ref = ["href", "name", "target"];
+          _results = [];
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            k = _ref[_i];
+            if (k in this) {
+              _results.push([" ", k, "='", this[k], "'"]);
+            }
+          }
+          return _results;
+        }).call(this), ">", this.content, "</a>"
+      ];
+    });
+    register('let', function(o, opts) {
+      var save;
+      save = opts[o.name];
+      opts[o.name] = o.value;
+      try {
+        return compact(o.content, opts);
+      } finally {
+        if (save != null) {
+          opts[o.name] = save;
+        } else {
+          delete opts[o.name];
+        }
+      }
+    });
+    register('get', function(o, opts) {
+      return opts[o.name];
+    });
+    return {
+      $: {
+        compact: $.extend((function(o, opts) {
+          if (opts == null) {
+            opts = {};
+          }
+          return compact(o, opts);
+        }), {
+          register: register
+        })
+      }
+    };
+  });
+
   $.plugin(function() {
-    var oldClone, _base, _base1, _base2, _base3;
+    var _base, _base1, _base2, _base3;
     (_base = String.prototype).trimLeft || (_base.trimLeft = function() {
       return this.replace(/^\s+/, "");
     });
@@ -361,24 +681,6 @@
     }
     if (typeof Element !== "undefined" && Element !== null) {
       Element.prototype.matchesSelector = Element.prototype.webkitMatchesSelector || Element.prototype.mozMatchesSelector || Element.prototype.matchesSelector;
-      if (Element.prototype.cloneNode.length === 0) {
-        oldClone = Element.prototype.cloneNode;
-        Element.prototype.cloneNode = function(deep) {
-          var i, n, _i, _len, _ref;
-          if (deep == null) {
-            deep = false;
-          }
-          n = oldClone.call(this);
-          if (deep) {
-            _ref = this.childNodes;
-            for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-              i = _ref[_i];
-              n.appendChild(i.cloneNode(true));
-            }
-          }
-          return n;
-        };
-      }
     }
     return {};
   });
@@ -777,9 +1079,16 @@
         }
         return this;
       },
-      clean: function(prop) {
+      clean: function() {
+        var props;
+        props = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
         return this.each(function() {
-          return delete this[prop];
+          var prop, _i, _len;
+          for (_i = 0, _len = props.length; _i < _len; _i++) {
+            prop = props[_i];
+            delete this[prop];
+          }
+          return null;
         });
       },
       take: function(n) {
@@ -992,6 +1301,16 @@
       },
       clear: function() {
         return this.splice(0, this.length);
+      },
+      indexWhere: function(f) {
+        var i, x, _i, _len;
+        for (i = _i = 0, _len = this.length; _i < _len; i = ++_i) {
+          x = this[i];
+          if (f.call(x, x)) {
+            return i;
+          }
+        }
+        return -1;
       }
     };
   });
@@ -1470,10 +1789,10 @@
           };
         })(),
         immediate: (function() {
-          switch (true) {
-            case 'setImmediate' in $.global:
+          switch (false) {
+            case !('setImmediate' in $.global):
               return $.global.setImmediate;
-            case (typeof process !== "undefined" && process !== null ? process.nextTick : void 0) != null:
+            case (typeof process !== "undefined" && process !== null ? process.nextTick : void 0) == null:
               return process.nextTick;
             default:
               return function(f) {
@@ -1657,10 +1976,10 @@
     lev = function(s, i, n, t, j, m, dw, iw, sw) {
       var _name, _name1;
       return lev_memo[_name = [s, i, n, t, j, m, dw, iw, sw]] != null ? lev_memo[_name = [s, i, n, t, j, m, dw, iw, sw]] : lev_memo[_name] = lev_memo[_name1 = [t, j, m, s, i, n, dw, iw, sw]] != null ? lev_memo[_name1 = [t, j, m, s, i, n, dw, iw, sw]] : lev_memo[_name1] = (function() {
-        switch (true) {
-          case m <= 0:
+        switch (false) {
+          case !(m <= 0):
             return n;
-          case n <= 0:
+          case !(n <= 0):
             return m;
           default:
             return Math.min(dw + lev(s, i + 1, n - 1, t, j, m, dw, iw, sw), iw + lev(s, i, n, t, j + 1, m - 1, dw, iw, sw), (sw * (s[i] !== t[j])) + lev(s, i + 1, n - 1, t, j + 1, m - 1, dw, iw, sw));
@@ -1730,8 +2049,8 @@
       var _name;
       return diff_memo[_name = [s, i, n, t, j, m, dw, iw, sw]] != null ? diff_memo[_name = [s, i, n, t, j, m, dw, iw, sw]] : diff_memo[_name] = collapse((function() {
         var args, c, costs, _i, _j, _len, _len1, _ref, _ref1, _results, _results1;
-        switch (true) {
-          case m <= 0:
+        switch (false) {
+          case !(m <= 0):
             _ref = s.substr(i, n);
             _results = [];
             for (_i = 0, _len = _ref.length; _i < _len; _i++) {
@@ -1740,7 +2059,7 @@
             }
             return _results;
             break;
-          case n <= 0:
+          case !(n <= 0):
             _ref1 = t.substr(j, m);
             _results1 = [];
             for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
@@ -1752,9 +2071,9 @@
           default:
             sw *= s[i] !== t[j];
             args = {
-              del: [s, i + 1, n - 1, t, j, m, 1, 1.5, 1.5],
-              ins: [s, i, n, t, j + 1, m - 1, 1.5, 1, 1.5],
-              sub: [s, i + 1, n - 1, t, j + 1, m - 1, 1, 1, 1]
+              del: [s + 0, i + 1, n - 1, t + 0, j + 0, m + 0, 1.00, 1.50, 1.50],
+              ins: [s + 0, i + 0, n + 0, t + 0, j + 1, m - 1, 1.50, 1.00, 1.50],
+              sub: [s + 0, i + 1, n - 1, t + 0, j + 1, m - 1, 1.00, 1.00, 1.00]
             };
             costs = {
               del: dw + lev.apply(null, args.del),
@@ -2290,10 +2609,10 @@
         bottom: getOrSetRect("bottom"),
         right: getOrSetRect("right"),
         position: function(left, top) {
-          switch (true) {
-            case left == null:
+          switch (false) {
+            case !(left == null):
               return this.rect();
-            case top == null:
+            case !(top == null):
               return this.css("left", $.px(left));
             default:
               return this.css({
@@ -2745,7 +3064,7 @@
     provides: "hash",
     depends: "type"
   }, function() {
-    var maxHash;
+    var array_hash, maxHash;
     maxHash = Math.pow(2, 32);
     $.type.extend({
       unknown: {
@@ -2756,7 +3075,7 @@
       object: {
         hash: function(o) {
           var k, v;
-          return $.hash(Object) + $((function() {
+          return 1970931729 + $((function() {
             var _results;
             _results = [];
             for (k in o) {
@@ -2768,10 +3087,24 @@
         }
       },
       array: {
-        hash: function(o) {
-          return $.hash(Array) + $(o.map($.hash)).reduce((function(a, x) {
+        hash: array_hash = function(o) {
+          var x;
+          return 1816922041 + $((function() {
+            var _i, _len, _results;
+            _results = [];
+            for (_i = 0, _len = o.length; _i < _len; _i++) {
+              x = o[_i];
+              _results.push($.hash(x));
+            }
+            return _results;
+          })()).reduce((function(a, x) {
             return ((a * a) + (x | 0)) % maxHash;
           }), 1);
+        }
+      },
+      "arguments": {
+        hash: function(o) {
+          return 298517431 + array_hash(o);
         }
       },
       bool: {
@@ -2885,15 +3218,19 @@
     var formencode;
     formencode = function(obj) {
       var i, o;
-      o = JSON.parse(JSON.stringify(obj));
-      return ((function() {
-        var _results;
-        _results = [];
-        for (i in o) {
-          _results.push("" + i + "=" + (escape(o[i])));
-        }
-        return _results;
-      })()).join("&");
+      if ($.is('object', obj)) {
+        o = JSON.parse(JSON.stringify(obj));
+        return ((function() {
+          var _results;
+          _results = [];
+          for (i in o) {
+            _results.push("" + i + "=" + (escape(o[i])));
+          }
+          return _results;
+        })()).join("&");
+      } else {
+        return obj;
+      }
     };
     $.type.register("http", {
       match: function(o) {
@@ -2906,7 +3243,7 @@
     return {
       $: {
         http: function(url, opts) {
-          var xhr;
+          var k, v, xhr, _ref;
           if (opts == null) {
             opts = {};
           }
@@ -2926,7 +3263,8 @@
             asBlob: false,
             timeout: 0,
             followRedirects: false,
-            withCredentials: false
+            withCredentials: false,
+            headers: {}
           }, opts);
           opts.state = $.bound(xhr, opts.state);
           opts.success = $.bound(xhr, opts.success);
@@ -2955,6 +3293,11 @@
               }
             }
           });
+          _ref = opts.headers;
+          for (k in _ref) {
+            v = _ref[k];
+            xhr.setRequestHeader(k, v);
+          }
           xhr.send(opts.data);
           return $(xhr);
         },
@@ -3413,9 +3756,25 @@
   });
 
   $.plugin({
-    depends: 'function',
+    depends: 'function,hash',
     provides: 'memoize'
   }, function() {
+    var plainCache;
+    plainCache = function() {
+      var data;
+      data = {};
+      return {
+        has: function(k) {
+          return k in data;
+        },
+        get: function(k) {
+          return data[k];
+        },
+        set: function(k, v) {
+          return data[k] = v;
+        }
+      };
+    };
     return {
       $: {
         memoize: function(opts) {
@@ -3427,11 +3786,16 @@
           if (!$.is('object', opts)) {
             throw new Error("Argument Error: memoize requires either a function or object as first argument");
           }
-          opts.cache || (opts.cache = Object.create(null));
-          opts.hash || (opts.hash = $.identity);
+          opts.cache || (opts.cache = plainCache());
+          opts.hash || (opts.hash = $.hash);
           return function() {
-            var _base, _name;
-            return (_base = opts.cache)[_name = opts.hash(arguments)] != null ? (_base = opts.cache)[_name = opts.hash(arguments)] : _base[_name] = opts.f.apply(this, arguments);
+            var key;
+            key = opts.hash(arguments);
+            if (opts.cache.has(key)) {
+              return opts.cache.get(key);
+            } else {
+              return opts.cache.set(key, opts.f.apply(this, arguments));
+            }
           };
         }
       }
@@ -3457,10 +3821,14 @@
             cb = timeout;
           }
           if (err !== NoValue) {
-            return cb(err, null);
+            return $.immediate(function() {
+              return cb(err, null);
+            });
           }
           if (result !== NoValue) {
-            return cb(null, result);
+            return $.immediate(function() {
+              return cb(null, result);
+            });
           }
           waiting.push(cb);
           if (isFinite(timeout)) {
@@ -3490,7 +3858,7 @@
           }
           return this;
         },
-        proxy: function(promise) {
+        join: function(promise) {
           var _this = this;
           return promise.wait(function(err, data) {
             if (err) {
@@ -3503,7 +3871,7 @@
         compose: function() {
           var promises, _ref;
           promises = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-          return this.proxy((_ref = $.Promise).compose.apply(_ref, promises));
+          return this.join((_ref = $.Promise).compose.apply(_ref, promises));
         },
         reset: function() {
           err = result = NoValue;
@@ -3563,6 +3931,16 @@
             delta = 1;
           }
           return this.progress(cur + delta);
+        },
+        include: function(promise) {
+          var _this = this;
+          this.progress(cur, max + 1);
+          return promise.wait(function(err) {
+            if (err) {
+              return _this.fail(err);
+            }
+            return _this.finish(1);
+          });
         }
       }, p = Promise());
     };
@@ -4100,8 +4478,14 @@
   }, function() {
     return {
       $: {
-        sortedIndex: function(array, item, iterator) {
-          var cmp, hi, lo, mid;
+        sortedIndex: function(array, item, iterator, lo, hi) {
+          var cmp, mid;
+          if (lo == null) {
+            lo = 0;
+          }
+          if (hi == null) {
+            hi = array.length;
+          }
           cmp = (function() {
             switch ($.type(iterator)) {
               case "string":
@@ -4118,8 +4502,6 @@
                 };
             }
           })();
-          hi = array.length;
-          lo = 0;
           while (lo < hi) {
             mid = (hi + lo) >>> 1;
             if (cmp(array[mid], item)) {
@@ -4208,6 +4590,20 @@
           })()).join(",") + "]";
         })
       },
+      "arguments": {
+        string: safer(function(a) {
+          var x;
+          return "{arguments[" + (((function() {
+            var _i, _len, _results;
+            _results = [];
+            for (_i = 0, _len = a.length; _i < _len; _i++) {
+              x = a[_i];
+              _results.push($.toString(x));
+            }
+            return _results;
+          })()).join(",")) + "]}";
+        })
+      },
       object: {
         string: safer(function(o) {
           var err, k, ret, v;
@@ -4251,10 +4647,10 @@
           return String(n);
         },
         string: safer(function(n) {
-          switch (true) {
-            case n.precision != null:
+          switch (false) {
+            case n.precision == null:
               return n.toPrecision(n.precision);
-            case n.fixed != null:
+            case n.fixed == null:
               return n.toFixed(n.fixed);
             default:
               return String(n);
@@ -4314,6 +4710,25 @@
             name = $.stringSplice(name, i, i + 2, name[i + 1].toUpperCase());
           }
           return name;
+        },
+        commaize: function(num, comma, dot) {
+          var a, b, s, _ref;
+          if (comma == null) {
+            comma = ',';
+          }
+          if (dot == null) {
+            dot = '.';
+          }
+          s = String(num);
+          _ref = s.split(dot), a = _ref[0], b = _ref[1];
+          if (a.length > 3) {
+            a = $.stringReverse($.stringReverse(a).match(/\d{1,3}/g).join());
+          }
+          if (b != null) {
+            return "" + a + "." + b;
+          } else {
+            return a;
+          }
         },
         padLeft: function(s, n, c) {
           if (c == null) {
@@ -4376,6 +4791,9 @@
           }
           return s.substring(0, start) + n + s.substring(end);
         },
+        stringReverse: function(s) {
+          return s.split(/(?:)/).reverse().join('');
+        },
         checksum: function(s) {
           var a, b, i, _i, _ref;
           a = 1;
@@ -4390,12 +4808,12 @@
           if (n == null) {
             n = 2;
           }
-          switch (true) {
-            case n === 1:
+          switch (false) {
+            case n !== 1:
               return x;
-            case n < 1:
+            case !(n < 1):
               return "";
-            case $.is("string", x):
+            case !$.is("string", x):
               return $.zeros(n, x).join('');
             default:
               return $.zeros(n, x);
@@ -4493,102 +4911,6 @@
           Bling.symbol = "Bling";
           return Bling;
         }
-      }
-    };
-  });
-
-  $.plugin({
-    provides: "StateMachine"
-  }, function() {
-    var StateMachine;
-    return {
-      $: {
-        StateMachine: StateMachine = (function() {
-          var go;
-
-          function StateMachine(stateTable) {
-            this.debug = false;
-            this.reset();
-            this.table = stateTable;
-            Object.defineProperty(this, "modeline", {
-              get: function() {
-                return this.table[this._mode];
-              }
-            });
-            Object.defineProperty(this, "mode", {
-              set: function(m) {
-                var ret;
-                this._lastMode = this._mode;
-                this._mode = m;
-                if (this._mode !== this._lastMode && (this.modeline != null) && 'enter' in this.modeline) {
-                  ret = this.modeline['enter'].call(this);
-                  while ($.is("function", ret)) {
-                    ret = ret.call(this);
-                  }
-                }
-                return m;
-              },
-              get: function() {
-                return this._mode;
-              }
-            });
-          }
-
-          StateMachine.prototype.reset = function() {
-            this._mode = null;
-            return this._lastMode = null;
-          };
-
-          StateMachine.prototype.GO = go = function(m, enter) {
-            if (enter == null) {
-              enter = false;
-            }
-            return function() {
-              if (enter) {
-                this._mode = null;
-              }
-              return this.mode = m;
-            };
-          };
-
-          StateMachine.GO = go;
-
-          StateMachine.prototype.tick = function(c) {
-            var ret, row;
-            row = this.modeline;
-            if (row == null) {
-              ret = null;
-            } else if (c in row) {
-              ret = row[c];
-            } else if ('def' in row) {
-              ret = row['def'];
-            }
-            while ($.is("function", ret)) {
-              ret = ret.call(this, c);
-            }
-            return ret;
-          };
-
-          StateMachine.prototype.run = function(inputs) {
-            var c, ret, _i, _len, _ref;
-            this.mode = 0;
-            for (_i = 0, _len = inputs.length; _i < _len; _i++) {
-              c = inputs[_i];
-              ret = this.tick(c);
-            }
-            if ($.is("function", (_ref = this.modeline) != null ? _ref.eof : void 0)) {
-              ret = this.modeline.eof.call(this);
-            }
-            while ($.is("function", ret)) {
-              ret = ret.call(this);
-            }
-            this.reset();
-            return this;
-          };
-
-          return StateMachine;
-
-        })()
       }
     };
   });
@@ -4757,43 +5079,37 @@
     };
   });
 
-  (function($) {
-    var match_forward;
-    $.plugin(function() {
-      var current_engine, engines, template;
-      current_engine = null;
-      engines = {};
-      template = {
-        register_engine: function(name, render_func) {
-          engines[name] = render_func;
-          if (current_engine == null) {
-            return current_engine = name;
-          }
-        },
-        render: function(text, args) {
-          if (current_engine in engines) {
-            return engines[current_engine](text, args);
-          }
+  $.plugin({
+    depends: "StateMachine",
+    provides: "template"
+  }, function() {
+    var current_engine, engines, match_forward, template;
+    current_engine = null;
+    engines = {};
+    template = {
+      register_engine: function(name, render_func) {
+        engines[name] = render_func;
+        if (current_engine == null) {
+          return current_engine = name;
         }
-      };
-      template.__defineSetter__('engine', function(v) {
-        if (!v in engines) {
-          throw new Error("invalid template engine: " + v + " not one of " + (Object.Keys(engines)));
-        } else {
-          return current_engine = v;
+      },
+      render: function(text, args) {
+        if (current_engine in engines) {
+          return engines[current_engine](text, args);
         }
-      });
-      template.__defineGetter__('engine', function() {
-        return current_engine;
-      });
-      return {
-        name: 'Template',
-        $: {
-          template: template
-        }
-      };
+      }
+    };
+    template.__defineSetter__('engine', function(v) {
+      if (!v in engines) {
+        throw new Error("invalid template engine: " + v + " not one of " + (Object.Keys(engines)));
+      } else {
+        return current_engine = v;
+      }
     });
-    $.template.register_engine('null', (function() {
+    template.__defineGetter__('engine', function() {
+      return current_engine;
+    });
+    template.register_engine('null', (function() {
       return function(text, values) {
         return text;
       };
@@ -4820,7 +5136,7 @@
       }
       return -1;
     };
-    $.template.register_engine('pythonic', (function() {
+    template.register_engine('pythonic', (function() {
       var chunk_re, compile, render, type_re;
       type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/;
       chunk_re = /%[\(\/]/;
@@ -4888,7 +5204,7 @@
       };
       return render;
     })());
-    return $.template.register_engine('js-eval', (function() {
+    template.register_engine('js-eval', (function() {
       var TemplateMachine, _ref;
       TemplateMachine = (function(_super) {
         __extends(TemplateMachine, _super);
@@ -4914,7 +5230,12 @@
         return text;
       };
     })());
-  })(Bling);
+    return {
+      $: {
+        template: template
+      }
+    };
+  });
 
   $.plugin({
     provides: "throttle",
@@ -4957,7 +5278,7 @@
     depends: 'type',
     provides: 'TNET'
   }, function() {
-    var Symbols, Types, packOne, unpackOne;
+    var Symbols, Types, class_index, classes, makeFunction, packOne, register, unpackOne;
     Types = {
       "number": {
         symbol: "#",
@@ -5053,7 +5374,9 @@
             _results = [];
             for (k in o) {
               v = o[k];
-              _results.push(packOne(k) + packOne(v));
+              if (k !== "constructor" && o.hasOwnProperty(k)) {
+                _results.push(packOne(k) + packOne(v));
+              }
             }
             return _results;
           })()).join('');
@@ -5072,18 +5395,24 @@
       "function": {
         symbol: ")",
         pack: function(f) {
-          var args, body, _ref;
-          _ref = f.toString().replace(/function \w*/, '').replace(/\/\*.*\*\//, '').replace(/\n/, '').replace(/^\(/, '').replace(/}$/, '').split(/\) {/), args = _ref[0], body = _ref[1];
+          var args, body, name, name_re, s, _ref;
+          s = f.toString().replace(/(?:\n|\r)+\s*/g, ' ');
+          name = "";
+          name_re = /function\s*(\w+)\(.*/g;
+          if (name_re.test(s)) {
+            name = s.replace(name_re, "$1");
+          }
+          _ref = s.replace(/function\s*\w*\(/, '').replace(/\/\*.*\*\//g, '').replace(/}$/, '').split(/\) {/), args = _ref[0], body = _ref[1];
           args = args.split(/, */);
           body = body.replace(/^\s+/, '').replace(/\s*$/, '');
-          return [args, body].map(packOne).join('');
+          return $(name, args, body).map(packOne).join('');
         },
         unpack: function(s) {
-          var args, body, rest, _ref, _ref1;
-          _ref = unpackOne(s), args = _ref[0], rest = _ref[1];
-          _ref1 = unpackOne(rest), body = _ref1[0], rest = _ref1[1];
-          args.push(body);
-          return Function.apply(null, args);
+          var args, body, name, rest, _ref, _ref1, _ref2;
+          _ref = unpackOne(s), name = _ref[0], rest = _ref[1];
+          _ref1 = unpackOne(rest), args = _ref1[0], rest = _ref1[1];
+          _ref2 = unpackOne(rest), body = _ref2[0], rest = _ref2[1];
+          return makeFunction(name, args.join(), body);
         }
       },
       "regexp": {
@@ -5094,7 +5423,39 @@
         unpack: function(s) {
           return RegExp(s);
         }
+      },
+      "class instance": {
+        symbol: "C",
+        pack: function(o) {
+          if (!('constructor' in o)) {
+            throw new Error("TNET: cant pack non-class as class");
+          }
+          if (!(o.constructor in class_index)) {
+            throw new Error("TNET: cant pack unregistered class (name: " + o.constructor.name + ", text: " + (o.constructor.toString()));
+          }
+          return packOne(class_index[o.constructor]) + packOne(o, "object");
+        },
+        unpack: function(s) {
+          var i, obj, rest, _ref, _ref1;
+          _ref = unpackOne(s), i = _ref[0], rest = _ref[1];
+          _ref1 = unpackOne(rest), obj = _ref1[0], rest = _ref1[1];
+          if (i <= classes.length) {
+            obj.__proto__ = classes[i - 1].prototype;
+          } else {
+            throw new Error("TNET: attempt to unpack unregistered class index: " + i);
+          }
+          return obj;
+        }
       }
+    };
+    makeFunction = function(name, args, body) {
+      eval("var f = function " + name + "(" + args + "){" + body + "}");
+      return f;
+    };
+    classes = [];
+    class_index = {};
+    register = function(klass) {
+      return class_index[klass] || (class_index[klass] = classes.push(klass));
     };
     Symbols = {};
     (function() {
@@ -5117,10 +5478,18 @@
       }
       return void 0;
     };
-    packOne = function(x) {
-      var data, t, tx;
-      if ((t = Types[tx = $.type(x)]) == null) {
-        throw new Error("TNET: cant pack type '" + tx + "'");
+    packOne = function(x, forceType) {
+      var data, t, tx, _ref;
+      if (forceType != null) {
+        tx = forceType;
+      } else {
+        tx = $.type(x);
+        if (tx === "object" && ((_ref = x.constructor) != null ? _ref.name : void 0) !== "Object") {
+          tx = "class instance";
+        }
+      }
+      if ((t = Types[tx]) == null) {
+        throw new Error("TNET: dont know how to pack type '" + tx + "'");
       }
       data = t.pack(x);
       return (data.length | 0) + ":" + data + t.symbol;
@@ -5129,6 +5498,7 @@
       $: {
         TNET: {
           Types: Types,
+          registerClass: register,
           stringify: packOne,
           parse: function(x) {
             var _ref;
@@ -5402,11 +5772,13 @@
         return ((o.constructor != null) && (o.constructor === T || o.constructor.name === T)) || Object.prototype.toString.apply(o) === ("[object " + T + "]") || isType(T, o.__proto__);
       }
     };
-    inherit = function(parent, obj) {
-      var _ref;
-      if (obj == null) {
+    inherit = function() {
+      var obj, objs, parent, _ref;
+      parent = arguments[0], objs = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+      if (!(objs.length > 0)) {
         return;
       }
+      obj = objs.shift();
       if (typeof parent === "function") {
         parent = parent.prototype;
       }
@@ -5414,10 +5786,14 @@
         parent.__proto__ = obj.__proto__;
       }
       obj.__proto__ = parent;
-      return obj;
+      if (objs.length > 0) {
+        return inherit.apply(null, [obj].concat(__slice.call(objs)));
+      } else {
+        return obj;
+      }
     };
     _type = (function() {
-      var base, cache, lookup, order, register, _extend;
+      var base, cache, lookup, order, register, _extend, _with_cache, _with_insert;
       cache = {};
       base = {
         name: 'unknown',
@@ -5426,28 +5802,45 @@
         }
       };
       order = [];
+      _with_cache = {};
+      _with_insert = function(method, type) {
+        var a, i;
+        a = (_with_cache[method] || (_with_cache[method] = []));
+        if ((i = a.indexOf(type)) === -1) {
+          return a.push(type);
+        }
+      };
       register = function(name, data) {
+        var key, _results;
         if (!(name in cache)) {
           order.unshift(name);
         }
         cache[data.name = name] = base !== data ? inherit(base, data) : data;
-        return cache[name][name] = function(o) {
+        cache[name][name] = function(o) {
           return o;
         };
+        _results = [];
+        for (key in cache[name]) {
+          _results.push(_with_insert(key, cache[name]));
+        }
+        return _results;
       };
       _extend = function(name, data) {
-        var k, _results;
+        var k, method, _results, _results1;
         if (typeof name === "string") {
-          if (cache[name] == null) {
-            cache[name] = register(name, {});
-          }
-          return cache[name] = extend(cache[name], data);
-        } else if (typeof name === "object") {
+          cache[name] || (cache[name] = register(name, {}));
+          cache[name] = extend(cache[name], data);
           _results = [];
-          for (k in name) {
-            _results.push(_extend(k, name[k]));
+          for (method in data) {
+            _results.push(_with_insert(method, cache[name]));
           }
           return _results;
+        } else if (typeof name === "object") {
+          _results1 = [];
+          for (k in name) {
+            _results1.push(_extend(k, name[k]));
+          }
+          return _results1;
         }
       };
       lookup = function(obj) {
@@ -5533,6 +5926,9 @@
         register: register,
         lookup: lookup,
         extend: _extend,
+        get: function(t) {
+          return cache[t];
+        },
         is: function(t, o) {
           var _ref;
           return (_ref = cache[t]) != null ? _ref.match.call(o, o) : void 0;
@@ -5541,6 +5937,9 @@
           var o, rest, t, _base;
           t = arguments[0], o = arguments[1], rest = 3 <= arguments.length ? __slice.call(arguments, 2) : [];
           return typeof (_base = lookup(o))[t] === "function" ? _base[t].apply(_base, [o].concat(__slice.call(rest))) : void 0;
+        },
+        "with": function(f) {
+          return _with_cache[f];
         }
       });
     })();
@@ -5894,154 +6293,39 @@
   });
 
   $.plugin({
-    provides: "unittest",
-    depends: "core,function"
-  }, function() {
-    var failCount, failed, invokeTest, passCount, testCount, testReport;
-    testCount = passCount = failCount = 0;
-    failed = [];
-    invokeTest = function(group, name, func) {
-      var done, err, f, shouldFail, _log;
-      if (!$.is("function", func)) {
-        return;
-      }
-      _log = function(msg) {
-        return $.log("" + group + ": " + name + "... " + msg);
-      };
-      shouldFail = name.toLowerCase().indexOf("fail") !== -1;
-      done = $.once(function(err) {
-        testCount--;
-        if (!!err !== shouldFail) {
-          _log("fail: " + err);
-          failCount++;
-          return failed.push(name);
-        } else {
-          _log("pass");
-          passCount++;
-          return $.provide(name);
-        }
-      });
-      f = function(done) {
-        var err;
-        try {
-          return func(done);
-        } catch (_error) {
-          err = _error;
-          return done(err);
-        } finally {
-          if (name.toLowerCase().indexOf("async") === -1) {
-            done();
-          }
-        }
-      };
-      testCount++;
-      try {
-        return f(done);
-      } catch (_error) {
-        err = _error;
-        return done(err);
-      }
-    };
-    testReport = $.once(function() {
-      $.log("Passed: " + passCount + " Failed: " + failCount + " [" + failed + "]");
-      if (failCount > 0) {
-        try {
-          return process.exit(failCount);
-        } catch (_error) {}
-      }
-    });
-    return {
-      $: {
-        approx: function(a, b, margin) {
-          if (margin == null) {
-            margin = .1;
-          }
-          return Math.abs(a - b) < margin;
-        },
-        assert: function(cnd, msg) {
-          if (msg == null) {
-            msg = "no message";
-          }
-          if (!cnd) {
-            throw new Error("Assertion failed: " + msg);
-          }
-        },
-        assertEqual: function(a, b, label) {
-          if (a !== b) {
-            throw Error("" + (label || '') + " (" + (a != null ? a.toString() : void 0) + ") should equal (" + (b != null ? b.toString() : void 0) + ")");
-          }
-        },
-        assertArrayEqual: function(a, b, label) {
-          var err, i, _i, _ref, _results;
-          _results = [];
-          for (i = _i = 0, _ref = a.length; _i < _ref; i = _i += 1) {
-            try {
-              _results.push($.assertEqual(a[i], b[i], label));
-            } catch (_error) {
-              err = _error;
-              throw Error("" + (label || '') + " " + (a != null ? a.toString() : void 0) + " should equal " + (b != null ? b.toString() : void 0));
-            }
-          }
-          return _results;
-        },
-        testGroup: function(name, funcs) {
-          var func, interval, k, _results;
-          interval = setInterval((function() {
-            if (testCount === 0) {
-              clearInterval(interval);
-              return testReport();
-            }
-          }), 50);
-          _results = [];
-          for (k in funcs) {
-            func = funcs[k];
-            _results.push(invokeTest(name, k, func));
-          }
-          return _results;
-        }
-      },
-      assertEqual: function() {
-        var a, args, i, _i, _ref,
-          _this = this;
-        args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-        if (args.length > 1) {
-          args = args.map(function(x) {
-            if ($.is("function", x)) {
-              return x.call(_this, _this);
-            } else {
-              return x;
-            }
-          });
-          a = args[0];
-          for (i = _i = 1, _ref = args.length; 1 <= _ref ? _i < _ref : _i > _ref; i = 1 <= _ref ? ++_i : --_i) {
-            $.assertEqual(a, args[i]);
-          }
-        }
-        return this;
-      }
-    };
-  });
-
-  $.plugin({
     provides: "url,URL"
   }, function() {
     var clean, parse, stringify, url_re;
-    url_re = /\b(?:([a-z]+):)(?:\/*([^:?\/#]+))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i;
-    parse = function(str) {
-      var m, _ref, _ref1;
-      m = str != null ? str.match(url_re) : void 0;
-      if (m != null) {
-        return {
-          protocol: m[1],
-          host: m[2],
-          port: m[3],
-          path: m[4],
-          query: (_ref = m[5]) != null ? _ref.replace(/^\?/, '') : void 0,
-          hash: (_ref1 = m[6]) != null ? _ref1.replace(/^#/, '') : void 0
-        };
-      } else {
-        return null;
+    url_re = /\b(?:([a-z+]+):)(?:\/{1,2}([^:?\/#]*))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i;
+    parse = function(str, parseQuery) {
+      var i, m, pair, query, ret, _i, _len, _ref, _ref1, _ref2, _ref3;
+      if (parseQuery == null) {
+        parseQuery = false;
       }
+      m = str != null ? str.match(url_re) : void 0;
+      ret = m != null ? {
+        protocol: m[1],
+        host: m[2],
+        port: m[3],
+        path: m[4],
+        query: (_ref = m[5]) != null ? _ref.replace(/^\?/, '') : void 0,
+        hash: (_ref1 = m[6]) != null ? _ref1.replace(/^#/, '') : void 0
+      } : null;
+      if (parseQuery) {
+        query = (_ref2 = ret != null ? ret.query : void 0) != null ? _ref2 : "";
+        ret.query = {};
+        _ref3 = query.split('&');
+        for (_i = 0, _len = _ref3.length; _i < _len; _i++) {
+          pair = _ref3[_i];
+          if ((i = pair.indexOf('=')) > -1) {
+            ret.query[pair.substring(0, i)] = unescape(pair.substring(i + 1));
+          } else if (pair.length > 0) {
+            ret.query[pair] = null;
+          }
+        }
+        delete ret.query[""];
+      }
+      return ret;
     };
     clean = function(val, re, prefix, suffix) {
       var x;
@@ -6059,6 +6343,19 @@
       }
     };
     stringify = function(url) {
+      var k, v;
+      if ($.is('object', url.query)) {
+        url.query = ((function() {
+          var _ref, _results;
+          _ref = url.query;
+          _results = [];
+          for (k in _ref) {
+            v = _ref[k];
+            _results.push("" + k + "=" + v);
+          }
+          return _results;
+        })()).join("&");
+      }
       return [clean(url.protocol, /:$/, '', ':'), clean(url.host, /^\//, '//'), clean(url.port, /^:/, ':'), clean(url.path, /^\//, '/'), clean(url.query, /^\?/, '?'), clean(url.hash, /^#/, '#')].join('');
     };
     return {

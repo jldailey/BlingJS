@@ -2,7 +2,7 @@
 	"author": "Jesse Dailey <jesse.dailey@gmail.com>",
 	"name": "bling",
 	"description": "The kitchen sink library.",
-	"version": "0.2.11",
+	"version": "0.2.29",
 	"homepage": "http://blingjs.com",
 	"main": "./dist/bling.js",
 	"repository": {
@@ -14,6 +14,10 @@
 	},
 	"bin": {
 		"watch": "./watch.coffee"
+	},
+	"dependencies": {
+		"optimist": "latest",
+		"extra": "latest"
 	},
 	"devDependencies": {
 		"coffee-script": "latest",

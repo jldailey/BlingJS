@@ -23,6 +23,7 @@ $.plugin
 			number: safer parseFloat
 			repr:   (s) -> "'#{s}'"
 		array:  { string: safer (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
+		arguments: { string: safer (a) -> "{arguments[#{($.toString(x) for x in a).join(",")}]}" }
 		object:
 			string: safer (o) ->
 				ret = []
@@ -47,11 +48,10 @@ $.plugin
 			repr: (f) -> f.toString()
 		number:
 			repr:   (n) -> String(n)
-			string: safer (n) ->
-				switch true
-					when n.precision? then n.toPrecision(n.precision)
-					when n.fixed? then n.toFixed(n.fixed)
-					else String(n)
+			string: safer (n) -> switch
+				when n.precision? then n.toPrecision(n.precision)
+				when n.fixed? then n.toFixed(n.fixed)
+				else String(n)
 
 	# Return a bunch of root-level string functions.
 	return {
@@ -113,6 +113,14 @@ $.plugin
 					name = $.stringSplice(name, i, i+2, name[i+1].toUpperCase())
 				name
 
+			# Add decorative commas to long numbers
+			commaize: (num, comma=',',dot='.') ->
+				s = String(num)
+				[a, b] = s.split dot
+				if a.length > 3
+					a = $.stringReverse $.stringReverse(a).match(/\d{1,3}/g).join()
+				return if b? then "#{a}.#{b}" else a
+
 			# Fill the left side of a string to make it a fixed width.
 			padLeft: (s, n, c = " ") ->
 				while s.length < n
@@ -153,6 +161,8 @@ $.plugin
 				if start < 0
 					start += nn
 				s.substring(0,start) + n + s.substring(end)
+			
+			stringReverse: (s) -> s.split(//).reverse().join('')
 
 			# __$.checksum(s)__ computes the Adler32 checksum of a string.
 			checksum: (s) ->
@@ -163,12 +173,11 @@ $.plugin
 				(b << 16) | a
 
 			# __$.repeat(x, n)__ repeats x, n times.
-			repeat: (x, n=2) ->
-				switch true
-					when n is 1 then x
-					when n < 1 then ""
-					when $.is "string", x then $.zeros(n, x).join ''
-					else $.zeros(n, x)
+			repeat: (x, n=2) -> switch
+				when n is 1 then x
+				when n < 1 then ""
+				when $.is "string", x then $.zeros(n, x).join ''
+				else $.zeros(n, x)
 
 			# Return a string-builder, which uses arrays to defer all string
 			# concatenation until you call `builder.toString()`.

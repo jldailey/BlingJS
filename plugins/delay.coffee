@@ -47,11 +47,10 @@ $.plugin
 					cancel: -> timeoutQueue.cancel(f)
 				else $.log "Warning: bad arguments to $.delay (expected: int,function given: #{$.type n},#{$.type f})"
 
-		immediate: do ->
-			return switch true
-				when 'setImmediate' of $.global then $.global.setImmediate
-				when process?.nextTick? then process.nextTick
-				else (f) -> setTimeout(f, 0)
+		immediate: do -> switch
+			when 'setImmediate' of $.global then $.global.setImmediate
+			when process?.nextTick? then process.nextTick
+			else (f) -> setTimeout(f, 0)
 		interval: (n, f) ->
 			paused = false
 			ret = $.delay n, g = ->

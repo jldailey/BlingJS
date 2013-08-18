@@ -1,48 +1,93 @@
 #!/usr/bin/env coffee
 
-[Bling,Fs,Path,Proc] = ['./dist/bling.js','fs','path','child_process'].map require
+[ Bling, Fs, Path, Proc, Extra, Optimist ] = [
+	'./dist/bling.js','fs',
+	'path','child_process',
+	'extra', 'optimist'
+].map require
 
-if process.argv.length < 4
-	`return $.log("Usage: watch.coffee 'regex' 'shell command'")`
+opts = Optimist.options('t', {
+		alias: 'throttle'
+		default: 7
+		describe: "Seconds to wait between restart attempts."
+	})
+	.options('r', {
+		alias: 'restart-code'
+		default: 1
+		describe: "Process exit code to request a restart [0-255]."
+	})
+	.options('i', {
+		alias: 'immediate'
+		default: false
+		describe: "Execute 'command [args...]' immediately."
+	})
+	.boolean('i')
+	.options('x', {
+		alias: 'exclude'
+		default: 'node_modules'
+		describe: "Pattern for directories to avoid watching"
+	})
+	.options('v', {
+		alias: 'verbose'
+		default: false
+		describe: 'Verbose output'
+	})
+	.boolean('v')
+	.demand(1)
+	.usage("Usage: $0 [options...] -- 'pattern' -- [ENV=val] command [args...]")
+	.argv
 
 log = $.logger "[watch]"
 
-log "Initializing..."
+log "Options:"
+log " Run immediately: #{opts.immediate}"
+log " Restart throttle: #{opts.throttle} sec"
+log " Exclude pattern: /#{opts.exclude}/"
+log " Restart on exit code: #{opts.r}"
+log " Verbose: #{opts.v}"
+
+if opts.x
+	exc_re = new RegExp(opts.x)
+exclude = (dir) ->
+	opts.x and exc_re.test dir
+
+pattern = opts._[0]
+
+pattern = (try new RegExp pattern) or $.log 'bad pattern, using', /^[^.]/
+
+launch = $.throttle +opts.throttle * 1000, ->
+	p = Extra.spawn( stdio: 'inherit' )
+	p.on 'close', (code) ->
+		log "Exit Code:", code
+		if code is +opts.r
+			log "Respawning..."
+			$.immediate launch
+
+if opts.immediate then $.immediate launch
 
 recurseDir = (path, cb) ->
-	cb(path)
+	done = $.Progress(1)
 	Fs.readdir path, (err, files) ->
-		$(files).filter(/^[^.]/).each (file) ->
-			Fs.stat dir = Path.join(path, file), (err, stat) ->
-				if stat?.isDirectory()
-					recurseDir dir, cb
+		cb(path)
+		$(files)
+			.filter(/^[^.]/)
+			# Set the maximum progress to the number of files we will stat
+			.tap(-> done.progress 0, @length; @ )
+			.each (file) ->
+				Fs.stat dir = Path.join(path, file), (err, stat) ->
+					if stat?.isDirectory() and not exclude(dir)
+						# If we recurse, include it's progress as part of ours
+						done.include recurseDir dir, cb
+					# Mark this file as complete
+					done.finish(1)
+	done
 
-[pattern, command, args] = do ->
-	pattern = null
-	command = null
-	args = []
-	started = false
-	for arg in process.argv
-		if (not started) and /watch.coffee/.test arg
-			started = true
-		else if started
-			if pattern is null
-				pattern = arg.replace(/^\//,'').replace(/\/$/,'')
-			else if command is null
-				command = arg
-			else
-				args.push arg
-	[ pattern, command, args ]
-pattern = (try new RegExp pattern) or $.log 'bad pattern, using', /^[^.]/
-log "Pattern:", pattern
-log "Command:", command
-log "Args:", args
-
-launch = $.throttle 5000, $.trace 'launch', ->
-	log "Spawning:", command, args
-	Proc.spawn(command, args, stdio: 'inherit')
-
-recurseDir '.', (dir) ->
+dirsWatched = 0
+recurseDir('.', (dir) ->
+	dirsWatched += 1
+	if opts.verbose then log "Watching", dir, "(#{dirsWatched})"
 	Fs.watch dir, (op, file) ->
 		if pattern.test(file) then launch()
-log "Listening for changes..."
+).wait (err) ->
+	log "Watching #{dirsWatched} folders for changes."
+	if err then log "Error:", err

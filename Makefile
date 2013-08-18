@@ -7,30 +7,39 @@ COFFEE=node_modules/.bin/coffee
 JLDOM=node_modules/jldom
 MOCHA=node_modules/.bin/mocha
 MOCHA_OPTS=--compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R dot
+WATCH="coffee watch.coffee"
+
 TEST_FILES=$(shell ls test/*.coffee | grep -v setup.coffee )
+PASS_FILES=$(subst .coffee,.coffee.pass,$(shell ls test/*.coffee | grep -v setup.coffee ))
+TIME_FILES=$(subst .coffee,.coffee.time,$(shell ls bench/*.coffee | grep -v setup.coffee ))
+
 
 all: dist report
 
-test: dist test/pass
-	@echo "All tests are passing."
-
-test/pass: $(MOCHA) $(JLDOM) $(TEST_FILES) test/setup.coffee $(DIST)/bling.coffee
-	$(MOCHA) $(MOCHA_OPTS) $(TEST_FILES) && touch test/pass
-
-$(MOCHA):
-	npm install mocha
-
-$(COFFEE):
-	npm install coffee-script
-	sed -ibak -e 's/path.exists/fs.exists/' node_modules/coffee-script/lib/coffee-script/command.js
-	rm -f node_modules/coffee-script/lib/coffee-script/command.js.bak
-
-$(JLDOM):
-	npm install jldom
+watch: dist
+	coffee watch.coffee -i -- '.coffee' -- make test
 
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
-site: dist
+test: dist $(PASS_FILES)
+	@echo "All tests are passing."
+
+test/bling.coffee.pass: test/bling.coffee bling.coffee
+	@echo Running $<
+	@$(MOCHA) $(MOCHA_OPTS) $< && touch $@
+
+test/%.coffee.pass: test/%.coffee plugins/%.coffee bling.coffee
+	@echo Running $<
+	@$(MOCHA) $(MOCHA_OPTS) $< && touch $@
+
+bench: dist $(TIME_FILES)
+	@echo "All benchmarks are complete."
+
+bench/%.coffee.time: bench/%.coffee plugins/%.coffee test/%.coffee.pass bench/setup.coffee bling.coffee Makefile
+	@echo Running $<
+	@$(COFFEE) $< | tee $@
+
+site: test
 	@git stash save &> /dev/null
 	@git checkout site
 	@sleep 1
@@ -48,31 +57,45 @@ site: dist
 	@git stash pop || true
 
 $(DIST)/min.%.js: $(DIST)/%.js yuicompressor.jar
-	$(JAVA) -jar yuicompressor.jar $< -v -o $@
+	@echo Minifying $< to $@...
+	@$(JAVA) -jar yuicompressor.jar $< -o $@
 
 $(DIST)/%.js: $(DIST)/%.coffee $(COFFEE)
-	(cd $(DIST) && ../$(COFFEE) -cm $(subst $(DIST)/,,$<))
+	@echo Compiling $< to $@...
+	@(cd $(DIST) && ../$(COFFEE) -cm $(subst $(DIST)/,,$<))
 
 $(DIST)/bling.coffee: bling.coffee $(shell ls $(PLUGINS)/*.coffee)
-	cat $^ | sed -E 's/^	*#.*$$//g' | grep -v '^ *$$' > $@
+	@echo Packing plugins into $@...
+	@cat $^ | sed -E 's/^	*#.*$$//g' | grep -v '^ *$$' > $@
 
 yuicompressor.jar:
-	curl http://yui.zenfs.com/releases/yuicompressor/yuicompressor-$(YUI_VERSION).zip > yuicompressor.zip
-	unzip yuicompressor.zip
-	rm yuicompressor.zip
-	cp yuicompressor-$(YUI_VERSION)/build/yuicompressor-$(YUI_VERSION).jar ./yuicompressor.jar
-	rm -rf yuicompressor-$(YUI_VERSION)
+	@echo Downloading $@...
+	@curl http://yui.zenfs.com/releases/yuicompressor/yuicompressor-$(YUI_VERSION).zip > yuicompressor.zip
+	@unzip yuicompressor.zip
+	@rm yuicompressor.zip
+	@cp yuicompressor-$(YUI_VERSION)/build/yuicompressor-$(YUI_VERSION).jar ./yuicompressor.jar
+	@rm -rf yuicompressor-$(YUI_VERSION)
 
 %.gz: %
-	gzip -vf9c $< > $@
+	@echo Compressing $< to $@...
+	@gzip -f9c $< > $@
 
 report:
 	@cd $(DIST) && wc -c `ls *.coffee *.js *.gz | sort -n` | grep -v total
 
 clean:
-	rm -f test/pass
+	rm -f test/pass test/*.pass
 	rm -rf $(DIST)/*
 	rm -rf yuicompressor.zip yuicompressor.jar yuicompressor-$(YUI_VERSION)
-	rm -rf node_modules/
+
+$(MOCHA):
+	npm install mocha
+
+$(COFFEE):
+	npm install coffee-script
+
+$(JLDOM):
+	npm install jldom
+
 
 .PHONY: all bling clean dist site test

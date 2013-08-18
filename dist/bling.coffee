@@ -87,6 +87,57 @@ $.plugin
 			listeners:          (e) -> list(e).slice 0
 		}, obj
 $.plugin
+	provides: "StateMachine"
+	depends: "type"
+, ->
+	$: StateMachine: class StateMachine
+		constructor: (stateTable) ->
+			@debug = false
+			@reset()
+			@table = stateTable
+			Object.defineProperty @, "modeline",
+				get: -> @table[@_mode]
+			Object.defineProperty @, "mode",
+				set: (m) ->
+					@_lastMode = @_mode
+					@_mode = m
+					if @_mode isnt @_lastMode and @modeline? and 'enter' of @modeline
+						ret = @modeline['enter'].call @
+						while $.is("function",ret)
+							ret = ret.call @
+					m
+				get: -> @_mode
+		reset: ->
+			@_mode = null
+			@_lastMode = null
+		GO: go = (m, enter=false) -> ->
+			if enter # force enter to trigger
+				@_mode = null
+			@mode = m
+		@GO: go
+		
+		tick: (c) ->
+			row = @modeline
+			if not row?
+				ret = null
+			else if c of row
+				ret = row[c]
+			else if 'def' of row
+				ret = row['def']
+			while $.is "function",ret
+				ret = ret.call @, c
+			ret
+		run: (inputs) ->
+			@mode = 0
+			for c in inputs
+				ret = @tick(c)
+			if $.is "function",@modeline?.eof
+				ret = @modeline.eof.call @
+			while $.is "function",ret
+				ret = ret.call @
+			@reset()
+			return @
+$.plugin
 	depends: "core"
 	provides: "async"
 , ->
@@ -105,7 +156,7 @@ $.plugin
 				else next(done)
 			do next = (i=0) => $.immediate => @[i](finish_one(i))
 			return @
-		parallel: (fin) ->
+		parallel: (fin = $.identity) ->
 			ret = $()
 			todo = @length
 			unless todo > 0
@@ -120,6 +171,61 @@ $.plugin
 				@[i](finish_one(i))
 	}
 $.plugin
+	provides: "cache"
+	depends: "core, sortBy"
+, ->
+	class EffCache
+		log = $.logger "[LRU]"
+		constructor: (@capacity = 1000) ->
+			@capacity = Math.max 1, @capacity
+			@evictCount = Math.max 3, Math.floor @capacity * .1
+			index = Object.create null
+			order = []
+			eff = (o) -> -o.r / o.w
+			autoEvict = =>
+				if order.length >= @capacity
+					while order.length + @evictCount - 1 >= @capacity
+						delete index[k = order.pop().k]
+				null
+			reIndex = (i, j) ->
+				for x in [i..j]
+					index[order[x].k] = x
+				null
+			rePosition = (i) ->
+				obj = order[i]
+				j = $.sortedIndex order, obj, eff
+				if j isnt i
+					order.splice i, 1
+					order.splice j, 0, obj
+					reIndex i, j
+				null
+			noValue	= v: undefined
+			$.extend @,
+				debug: -> return order
+				has: (k) -> k of index
+				set: (k, v) ->
+					if k of index
+						d = order[i = index[k]]
+						d.v = v
+						d.w += 1
+						rePosition i
+					else
+						autoEvict()
+						item = { k, v, r: 0, w: 1 }
+						i = $.sortedIndex order, item, eff
+						order.splice i, 0, item
+						reIndex i, order.length - 1
+					v
+				get: (k) ->
+					ret = noValue
+					if k of index
+						i = index[k]
+						ret = order[i]
+						ret.r += 1
+						rePosition i
+					ret.v
+	return $: Cache: $.extend EffCache, new EffCache(10000)
+$.plugin
 	provides: "cartesian"
 , ->
 	$:
@@ -133,6 +239,53 @@ $.plugin
 				null
 			helper [], -1
 			return $(ret)
+$.plugin
+	provides: "compact"
+	depends: "function"
+, ->
+	compact = (o, opts) ->
+		types = $.type.with('compact')
+		for t in types when t.match.call o, o
+			return t.compact o, opts
+		""
+	$.type.extend null,       compact: default_compact = $.toString
+	$.type.extend "undefined",compact: null_compact = (o) -> ""
+	$.type.extend "null",     compact: null_compact
+	$.type.extend "string",   compact: $.identity
+	$.type.extend "array",    compact: array_compact = (o, opts) -> (compact(x, opts) for x in o).join('')
+	$.type.extend "bling",    compact: array_compact
+	$.type.extend "function", compact: func_compact = (f, opts) -> f opts
+	handlers = {}
+	register = (type, f) -> (handlers[type] = f)
+	$.type.extend "object",   compact: object_compact = (o, opts) ->
+		compact handlers[o.t or o.type]?.call(o, o, opts), opts
+	register 'html', -> [
+		"<!DOCTYPE html><html><head>"
+			@head
+		"</head><body>"
+			@body
+		"</body></html>"
+	]
+	register 'text', (o, opts) ->
+		o[opts.lang ? "EN"]
+	register 'link', -> [
+		"<a"
+			[" ",k,"='",@[k],"'"] for k in ["href","name","target"] when k of @
+		">",@content,"</a>"
+	]
+	register 'let', (o, opts) ->
+		save = opts[o.name]
+		opts[o.name] = o.value
+		try return compact o.content, opts
+		finally
+			if save?
+				opts[o.name] = save
+			else delete opts[o.name]
+	register 'get', (o, opts) -> opts[o.name]
+	
+	return $: compact: $.extend ((o, opts = {}) -> compact o, opts), {
+		register: register
+	}
 $.plugin ->
 	String::trimLeft or= -> @replace(/^\s+/, "")
 	String::split or= (sep) ->
@@ -161,14 +314,6 @@ $.plugin ->
 		Element::matchesSelector = Element::webkitMatchesSelector or
 			Element::mozMatchesSelector or
 			Element::matchesSelector
-		if Element::cloneNode.length is 0
-			oldClone = Element::cloneNode
-			Element::cloneNode = (deep = false) ->
-				n = oldClone.call(@)
-				if deep
-					for i in @childNodes
-						n.appendChild i.cloneNode true
-				return n
 	return { }
 $.plugin
 	provides: 'config'
@@ -319,7 +464,11 @@ $.plugin
 				when "function" then @zap p, @select(p).map(v)
 				else @each -> @[p] = v
 			@
-		clean: (prop) -> @each -> delete @[prop]
+		clean: (props...) ->
+			@each ->
+				for prop in props
+					delete @[prop]
+				null
 		take: (n = 1) ->
 			end = Math.min n, @length
 			$( @[i] for i in [0...end] by 1 )
@@ -396,6 +545,10 @@ $.plugin
 			@__proto__ = Array::
 			@ # no copies, yay?
 		clear: -> @splice 0, @length
+		indexWhere: (f) ->
+			for x,i in @
+				return i if (f.call x,x)
+			return -1
 	}
 $.plugin
 	provides: "css,CSS"
@@ -611,11 +764,10 @@ $.plugin
 					timeoutQueue.add f, parseInt(n,10)
 					cancel: -> timeoutQueue.cancel(f)
 				else $.log "Warning: bad arguments to $.delay (expected: int,function given: #{$.type n},#{$.type f})"
-		immediate: do ->
-			return switch true
-				when 'setImmediate' of $.global then $.global.setImmediate
-				when process?.nextTick? then process.nextTick
-				else (f) -> setTimeout(f, 0)
+		immediate: do -> switch
+			when 'setImmediate' of $.global then $.global.setImmediate
+			when process?.nextTick? then process.nextTick
+			else (f) -> setTimeout(f, 0)
 		interval: (n, f) ->
 			paused = false
 			ret = $.delay n, g = ->
@@ -736,7 +888,7 @@ $.plugin
 , ->
 	lev_memo = Object.create null
 	lev = (s,i,n,t,j,m,dw,iw,sw) ->
-		return lev_memo[[s,i,n,t,j,m,dw,iw,sw]] ?= lev_memo[[t,j,m,s,i,n,dw,iw,sw]] ?= do -> switch true
+		return lev_memo[[s,i,n,t,j,m,dw,iw,sw]] ?= lev_memo[[t,j,m,s,i,n,dw,iw,sw]] ?= do -> switch
 			when m <= 0 then n
 			when n <= 0 then m
 			else Math.min(
@@ -775,15 +927,15 @@ $.plugin
 	ins = (c) -> {op:'ins',v:c}
 	sub = (c,d) -> {op:'sub',v:c,w:d}
 	diff = (s,i,n,t,j,m,dw,iw,sw) ->
-		return diff_memo[[s,i,n,t,j,m,dw,iw,sw]] ?= collapse do -> switch true
+		return diff_memo[[s,i,n,t,j,m,dw,iw,sw]] ?= collapse do -> switch
 			when m <= 0 then (del c) for c in s.substr i,n
 			when n <= 0 then (ins c) for c in t.substr j,m
 			else
 				sw *= (s[i] isnt t[j])
 				args =
-					del: [s,i+1,n-1, t,j,m,     1,1.5,1.5]
-					ins: [s,i,n, t,j+1,m-1,     1.5,1,1.5]
-					sub: [s,i+1,n-1, t,j+1,m-1, 1,1,1]
+					del: [s+0,i+1,n-1,t+0,j+0,m+0,  1.00,1.50,1.50]
+					ins: [s+0,i+0,n+0,t+0,j+1,m-1,  1.50,1.00,1.50]
+					sub: [s+0,i+1,n-1,t+0,j+1,m-1,  1.00,1.00,1.00]
 				costs =
 					del: dw + lev args.del...
 					ins: iw + lev args.ins...
@@ -1040,7 +1192,7 @@ if $.global.document?
 			bottom: getOrSetRect("bottom")
 			right: getOrSetRect("right")
 			position: (left, top) ->
-				switch true
+				switch
 					when not left? then @rect()
 					when not top? then @css("left", $.px(left))
 					else @css({top: $.px(top), left: $.px(left)})
@@ -1279,16 +1431,22 @@ $.plugin
 	$.type.extend
 		unknown: { hash: (o) -> $.checksum $.toString o }
 		object:  { hash: (o) ->
-			$.hash(Object) +
+			1970931729 + # $.hash(Object)
 				$($.hash(k) + $.hash(v) for k,v of o).sum()
 		}
-		array:   { hash: (o) ->
-			$.hash(Array) + $(o.map $.hash).reduce(((a,x) -> ((a*a)+(x|0)) % maxHash), 1)
+		array:   { hash: array_hash = (o) ->
+			1816922041 + # $.hash(Array)
+				$($.hash(x) for x in o).reduce(((a,x) -> ((a*a)+(x|0)) % maxHash), 1)
+		}
+		arguments: { hash: (o) ->
+			298517431 + # $.hash('Arguments')
+				array_hash o
 		}
 		bool:    { hash: (o) -> parseInt(1 if o) }
 	return {
 		$:
-			hash: (x) -> $.type.lookup(x).hash(x)
+			hash: (x) ->
+				$.type.lookup(x).hash(x)
 		hash: -> $.hash @
 	}
 $.plugin ->
@@ -1349,8 +1507,10 @@ $.plugin
 	provides: "http"
 , ->
 	formencode = (obj) -> # create &foo=bar strings from object properties
-		o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
-		("#{i}=#{escape o[i]}" for i of o).join "&"
+		return if $.is 'object', obj
+			o = JSON.parse JSON.stringify obj # quickly remove all non-stringable items
+			("#{i}=#{escape o[i]}" for i of o).join "&"
+		else obj
 	$.type.register "http",
 		match: (o) -> $.isType 'XMLHttpRequest', o
 		array: (o) -> [o]
@@ -1371,6 +1531,7 @@ $.plugin
 					timeout: 0 # milliseconds, 0 is forever
 					followRedirects: false
 					withCredentials: false
+					headers: {}
 				}, opts
 				opts.state = $.bound(xhr, opts.state)
 				opts.success = $.bound(xhr, opts.success)
@@ -1392,6 +1553,8 @@ $.plugin
 								opts.success xhr.responseText
 							else
 								opts.error xhr.status, xhr.statusText
+				for k,v of opts.headers
+					xhr.setRequestHeader k, v
 				xhr.send opts.data
 				return $(xhr)
 			post: (url, opts = {}) ->
@@ -1588,19 +1751,28 @@ $.plugin
 	deg2rad: -> @filter( isFinite ).map -> @ * Math.PI / 180
 	rad2deg: -> @filter( isFinite ).map -> @ * 180 / Math.PI
 $.plugin
-	depends: 'function'
+	depends: 'function,hash'
 	provides: 'memoize'
 , ->
+	plainCache = ->
+		data = {}
+		return {
+			has: (k) -> k of data
+			get: (k) -> data[k]
+			set: (k,v) -> data[k] = v
+		}
 	$:
 		memoize: (opts) ->
 			if $.is 'function', opts
 				opts = f: opts
 			if not $.is 'object', opts
 				throw new Error "Argument Error: memoize requires either a function or object as first argument"
-			opts.cache or= Object.create(null)
-			opts.hash or= $.identity
+			opts.cache or= plainCache()
+			opts.hash or= $.hash
 			return ->
-				opts.cache[opts.hash(arguments)] ?= opts.f.apply @, arguments
+				key = opts.hash arguments
+				if opts.cache.has key then opts.cache.get key
+				else opts.cache.set key, opts.f.apply @, arguments
 	
 $.plugin
 	depends: "core,function"
@@ -1614,8 +1786,8 @@ $.plugin
 			wait: (timeout, cb) ->
 				if $.is 'function', timeout
 					cb = timeout
-				return cb(err, null) if err isnt NoValue
-				return cb(null,result) if result isnt NoValue
+				return $.immediate(-> cb err, null) if err isnt NoValue
+				return $.immediate(-> cb null,result) if result isnt NoValue
 				waiting.push cb
 				if isFinite timeout
 					cb.timeout = $.delay timeout, ->
@@ -1635,12 +1807,12 @@ $.plugin
 					waiting.select('timeout.cancel').call()
 					waiting.clear()
 				@
-			proxy: (promise) ->
+			join: (promise) ->
 				promise.wait (err, data) =>
 					if err then @fail err
 					else @finish data
 			compose: (promises...) ->
-				@proxy $.Promise.compose promises...
+				@join $.Promise.compose promises...
 			reset: ->
 				err = result = NoValue
 				@
@@ -1668,6 +1840,11 @@ $.plugin
 				@
 			finish: (delta = 1) ->
 				@progress cur + delta
+			include: (promise) ->
+				@progress cur, max + 1
+				promise.wait (err) =>
+					return @fail(err) if err
+					@finish(1)
 		}, p = Promise()
 	Promise.xhr = (xhr) ->
 		p = $.Promise()
@@ -1945,13 +2122,11 @@ $.plugin
 	provides: "sortBy,sortedIndex"
 , ->
 	$:
-		sortedIndex: (array, item, iterator) ->
+		sortedIndex: (array, item, iterator, lo = 0, hi = array.length) ->
 			cmp = switch $.type iterator
 				when "string" then (a,b) -> a[iterator] < b[iterator]
 				when "function" then (a,b) -> iterator(a) < iterator(b)
 				else (a,b) -> a < b
-			hi = array.length
-			lo = 0
 			while lo < hi
 				mid = (hi + lo)>>>1
 				if cmp(array[mid], item)
@@ -1988,6 +2163,7 @@ $.plugin
 			number: safer parseFloat
 			repr:   (s) -> "'#{s}'"
 		array:  { string: safer (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
+		arguments: { string: safer (a) -> "{arguments[#{($.toString(x) for x in a).join(",")}]}" }
 		object:
 			string: safer (o) ->
 				ret = []
@@ -2012,11 +2188,10 @@ $.plugin
 			repr: (f) -> f.toString()
 		number:
 			repr:   (n) -> String(n)
-			string: safer (n) ->
-				switch true
-					when n.precision? then n.toPrecision(n.precision)
-					when n.fixed? then n.toFixed(n.fixed)
-					else String(n)
+			string: safer (n) -> switch
+				when n.precision? then n.toPrecision(n.precision)
+				when n.fixed? then n.toFixed(n.fixed)
+				else String(n)
 	return {
 		$:
 			toString: (x) ->
@@ -2050,6 +2225,12 @@ $.plugin
 				while (i = name?.indexOf('-')) > -1
 					name = $.stringSplice(name, i, i+2, name[i+1].toUpperCase())
 				name
+			commaize: (num, comma=',',dot='.') ->
+				s = String(num)
+				[a, b] = s.split dot
+				if a.length > 3
+					a = $.stringReverse $.stringReverse(a).match(/\d{1,3}/g).join()
+				return if b? then "#{a}.#{b}" else a
 			padLeft: (s, n, c = " ") ->
 				while s.length < n
 					s = c + s
@@ -2080,18 +2261,19 @@ $.plugin
 				if start < 0
 					start += nn
 				s.substring(0,start) + n + s.substring(end)
+			
+			stringReverse: (s) -> s.split(//).reverse().join('')
 			checksum: (s) ->
 				a = 1; b = 0
 				for i in [0...s.length]
 					a = (a + s.charCodeAt(i)) % 65521
 					b = (b + a) % 65521
 				(b << 16) | a
-			repeat: (x, n=2) ->
-				switch true
-					when n is 1 then x
-					when n < 1 then ""
-					when $.is "string", x then $.zeros(n, x).join ''
-					else $.zeros(n, x)
+			repeat: (x, n=2) -> switch
+				when n is 1 then x
+				when n < 1 then ""
+				when $.is "string", x then $.zeros(n, x).join ''
+				else $.zeros(n, x)
 			stringBuilder: do ->
 				len = (s) -> s?.toString().length | 0
 				->
@@ -2136,56 +2318,6 @@ $.plugin
 		noConflict: ->
 			Bling.symbol = "Bling"
 			Bling
-$.plugin
-	provides: "StateMachine"
-, ->
-	$: StateMachine: class StateMachine
-		constructor: (stateTable) ->
-			@debug = false
-			@reset()
-			@table = stateTable
-			Object.defineProperty @, "modeline",
-				get: -> @table[@_mode]
-			Object.defineProperty @, "mode",
-				set: (m) ->
-					@_lastMode = @_mode
-					@_mode = m
-					if @_mode isnt @_lastMode and @modeline? and 'enter' of @modeline
-						ret = @modeline['enter'].call @
-						while $.is("function",ret)
-							ret = ret.call @
-					m
-				get: -> @_mode
-		reset: ->
-			@_mode = null
-			@_lastMode = null
-		GO: go = (m, enter=false) -> ->
-			if enter # force enter to trigger
-				@_mode = null
-			@mode = m
-		@GO: go
-		
-		tick: (c) ->
-			row = @modeline
-			if not row?
-				ret = null
-			else if c of row
-				ret = row[c]
-			else if 'def' of row
-				ret = row['def']
-			while $.is "function",ret
-				ret = ret.call @, c
-			ret
-		run: (inputs) ->
-			@mode = 0
-			for c in inputs
-				ret = @tick(c)
-			if $.is "function",@modeline?.eof
-				ret = @modeline.eof.call @
-			while $.is "function",ret
-				ret = ret.call @
-			@reset()
-			return @
 $.plugin
 	provides: "synth"
 	depends: "StateMachine, type"
@@ -2295,35 +2427,31 @@ $.plugin
 				else
 					$(s.fragment)
 	}
-do ($ = Bling) ->
-	$.plugin () -> # Template plugin, pythonic style: %(value).2f
-		current_engine = null
-		engines = {}
-		template = {
-			register_engine: (name, render_func) ->
-				engines[name] = render_func
-				if not current_engine?
-					current_engine = name
-			render: (text, args) ->
-				if current_engine of engines
-					engines[current_engine](text, args)
-		}
-		template.__defineSetter__ 'engine', (v) ->
-			if not v of engines
-				throw new Error "invalid template engine: #{v} not one of #{Object.Keys(engines)}"
-			else
-				current_engine = v
-		template.__defineGetter__ 'engine', () -> current_engine
-		return {
-			name: 'Template'
-			$:
-				template: template
-		}
+$.plugin
+	depends: "StateMachine"
+	provides: "template"
+, -> # Template plugin, pythonic style: %(value).2f
+	current_engine = null
+	engines = {}
+	template = {
+		register_engine: (name, render_func) ->
+			engines[name] = render_func
+			if not current_engine?
+				current_engine = name
+		render: (text, args) ->
+			if current_engine of engines
+				engines[current_engine](text, args)
+	}
+	template.__defineSetter__ 'engine', (v) ->
+		if not v of engines
+			throw new Error "invalid template engine: #{v} not one of #{Object.Keys(engines)}"
+		else
+			current_engine = v
+	template.__defineGetter__ 'engine', -> current_engine
 	
-	$.template.register_engine 'null', (() ->
+	template.register_engine 'null', do ->
 		return (text, values) ->
 			text
-	)()
 	match_forward = (text, find, against, start, stop = -1) -> # a brace-matcher, useful in most template parsing steps
 		count = 1
 		if stop < 0
@@ -2337,7 +2465,7 @@ do ($ = Bling) ->
 			if count is 0
 				return i
 		return -1
-	$.template.register_engine 'pythonic', (() ->
+	template.register_engine 'pythonic', do ->
 		type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/ # '%.2f' becomes [key, pad, fixed, type, remainder]
 		chunk_re = /%[\(\/]/
 		compile = (text) ->
@@ -2388,8 +2516,7 @@ do ($ = Bling) ->
 				output[j++] = rest
 			output.join ""
 		return render
-	)()
-	$.template.register_engine 'js-eval', (() -> # work in progress...
+	template.register_engine 'js-eval', do -> # work in progress...
 		class TemplateMachine extends $.StateMachine
 			@STATE_TABLE = [
 				{ # 0: START
@@ -2403,7 +2530,7 @@ do ($ = Bling) ->
 			
 		return (text, values) ->
 			text
-	)()
+	return $: { template }
 $.plugin
 	provides: "throttle"
 	depends: "core"
@@ -2470,7 +2597,8 @@ $.plugin
 		"object":
 			symbol: "}"
 			pack: (o) ->
-					(packOne(k)+packOne(v) for k,v of o).join('')
+					(packOne(k)+packOne(v) for k,v of o when k isnt "constructor" and o.hasOwnProperty(k)
+					).join ''
 			unpack: (s) ->
 				data = {}
 				while s.length > 0
@@ -2481,25 +2609,51 @@ $.plugin
 		"function":
 			symbol: ")"
 			pack: (f) ->
-				[args, body] = f.toString()
-					.replace(/function \w*/,'')
-					.replace(/\/\*.*\*\//,'')
-					.replace(/\n/,'')
-					.replace(/^\(/,'')
+				s = f.toString().replace(/(?:\n|\r)+\s*/g,' ')
+				name = ""
+				name_re = /function\s*(\w+)\(.*/g
+				if name_re.test s
+					name = s.replace name_re, "$1"
+				[args, body] = s.replace(/function\s*\w*\(/,'')
+					.replace(/\/\*.*\*\//g,'')
 					.replace(/}$/,'')
 					.split(/\) {/)
 				args = args.split /, */
 				body = body.replace(/^\s+/,'').replace(/\s*$/,'')
-				return [ args, body ].map(packOne).join ''
+				return $( name, args, body ).map(packOne).join ''
 			unpack: (s) ->
-				[args, rest] = unpackOne(s)
+				[name, rest] = unpackOne(s)
+				[args, rest] = unpackOne(rest)
 				[body, rest] = unpackOne(rest)
-				args.push body
-				return Function.apply null, args
+				return makeFunction name, args.join(), body
 		"regexp":
 			symbol: "/"
 			pack: (r) -> String(r).slice(1,-1)
 			unpack: (s) -> RegExp(s)
+		"class instance":
+			symbol: "C"
+			pack: (o) ->
+				unless 'constructor' of o
+					throw new Error("TNET: cant pack non-class as class")
+				unless o.constructor of class_index
+					throw new Error("TNET: cant pack unregistered class (name: #{o.constructor.name}, text: #{o.constructor.toString()}")
+				packOne(class_index[o.constructor]) + packOne(o, "object")
+			unpack: (s) ->
+				[i, rest] = unpackOne(s)
+				[obj, rest] = unpackOne(rest)
+				if i <= classes.length
+					obj.__proto__ = classes[i - 1].prototype
+				else throw new Error("TNET: attempt to unpack unregistered class index: #{i}")
+				obj
+	
+	makeFunction = (name, args, body) ->
+		eval("var f = function #{name}(#{args}){#{body}}")
+		return f
+	
+	classes = []
+	class_index = {}
+	register = (klass) ->
+		class_index[klass] or= classes.push klass
 	Symbols = {} # Reverse lookup table, for use during unpacking
 	do -> for t,v of Types
 		Symbols[v.symbol] = v
@@ -2512,14 +2666,21 @@ $.plugin
 				data[x+1...]
 			]
 		return undefined
-	packOne = (x) ->
-		unless (t = Types[tx = $.type x])?
-			throw new Error("TNET: cant pack type '#{tx}'")
+	packOne = (x, forceType) ->
+		if forceType?
+			tx = forceType
+		else
+			tx = $.type x
+			if tx is "object" and x.constructor?.name isnt "Object"
+				tx = "class instance"
+		unless (t = Types[tx])?
+			throw new Error("TNET: dont know how to pack type '#{tx}'")
 		data = t.pack(x)
 		return (data.length|0) + ":" + data + t.symbol
 	$:
 		TNET:
 			Types: Types
+			registerClass: register
 			stringify: packOne
 			parse: (x) -> unpackOne(x)?[0]
 $.plugin
@@ -2687,28 +2848,41 @@ $.plugin
 		else (o.constructor? and (o.constructor is T or o.constructor.name is T)) or
 			Object::toString.apply(o) is "[object #{T}]" or
 			isType T, o.__proto__ # recursive
-	inherit = (parent, obj) ->
-		return unless obj?
+	inherit = (parent, objs...) ->
+		return unless objs.length > 0
+		obj = objs.shift()
 		if typeof parent is "function"
 			parent = parent.prototype
 		if parent.__proto__ in [Object.prototype, null, undefined]
 			parent.__proto__ = obj.__proto__
 		obj.__proto__ = parent
-		obj
+		return if objs.length > 0
+			inherit obj, objs...
+		else obj
 	_type = do ->
 		cache = {}
 		base =
 			name: 'unknown'
 			match: (o) -> true
 		order = []
+		_with_cache = {} # for fast lookups of every type with a certain method { method: [ types ] }
+		_with_insert = (method, type) ->
+			a = (_with_cache[method] or= [])
+			if (i = a.indexOf type) is -1
+				a.push type
+			
 		register = (name, data) ->
 			order.unshift name if not (name of cache)
 			cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
 			cache[name][name] = (o) -> o
+			for key of cache[name]
+				_with_insert key, cache[name]
 		_extend = (name, data) ->
 			if typeof name is "string"
-				cache[name] ?= register name, {}
+				cache[name] or= register name, {}
 				cache[name] = extend cache[name], data
+				for method of data
+					_with_insert method, cache[name]
 			else if typeof name is "object"
 				(_extend k, name[k]) for k of name
 		lookup = (obj) ->
@@ -2732,8 +2906,10 @@ $.plugin
 			register: register
 			lookup: lookup
 			extend: _extend
+			get: (t) -> cache[t]
 			is: (t, o) -> cache[t]?.match.call o, o
 			as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
+			with: (f) -> _with_cache[f]
 	_type.extend
 		unknown:   { array: (o) -> [o] }
 		null:      { array: (o) -> [] }
@@ -2888,80 +3064,36 @@ $.plugin
 				f.call((n = parseFloat x), n) + parseUnits x
 	}
 $.plugin
-	provides: "unittest"
-	depends: "core,function"
-, ->
-	testCount = passCount = failCount = 0
-	failed = []
-	invokeTest = (group, name, func) ->
-		return if not $.is "function", func
-		_log = (msg) -> $.log "#{group}: #{name}... #{msg}"
-		shouldFail = name.toLowerCase().indexOf("fail") isnt -1
-		done = $.once (err) ->
-			testCount--
-			if (!!err isnt shouldFail)
-				_log "fail: #{err}"
-				failCount++
-				failed.push name
-			else
-				_log "pass"
-				passCount++
-				$.provide name
-		f = (done) ->
-			try func(done)
-			catch err then done(err)
-			finally
-				if name.toLowerCase().indexOf("async") is -1 then done()
-		testCount++
-		try f(done)
-		catch err then done(err)
-	testReport = $.once ->
-		$.log "Passed: #{passCount} Failed: #{failCount} [#{failed}]"
-		if failCount > 0
-			try process.exit(failCount)
-	$:
-		approx: (a, b, margin=.1) -> Math.abs(a - b) < margin
-		assert: (cnd, msg = "no message") -> if not cnd then throw new Error "Assertion failed: #{msg}"
-		assertEqual: (a, b, label) ->
-			if a isnt b
-				throw Error "#{label or ''} (#{a?.toString()}) should equal (#{b?.toString()})"
-		assertArrayEqual: (a, b, label) ->
-			for i in [0...a.length] by 1
-				try
-					$.assertEqual(a[i], b[i], label)
-				catch err
-					throw Error "#{label or ''} #{a?.toString()} should equal #{b?.toString()}"
-		testGroup: (name, funcs) ->
-			interval = setInterval (-> if testCount is 0 then clearInterval(interval); testReport()), 50
-			for k,func of funcs
-				invokeTest(name, k, func)
-	assertEqual: (args...) ->
-		if args.length > 1 # short-cut the trivial cases
-			args = args.map (x) => # call any functions passed as arguments
-				if $.is "function", x then x.call(@,@) else x
-			a = args[0]
-			for i in [1...args.length]
-				$.assertEqual a, args[i]
-		return @
-$.plugin
 	provides: "url,URL"
 , ->
-	url_re = /\b(?:([a-z]+):)(?:\/*([^:?\/#]+))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i
-	parse = (str) ->
+	url_re = /\b(?:([a-z+]+):)(?:\/{1,2}([^:?\/#]*))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i
+	parse = (str, parseQuery=false) ->
 		m = str?.match url_re
-		return if m? then {
+		ret = if m? then {
 			protocol: m[1]
 			host:     m[2]
 			port:     m[3]
 			path:     m[4]
-			query:    m[5]?.replace /^\?/   ,''
-			hash:     m[6]?.replace /^#/    ,''
+			query:    m[5]?.replace /^\?/,''
+			hash:     m[6]?.replace /^#/, ''
 		} else null
-	
+		
+		if parseQuery
+			query = ret?.query ? ""
+			ret.query = {}
+			for pair in query.split('&')
+				if (i = pair.indexOf '=') > -1
+					ret.query[pair.substring 0,i] = unescape pair.substring i+1
+				else if pair.length > 0
+					ret.query[pair] = null
+			delete ret.query[""]
+		return ret
 	clean = (val, re, prefix = '', suffix ='') ->
 		x = val ? ""
 		return if x and not re.test x then prefix+x+suffix else x
 	stringify = (url) ->
+		if $.is 'object', url.query
+			url.query = ("#{k}=#{v}" for k,v of url.query).join("&")
 		return [
 			clean(url.protocol, /:$/, '', ':'),
 			clean(url.host, /^\//, '//'),

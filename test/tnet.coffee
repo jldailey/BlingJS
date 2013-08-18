@@ -21,8 +21,9 @@ describe "$.TNET", ->
 			it "object", ->
 				assert.deepEqual $.TNET.parse("16:1:a'1:1#1:b'1:2#}"), {a:1,b:2}
 			it "function", ->
-				f = $.TNET.parse("24:4:1:x']13:return x * x;')")
+				f = $.TNET.parse "29:2:sq'4:1:x']13:return x * x;')"
 				assert $.is 'function', f
+				assert.equal f.name, 'sq'
 				assert.equal f(4), 16
 			it "regexp", ->
 				expect = /^f.*o$/
@@ -48,7 +49,23 @@ describe "$.TNET", ->
 			it "object", ->
 				assert.equal $.TNET.stringify({a:1,b:2}), "16:1:a'1:1#1:b'1:2#}"
 			it "function", ->
-				assert.equal $.TNET.stringify((x)->x*x), "24:4:1:x']13:return x * x;')"
+				assert.equal $.TNET.stringify((x)->x*x), "27:0:'4:1:x']13:return x * x;')"
+			it "function with name", ->
+				class Foo
+					constructor: (x) -> return x * x
+				assert.equal $.TNET.stringify(Foo), "30:3:Foo'4:1:x']13:return x * x;')"
 			it "regexp", ->
 				assert.equal $.TNET.stringify(/^f.*o$/), "6:^f.*o$/"
+			it "class instance", ->
+				class Foo
+					sq: -> return @x * @x
+				f = new Foo()
+				f.x = 4
+				assert.throws ->
+					$.TNET.stringify f # Foo is not registered yet
+				$.TNET.registerClass Foo
+				assert.equal $.TNET.stringify(f), "15:1:1#8:1:x'1:4#}C"
+				g = $.TNET.parse $.TNET.stringify(f)
+				assert.equal g.sq(), 16
+
 

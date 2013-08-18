@@ -215,7 +215,11 @@ $.plugin
 			@
 
 		# Remove a property from each item.
-		clean: (prop) -> @each -> delete @[prop]
+		clean: (props...) ->
+			@each ->
+				for prop in props
+					delete @[prop]
+				null
 
 		# Get a new set with only the first _n_ items from _this_.
 		take: (n = 1) ->
@@ -350,5 +354,11 @@ $.plugin
 
 		# Remove all items
 		clear: -> @splice 0, @length
+
+		# Find the index of the first item that matches
+		indexWhere: (f) ->
+			for x,i in @
+				return i if (f.call x,x)
+			return -1
 
 	}

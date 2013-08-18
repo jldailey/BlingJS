@@ -69,10 +69,12 @@
 
   Bling.prototype.constructor = Bling;
 
-  Bling.global = typeof window !== "undefined" && window !== null ? window : global;
+  Bling.global = (function() {
+    return this;
+  })();
 
   Bling.plugin = function(opts, constructor) {
-    var error, key, plugin, _base, _fn, _name, _ref,
+    var error, key, plugin, _fn,
       _this = this;
     if (!constructor) {
       constructor = opts;
@@ -87,7 +89,6 @@
     }
     try {
       if (typeof (plugin = constructor != null ? constructor.call(this, this) : void 0) === "object") {
-        ((_base = Bling.plugin)[_name = (_ref = opts.provides) != null ? _ref : ""] || (_base[_name] = [])).push(plugin);
         extend(this, plugin != null ? plugin.$ : void 0);
         delete plugin.$;
         extend(this.prototype, plugin);
@@ -122,7 +123,7 @@
       });
     };
     return {
-      depends: depend = function(needs, func) {
+      depend: depend = function(needs, func) {
         if ((needs = incomplete(needs)).length === 0) {
           func();
         } else {
@@ -136,17 +137,17 @@
         }
         return func;
       },
-      depend: depend,
+      depends: depend,
       provide: function(needs, data) {
-        var func, i, need, _i, _len, _ref;
+        var i, need, ready, _i, _len, _ref;
         _ref = incomplete(needs);
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           need = _ref[_i];
           complete[need] = i = 0;
           while (i < waiting.length) {
-            if ((func = waiting[i](need))) {
+            if ((ready = waiting[i](need))) {
               waiting.splice(i, 1);
-              func(data);
+              ready(data);
               i = 0;
             } else {
               i++;
@@ -159,164 +160,6 @@
   })());
 
   $ = Bling;
-
-  $.plugin({
-    provides: "EventEmitter",
-    depends: "type,hook"
-  }, function() {
-    return {
-      $: {
-        EventEmitter: Bling.init.append(function(obj) {
-          var add, list, listeners;
-          if (obj == null) {
-            obj = {};
-          }
-          listeners = Object.create(null);
-          list = function(e) {
-            return listeners[e] || (listeners[e] = []);
-          };
-          return $.inherit({
-            emit: function() {
-              var a, e, f, _i, _len, _ref;
-              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-              _ref = list(e);
-              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                f = _ref[_i];
-                f.apply(this, a);
-              }
-              return this;
-            },
-            on: add = function(e, f) {
-              var k, v;
-              switch ($.type(e)) {
-                case 'object':
-                  for (k in e) {
-                    v = e[k];
-                    this.addListener(k, v);
-                  }
-                  break;
-                case 'string':
-                  list(e).push(f);
-                  this.emit('newListener', e, f);
-              }
-              return this;
-            },
-            addListener: add,
-            removeListener: function(e, f) {
-              var i, l;
-              if ((i = (l = list(e)).indexOf(f)) > -1) {
-                return l.splice(i, 1);
-              }
-            },
-            removeAllListeners: function(e) {
-              return listeners[e] = [];
-            },
-            setMaxListeners: function(n) {},
-            listeners: function(e) {
-              return list(e).slice(0);
-            }
-          }, obj);
-        })
-      }
-    };
-  });
-
-  $.plugin({
-    provides: "StateMachine",
-    depends: "type"
-  }, function() {
-    var StateMachine;
-    return {
-      $: {
-        StateMachine: StateMachine = (function() {
-          var go;
-
-          function StateMachine(stateTable) {
-            this.debug = false;
-            this.reset();
-            this.table = stateTable;
-            Object.defineProperty(this, "modeline", {
-              get: function() {
-                return this.table[this._mode];
-              }
-            });
-            Object.defineProperty(this, "mode", {
-              set: function(m) {
-                var ret;
-                this._lastMode = this._mode;
-                this._mode = m;
-                if (this._mode !== this._lastMode && (this.modeline != null) && 'enter' in this.modeline) {
-                  ret = this.modeline['enter'].call(this);
-                  while ($.is("function", ret)) {
-                    ret = ret.call(this);
-                  }
-                }
-                return m;
-              },
-              get: function() {
-                return this._mode;
-              }
-            });
-          }
-
-          StateMachine.prototype.reset = function() {
-            this._mode = null;
-            return this._lastMode = null;
-          };
-
-          StateMachine.prototype.GO = go = function(m, enter) {
-            if (enter == null) {
-              enter = false;
-            }
-            return function() {
-              if (enter) {
-                this._mode = null;
-              }
-              return this.mode = m;
-            };
-          };
-
-          StateMachine.GO = go;
-
-          StateMachine.prototype.tick = function(c) {
-            var ret, row;
-            row = this.modeline;
-            if (row == null) {
-              ret = null;
-            } else if (c in row) {
-              ret = row[c];
-            } else if ('def' in row) {
-              ret = row['def'];
-            }
-            while ($.is("function", ret)) {
-              ret = ret.call(this, c);
-            }
-            return ret;
-          };
-
-          StateMachine.prototype.run = function(inputs) {
-            var c, ret, _i, _len, _ref;
-            this.mode = 0;
-            for (_i = 0, _len = inputs.length; _i < _len; _i++) {
-              c = inputs[_i];
-              ret = this.tick(c);
-            }
-            if ($.is("function", (_ref = this.modeline) != null ? _ref.eof : void 0)) {
-              ret = this.modeline.eof.call(this);
-            }
-            while ($.is("function", ret)) {
-              ret = ret.call(this);
-            }
-            this.reset();
-            return this;
-          };
-
-          return StateMachine;
-
-        })()
-      }
-    };
-  });
 
   $.plugin({
     depends: "core",
@@ -2686,6 +2529,67 @@
   }
 
   $.plugin({
+    provides: "EventEmitter",
+    depends: "type,hook"
+  }, function() {
+    return {
+      $: {
+        EventEmitter: Bling.init.append(function(obj) {
+          var add, list, listeners;
+          if (obj == null) {
+            obj = {};
+          }
+          listeners = Object.create(null);
+          list = function(e) {
+            return listeners[e] || (listeners[e] = []);
+          };
+          return $.inherit({
+            emit: function() {
+              var a, e, f, _i, _len, _ref;
+              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+              _ref = list(e);
+              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                f = _ref[_i];
+                f.apply(this, a);
+              }
+              return this;
+            },
+            on: add = function(e, f) {
+              var k, v;
+              switch ($.type(e)) {
+                case 'object':
+                  for (k in e) {
+                    v = e[k];
+                    this.addListener(k, v);
+                  }
+                  break;
+                case 'string':
+                  list(e).push(f);
+                  this.emit('newListener', e, f);
+              }
+              return this;
+            },
+            addListener: add,
+            removeListener: function(e, f) {
+              var i, l;
+              if ((i = (l = list(e)).indexOf(f)) > -1) {
+                return l.splice(i, 1);
+              }
+            },
+            removeAllListeners: function(e) {
+              return listeners[e] = [];
+            },
+            setMaxListeners: function(n) {},
+            listeners: function(e) {
+              return list(e).slice(0);
+            }
+          }, obj);
+        })
+      }
+    };
+  });
+
+  $.plugin({
     depends: "dom,function,core",
     provides: "event"
   }, function() {
@@ -4526,6 +4430,103 @@
       sortedInsert: function(item, iterator) {
         this.splice($.sortedIndex(this, item, iterator), 0, item);
         return this;
+      }
+    };
+  });
+
+  $.plugin({
+    provides: "StateMachine",
+    depends: "type"
+  }, function() {
+    var StateMachine;
+    return {
+      $: {
+        StateMachine: StateMachine = (function() {
+          var go;
+
+          function StateMachine(stateTable) {
+            this.debug = false;
+            this.reset();
+            this.table = stateTable;
+            Object.defineProperty(this, "modeline", {
+              get: function() {
+                return this.table[this._mode];
+              }
+            });
+            Object.defineProperty(this, "mode", {
+              set: function(m) {
+                var ret;
+                this._lastMode = this._mode;
+                this._mode = m;
+                if (this._mode !== this._lastMode && (this.modeline != null) && 'enter' in this.modeline) {
+                  ret = this.modeline['enter'].call(this);
+                  while ($.is("function", ret)) {
+                    ret = ret.call(this);
+                  }
+                }
+                return m;
+              },
+              get: function() {
+                return this._mode;
+              }
+            });
+          }
+
+          StateMachine.prototype.reset = function() {
+            this._mode = null;
+            return this._lastMode = null;
+          };
+
+          StateMachine.prototype.GO = go = function(m, enter) {
+            if (enter == null) {
+              enter = false;
+            }
+            return function() {
+              if (enter) {
+                this._mode = null;
+              }
+              return this.mode = m;
+            };
+          };
+
+          StateMachine.GO = go;
+
+          StateMachine.prototype.tick = function(c) {
+            var ret, row;
+            row = this.modeline;
+            if (row == null) {
+              ret = null;
+            } else if (c in row) {
+              ret = row[c];
+            } else if ('def' in row) {
+              ret = row['def'];
+            }
+            while ($.is("function", ret)) {
+              ret = ret.call(this, c);
+            }
+            return ret;
+          };
+
+          StateMachine.prototype.run = function(inputs) {
+            var c, ret, _i, _len, _ref;
+            this.mode = 0;
+            for (_i = 0, _len = inputs.length; _i < _len; _i++) {
+              c = inputs[_i];
+              ret = this.tick(c);
+            }
+            if ($.is("function", (_ref = this.modeline) != null ? _ref.eof : void 0)) {
+              ret = this.modeline.eof.call(this);
+            }
+            while ($.is("function", ret)) {
+              ret = ret.call(this);
+            }
+            this.reset();
+            return this;
+          };
+
+          return StateMachine;
+
+        })()
       }
     };
   });

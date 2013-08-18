@@ -14,12 +14,12 @@ class Bling # extends (new Array)
 			i = 0
 			i++ while args[i] isnt undefined
 			b.length = i
-		if 'init' of Bling
+		if 'init' of Bling # See: plugins/hook.coffee
 			return Bling.init(b)
 		return b
 Bling:: = []
 Bling::constructor = Bling
-Bling.global = if window? then window else global
+Bling.global = do -> @
 Bling.plugin = (opts, constructor) ->
 	if not constructor
 		constructor = opts
@@ -29,7 +29,6 @@ Bling.plugin = (opts, constructor) ->
 			@plugin { provides: opts.provides }, constructor
 	try
 		if typeof (plugin = constructor?.call @,@) is "object"
-			(Bling.plugin[opts.provides ? ""] or= []).push plugin
 			extend @, plugin?.$
 			delete plugin.$
 			extend @prototype, plugin
@@ -45,98 +44,25 @@ extend Bling, do ->
 	incomplete = (n) ->
 		(if (typeof n) is "string" then n.split /, */ else n)
 		.filter (x) -> not (x of complete)
-	depends: depend = (needs, func) ->
+	depend: depend = (needs, func) ->
 		if (needs = incomplete needs).length is 0 then func()
 		else
 			waiting.push (need) ->
 				(needs.splice i, 1) if (i = needs.indexOf need) > -1
 				return (needs.length is 0 and func)
 		func
-	depend: depend # alias
+	depends: depend # alias
 	provide: (needs, data) ->
 		for need in incomplete needs
 			complete[need] = i = 0
 			while i < waiting.length
-				if (func = waiting[i] need)
+				if (ready = waiting[i] need)
 					waiting.splice i,1
-					func data
+					ready data
 					i = 0 # start over in case a nested dependency removed stuff 'behind' i
 				else i++
 		data
 $ = Bling
-$.plugin
-	provides: "EventEmitter"
-	depends: "type,hook"
-, ->
-	$: EventEmitter: Bling.init.append (obj = {}) ->
-		listeners = Object.create null
-		list = (e) -> (listeners[e] or= [])
-		$.inherit {
-			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-			on: add = (e, f) ->
-				switch $.type e
-					when 'object' then @addListener(k,v) for k,v of e
-					when 'string'
-						list(e).push(f)
-						@emit('newListener', e, f)
-				return @
-			addListener: add
-			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
-			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
-			listeners:          (e) -> list(e).slice 0
-		}, obj
-$.plugin
-	provides: "StateMachine"
-	depends: "type"
-, ->
-	$: StateMachine: class StateMachine
-		constructor: (stateTable) ->
-			@debug = false
-			@reset()
-			@table = stateTable
-			Object.defineProperty @, "modeline",
-				get: -> @table[@_mode]
-			Object.defineProperty @, "mode",
-				set: (m) ->
-					@_lastMode = @_mode
-					@_mode = m
-					if @_mode isnt @_lastMode and @modeline? and 'enter' of @modeline
-						ret = @modeline['enter'].call @
-						while $.is("function",ret)
-							ret = ret.call @
-					m
-				get: -> @_mode
-		reset: ->
-			@_mode = null
-			@_lastMode = null
-		GO: go = (m, enter=false) -> ->
-			if enter # force enter to trigger
-				@_mode = null
-			@mode = m
-		@GO: go
-		
-		tick: (c) ->
-			row = @modeline
-			if not row?
-				ret = null
-			else if c of row
-				ret = row[c]
-			else if 'def' of row
-				ret = row['def']
-			while $.is "function",ret
-				ret = ret.call @, c
-			ret
-		run: (inputs) ->
-			@mode = 0
-			for c in inputs
-				ret = @tick(c)
-			if $.is "function",@modeline?.eof
-				ret = @modeline.eof.call @
-			while $.is "function",ret
-				ret = ret.call @
-			@reset()
-			return @
 $.plugin
 	depends: "core"
 	provides: "async"
@@ -1222,6 +1148,28 @@ if $.global.document?
 				return toNode @[0]
 		}
 $.plugin
+	provides: "EventEmitter"
+	depends: "type,hook"
+, ->
+	$: EventEmitter: Bling.init.append (obj = {}) ->
+		listeners = Object.create null
+		list = (e) -> (listeners[e] or= [])
+		$.inherit {
+			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
+			on: add = (e, f) ->
+				switch $.type e
+					when 'object' then @addListener(k,v) for k,v of e
+					when 'string'
+						list(e).push(f)
+						@emit('newListener', e, f)
+				return @
+			addListener: add
+			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
+			removeAllListeners: (e) -> listeners[e] = []
+			setMaxListeners:    (n) -> # who really needs this in the core API?
+			listeners:          (e) -> list(e).slice 0
+		}, obj
+$.plugin
 	depends: "dom,function,core"
 	provides: "event"
 , ->
@@ -2144,6 +2092,57 @@ $.plugin
 		@splice ($.sortedIndex @, item, iterator), 0, item
 		@
 		
+$.plugin
+	provides: "StateMachine"
+	depends: "type"
+, ->
+	$: StateMachine: class StateMachine
+		constructor: (stateTable) ->
+			@debug = false
+			@reset()
+			@table = stateTable
+			Object.defineProperty @, "modeline",
+				get: -> @table[@_mode]
+			Object.defineProperty @, "mode",
+				set: (m) ->
+					@_lastMode = @_mode
+					@_mode = m
+					if @_mode isnt @_lastMode and @modeline? and 'enter' of @modeline
+						ret = @modeline['enter'].call @
+						while $.is("function",ret)
+							ret = ret.call @
+					m
+				get: -> @_mode
+		reset: ->
+			@_mode = null
+			@_lastMode = null
+		GO: go = (m, enter=false) -> ->
+			if enter # force enter to trigger
+				@_mode = null
+			@mode = m
+		@GO: go
+		
+		tick: (c) ->
+			row = @modeline
+			if not row?
+				ret = null
+			else if c of row
+				ret = row[c]
+			else if 'def' of row
+				ret = row['def']
+			while $.is "function",ret
+				ret = ret.call @, c
+			ret
+		run: (inputs) ->
+			@mode = 0
+			for c in inputs
+				ret = @tick(c)
+			if $.is "function",@modeline?.eof
+				ret = @modeline.eof.call @
+			while $.is "function",ret
+				ret = ret.call @
+			@reset()
+			return @
 $.plugin
 	provides: "string"
 	depends: "function"

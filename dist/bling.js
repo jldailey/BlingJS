@@ -69,10 +69,12 @@
 
   Bling.prototype.constructor = Bling;
 
-  Bling.global = typeof window !== "undefined" && window !== null ? window : global;
+  Bling.global = (function() {
+    return this;
+  })();
 
   Bling.plugin = function(opts, constructor) {
-    var error, key, plugin, _base, _fn, _name, _ref,
+    var error, key, plugin, _fn,
       _this = this;
     if (!constructor) {
       constructor = opts;
@@ -87,7 +89,6 @@
     }
     try {
       if (typeof (plugin = constructor != null ? constructor.call(this, this) : void 0) === "object") {
-        ((_base = Bling.plugin)[_name = (_ref = opts.provides) != null ? _ref : ""] || (_base[_name] = [])).push(plugin);
         extend(this, plugin != null ? plugin.$ : void 0);
         delete plugin.$;
         extend(this.prototype, plugin);
@@ -122,7 +123,7 @@
       });
     };
     return {
-      depends: depend = function(needs, func) {
+      depend: depend = function(needs, func) {
         if ((needs = incomplete(needs)).length === 0) {
           func();
         } else {
@@ -136,17 +137,17 @@
         }
         return func;
       },
-      depend: depend,
+      depends: depend,
       provide: function(needs, data) {
-        var func, i, need, _i, _len, _ref;
+        var i, need, ready, _i, _len, _ref;
         _ref = incomplete(needs);
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           need = _ref[_i];
           complete[need] = i = 0;
           while (i < waiting.length) {
-            if ((func = waiting[i](need))) {
+            if ((ready = waiting[i](need))) {
               waiting.splice(i, 1);
-              func(data);
+              ready(data);
               i = 0;
             } else {
               i++;
@@ -378,39 +379,6 @@
           _results.push(this[i](finish_one(i)));
         }
         return _results;
-      }
-    };
-  });
-
-  $.plugin({
-    provides: "auto"
-  }, function() {
-    var parse, parsers, register;
-    parsers = [/^\d+:/, $.TNET, /^[{\["']/, JSON];
-    register = function(regex, codec) {
-      if (parsers.indexOf(regex) + parsers.indexOf(codec) === -2) {
-        parsers.push(regex);
-        return parsers.push(codec);
-      }
-    };
-    $.depends("dom", function() {
-      return register(/^</, $.HTML);
-    });
-    parse = function(s) {
-      var i, regex, _i, _len;
-      for (i = _i = 0, _len = parsers.length; _i < _len; i = _i += 2) {
-        regex = parsers[i];
-        if (s.test(regex)) {
-          return parsers[i + 1].parse(s);
-        }
-      }
-      return null;
-    };
-    return {
-      $: {
-        AUTO: {
-          parse: parse
-        }
       }
     };
   });
@@ -1570,7 +1538,7 @@
         b = $();
         for (i = _i = 0, _len = this.length; _i < _len; i = ++_i) {
           item = this[i];
-          if (($.is('array', item)) || ($.is('bling', item))) {
+          if (($.is('array', item)) || ($.is('bling', item)) || ($.is('arguments', item))) {
             for (_j = 0, _len1 = item.length; _j < _len1; _j++) {
               j = item[_j];
               b.push(j);

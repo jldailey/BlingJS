@@ -63,7 +63,8 @@ class Bling # extends (new Array)
 			i = 0
 			i++ while args[i] isnt undefined
 			b.length = i
-		if 'init' of Bling
+		if 'init' of Bling # See: plugins/hook.coffee
+			# This allows plugins to modify the constructor behavior
 			return Bling.init(b)
 		return b
 
@@ -71,7 +72,7 @@ class Bling # extends (new Array)
 # if such a thing were supported by the syntax directly.
 Bling:: = []
 Bling::constructor = Bling
-Bling.global = if window? then window else global
+Bling.global = do -> @
 
 # $.plugin( [ opts ], func )
 # -----------------
@@ -87,6 +88,8 @@ Bling.global = if window? then window else global
 # You can explicitly define static helpers by nesting under a `$` key:
 # > `$.plugin -> $: hello: -> "Hello!"`
 
+# This would only define $.hello()
+
 Bling.plugin = (opts, constructor) ->
 	if not constructor
 		constructor = opts
@@ -101,8 +104,6 @@ Bling.plugin = (opts, constructor) ->
 		# We call the plugin constructor and expect that it returns an
 		# object full of keys to extend either Bling or it's prototype.
 		if typeof (plugin = constructor?.call @,@) is "object"
-			# Record that this plugin loaded.
-			(Bling.plugin[opts.provides ? ""] or= []).push plugin
 			# If the plugin has a `$` key, extend the root with static items.
 			extend @, plugin?.$
 			# What remains extends the Bling prototype.
@@ -130,21 +131,21 @@ extend Bling, do ->
 	incomplete = (n) ->
 		(if (typeof n) is "string" then n.split /, */ else n)
 		.filter (x) -> not (x of complete)
-	depends: depend = (needs, func) ->
+	depend: depend = (needs, func) ->
 		if (needs = incomplete needs).length is 0 then func()
 		else
 			waiting.push (need) ->
 				(needs.splice i, 1) if (i = needs.indexOf need) > -1
 				return (needs.length is 0 and func)
 		func
-	depend: depend # alias
+	depends: depend # alias
 	provide: (needs, data) ->
 		for need in incomplete needs
 			complete[need] = i = 0
 			while i < waiting.length
-				if (func = waiting[i] need)
+				if (ready = waiting[i] need)
 					waiting.splice i,1
-					func data
+					ready data
 					i = 0 # start over in case a nested dependency removed stuff 'behind' i
 				else i++
 		data

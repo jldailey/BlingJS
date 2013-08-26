@@ -14,12 +14,12 @@ class Bling # extends (new Array)
 			i = 0
 			i++ while args[i] isnt undefined
 			b.length = i
-		if 'init' of Bling
+		if 'init' of Bling # See: plugins/hook.coffee
 			return Bling.init(b)
 		return b
 Bling:: = []
 Bling::constructor = Bling
-Bling.global = if window? then window else global
+Bling.global = do -> @
 Bling.plugin = (opts, constructor) ->
 	if not constructor
 		constructor = opts
@@ -29,7 +29,6 @@ Bling.plugin = (opts, constructor) ->
 			@plugin { provides: opts.provides }, constructor
 	try
 		if typeof (plugin = constructor?.call @,@) is "object"
-			(Bling.plugin[opts.provides ? ""] or= []).push plugin
 			extend @, plugin?.$
 			delete plugin.$
 			extend @prototype, plugin
@@ -45,21 +44,21 @@ extend Bling, do ->
 	incomplete = (n) ->
 		(if (typeof n) is "string" then n.split /, */ else n)
 		.filter (x) -> not (x of complete)
-	depends: depend = (needs, func) ->
+	depend: depend = (needs, func) ->
 		if (needs = incomplete needs).length is 0 then func()
 		else
 			waiting.push (need) ->
 				(needs.splice i, 1) if (i = needs.indexOf need) > -1
 				return (needs.length is 0 and func)
 		func
-	depend: depend # alias
+	depends: depend # alias
 	provide: (needs, data) ->
 		for need in incomplete needs
 			complete[need] = i = 0
 			while i < waiting.length
-				if (func = waiting[i] need)
+				if (ready = waiting[i] need)
 					waiting.splice i,1
-					func data
+					ready data
 					i = 0 # start over in case a nested dependency removed stuff 'behind' i
 				else i++
 		data
@@ -170,29 +169,6 @@ $.plugin
 			for i in [0...todo] by 1
 				@[i](finish_one(i))
 	}
-$.plugin
-	provides: "auto"
-, ->
-	parsers = [
-		/^\d+:/
-		$.TNET
-		/^[{\["']/
-		JSON
-	]
-	register = (regex, codec) ->
-		if parsers.indexOf(regex) + parsers.indexOf(codec) is -2
-			parsers.push regex
-			parsers.push codec
-	
-	$.depends "dom", -> register /^</, $.HTML
-	
-	parse = (s) ->
-		for regex, i in parsers by 2
-			if s.test regex
-				return parsers[i+1].parse s
-		null
-	
-	return $: AUTO: { parse }
 $.plugin
 	depends: 'type,function'
 	provides: 'TNET'
@@ -708,7 +684,7 @@ $.plugin
 		flatten: ->
 			b = $()
 			for item, i in @
-				if ($.is 'array', item) or ($.is 'bling', item)
+				if ($.is 'array', item) or ($.is 'bling', item) or ($.is 'arguments', item)
 					for j in item then b.push(j)
 				else b.push(item)
 			b

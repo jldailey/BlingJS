@@ -34,10 +34,11 @@ test/%.coffee.pass: test/%.coffee plugins/%.coffee bling.coffee
 
 bench: dist $(TIME_FILES)
 	@echo "All benchmarks are complete."
+	@cat bench/*.time
 
 bench/%.coffee.time: bench/%.coffee plugins/%.coffee test/%.coffee.pass bench/setup.coffee bling.coffee Makefile
 	@echo Running $<
-	@$(COFFEE) $< | tee $@
+	@$(COFFEE) $< > $@
 
 site: test
 	@git stash save &> /dev/null

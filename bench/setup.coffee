@@ -1,5 +1,6 @@
 module.exports = [
 	require '../dist/min.bling.js'
+	require 'assert'
 ]
 
 $.units.enable()

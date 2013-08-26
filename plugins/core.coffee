@@ -327,7 +327,10 @@ $.plugin
 		# Get a new set with all items from subsets in one set.
 		flatten: ->
 			b = $()
-			(b.push(j) for j in i) for i in @
+			for item, i in @
+				if ($.is 'array', item) or ($.is 'bling', item)
+					for j in item then b.push(j)
+				else b.push(item)
 			b
 
 		# Call every function in _this_ with the same arguments.

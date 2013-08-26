@@ -260,6 +260,8 @@ describe "Core plugin:", ->
 			assert.deepEqual $([[1,2],[3,4]]).flatten(), [1,2,3,4]
 		it "allows duplicates (unlike union)", ->
 			assert.deepEqual $([[1,2],[1,2]]).flatten(), [1,2,1,2]
+		it "combines elements and subsets", ->
+			assert.deepEqual $(1,2,[3]).flatten(), [1,2,3]
 
 	describe "delay", ->
 		describe ".delay(ms, f)", ->

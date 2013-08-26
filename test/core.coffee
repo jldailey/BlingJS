@@ -262,6 +262,9 @@ describe "Core plugin:", ->
 			assert.deepEqual $([[1,2],[1,2]]).flatten(), [1,2,1,2]
 		it "combines elements and subsets", ->
 			assert.deepEqual $(1,2,[3]).flatten(), [1,2,3]
+		it "supports flattening arguments", ->
+			f = -> return $([ arguments, 3]).flatten()
+			assert.deepEqual [1,2,3], f(1,2)
 
 	describe "delay", ->
 		describe ".delay(ms, f)", ->

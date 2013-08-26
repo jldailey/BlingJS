@@ -383,6 +383,308 @@
   });
 
   $.plugin({
+    provides: "auto"
+  }, function() {
+    var parse, parsers, register;
+    parsers = [/^\d+:/, $.TNET, /^[{\["']/, JSON];
+    register = function(regex, codec) {
+      if (parsers.indexOf(regex) + parsers.indexOf(codec) === -2) {
+        parsers.push(regex);
+        return parsers.push(codec);
+      }
+    };
+    $.depends("dom", function() {
+      return register(/^</, $.HTML);
+    });
+    parse = function(s) {
+      var i, regex, _i, _len;
+      for (i = _i = 0, _len = parsers.length; _i < _len; i = _i += 2) {
+        regex = parsers[i];
+        if (s.test(regex)) {
+          return parsers[i + 1].parse(s);
+        }
+      }
+      return null;
+    };
+    return {
+      $: {
+        AUTO: {
+          parse: parse
+        }
+      }
+    };
+  });
+
+  $.plugin({
+    depends: 'type,function',
+    provides: 'TNET'
+  }, function() {
+    var DIVIDER, OverflowError, Symbols, Types, UnderflowError, class_index, classes, decodeUInt, encodeUInt, makeFunction, maxInt, packOne, reIndex, register, unpackOne;
+    DIVIDER = "\0";
+    Types = {
+      "number": {
+        symbol: "#",
+        pack: String,
+        unpack: Number
+      },
+      "string": {
+        symbol: "'",
+        pack: $.identity,
+        unpack: $.identity
+      },
+      "bool": {
+        symbol: "!",
+        pack: function(b) {
+          return String.fromCharCode(!!b ? 1 : 0);
+        },
+        unpack: function(s) {
+          return s.charCodeAt(0) === 1;
+        }
+      },
+      "null": {
+        symbol: "~",
+        pack: function() {
+          return "";
+        },
+        unpack: function() {
+          return null;
+        }
+      },
+      "undefined": {
+        symbol: "_",
+        pack: function() {
+          return "";
+        },
+        unpack: function() {
+          return void 0;
+        }
+      },
+      "array": {
+        symbol: "]",
+        pack: function(a) {
+          var y;
+          return ((function() {
+            var _i, _len, _results;
+            _results = [];
+            for (_i = 0, _len = a.length; _i < _len; _i++) {
+              y = a[_i];
+              _results.push(packOne(y));
+            }
+            return _results;
+          })()).join('');
+        },
+        unpack: function(s) {
+          var data, one, _ref;
+          data = [];
+          while (s.length > 0) {
+            _ref = unpackOne(s), one = _ref[0], s = _ref[1];
+            data.push(one);
+          }
+          return data;
+        }
+      },
+      "bling": {
+        symbol: "$",
+        pack: function(a) {
+          var y;
+          return ((function() {
+            var _i, _len, _results;
+            _results = [];
+            for (_i = 0, _len = a.length; _i < _len; _i++) {
+              y = a[_i];
+              _results.push(packOne(y));
+            }
+            return _results;
+          })()).join('');
+        },
+        unpack: function(s) {
+          var data, one, _ref;
+          data = $();
+          while (s.length > 0) {
+            _ref = unpackOne(s), one = _ref[0], s = _ref[1];
+            data.push(one);
+          }
+          return data;
+        }
+      },
+      "object": {
+        symbol: "}",
+        pack: function(o) {
+          var k, v;
+          return ((function() {
+            var _results;
+            _results = [];
+            for (k in o) {
+              v = o[k];
+              if (k !== "constructor" && o.hasOwnProperty(k)) {
+                _results.push(packOne(k) + packOne(v));
+              }
+            }
+            return _results;
+          })()).join('');
+        },
+        unpack: function(s) {
+          var data, key, value, _ref, _ref1;
+          data = {};
+          while (s.length > 0) {
+            _ref = unpackOne(s), key = _ref[0], s = _ref[1];
+            _ref1 = unpackOne(s), value = _ref1[0], s = _ref1[1];
+            data[key] = value;
+          }
+          return data;
+        }
+      },
+      "function": {
+        symbol: ")",
+        pack: function(f) {
+          var args, body, name, name_re, s, _ref;
+          s = f.toString().replace(/(?:\n|\r)+\s*/g, ' ');
+          name = "";
+          name_re = /function\s*(\w+)\(.*/g;
+          if (name_re.test(s)) {
+            name = s.replace(name_re, "$1");
+          }
+          _ref = s.replace(/function\s*\w*\(/, '').replace(/\/\*.*\*\//g, '').replace(/}$/, '').split(/\) {/), args = _ref[0], body = _ref[1];
+          args = args.split(/, */);
+          body = body.replace(/^\s+/, '').replace(/\s*$/, '');
+          return $(name, args, body).map(packOne).join('');
+        },
+        unpack: function(s) {
+          var args, body, name, rest, _ref, _ref1, _ref2;
+          _ref = unpackOne(s), name = _ref[0], rest = _ref[1];
+          _ref1 = unpackOne(rest), args = _ref1[0], rest = _ref1[1];
+          _ref2 = unpackOne(rest), body = _ref2[0], rest = _ref2[1];
+          return makeFunction(name, args.join(), body);
+        }
+      },
+      "regexp": {
+        symbol: "/",
+        pack: function(r) {
+          return String(r).slice(1, -1);
+        },
+        unpack: function(s) {
+          return RegExp(s);
+        }
+      },
+      "class instance": {
+        symbol: "C",
+        pack: function(o) {
+          if (!('constructor' in o)) {
+            throw new Error("TNET: cant pack non-class as class");
+          }
+          if (!(o.constructor in class_index)) {
+            throw new Error("TNET: cant pack unregistered class (name: " + o.constructor.name + ", text: " + (o.constructor.toString()));
+          }
+          return packOne(class_index[o.constructor]) + packOne(o, "object");
+        },
+        unpack: function(s) {
+          var i, obj, rest, _ref, _ref1;
+          _ref = unpackOne(s), i = _ref[0], rest = _ref[1];
+          _ref1 = unpackOne(rest), obj = _ref1[0], rest = _ref1[1];
+          if (i <= classes.length) {
+            obj.__proto__ = classes[i - 1].prototype;
+          } else {
+            throw new Error("TNET: attempt to unpack unregistered class index: " + i);
+          }
+          return obj;
+        }
+      }
+    };
+    makeFunction = function(name, args, body) {
+      eval("var f = function " + name + "(" + args + "){" + body + "}");
+      return f;
+    };
+    classes = [];
+    class_index = {};
+    register = function(klass) {
+      return class_index[klass] || (class_index[klass] = classes.push(klass));
+    };
+    Symbols = {};
+    (reIndex = function() {
+      var t, v, _results;
+      _results = [];
+      for (t in Types) {
+        v = Types[t];
+        _results.push(Symbols[v.symbol] = v);
+      }
+      return _results;
+    })();
+    decodeUInt = function(s) {
+      var i, n, _, _i, _len;
+      n = 0;
+      for (i = _i = 0, _len = s.length; _i < _len; i = ++_i) {
+        _ = s[i];
+        n |= s.charCodeAt(i) << (i << 3);
+      }
+      return n;
+    };
+    maxInt = Math.pow(2, 31) - 1;
+    OverflowError = function(n) {
+      return new Error("Value too large: " + n + " > " + maxInt);
+    };
+    UnderflowError = function(n) {
+      return new Error("Value too small: " + n + " < 0");
+    };
+    encodeUInt = function(n) {
+      var s;
+      if (n > maxInt) {
+        throw OverflowError(n);
+      }
+      if (n < 0) {
+        throw UnderflowError(n);
+      }
+      s = "";
+      while (n > 0) {
+        s = s + String.fromCharCode(n & 0xFF);
+        n = n >> 8;
+      }
+      return s;
+    };
+    unpackOne = function(data) {
+      var end, i, _ref;
+      if (data == null) {
+        return;
+      }
+      if ((i = data.indexOf(DIVIDER)) >= 0) {
+        end = i + 1 + decodeUInt(data.slice(0, i), 10);
+        return [(_ref = Symbols[data[end]]) != null ? _ref.unpack(data.slice(i + 1, end)) : void 0, data.slice(end + 1)];
+      }
+      return void 0;
+    };
+    packOne = function(x, forceType) {
+      var data, header, len, t, tx, _ref;
+      if (forceType != null) {
+        tx = forceType;
+      } else {
+        tx = $.type(x);
+        if (tx === "object" && ((_ref = x.constructor) != null ? _ref.name : void 0) !== "Object") {
+          tx = "class instance";
+        }
+      }
+      if ((t = Types[tx]) == null) {
+        throw new Error("TNET: dont know how to pack type '" + tx + "'");
+      }
+      data = t.pack(x);
+      len = data.length | 0;
+      header = len === 0 ? "\0" : encodeUInt(len) + DIVIDER;
+      return header + data + t.symbol;
+    };
+    return {
+      $: {
+        BNET: {
+          Types: Types,
+          registerClass: register,
+          stringify: packOne,
+          parse: function(x) {
+            var _ref;
+            return (_ref = unpackOne(x)) != null ? _ref[0] : void 0;
+          }
+        }
+      }
+    };
+  });
+
+  $.plugin({
     provides: "cache",
     depends: "core, sortBy"
   }, function() {
@@ -1264,13 +1566,17 @@
         return b;
       },
       flatten: function() {
-        var b, i, j, _i, _j, _len, _len1;
+        var b, i, item, j, _i, _j, _len, _len1;
         b = $();
-        for (_i = 0, _len = this.length; _i < _len; _i++) {
-          i = this[_i];
-          for (_j = 0, _len1 = i.length; _j < _len1; _j++) {
-            j = i[_j];
-            b.push(j);
+        for (i = _i = 0, _len = this.length; _i < _len; i = ++_i) {
+          item = this[i];
+          if (($.is('array', item)) || ($.is('bling', item))) {
+            for (_j = 0, _len1 = item.length; _j < _len1; _j++) {
+              j = item[_j];
+              b.push(j);
+            }
+          } else {
+            b.push(item);
           }
         }
         return b;
@@ -5492,7 +5798,7 @@
         throw new Error("TNET: dont know how to pack type '" + tx + "'");
       }
       data = t.pack(x);
-      return (data.length | 0) + ":" + data + t.symbol;
+      return data.length + ":" + data + t.symbol;
     };
     return {
       $: {

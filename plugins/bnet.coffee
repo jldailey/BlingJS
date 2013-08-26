@@ -1,7 +1,10 @@
 $.plugin
-	depends: 'type'
+	depends: 'type,function'
 	provides: 'TNET'
 , -> # TnetStrings plugin
+
+	DIVIDER = "\0"
+
 	Types =
 		"number":
 			symbol: "#"
@@ -13,8 +16,8 @@ $.plugin
 			unpack: $.identity
 		"bool":
 			symbol: "!"
-			pack: (b) -> String(not not b)
-			unpack: (s) -> s is "true"
+			pack: (b) -> String.fromCharCode if (not not b) then 1 else 0
+			unpack: (s) -> s.charCodeAt(0) is 1
 		"null":
 			symbol: "~"
 			pack: -> ""
@@ -102,17 +105,35 @@ $.plugin
 	register = (klass) ->
 		class_index[klass] or= classes.push klass
 
-	Symbols = {} # Reverse lookup table, for use during unpacking
-	do -> for t,v of Types
+	Symbols = {} # Reverse the lookup table, for use during unpacking
+	do reIndex = -> for t,v of Types
 		Symbols[v.symbol] = v
+	
+	decodeUInt = (s) ->
+		n = 0
+		for _,i in s
+			n |= s.charCodeAt(i) << (i<<3)
+		n
 
+	maxInt = Math.pow(2,31) - 1
+	OverflowError = (n) -> new Error "Value too large: #{n} > #{maxInt}"
+	UnderflowError = (n) -> new Error "Value too small: #{n} < 0"
+	encodeUInt = (n) ->
+		throw OverflowError(n) if n > maxInt
+		throw UnderflowError(n) if n < 0
+		s = ""
+		while n > 0
+			s = s + String.fromCharCode(n & 0xFF)
+			n = n >> 8
+		s
+	
 	unpackOne = (data) ->
-		return data unless data?
-		if (i = data.indexOf ":") > 0
-			x = i+1+parseInt data[0...i], 10
+		return unless data?
+		if (i = data.indexOf DIVIDER) >= 0
+			end = i+1+decodeUInt data[0...i], 10
 			return [
-				Symbols[data[x]]?.unpack(data[i+1...x]),
-				data[x+1...]
+				Symbols[data[end]]?.unpack(data[i+1...end]),
+				data[end+1...]
 			]
 		return undefined
 
@@ -126,11 +147,16 @@ $.plugin
 		unless (t = Types[tx])?
 			throw new Error("TNET: dont know how to pack type '#{tx}'")
 		data = t.pack(x)
-		return (data.length) + ":" + data + t.symbol
-
+		len = data.length | 0
+		header = if len is 0 then "\0"
+		else encodeUInt(len) + DIVIDER
+		return header + data + t.symbol
+	
 	$:
-		TNET:
+		BNET:
 			Types: Types
 			registerClass: register
 			stringify: packOne
 			parse: (x) -> unpackOne(x)?[0]
+
+	

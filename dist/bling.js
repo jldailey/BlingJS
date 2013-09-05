@@ -4117,35 +4117,34 @@
           return this;
         },
         finish: function(value) {
+          var w, _i, _len, _ref;
           if ((err === result && result === NoValue)) {
-            waiting.call(null, result = value);
-            waiting.select('timeout.cancel').call();
+            result = value;
+            for (_i = 0, _len = waiting.length; _i < _len; _i++) {
+              w = waiting[_i];
+              w(null, value);
+              if ((_ref = w.timeout) != null) {
+                _ref.cancel();
+              }
+            }
             waiting.clear();
           }
           return this;
         },
         fail: function(error) {
+          var w, _i, _len, _ref;
           if ((err === result && result === NoValue)) {
-            waiting.call(err = error, null);
-            waiting.select('timeout.cancel').call();
+            err = error;
+            for (_i = 0, _len = waiting.length; _i < _len; _i++) {
+              w = waiting[_i];
+              w(error, null);
+              if ((_ref = w.timeout) != null) {
+                _ref.cancel();
+              }
+            }
             waiting.clear();
           }
           return this;
-        },
-        join: function(promise) {
-          var _this = this;
-          return promise.wait(function(err, data) {
-            if (err) {
-              return _this.fail(err);
-            } else {
-              return _this.finish(data);
-            }
-          });
-        },
-        compose: function() {
-          var promises, _ref;
-          promises = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-          return this.join((_ref = $.Promise).compose.apply(_ref, promises));
         },
         reset: function() {
           err = result = NoValue;
@@ -4171,7 +4170,8 @@
       $(promises).select('wait').call(function(err, data) {
         if (err) {
           return p.fail(err);
-        } else if (!p.failed) {
+        }
+        if (!p.failed) {
           return p.finish(1);
         }
       });

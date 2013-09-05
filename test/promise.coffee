@@ -86,15 +86,6 @@ describe "$.Promise()", ->
 			f.wait (err, data) -> f.pass = data
 			f.finish true
 			assert f.pass
-	describe ".join()", ->
-		it "joins one promise to another", ->
-			pass = false
-			a = $.Promise()
-			a.wait (err, data) -> pass = data
-			b = $.Promise()
-			a.join b
-			b.finish true
-			assert pass
 	describe ".compose()", ->
 		it "composes promises", ->
 			pass = false

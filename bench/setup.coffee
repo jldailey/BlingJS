@@ -17,5 +17,5 @@ $.bench = (label, func) ->
 	ns = $.units.convertTo("ns", ms)
 	ns = $.commaize parseInt(ns, 10)
 	ms = $.commaize parseFloat(ms).toFixed(4)
-	$.log "[#{label}] #{ns}ns (#{ms}ms) per operation"
+	console.log "[#{label}] #{ns}ns (#{ms}ms) per operation"
 

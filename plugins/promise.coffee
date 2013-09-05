@@ -22,25 +22,22 @@ $.plugin
 				@
 			finish: (value) ->
 				if err is result is NoValue
-					waiting.call(null, result = value)
-					waiting.select('timeout.cancel').call()
+					result = value
+					for w in waiting
+						w(null, value)
+						w.timeout?.cancel()
 					waiting.clear()
 				@
 			fail: (error)  ->
 				if err is result is NoValue
-					waiting.call(err = error, null)
-					waiting.select('timeout.cancel').call()
+					err = error
+					for w in waiting
+						w(error, null)
+						w.timeout?.cancel()
 					waiting.clear()
 				@
-			join: (promise) ->
-				promise.wait (err, data) =>
-					if err then @fail err
-					else @finish data
-			compose: (promises...) ->
-				@join $.Promise.compose promises...
 			reset: ->
 				err = result = NoValue
-				# does NOT clear waiting, b/c it should already be empty (or result would already be NoValue)
 				@
 		}, $.EventEmitter(obj)
 
@@ -54,8 +51,8 @@ $.plugin
 	Promise.compose = (promises...) ->
 		p = $.Progress(promises.length)
 		$(promises).select('wait').call (err, data) ->
-			if err then p.fail err
-			else unless p.failed then p.finish 1
+			return p.fail err if err
+			p.finish 1 unless p.failed
 		return p
 
 	Progress = (max = 1.0) ->
@@ -101,4 +98,4 @@ $.plugin
 			image.src = src
 			return p
 
-	ret = { $: { Promise, Progress } }
+	ret = $: { Promise, Progress }

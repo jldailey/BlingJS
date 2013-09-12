@@ -69,10 +69,12 @@
 
   Bling.prototype.constructor = Bling;
 
-  Bling.global = typeof window !== "undefined" && window !== null ? window : global;
+  Bling.global = (function() {
+    return this;
+  })();
 
   Bling.plugin = function(opts, constructor) {
-    var error, key, plugin, _base, _fn, _name, _ref,
+    var error, key, plugin, _fn,
       _this = this;
     if (!constructor) {
       constructor = opts;
@@ -87,7 +89,6 @@
     }
     try {
       if (typeof (plugin = constructor != null ? constructor.call(this, this) : void 0) === "object") {
-        ((_base = Bling.plugin)[_name = (_ref = opts.provides) != null ? _ref : ""] || (_base[_name] = [])).push(plugin);
         extend(this, plugin != null ? plugin.$ : void 0);
         delete plugin.$;
         extend(this.prototype, plugin);
@@ -122,7 +123,7 @@
       });
     };
     return {
-      depends: depend = function(needs, func) {
+      depend: depend = function(needs, func) {
         if ((needs = incomplete(needs)).length === 0) {
           func();
         } else {
@@ -136,17 +137,17 @@
         }
         return func;
       },
-      depend: depend,
+      depends: depend,
       provide: function(needs, data) {
-        var func, i, need, _i, _len, _ref;
+        var i, need, ready, _i, _len, _ref;
         _ref = incomplete(needs);
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           need = _ref[_i];
           complete[need] = i = 0;
           while (i < waiting.length) {
-            if ((func = waiting[i](need))) {
+            if ((ready = waiting[i](need))) {
               waiting.splice(i, 1);
-              func(data);
+              ready(data);
               i = 0;
             } else {
               i++;
@@ -378,39 +379,6 @@
           _results.push(this[i](finish_one(i)));
         }
         return _results;
-      }
-    };
-  });
-
-  $.plugin({
-    provides: "auto"
-  }, function() {
-    var parse, parsers, register;
-    parsers = [/^\d+:/, $.TNET, /^[{\["']/, JSON];
-    register = function(regex, codec) {
-      if (parsers.indexOf(regex) + parsers.indexOf(codec) === -2) {
-        parsers.push(regex);
-        return parsers.push(codec);
-      }
-    };
-    $.depends("dom", function() {
-      return register(/^</, $.HTML);
-    });
-    parse = function(s) {
-      var i, regex, _i, _len;
-      for (i = _i = 0, _len = parsers.length; _i < _len; i = _i += 2) {
-        regex = parsers[i];
-        if (s.test(regex)) {
-          return parsers[i + 1].parse(s);
-        }
-      }
-      return null;
-    };
-    return {
-      $: {
-        AUTO: {
-          parse: parse
-        }
       }
     };
   });
@@ -812,123 +780,6 @@
           helper([], -1);
           return $(ret);
         }
-      }
-    };
-  });
-
-  $.plugin({
-    provides: "compact",
-    depends: "function"
-  }, function() {
-    var array_compact, compact, default_compact, func_compact, handlers, null_compact, object_compact, register;
-    compact = function(o, opts) {
-      var t, types, _i, _len;
-      types = $.type["with"]('compact');
-      for (_i = 0, _len = types.length; _i < _len; _i++) {
-        t = types[_i];
-        if (t.match.call(o, o)) {
-          return t.compact(o, opts);
-        }
-      }
-      return "";
-    };
-    $.type.extend(null, {
-      compact: default_compact = $.toString
-    });
-    $.type.extend("undefined", {
-      compact: null_compact = function(o) {
-        return "";
-      }
-    });
-    $.type.extend("null", {
-      compact: null_compact
-    });
-    $.type.extend("string", {
-      compact: $.identity
-    });
-    $.type.extend("array", {
-      compact: array_compact = function(o, opts) {
-        var x;
-        return ((function() {
-          var _i, _len, _results;
-          _results = [];
-          for (_i = 0, _len = o.length; _i < _len; _i++) {
-            x = o[_i];
-            _results.push(compact(x, opts));
-          }
-          return _results;
-        })()).join('');
-      }
-    });
-    $.type.extend("bling", {
-      compact: array_compact
-    });
-    $.type.extend("function", {
-      compact: func_compact = function(f, opts) {
-        return f(opts);
-      }
-    });
-    handlers = {};
-    register = function(type, f) {
-      return handlers[type] = f;
-    };
-    $.type.extend("object", {
-      compact: object_compact = function(o, opts) {
-        var _ref;
-        return compact((_ref = handlers[o.t || o.type]) != null ? _ref.call(o, o, opts) : void 0, opts);
-      }
-    });
-    register('html', function() {
-      return ["<!DOCTYPE html><html><head>", this.head, "</head><body>", this.body, "</body></html>"];
-    });
-    register('text', function(o, opts) {
-      var _ref;
-      return o[(_ref = opts.lang) != null ? _ref : "EN"];
-    });
-    register('link', function() {
-      var k;
-      return [
-        "<a", (function() {
-          var _i, _len, _ref, _results;
-          _ref = ["href", "name", "target"];
-          _results = [];
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            k = _ref[_i];
-            if (k in this) {
-              _results.push([" ", k, "='", this[k], "'"]);
-            }
-          }
-          return _results;
-        }).call(this), ">", this.content, "</a>"
-      ];
-    });
-    register('let', function(o, opts) {
-      var save;
-      save = opts[o.name];
-      opts[o.name] = o.value;
-      try {
-        return compact(o.content, opts);
-      } finally {
-        if (save != null) {
-          opts[o.name] = save;
-        } else {
-          delete opts[o.name];
-        }
-      }
-    });
-    register('get', function(o, opts) {
-      return opts[o.name];
-    });
-    return {
-      $: {
-        compact: $.extend((function(o, opts) {
-          if (opts == null) {
-            opts = {};
-          }
-          return compact(o, opts);
-        }), {
-          register: register
-        })
       }
     };
   });
@@ -1570,7 +1421,7 @@
         b = $();
         for (i = _i = 0, _len = this.length; _i < _len; i = ++_i) {
           item = this[i];
-          if (($.is('array', item)) || ($.is('bling', item))) {
+          if (($.is('array', item)) || ($.is('bling', item)) || ($.is('arguments', item))) {
             for (_j = 0, _len1 = item.length; _j < _len1; _j++) {
               j = item[_j];
               b.push(j);
@@ -4149,35 +4000,34 @@
           return this;
         },
         finish: function(value) {
+          var w, _i, _len, _ref;
           if ((err === result && result === NoValue)) {
-            waiting.call(null, result = value);
-            waiting.select('timeout.cancel').call();
+            result = value;
+            for (_i = 0, _len = waiting.length; _i < _len; _i++) {
+              w = waiting[_i];
+              w(null, value);
+              if ((_ref = w.timeout) != null) {
+                _ref.cancel();
+              }
+            }
             waiting.clear();
           }
           return this;
         },
         fail: function(error) {
+          var w, _i, _len, _ref;
           if ((err === result && result === NoValue)) {
-            waiting.call(err = error, null);
-            waiting.select('timeout.cancel').call();
+            err = error;
+            for (_i = 0, _len = waiting.length; _i < _len; _i++) {
+              w = waiting[_i];
+              w(error, null);
+              if ((_ref = w.timeout) != null) {
+                _ref.cancel();
+              }
+            }
             waiting.clear();
           }
           return this;
-        },
-        join: function(promise) {
-          var _this = this;
-          return promise.wait(function(err, data) {
-            if (err) {
-              return _this.fail(err);
-            } else {
-              return _this.finish(data);
-            }
-          });
-        },
-        compose: function() {
-          var promises, _ref;
-          promises = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-          return this.join((_ref = $.Promise).compose.apply(_ref, promises));
         },
         reset: function() {
           err = result = NoValue;
@@ -4203,10 +4053,25 @@
       $(promises).select('wait').call(function(err, data) {
         if (err) {
           return p.fail(err);
-        } else if (!p.failed) {
+        }
+        if (!p.failed) {
           return p.finish(1);
         }
       });
+      return p;
+    };
+    Promise.wrap = function() {
+      var args, f, p;
+      f = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+      p = $.Promise();
+      args.push(function(err, result) {
+        if (err) {
+          return p.fail(err);
+        } else {
+          return p.finish(result);
+        }
+      });
+      f.apply(null, args);
       return p;
     };
     Progress = function(max) {
@@ -4278,6 +4143,15 @@
         image.src = src;
         return p;
       };
+    });
+    $.depend('type', function() {
+      return $.type.register('promise', {
+        match: function(o) {
+          try {
+            return (typeof o === 'object') && 'wait' in o && 'finish' in o && 'fail' in o;
+          } catch (_error) {}
+        }
+      });
     });
     return ret = {
       $: {
@@ -4624,6 +4498,201 @@
             }
           });
         })()
+      }
+    };
+  });
+
+  $.plugin({
+    provides: "render",
+    depends: "promise"
+  }, function() {
+    var finalize, object_handlers, reduce, register, wait, wait_helper;
+    $.type.extend(null, {
+      render: function(o) {
+        $.log("zomg, cant render type: " + ($.type(o)));
+        return "";
+      }
+    });
+    $.type.extend('string', {
+      render: $.identity
+    });
+    $.type.extend('promise', {
+      render: $.identity
+    });
+    $.type.extend('number', {
+      render: $.toString
+    });
+    $.type.extend('array', {
+      render: function(a, opts) {
+        var x, _i, _len, _results;
+        _results = [];
+        for (_i = 0, _len = a.length; _i < _len; _i++) {
+          x = a[_i];
+          _results.push(reduce(x, opts));
+        }
+        return _results;
+      }
+    });
+    $.type.extend('bling', {
+      render: function(b, opts) {
+        var x;
+        return $((function() {
+          var _i, _len, _results;
+          _results = [];
+          for (_i = 0, _len = b.length; _i < _len; _i++) {
+            x = b[_i];
+            _results.push(reduce(x, opts));
+          }
+          return _results;
+        })());
+      }
+    });
+    $.type.extend('function', {
+      render: function(f, opts) {
+        switch (f.length) {
+          case 0:
+          case 1:
+            return reduce(f(opts));
+          case 2:
+            return $.Promise.wrap(f, opts);
+        }
+      }
+    });
+    object_handlers = {
+      text: function(o, opts) {
+        var _ref;
+        return o[(_ref = opts.lang) != null ? _ref : "EN"];
+      }
+    };
+    register = function(t, f) {
+      return object_handlers[t] = f;
+    };
+    $.type.extend('object', {
+      render: function(o, opts) {
+        var t, _ref;
+        t = (_ref = o.t) != null ? _ref : o.type;
+        if (!(t in object_handlers)) {
+          return "[no handler for object type: '" + t + "' " + (JSON.stringify(o).substr(0, 20)) + "...]";
+        }
+        return object_handlers[t].call(o, o, opts);
+      }
+    });
+    reduce = function(o, opts) {
+      var t;
+      t = $.type.lookup(o);
+      if (!('render' in t)) {
+        throw new Error("cant pack type: " + ($.type(o)));
+      }
+      return $.type.lookup(o).render(o, opts);
+    };
+    wait = function(a) {
+      var p, q;
+      p = $.Progress(1);
+      q = $.Promise();
+      wait_helper(a, p, 1);
+      p.finish(1);
+      p.wait(function(err, result) {
+        if (err) {
+          return q.fail(err);
+        } else {
+          return q.finish(finalize(a));
+        }
+      });
+      return q;
+    };
+    wait_helper = function(a, p, m) {
+      var i, start, x, _fn, _i, _len;
+      start = m;
+      _fn = function(x, i, a) {
+        var finisher;
+        finisher = function(err, result) {
+          a[i] = err ? err : reduce(result);
+          if ($.is('promise', a[i])) {
+            p.progress(null, ++m);
+            a[i].wait(finisher);
+          }
+          return p.finish(1);
+        };
+        if ($.is('promise', x)) {
+          p.progress(null, ++m);
+          return x.wait(finisher);
+        } else if ($.is('array', x)) {
+          return m = wait_helper(x, p, m);
+        }
+      };
+      for (i = _i = 0, _len = a.length; _i < _len; i = ++_i) {
+        x = a[i];
+        _fn(x, i, a);
+      }
+      return m;
+    };
+    finalize = function(a) {
+      var t;
+      switch (t = $.type(a)) {
+        case 'array':
+        case 'bling':
+          return a.map(finalize).join('');
+        case 'string':
+        case 'html':
+          return a;
+        case "null":
+        case "undefined":
+          return '';
+        default:
+          return "[bad final type: " + t + "]";
+      }
+    };
+    register('html', function() {
+      return ["<!DOCTYPE html><html><head>", this.head, "</head><body>", this.body, "</body></html>"];
+    });
+    register('text', function(o, opts) {
+      var _ref;
+      return o[(_ref = opts.lang) != null ? _ref : "EN"];
+    });
+    register('link', function() {
+      var k;
+      return [
+        "<a", (function() {
+          var _i, _len, _ref, _results;
+          _ref = ["href", "name", "target"];
+          _results = [];
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            k = _ref[_i];
+            if (k in this) {
+              _results.push([" ", k, "='", this[k], "'"]);
+            }
+          }
+          return _results;
+        }).call(this), ">", this.content, "</a>"
+      ];
+    });
+    register('let', function(o, opts) {
+      var save;
+      save = opts[o.name];
+      opts[o.name] = o.value;
+      try {
+        return reduce(o.content, opts);
+      } finally {
+        if (save === void 0) {
+          delete opts[o.name];
+        } else {
+          opts[o.name] = save;
+        }
+      }
+    });
+    register('get', function(o, opts) {
+      return opts[o.name];
+    });
+    return {
+      $: {
+        render: $.extend((function(o, opts) {
+          if (opts == null) {
+            opts = {};
+          }
+          return wait(reduce(o, opts));
+        }), {
+          register: register
+        })
       }
     };
   });

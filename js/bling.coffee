@@ -14,12 +14,12 @@ class Bling # extends (new Array)
 			i = 0
 			i++ while args[i] isnt undefined
 			b.length = i
-		if 'init' of Bling
+		if 'init' of Bling # See: plugins/hook.coffee
 			return Bling.init(b)
 		return b
 Bling:: = []
 Bling::constructor = Bling
-Bling.global = if window? then window else global
+Bling.global = do -> @
 Bling.plugin = (opts, constructor) ->
 	if not constructor
 		constructor = opts
@@ -29,7 +29,6 @@ Bling.plugin = (opts, constructor) ->
 			@plugin { provides: opts.provides }, constructor
 	try
 		if typeof (plugin = constructor?.call @,@) is "object"
-			(Bling.plugin[opts.provides ? ""] or= []).push plugin
 			extend @, plugin?.$
 			delete plugin.$
 			extend @prototype, plugin
@@ -45,21 +44,21 @@ extend Bling, do ->
 	incomplete = (n) ->
 		(if (typeof n) is "string" then n.split /, */ else n)
 		.filter (x) -> not (x of complete)
-	depends: depend = (needs, func) ->
+	depend: depend = (needs, func) ->
 		if (needs = incomplete needs).length is 0 then func()
 		else
 			waiting.push (need) ->
 				(needs.splice i, 1) if (i = needs.indexOf need) > -1
 				return (needs.length is 0 and func)
 		func
-	depend: depend # alias
+	depends: depend # alias
 	provide: (needs, data) ->
 		for need in incomplete needs
 			complete[need] = i = 0
 			while i < waiting.length
-				if (func = waiting[i] need)
+				if (ready = waiting[i] need)
 					waiting.splice i,1
-					func data
+					ready data
 					i = 0 # start over in case a nested dependency removed stuff 'behind' i
 				else i++
 		data
@@ -170,29 +169,6 @@ $.plugin
 			for i in [0...todo] by 1
 				@[i](finish_one(i))
 	}
-$.plugin
-	provides: "auto"
-, ->
-	parsers = [
-		/^\d+:/
-		$.TNET
-		/^[{\["']/
-		JSON
-	]
-	register = (regex, codec) ->
-		if parsers.indexOf(regex) + parsers.indexOf(codec) is -2
-			parsers.push regex
-			parsers.push codec
-	
-	$.depends "dom", -> register /^</, $.HTML
-	
-	parse = (s) ->
-		for regex, i in parsers by 2
-			if s.test regex
-				return parsers[i+1].parse s
-		null
-	
-	return $: AUTO: { parse }
 $.plugin
 	depends: 'type,function'
 	provides: 'TNET'
@@ -418,53 +394,6 @@ $.plugin
 				null
 			helper [], -1
 			return $(ret)
-$.plugin
-	provides: "compact"
-	depends: "function"
-, ->
-	compact = (o, opts) ->
-		types = $.type.with('compact')
-		for t in types when t.match.call o, o
-			return t.compact o, opts
-		""
-	$.type.extend null,       compact: default_compact = $.toString
-	$.type.extend "undefined",compact: null_compact = (o) -> ""
-	$.type.extend "null",     compact: null_compact
-	$.type.extend "string",   compact: $.identity
-	$.type.extend "array",    compact: array_compact = (o, opts) -> (compact(x, opts) for x in o).join('')
-	$.type.extend "bling",    compact: array_compact
-	$.type.extend "function", compact: func_compact = (f, opts) -> f opts
-	handlers = {}
-	register = (type, f) -> (handlers[type] = f)
-	$.type.extend "object",   compact: object_compact = (o, opts) ->
-		compact handlers[o.t or o.type]?.call(o, o, opts), opts
-	register 'html', -> [
-		"<!DOCTYPE html><html><head>"
-			@head
-		"</head><body>"
-			@body
-		"</body></html>"
-	]
-	register 'text', (o, opts) ->
-		o[opts.lang ? "EN"]
-	register 'link', -> [
-		"<a"
-			[" ",k,"='",@[k],"'"] for k in ["href","name","target"] when k of @
-		">",@content,"</a>"
-	]
-	register 'let', (o, opts) ->
-		save = opts[o.name]
-		opts[o.name] = o.value
-		try return compact o.content, opts
-		finally
-			if save?
-				opts[o.name] = save
-			else delete opts[o.name]
-	register 'get', (o, opts) -> opts[o.name]
-	
-	return $: compact: $.extend ((o, opts = {}) -> compact o, opts), {
-		register: register
-	}
 $.plugin ->
 	String::trimLeft or= -> @replace(/^\s+/, "")
 	String::split or= (sep) ->
@@ -708,7 +637,7 @@ $.plugin
 		flatten: ->
 			b = $()
 			for item, i in @
-				if ($.is 'array', item) or ($.is 'bling', item)
+				if ($.is 'array', item) or ($.is 'bling', item) or ($.is 'arguments', item)
 					for j in item then b.push(j)
 				else b.push(item)
 			b
@@ -1979,22 +1908,20 @@ $.plugin
 				@
 			finish: (value) ->
 				if err is result is NoValue
-					waiting.call(null, result = value)
-					waiting.select('timeout.cancel').call()
+					result = value
+					for w in waiting
+						w(null, value)
+						w.timeout?.cancel()
 					waiting.clear()
 				@
 			fail: (error)  ->
 				if err is result is NoValue
-					waiting.call(err = error, null)
-					waiting.select('timeout.cancel').call()
+					err = error
+					for w in waiting
+						w(error, null)
+						w.timeout?.cancel()
 					waiting.clear()
 				@
-			join: (promise) ->
-				promise.wait (err, data) =>
-					if err then @fail err
-					else @finish data
-			compose: (promises...) ->
-				@join $.Promise.compose promises...
 			reset: ->
 				err = result = NoValue
 				@
@@ -2007,9 +1934,16 @@ $.plugin
 	Promise.compose = (promises...) ->
 		p = $.Progress(promises.length)
 		$(promises).select('wait').call (err, data) ->
-			if err then p.fail err
-			else unless p.failed then p.finish 1
+			return p.fail err if err
+			p.finish 1 unless p.failed
 		return p
+	
+	Promise.wrap = (f, args...) ->
+		p = $.Promise()
+		args.push (err, result) ->
+			if err then p.fail(err) else p.finish(result)
+		f args...
+		p
 	Progress = (max = 1.0) ->
 		cur = 0.0
 		return $.inherit {
@@ -2045,7 +1979,14 @@ $.plugin
 			image.onerror = (evt) -> p.fail(evt)
 			image.src = src
 			return p
-	ret = { $: { Promise, Progress } }
+	
+	$.depend 'type', ->
+		$.type.register 'promise', match: (o) ->
+			try return (typeof o is 'object')	and
+				'wait' of o and
+				'finish' of o and
+				'fail' of o
+	ret = $: { Promise, Progress }
 $.plugin
 	provides: 'prompt,confirm',
 	depends: 'synth,keyName'
@@ -2237,6 +2178,91 @@ $.plugin
 				$.random.integer(1,faces+1)
 			uuid: ->
 				$(8,4,4,4,12).map(-> $.random.string @,'',uuidAlphabet).join '-'
+$.plugin
+	provides: "render"
+	depends: "promise"
+, ->
+	$.type.extend null, render: (o) ->
+		$.log "zomg, cant render type: #{$.type o}"
+		return ""
+	$.type.extend 'string',  render: $.identity
+	$.type.extend 'promise', render: $.identity
+	$.type.extend 'number', render: $.toString
+	$.type.extend 'array', render: (a, opts) -> ((reduce x, opts) for x in a)
+	$.type.extend 'bling', render: (b, opts) -> $((reduce x, opts) for x in b)
+	$.type.extend 'function', render: (f, opts) ->
+		switch f.length
+			when 0, 1 then reduce f opts
+			when 2 then $.Promise.wrap f, opts
+	object_handlers = {
+		text: (o, opts) -> o[opts.lang ? "EN"]
+	}
+	register = (t, f) -> object_handlers[t] = f
+	$.type.extend 'object', render: (o, opts) ->
+		t = o.t ? o.type
+		unless t of object_handlers
+			return "[no handler for object type: '#{t}' #{JSON.stringify(o).substr 0,20}...]"
+		object_handlers[t].call o, o, opts
+	reduce = (o, opts) ->
+		t = $.type.lookup(o)
+		unless 'render' of t
+			throw new Error "cant pack type: #{$.type o}"
+		$.type.lookup(o).render(o, opts)
+	wait = (a) ->
+		p = $.Progress 1 # we always have at least one step of progress (the creation)
+		q = $.Promise()
+		wait_helper a, p, 1
+		p.finish 1 # progress creation is complete
+		p.wait (err, result) -> if err then q.fail(err) else q.finish(finalize a)
+		q
+	wait_helper = (a, p, m) ->
+		start = m
+		for x, i in a then do (x, i, a) ->
+			finisher = (err, result) ->
+				a[i] = if err then err else reduce result
+				if $.is 'promise', a[i]
+					p.progress null, ++m
+					a[i].wait finisher
+				p.finish(1)
+			if $.is 'promise', x
+				p.progress null, ++m
+				x.wait finisher
+			else if $.is 'array', x
+				m = wait_helper x, p, m
+		m
+	
+	finalize = (a) ->
+		return switch t = $.type a
+			when 'array', 'bling' then a.map(finalize).join ''
+			when 'string','html' then a
+			when "null", "undefined" then ''
+			else "[bad final type: #{t}]"
+	register 'html', -> [
+		"<!DOCTYPE html><html><head>"
+			@head
+		"</head><body>"
+			@body
+		"</body></html>"
+	]
+	register 'text', (o, opts) ->
+		o[opts.lang ? "EN"]
+	register 'link', -> [
+		"<a"
+			[" ",k,"='",@[k],"'"] for k in ["href","name","target"] when k of @
+		">",@content,"</a>"
+	]
+	register 'let', (o, opts) ->
+		save = opts[o.name]
+		opts[o.name] = o.value
+		try return reduce o.content, opts
+		finally
+			if save is undefined then delete opts[o.name]
+			else opts[o.name] = save
+	register 'get', (o, opts) -> opts[o.name]
+	
+	return $: render: $.extend ((o, opts = {}) -> wait reduce o, opts), {
+		register: register
+	}
 $.plugin
 	depends: "core"
 	provides: "request-queue"

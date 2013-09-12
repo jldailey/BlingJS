@@ -784,123 +784,6 @@
     };
   });
 
-  $.plugin({
-    provides: "compact",
-    depends: "function"
-  }, function() {
-    var array_compact, compact, default_compact, func_compact, handlers, null_compact, object_compact, register;
-    compact = function(o, opts) {
-      var t, types, _i, _len;
-      types = $.type["with"]('compact');
-      for (_i = 0, _len = types.length; _i < _len; _i++) {
-        t = types[_i];
-        if (t.match.call(o, o)) {
-          return t.compact(o, opts);
-        }
-      }
-      return "";
-    };
-    $.type.extend(null, {
-      compact: default_compact = $.toString
-    });
-    $.type.extend("undefined", {
-      compact: null_compact = function(o) {
-        return "";
-      }
-    });
-    $.type.extend("null", {
-      compact: null_compact
-    });
-    $.type.extend("string", {
-      compact: $.identity
-    });
-    $.type.extend("array", {
-      compact: array_compact = function(o, opts) {
-        var x;
-        return ((function() {
-          var _i, _len, _results;
-          _results = [];
-          for (_i = 0, _len = o.length; _i < _len; _i++) {
-            x = o[_i];
-            _results.push(compact(x, opts));
-          }
-          return _results;
-        })()).join('');
-      }
-    });
-    $.type.extend("bling", {
-      compact: array_compact
-    });
-    $.type.extend("function", {
-      compact: func_compact = function(f, opts) {
-        return f(opts);
-      }
-    });
-    handlers = {};
-    register = function(type, f) {
-      return handlers[type] = f;
-    };
-    $.type.extend("object", {
-      compact: object_compact = function(o, opts) {
-        var _ref;
-        return compact((_ref = handlers[o.t || o.type]) != null ? _ref.call(o, o, opts) : void 0, opts);
-      }
-    });
-    register('html', function() {
-      return ["<!DOCTYPE html><html><head>", this.head, "</head><body>", this.body, "</body></html>"];
-    });
-    register('text', function(o, opts) {
-      var _ref;
-      return o[(_ref = opts.lang) != null ? _ref : "EN"];
-    });
-    register('link', function() {
-      var k;
-      return [
-        "<a", (function() {
-          var _i, _len, _ref, _results;
-          _ref = ["href", "name", "target"];
-          _results = [];
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            k = _ref[_i];
-            if (k in this) {
-              _results.push([" ", k, "='", this[k], "'"]);
-            }
-          }
-          return _results;
-        }).call(this), ">", this.content, "</a>"
-      ];
-    });
-    register('let', function(o, opts) {
-      var save;
-      save = opts[o.name];
-      opts[o.name] = o.value;
-      try {
-        return compact(o.content, opts);
-      } finally {
-        if (save != null) {
-          opts[o.name] = save;
-        } else {
-          delete opts[o.name];
-        }
-      }
-    });
-    register('get', function(o, opts) {
-      return opts[o.name];
-    });
-    return {
-      $: {
-        compact: $.extend((function(o, opts) {
-          if (opts == null) {
-            opts = {};
-          }
-          return compact(o, opts);
-        }), {
-          register: register
-        })
-      }
-    };
-  });
-
   $.plugin(function() {
     var _base, _base1, _base2, _base3;
     (_base = String.prototype).trimLeft || (_base.trimLeft = function() {
@@ -4177,6 +4060,20 @@
       });
       return p;
     };
+    Promise.wrap = function() {
+      var args, f, p;
+      f = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+      p = $.Promise();
+      args.push(function(err, result) {
+        if (err) {
+          return p.fail(err);
+        } else {
+          return p.finish(result);
+        }
+      });
+      f.apply(null, args);
+      return p;
+    };
     Progress = function(max) {
       var cur, p;
       if (max == null) {
@@ -4246,6 +4143,15 @@
         image.src = src;
         return p;
       };
+    });
+    $.depend('type', function() {
+      return $.type.register('promise', {
+        match: function(o) {
+          try {
+            return (typeof o === 'object') && 'wait' in o && 'finish' in o && 'fail' in o;
+          } catch (_error) {}
+        }
+      });
     });
     return ret = {
       $: {
@@ -4592,6 +4498,201 @@
             }
           });
         })()
+      }
+    };
+  });
+
+  $.plugin({
+    provides: "render",
+    depends: "promise"
+  }, function() {
+    var finalize, object_handlers, reduce, register, wait, wait_helper;
+    $.type.extend(null, {
+      render: function(o) {
+        $.log("zomg, cant render type: " + ($.type(o)));
+        return "";
+      }
+    });
+    $.type.extend('string', {
+      render: $.identity
+    });
+    $.type.extend('promise', {
+      render: $.identity
+    });
+    $.type.extend('number', {
+      render: $.toString
+    });
+    $.type.extend('array', {
+      render: function(a, opts) {
+        var x, _i, _len, _results;
+        _results = [];
+        for (_i = 0, _len = a.length; _i < _len; _i++) {
+          x = a[_i];
+          _results.push(reduce(x, opts));
+        }
+        return _results;
+      }
+    });
+    $.type.extend('bling', {
+      render: function(b, opts) {
+        var x;
+        return $((function() {
+          var _i, _len, _results;
+          _results = [];
+          for (_i = 0, _len = b.length; _i < _len; _i++) {
+            x = b[_i];
+            _results.push(reduce(x, opts));
+          }
+          return _results;
+        })());
+      }
+    });
+    $.type.extend('function', {
+      render: function(f, opts) {
+        switch (f.length) {
+          case 0:
+          case 1:
+            return reduce(f(opts));
+          case 2:
+            return $.Promise.wrap(f, opts);
+        }
+      }
+    });
+    object_handlers = {
+      text: function(o, opts) {
+        var _ref;
+        return o[(_ref = opts.lang) != null ? _ref : "EN"];
+      }
+    };
+    register = function(t, f) {
+      return object_handlers[t] = f;
+    };
+    $.type.extend('object', {
+      render: function(o, opts) {
+        var t, _ref;
+        t = (_ref = o.t) != null ? _ref : o.type;
+        if (!(t in object_handlers)) {
+          return "[no handler for object type: '" + t + "' " + (JSON.stringify(o).substr(0, 20)) + "...]";
+        }
+        return object_handlers[t].call(o, o, opts);
+      }
+    });
+    reduce = function(o, opts) {
+      var t;
+      t = $.type.lookup(o);
+      if (!('render' in t)) {
+        throw new Error("cant pack type: " + ($.type(o)));
+      }
+      return $.type.lookup(o).render(o, opts);
+    };
+    wait = function(a) {
+      var p, q;
+      p = $.Progress(1);
+      q = $.Promise();
+      wait_helper(a, p, 1);
+      p.finish(1);
+      p.wait(function(err, result) {
+        if (err) {
+          return q.fail(err);
+        } else {
+          return q.finish(finalize(a));
+        }
+      });
+      return q;
+    };
+    wait_helper = function(a, p, m) {
+      var i, start, x, _fn, _i, _len;
+      start = m;
+      _fn = function(x, i, a) {
+        var finisher;
+        finisher = function(err, result) {
+          a[i] = err ? err : reduce(result);
+          if ($.is('promise', a[i])) {
+            p.progress(null, ++m);
+            a[i].wait(finisher);
+          }
+          return p.finish(1);
+        };
+        if ($.is('promise', x)) {
+          p.progress(null, ++m);
+          return x.wait(finisher);
+        } else if ($.is('array', x)) {
+          return m = wait_helper(x, p, m);
+        }
+      };
+      for (i = _i = 0, _len = a.length; _i < _len; i = ++_i) {
+        x = a[i];
+        _fn(x, i, a);
+      }
+      return m;
+    };
+    finalize = function(a) {
+      var t;
+      switch (t = $.type(a)) {
+        case 'array':
+        case 'bling':
+          return a.map(finalize).join('');
+        case 'string':
+        case 'html':
+          return a;
+        case "null":
+        case "undefined":
+          return '';
+        default:
+          return "[bad final type: " + t + "]";
+      }
+    };
+    register('html', function() {
+      return ["<!DOCTYPE html><html><head>", this.head, "</head><body>", this.body, "</body></html>"];
+    });
+    register('text', function(o, opts) {
+      var _ref;
+      return o[(_ref = opts.lang) != null ? _ref : "EN"];
+    });
+    register('link', function() {
+      var k;
+      return [
+        "<a", (function() {
+          var _i, _len, _ref, _results;
+          _ref = ["href", "name", "target"];
+          _results = [];
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            k = _ref[_i];
+            if (k in this) {
+              _results.push([" ", k, "='", this[k], "'"]);
+            }
+          }
+          return _results;
+        }).call(this), ">", this.content, "</a>"
+      ];
+    });
+    register('let', function(o, opts) {
+      var save;
+      save = opts[o.name];
+      opts[o.name] = o.value;
+      try {
+        return reduce(o.content, opts);
+      } finally {
+        if (save === void 0) {
+          delete opts[o.name];
+        } else {
+          opts[o.name] = save;
+        }
+      }
+    });
+    register('get', function(o, opts) {
+      return opts[o.name];
+    });
+    return {
+      $: {
+        render: $.extend((function(o, opts) {
+          if (opts == null) {
+            opts = {};
+          }
+          return wait(reduce(o, opts));
+        }), {
+          register: register
+        })
       }
     };
   });

@@ -54,6 +54,13 @@ $.plugin
 			return p.fail err if err
 			p.finish 1 unless p.failed
 		return p
+	
+	Promise.wrap = (f, args...) ->
+		p = $.Promise()
+		args.push (err, result) ->
+			if err then p.fail(err) else p.finish(result)
+		f args...
+		p
 
 	Progress = (max = 1.0) ->
 		cur = 0.0
@@ -97,5 +104,12 @@ $.plugin
 			image.onerror = (evt) -> p.fail(evt)
 			image.src = src
 			return p
+	
+	$.depend 'type', ->
+		$.type.register 'promise', match: (o) ->
+			try return (typeof o is 'object')	and
+				'wait' of o and
+				'finish' of o and
+				'fail' of o
 
 	ret = $: { Promise, Progress }

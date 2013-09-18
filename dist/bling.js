@@ -1679,7 +1679,7 @@
     parser_keys = Object.keys(parsers).sort().reverse();
     floor = Math.floor;
     $.type.register("date", {
-      match: function(o) {
+      is: function(o) {
         return $.isType(Date, o);
       },
       array: function(o) {
@@ -2268,7 +2268,7 @@
       var after, bNodelistsAreSpecial, before, computeCSSProperty, escaper, getOrSetRect, parser, selectChain, toFrag, toNode;
       bNodelistsAreSpecial = false;
       $.type.register("nodelist", {
-        match: function(o) {
+        is: function(o) {
           return (o != null) && $.isType("NodeList", o);
         },
         hash: function(o) {
@@ -2310,7 +2310,7 @@
         }
       });
       $.type.register("node", {
-        match: function(o) {
+        is: function(o) {
           return (o != null ? o.nodeType : void 0) > 0;
         },
         hash: function(o) {
@@ -2322,7 +2322,7 @@
         node: $.identity
       });
       $.type.register("fragment", {
-        match: function(o) {
+        is: function(o) {
           return (o != null ? o.nodeType : void 0) === 11;
         },
         hash: function(o) {
@@ -2344,7 +2344,7 @@
         node: $.identity
       });
       $.type.register("html", {
-        match: function(o) {
+        is: function(o) {
           var s;
           return typeof o === "string" && (s = o.trimLeft())[0] === "<" && s[s.length - 1] === ">";
         },
@@ -3390,7 +3390,7 @@
       }
     };
     $.type.register("http", {
-      match: function(o) {
+      is: function(o) {
         return $.isType('XMLHttpRequest', o);
       },
       array: function(o) {
@@ -4146,7 +4146,7 @@
     });
     $.depend('type', function() {
       return $.type.register('promise', {
-        match: function(o) {
+        is: function(o) {
           try {
             return (typeof o === 'object') && 'wait' in o && 'finish' in o && 'fail' in o;
           } catch (_error) {}
@@ -6172,7 +6172,7 @@
       cache = {};
       base = {
         name: 'unknown',
-        match: function(o) {
+        is: function(o) {
           return true;
         }
       };
@@ -6222,39 +6222,39 @@
         var name, _i, _len, _ref;
         for (_i = 0, _len = order.length; _i < _len; _i++) {
           name = order[_i];
-          if ((_ref = cache[name]) != null ? _ref.match.call(obj, obj) : void 0) {
+          if ((_ref = cache[name]) != null ? _ref.is.call(obj, obj) : void 0) {
             return cache[name];
           }
         }
       };
       register("unknown", base);
       register("object", {
-        match: function(o) {
+        is: function(o) {
           return typeof o === "object";
         }
       });
       register("error", {
-        match: function(o) {
+        is: function(o) {
           return isType('Error', o);
         }
       });
       register("regexp", {
-        match: function(o) {
+        is: function(o) {
           return isType('RegExp', o);
         }
       });
       register("string", {
-        match: function(o) {
+        is: function(o) {
           return typeof o === "string" || isType(String, o);
         }
       });
       register("number", {
-        match: function(o) {
+        is: function(o) {
           return (isType(Number, o)) && o !== NaN;
         }
       });
       register("bool", {
-        match: function(o) {
+        is: function(o) {
           return typeof o === "boolean" || (function() {
             var _ref;
             try {
@@ -6264,34 +6264,34 @@
         }
       });
       register("array", {
-        match: Array.isArray || function(o) {
+        is: Array.isArray || function(o) {
           return isType(Array, o);
         }
       });
       register("function", {
-        match: function(o) {
+        is: function(o) {
           return typeof o === "function";
         }
       });
       register("global", {
-        match: function(o) {
+        is: function(o) {
           return typeof o === "object" && 'setInterval' in this;
         }
       });
       register("arguments", {
-        match: function(o) {
+        is: function(o) {
           try {
             return 'callee' in o && 'length' in o;
           } catch (_error) {}
         }
       });
       register("undefined", {
-        match: function(x) {
+        is: function(x) {
           return x === void 0;
         }
       });
       register("null", {
-        match: function(x) {
+        is: function(x) {
           return x === null;
         }
       });
@@ -6306,7 +6306,7 @@
         },
         is: function(t, o) {
           var _ref;
-          return (_ref = cache[t]) != null ? _ref.match.call(o, o) : void 0;
+          return (_ref = cache[t]) != null ? _ref.is.call(o, o) : void 0;
         },
         as: function() {
           var o, rest, t, _base;
@@ -6354,7 +6354,7 @@
     });
     maxHash = Math.pow(2, 32);
     _type.register("bling", {
-      match: function(o) {
+      is: function(o) {
         return o && isType(Bling, o);
       },
       array: function(o) {
@@ -6632,7 +6632,7 @@
       return "" + (f * c) + unit;
     };
     $.type.register("units", {
-      match: function(x) {
+      is: function(x) {
         return typeof x === "string" && UNIT_RE.test(x);
       },
       number: function(x) {

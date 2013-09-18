@@ -785,7 +785,7 @@ $.plugin
 	parser_keys = Object.keys(parsers).sort().reverse()
 	floor = Math.floor
 	$.type.register "date",
-		match: (o) -> $.isType Date, o
+		is: (o) -> $.isType Date, o
 		array: (o) -> [o]
 		string: (o, fmt, unit) -> $.date.format o, fmt, unit
 		number: (o, unit) -> $.date.stamp o, unit
@@ -1065,7 +1065,7 @@ if $.global.document?
 	, ->
 		bNodelistsAreSpecial = false
 		$.type.register "nodelist",
-			match:  (o) -> o? and $.isType "NodeList", o
+			is:  (o) -> o? and $.isType "NodeList", o
 			hash:   (o) -> $($.hash(i) for i in x).sum()
 			array:  do ->
 				try # probe to see if this browsers allows direct modification of a nodelist's prototype
@@ -1077,17 +1077,17 @@ if $.global.document?
 			string: (o) -> "{Nodelist:["+$(o).select('nodeName').join(",")+"]}"
 			node:   (o) -> $(o).toFragment()
 		$.type.register "node",
-			match:  (o) -> o?.nodeType > 0
+			is:  (o) -> o?.nodeType > 0
 			hash:   (o) -> $.checksum(o.nodeName) + $.hash(o.attributes) + $.checksum(o.innerHTML)
 			string: (o) -> o.toString()
 			node:   $.identity
 		$.type.register "fragment",
-			match:  (o) -> o?.nodeType is 11
+			is:  (o) -> o?.nodeType is 11
 			hash:   (o) -> $($.hash(x) for x in o.childNodes).sum()
 			string: (o) -> o.toString()
 			node:   $.identity
 		$.type.register "html",
-			match:  (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
+			is:  (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
 			node:   (h) ->
 				(node = document.createElement('div')).innerHTML = h
 				if (n = (childNodes = node.childNodes).length) is 1
@@ -1623,7 +1623,7 @@ $.plugin
 			("#{i}=#{escape o[i]}" for i of o).join "&"
 		else obj
 	$.type.register "http",
-		match: (o) -> $.isType 'XMLHttpRequest', o
+		is: (o) -> $.isType 'XMLHttpRequest', o
 		array: (o) -> [o]
 	return {
 		$:
@@ -1981,7 +1981,7 @@ $.plugin
 			return p
 	
 	$.depend 'type', ->
-		$.type.register 'promise', match: (o) ->
+		$.type.register 'promise', is: (o) ->
 			try return (typeof o is 'object')	and
 				'wait' of o and
 				'finish' of o and
@@ -3071,7 +3071,7 @@ $.plugin
 		cache = {}
 		base =
 			name: 'unknown'
-			match: (o) -> true
+			is: (o) -> true
 		order = []
 		_with_cache = {} # for fast lookups of every type with a certain method { method: [ types ] }
 		_with_insert = (method, type) ->
@@ -3095,27 +3095,27 @@ $.plugin
 				(_extend k, name[k]) for k of name
 		lookup = (obj) ->
 			for name in order
-				if cache[name]?.match.call obj, obj
+				if cache[name]?.is.call obj, obj
 					return cache[name]
 		register "unknown",   base
-		register "object",    match: (o) -> typeof o is "object"
-		register "error",     match: (o) -> isType 'Error', o
-		register "regexp",    match: (o) -> isType 'RegExp', o
-		register "string",    match: (o) -> typeof o is "string" or isType String, o
-		register "number",    match: (o) -> (isType Number, o) and o isnt NaN
-		register "bool",      match: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
-		register "array",     match: Array.isArray or (o) -> isType Array, o
-		register "function",  match: (o) -> typeof o is "function"
-		register "global",    match: (o) -> typeof o is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
-		register "arguments", match: (o) -> try 'callee' of o and 'length' of o
-		register "undefined", match: (x) -> x is undefined
-		register "null",      match: (x) -> x is null
+		register "object",    is: (o) -> typeof o is "object"
+		register "error",     is: (o) -> isType 'Error', o
+		register "regexp",    is: (o) -> isType 'RegExp', o
+		register "string",    is: (o) -> typeof o is "string" or isType String, o
+		register "number",    is: (o) -> (isType Number, o) and o isnt NaN
+		register "bool",      is: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
+		register "array",     is: Array.isArray or (o) -> isType Array, o
+		register "function",  is: (o) -> typeof o is "function"
+		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
+		register "arguments", is: (o) -> try 'callee' of o and 'length' of o
+		register "undefined", is: (x) -> x is undefined
+		register "null",      is: (x) -> x is null
 		return extend ((o) -> lookup(o).name),
 			register: register
 			lookup: lookup
 			extend: _extend
 			get: (t) -> cache[t]
-			is: (t, o) -> cache[t]?.match.call o, o
+			is: (t, o) -> cache[t]?.is.call o, o
 			as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
 			with: (f) -> _with_cache[f]
 	_type.extend
@@ -3127,7 +3127,7 @@ $.plugin
 		arguments: { array: (o) -> Array::slice.apply o }
 	maxHash = Math.pow(2,32)
 	_type.register "bling",
-		match:  (o) -> o and isType Bling, o
+		is:  (o) -> o and isType Bling, o
 		array:  (o) -> o.toArray()
 		hash:   (o) -> o.map(Bling.hash).reduce (a,x) -> ((a*a)+x) % maxHash
 		string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
@@ -3255,7 +3255,7 @@ $.plugin
 			return number
 		"#{f * c}#{unit}"
 	$.type.register "units",
-		match: (x) -> typeof x is "string" and UNIT_RE.test(x)
+		is: (x) -> typeof x is "string" and UNIT_RE.test(x)
 		number: (x) -> parseFloat(x)
 		string: (x) -> "'#{x}'"
 	

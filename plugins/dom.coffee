@@ -8,7 +8,7 @@ if $.global.document?
 	, ->
 		bNodelistsAreSpecial = false
 		$.type.register "nodelist",
-			match:  (o) -> o? and $.isType "NodeList", o
+			is:  (o) -> o? and $.isType "NodeList", o
 			hash:   (o) -> $($.hash(i) for i in x).sum()
 			array:  do ->
 				try # probe to see if this browsers allows direct modification of a nodelist's prototype
@@ -20,17 +20,17 @@ if $.global.document?
 			string: (o) -> "{Nodelist:["+$(o).select('nodeName').join(",")+"]}"
 			node:   (o) -> $(o).toFragment()
 		$.type.register "node",
-			match:  (o) -> o?.nodeType > 0
+			is:  (o) -> o?.nodeType > 0
 			hash:   (o) -> $.checksum(o.nodeName) + $.hash(o.attributes) + $.checksum(o.innerHTML)
 			string: (o) -> o.toString()
 			node:   $.identity
 		$.type.register "fragment",
-			match:  (o) -> o?.nodeType is 11
+			is:  (o) -> o?.nodeType is 11
 			hash:   (o) -> $($.hash(x) for x in o.childNodes).sum()
 			string: (o) -> o.toString()
 			node:   $.identity
 		$.type.register "html",
-			match:  (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
+			is:  (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
 			# Convert html to node.
 			node:   (h) ->
 				# Put the html into a new div.

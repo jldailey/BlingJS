@@ -139,7 +139,7 @@ $.plugin
 
 
 	$.type.register "units",
-		match: (x) -> typeof x is "string" and UNIT_RE.test(x)
+		is: (x) -> typeof x is "string" and UNIT_RE.test(x)
 		number: (x) -> parseFloat(x)
 		string: (x) -> "'#{x}'"
 	

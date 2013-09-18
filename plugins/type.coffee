@@ -51,7 +51,7 @@ $.plugin
 		# each type, we will extend this base with default implementations.
 		base =
 			name: 'unknown'
-			match: (o) -> true
+			is: (o) -> true
 
 		# When classifying an object, this array of names will control
 		# the order of the calls to `match` (and thus, the _type precedence_).
@@ -95,7 +95,7 @@ $.plugin
 		# To classify an object, simply check every match in order.
 		lookup = (obj) ->
 			for name in order
-				if cache[name]?.match.call obj, obj
+				if cache[name]?.is.call obj, obj
 					return cache[name]
 
 		# Now, register all the built-in types. These checks are
@@ -105,21 +105,21 @@ $.plugin
 		# This implies that the 'simplest' checks should be registered
 		# first, and conceptually more specialized checks would get added
 		# as time goes on (so specialized type matches are preferred).
-		register "object",    match: (o) -> typeof o is "object"
-		register "error",     match: (o) -> isType 'Error', o
-		register "regexp",    match: (o) -> isType 'RegExp', o
-		register "string",    match: (o) -> typeof o is "string" or isType String, o
-		register "number",    match: (o) -> (isType Number, o) and o isnt NaN
-		register "bool",      match: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
-		register "array",     match: Array.isArray or (o) -> isType Array, o
-		register "function",  match: (o) -> typeof o is "function"
-		register "global",    match: (o) -> typeof o is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
-		register "arguments", match: (o) -> try 'callee' of o and 'length' of o
+		register "object",    is: (o) -> typeof o is "object"
+		register "error",     is: (o) -> isType 'Error', o
+		register "regexp",    is: (o) -> isType 'RegExp', o
+		register "string",    is: (o) -> typeof o is "string" or isType String, o
+		register "number",    is: (o) -> (isType Number, o) and o isnt NaN
+		register "bool",      is: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
+		register "array",     is: Array.isArray or (o) -> isType Array, o
+		register "function",  is: (o) -> typeof o is "function"
+		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
+		register "arguments", is: (o) -> try 'callee' of o and 'length' of o
 		# These checks for null and undefined are small exceptions to the
 		# simple-first idea, since they are precise and getting them out
 		# of the way early lets the above tests omit a safety check.
-		register "undefined", match: (x) -> x is undefined
-		register "null",      match: (x) -> x is null
+		register "undefined", is: (x) -> x is undefined
+		register "null",      is: (x) -> x is null
 
 		# Now, we finally have all the pieces to make the real classifier.
 		return extend ((o) -> lookup(o).name),
@@ -127,7 +127,7 @@ $.plugin
 			lookup: lookup
 			extend: _extend
 			get: (t) -> cache[t]
-			is: (t, o) -> cache[t]?.match.call o, o
+			is: (t, o) -> cache[t]?.is.call o, o
 			as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
 			with: (f) -> _with_cache[f]
 
@@ -167,7 +167,7 @@ $.plugin
 	maxHash = Math.pow(2,32)
 	_type.register "bling",
 		# Add the type test so: `$.type($()) == "bling"`.
-		match:  (o) -> o and isType Bling, o
+		is:  (o) -> o and isType Bling, o
 		# Blings extend arrays so they convert to themselves.
 		array:  (o) -> o.toArray()
 		# Their hash is just the sum of member hashes (order matters).

@@ -106,7 +106,7 @@ $.plugin
 			return p
 	
 	$.depend 'type', ->
-		$.type.register 'promise', match: (o) ->
+		$.type.register 'promise', is: (o) ->
 			try return (typeof o is 'object')	and
 				'wait' of o and
 				'finish' of o and

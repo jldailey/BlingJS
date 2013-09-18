@@ -12,7 +12,7 @@ $.plugin
 		else obj
 
 	$.type.register "http",
-		match: (o) -> $.isType 'XMLHttpRequest', o
+		is: (o) -> $.isType 'XMLHttpRequest', o
 		array: (o) -> [o]
 
 	return {

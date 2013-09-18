@@ -44,7 +44,7 @@ $.plugin
 	floor = Math.floor
 
 	$.type.register "date",
-		match: (o) -> $.isType Date, o
+		is: (o) -> $.isType Date, o
 		array: (o) -> [o]
 		string: (o, fmt, unit) -> $.date.format o, fmt, unit
 		number: (o, unit) -> $.date.stamp o, unit

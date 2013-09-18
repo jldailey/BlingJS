@@ -17,7 +17,7 @@ TIME_FILES=$(subst .coffee,.coffee.time,$(shell ls bench/*.coffee | grep -v setu
 all: dist report
 
 watch: dist
-	coffee watch.coffee -i -- '.coffee' -- make test
+	coffee watch.coffee -v -i -- '.coffee$$' -- make test
 
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 

@@ -14,12 +14,12 @@ opts = Optimist.options('t', {
 	.options('r', {
 		alias: 'restart-code'
 		default: 1
-		describe: "Process exit code to request a restart [0-255]."
+		describe: "Restart any watched process that exits with this exit code. [0-255]."
 	})
 	.options('i', {
 		alias: 'immediate'
 		default: false
-		describe: "Execute 'command [args...]' immediately."
+		describe: "Spawn 'command [args...]' immediately."
 	})
 	.boolean('i')
 	.options('x', {
@@ -55,15 +55,16 @@ pattern = opts._[0]
 
 pattern = (try new RegExp pattern) or $.log 'bad pattern, using', /^[^.]/
 
-launch = $.throttle +opts.throttle * 1000, ->
+launch = $.throttle +opts.throttle * 1000, (file) ->
+	if opts.v then log "Spawning (reason: #{file})"
 	p = Extra.spawn( stdio: 'inherit' )
 	p.on 'close', (code) ->
 		log "Exit Code:", code
 		if code is +opts.r
 			log "Respawning..."
-			$.immediate launch
+			$.immediate -> launch "respawn option -r"
 
-if opts.immediate then $.immediate launch
+if opts.immediate then $.immediate -> launch "immediate option -i"
 
 recurseDir = (path, cb) ->
 	done = $.Progress(1)
@@ -87,7 +88,7 @@ recurseDir('.', (dir) ->
 	dirsWatched += 1
 	if opts.verbose then log "Watching", dir, "(#{dirsWatched})"
 	Fs.watch dir, (op, file) ->
-		if pattern.test(file) then launch()
+		if pattern.test(file) then launch file
 ).wait (err) ->
 	log "Watching #{dirsWatched} folders for changes."
 	if err then log "Error:", err

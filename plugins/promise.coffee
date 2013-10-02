@@ -57,9 +57,10 @@ $.plugin
 	
 	Promise.wrap = (f, args...) ->
 		p = $.Promise()
+		# the last argument to f will be a callback that finishes the promise
 		args.push (err, result) ->
 			if err then p.fail(err) else p.finish(result)
-		f args...
+		$.immediate -> f args...
 		p
 
 	Progress = (max = 1.0) ->
@@ -73,11 +74,15 @@ $.plugin
 				return cur unless args.length
 				cur = args[0] ? cur
 				max = args[1] if args.length > 1
+				item = args[2] if args.length > 2
 				@__proto__.__proto__.finish(max) if cur >= max
-				@emit 'progress', cur, max
+				@emit 'progress', cur, max, item
 				@
-			finish: (delta = 1) ->
-				@progress cur + delta
+			finish: (delta) ->
+				item = delta
+				unless isFinite(delta)
+					delta = 1
+				@progress cur + delta, max, item
 			include: (promise) ->
 				@progress cur, max + 1
 				promise.wait (err) =>

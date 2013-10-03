@@ -2,8 +2,8 @@
 
 expect = (value, done) -> (err, result) -> assert.equal result, value; done()
 
-describe "Compact", ->
-	describe "renders basic types as string:", ->
+describe "Render", ->
+	describe "basic types as strings:", ->
 		it "strings", (done) ->
 			$.render("Hello").wait expect "Hello", done
 		it "numbers", (done) ->
@@ -19,8 +19,7 @@ describe "Compact", ->
 				$.render([1,[2,[3]]]).wait expect "123", done
 			it "mixed", (done) ->
 				$.render(["a",1,1/4,["c"]]).wait expect "a10.25c", done
-	describe "renders objects based on .t property", ->
-
+	describe "renders objects by type", ->
 		it "can register new handlers", (done) ->
 			$.render.register 'testing', (o, opts) -> "magic"
 			$.render({ t: "testing" }).wait expect "magic", done
@@ -47,4 +46,13 @@ describe "Compact", ->
 				$.render({ t:"link", href:"#home", content:"Home" }).wait(
 					expect "<a href='#home'>Home</a>", done
 				)
+
+		describe "basic async type:", ->
+			it "promise", (done) ->
+				$.render.register "promise-test", (o, opts) ->
+					p = $.Promise()
+					$.delay 200, -> p.finish("OK")
+					p
+				$.render({ t: "promise-test" }).wait expect "OK", done
+
 

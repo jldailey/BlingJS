@@ -3,112 +3,71 @@ $.plugin
 	depends: "promise"
 , ->
 
-	$.type.extend null, render: (o) ->
-		$.log "zomg, cant render type: #{$.type o}"
-		return ""
+	log = $.logger "[render]"
 
-	# Strings and Promises survive unchanged
-	$.type.extend 'string',  render: $.identity
-	$.type.extend 'promise', render: $.identity
+	consume_forever = (promise, opts, p = $.Promise()) ->
+		return $.Promise().finish(reduce promise, opts) unless $.is "promise", promise
+		promise.wait (err, result) ->
+			r = reduce result, opts
+			if $.is 'promise', r
+				consume_forever r, opts, p
+			else p.finish(r)
+		p
 
-	# Numbers become Strings
-	$.type.extend 'number', render: $.toString
+	render = (o, opts = {}) ->
+		consume_forever (reduce [ o ], opts), opts
 
-	# Sets recurse over their contents
-	$.type.extend 'array', render: (a, opts) -> ((reduce x, opts) for x in a)
-	$.type.extend 'bling', render: (b, opts) -> $((reduce x, opts) for x in b)
-
-	# Functions are either called immediately, or upgraded to Promises
-	$.type.extend 'function', render: (f, opts) ->
-		switch f.length
-			when 0, 1 then reduce f opts
-			when 2 then $.Promise.wrap f, opts
-
-	# Objects are handled based on their "t" or "type" property.
 	object_handlers = {
-		text: (o, opts) -> o[opts.lang ? "EN"]
+		text: (o, opts) -> reduce o[opts.lang ? "EN"], opts
 	}
-	register = (t, f) -> object_handlers[t] = f
-	$.type.extend 'object', render: (o, opts) ->
-		t = o.t ? o.type
-		unless t of object_handlers
-			return "[no handler for object type: '#{t}' #{JSON.stringify(o).substr 0,20}...]"
-		object_handlers[t].call o, o, opts
+	# Objects are handled based on their "t" or "type" property.
+	render.register = register = (t, f) -> object_handlers[t] = f
 
-	# reduce is phase-one of everything,
-	# the output is a mixture of: arrays, strings, promises
-	# everything else is reduced to one of these three things
-	reduce = (o, opts) ->
-		t = $.type.lookup(o)
-		unless 'render' of t
-			throw new Error "cant pack type: #{$.type o}"
-		$.type.lookup(o).render(o, opts)
-
-	# given reduce's output, wait for all the promises
-	# if they yield further promises, keep waiting for those also
-	wait = (a) ->
-		p = $.Progress 1 # we always have at least one step of progress (the creation)
-		q = $.Promise()
-		wait_helper a, p, 1
-		p.finish 1 # progress creation is complete
-		# wait_helper above should have started all the async tasks,
-		# and incremented the progress's max value,
-		# once they are all finished, finish q:
-		p.wait (err, result) -> if err then q.fail(err) else q.finish(finalize a)
-		q
-
-	wait_helper = (a, p, m) ->
-		# recursively walk all arrays, adding to the progress object
-		start = m
-		for x, i in a then do (x, i, a) ->
-			finisher = (err, result) ->
-				a[i] = if err then err else reduce result
-				if $.is 'promise', a[i]
-					p.progress null, ++m
-					a[i].wait finisher
-				p.finish(1)
-			if $.is 'promise', x
-				p.progress null, ++m
-				x.wait finisher
-			else if $.is 'array', x
-				m = wait_helper x, p, m
-		m
+	reduce = (o, opts) -> # all objects become either arrays, promises, or strings
+		switch t = $.type o
+			when "string" then o
+			when "promise"
+				q = $.Promise()
+				o.wait finish_q = (err, result) ->
+					return q.fail(err) if err
+					if $.is 'promise', r = reduce result, opts
+						r.wait finish_q
+					else
+						q.finish r
+				q
+			when "number" then $.toRepr(o)
+			when "array", "bling"
+				p = $.Progress m = 1
+				q = $.Promise()
+				p.wait (err, result) ->
+					if err then q.fail(err) else q.finish(result)
+				n = []
+				has_promises = false
+				for x, i in o then do (x,i) ->
+					n[i] = y = reduce x, opts
+					log "n[#{i}] = ", y
+					if $.is 'promise', y
+						has_promises = true
+						p.progress null, ++m
+						# trampoline promises here
+						finish_p = (err, result) ->
+							return p.fail(err) if err
+							rp = reduce result, opts
+							if $.is 'promise', rp
+								rp.wait finish_p
+							else
+								p.finish n[i] = rp
+						y.wait finish_p
+				p.finish(1) # setup is complete
+				if has_promises then q
+				else n
+			when "function" then switch f.length
+				when 0,1 then reduce f(opts)
+				else $.Promise.wrap f, opts
+			when "object"
+				if (t = o.t ? o.type) of object_handlers
+					object_handlers[t].call o, o, opts
+				else "[ no handler for object type: '#{t}' #{JSON.stringify(o).substr 0,20}... ]"
+			else "[ cant reduce type: #{t} ]"
 	
-	finalize = (a) ->
-		return switch t = $.type a
-			when 'array', 'bling' then a.map(finalize).join ''
-			when 'string','html' then a
-			when "null", "undefined" then ''
-			else "[bad final type: #{t}]"
-
-	# [ '[', decisionGetter('agent-1','decision-1'), ']' ]
-	register 'html', -> [
-		"<!DOCTYPE html><html><head>"
-			@head
-		"</head><body>"
-			@body
-		"</body></html>"
-	]
-	register 'text', (o, opts) ->
-		o[opts.lang ? "EN"]
-
-	register 'link', -> [
-		"<a"
-			[" ",k,"='",@[k],"'"] for k in ["href","name","target"] when k of @
-		">",@content,"</a>"
-	]
-
-	register 'let', (o, opts) ->
-		save = opts[o.name]
-		opts[o.name] = o.value
-		try return reduce o.content, opts
-		finally
-			if save is undefined then delete opts[o.name]
-			else opts[o.name] = save
-
-	register 'get', (o, opts) -> opts[o.name]
-	
-	return $: render: $.extend ((o, opts = {}) -> wait reduce o, opts), {
-		register: register
-	}
-
+	return $: { render }

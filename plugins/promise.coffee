@@ -9,6 +9,7 @@ $.plugin
 		err = result = NoValue
 		ret = $.inherit {
 			wait: (timeout, cb) ->
+				# .wait([timeout], callback) ->
 				if $.is 'function', timeout
 					cb = timeout
 				return $.immediate(-> cb err, null) if err isnt NoValue
@@ -46,6 +47,8 @@ $.plugin
 		$.defineProperty ret, 'failed',
 			get: -> err isnt NoValue
 
+		ret.promiseId = $.random.string 6
+
 		return ret
 
 	Promise.compose = (promises...) ->
@@ -73,9 +76,9 @@ $.plugin
 			progress: (args...) ->
 				return cur unless args.length
 				cur = args[0] ? cur
-				max = args[1] if args.length > 1
-				item = args[2] if args.length > 2
-				@__proto__.__proto__.finish(max) if cur >= max
+				max = (args[1] ? max) if args.length > 1
+				item = if args.length > 2 then args[2] else max
+				@__proto__.__proto__.finish(item) if cur >= max
 				@emit 'progress', cur, max, item
 				@
 			finish: (delta) ->

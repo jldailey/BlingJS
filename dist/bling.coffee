@@ -64,79 +64,6 @@ extend Bling, do ->
 		data
 $ = Bling
 $.plugin
-	provides: "EventEmitter"
-	depends: "type,hook"
-, ->
-	$: EventEmitter: Bling.init.append (obj = {}) ->
-		listeners = Object.create null
-		list = (e) -> (listeners[e] or= [])
-		$.inherit {
-			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-			on: add = (e, f) ->
-				switch $.type e
-					when 'object' then @addListener(k,v) for k,v of e
-					when 'string'
-						list(e).push(f)
-						@emit('newListener', e, f)
-				return @
-			addListener: add
-			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
-			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
-			listeners:          (e) -> list(e).slice 0
-		}, obj
-$.plugin
-	provides: "StateMachine"
-	depends: "type"
-, ->
-	$: StateMachine: class StateMachine
-		constructor: (stateTable) ->
-			@debug = false
-			@reset()
-			@table = stateTable
-			Object.defineProperty @, "modeline",
-				get: -> @table[@_mode]
-			Object.defineProperty @, "mode",
-				set: (m) ->
-					@_lastMode = @_mode
-					@_mode = m
-					if @_mode isnt @_lastMode and @modeline? and 'enter' of @modeline
-						ret = @modeline['enter'].call @
-						while $.is("function",ret)
-							ret = ret.call @
-					m
-				get: -> @_mode
-		reset: ->
-			@_mode = null
-			@_lastMode = null
-		GO: go = (m, enter=false) -> ->
-			if enter # force enter to trigger
-				@_mode = null
-			@mode = m
-		@GO: go
-		
-		tick: (c) ->
-			row = @modeline
-			if not row?
-				ret = null
-			else if c of row
-				ret = row[c]
-			else if 'def' of row
-				ret = row['def']
-			while $.is "function",ret
-				ret = ret.call @, c
-			ret
-		run: (inputs) ->
-			@mode = 0
-			for c in inputs
-				ret = @tick(c)
-			if $.is "function",@modeline?.eof
-				ret = @modeline.eof.call @
-			while $.is "function",ret
-				ret = ret.call @
-			@reset()
-			return @
-$.plugin
 	depends: "core"
 	provides: "async"
 , ->
@@ -1333,6 +1260,28 @@ if $.global.document?
 				return toNode @[0]
 		}
 $.plugin
+	provides: "EventEmitter"
+	depends: "type,hook"
+, ->
+	$: EventEmitter: Bling.init.append (obj = {}) ->
+		listeners = Object.create null
+		list = (e) -> (listeners[e] or= [])
+		$.inherit {
+			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
+			on: add = (e, f) ->
+				switch $.type e
+					when 'object' then @addListener(k,v) for k,v of e
+					when 'string'
+						list(e).push(f)
+						@emit('newListener', e, f)
+				return @
+			addListener: add
+			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
+			removeAllListeners: (e) -> listeners[e] = []
+			setMaxListeners:    (n) -> # who really needs this in the core API?
+			listeners:          (e) -> list(e).slice 0
+		}, obj
+$.plugin
 	depends: "dom,function,core"
 	provides: "event"
 , ->
@@ -1930,6 +1879,7 @@ $.plugin
 			get: -> result isnt NoValue
 		$.defineProperty ret, 'failed',
 			get: -> err isnt NoValue
+		ret.promiseId = $.random.string 6
 		return ret
 	Promise.compose = (promises...) ->
 		p = $.Progress(promises.length)
@@ -1950,12 +1900,16 @@ $.plugin
 			progress: (args...) ->
 				return cur unless args.length
 				cur = args[0] ? cur
-				max = args[1] if args.length > 1
-				@__proto__.__proto__.finish(max) if cur >= max
-				@emit 'progress', cur, max
+				max = (args[1] ? max) if args.length > 1
+				item = if args.length > 2 then args[2] else max
+				@__proto__.__proto__.finish(item) if cur >= max
+				@emit 'progress', cur, max, item
 				@
-			finish: (delta = 1) ->
-				@progress cur + delta
+			finish: (delta) ->
+				item = delta
+				unless isFinite(delta)
+					delta = 1
+				@progress cur + delta, max, item
 			include: (promise) ->
 				@progress cur, max + 1
 				promise.wait (err) =>
@@ -2182,87 +2136,68 @@ $.plugin
 	provides: "render"
 	depends: "promise"
 , ->
-	$.type.extend null, render: (o) ->
-		$.log "zomg, cant render type: #{$.type o}"
-		return ""
-	$.type.extend 'string',  render: $.identity
-	$.type.extend 'promise', render: $.identity
-	$.type.extend 'number', render: $.toString
-	$.type.extend 'array', render: (a, opts) -> ((reduce x, opts) for x in a)
-	$.type.extend 'bling', render: (b, opts) -> $((reduce x, opts) for x in b)
-	$.type.extend 'function', render: (f, opts) ->
-		switch f.length
-			when 0, 1 then reduce f opts
-			when 2 then $.Promise.wrap f, opts
+	log = $.logger "[render]"
+	consume_forever = (promise, opts, p = $.Promise()) ->
+		return $.Promise().finish(reduce promise, opts) unless $.is "promise", promise
+		promise.wait (err, result) ->
+			r = reduce result, opts
+			if $.is 'promise', r
+				consume_forever r, opts, p
+			else p.finish(r)
+		p
+	render = (o, opts = {}) ->
+		consume_forever (reduce [ o ], opts), opts
 	object_handlers = {
-		text: (o, opts) -> o[opts.lang ? "EN"]
+		text: (o, opts) -> reduce o[opts.lang ? "EN"], opts
 	}
-	register = (t, f) -> object_handlers[t] = f
-	$.type.extend 'object', render: (o, opts) ->
-		t = o.t ? o.type
-		unless t of object_handlers
-			return "[no handler for object type: '#{t}' #{JSON.stringify(o).substr 0,20}...]"
-		object_handlers[t].call o, o, opts
-	reduce = (o, opts) ->
-		t = $.type.lookup(o)
-		unless 'render' of t
-			throw new Error "cant pack type: #{$.type o}"
-		$.type.lookup(o).render(o, opts)
-	wait = (a) ->
-		p = $.Progress 1 # we always have at least one step of progress (the creation)
-		q = $.Promise()
-		wait_helper a, p, 1
-		p.finish 1 # progress creation is complete
-		p.wait (err, result) -> if err then q.fail(err) else q.finish(finalize a)
-		q
-	wait_helper = (a, p, m) ->
-		start = m
-		for x, i in a then do (x, i, a) ->
-			finisher = (err, result) ->
-				a[i] = if err then err else reduce result
-				if $.is 'promise', a[i]
-					p.progress null, ++m
-					a[i].wait finisher
-				p.finish(1)
-			if $.is 'promise', x
-				p.progress null, ++m
-				x.wait finisher
-			else if $.is 'array', x
-				m = wait_helper x, p, m
-		m
+	render.register = register = (t, f) -> object_handlers[t] = f
+	reduce = (o, opts) -> # all objects become either arrays, promises, or strings
+		switch t = $.type o
+			when "string" then o
+			when "promise"
+				q = $.Promise()
+				o.wait finish_q = (err, result) ->
+					return q.fail(err) if err
+					if $.is 'promise', r = reduce result, opts
+						r.wait finish_q
+					else
+						q.finish r
+				q
+			when "number" then $.toRepr(o)
+			when "array", "bling"
+				p = $.Progress m = 1
+				q = $.Promise()
+				p.wait (err, result) ->
+					if err then q.fail(err) else q.finish(result)
+				n = []
+				has_promises = false
+				for x, i in o then do (x,i) ->
+					n[i] = y = reduce x, opts
+					log "n[#{i}] = ", y
+					if $.is 'promise', y
+						has_promises = true
+						p.progress null, ++m
+						finish_p = (err, result) ->
+							return p.fail(err) if err
+							rp = reduce result, opts
+							if $.is 'promise', rp
+								rp.wait finish_p
+							else
+								p.finish n[i] = rp
+						y.wait finish_p
+				p.finish(1) # setup is complete
+				if has_promises then q
+				else n
+			when "function" then switch f.length
+				when 0,1 then reduce f(opts)
+				else $.Promise.wrap f, opts
+			when "object"
+				if (t = o.t ? o.type) of object_handlers
+					object_handlers[t].call o, o, opts
+				else "[ no handler for object type: '#{t}' #{JSON.stringify(o).substr 0,20}... ]"
+			else "[ cant reduce type: #{t} ]"
 	
-	finalize = (a) ->
-		return switch t = $.type a
-			when 'array', 'bling' then a.map(finalize).join ''
-			when 'string','html' then a
-			when "null", "undefined" then ''
-			else "[bad final type: #{t}]"
-	register 'html', -> [
-		"<!DOCTYPE html><html><head>"
-			@head
-		"</head><body>"
-			@body
-		"</body></html>"
-	]
-	register 'text', (o, opts) ->
-		o[opts.lang ? "EN"]
-	register 'link', -> [
-		"<a"
-			[" ",k,"='",@[k],"'"] for k in ["href","name","target"] when k of @
-		">",@content,"</a>"
-	]
-	register 'let', (o, opts) ->
-		save = opts[o.name]
-		opts[o.name] = o.value
-		try return reduce o.content, opts
-		finally
-			if save is undefined then delete opts[o.name]
-			else opts[o.name] = save
-	register 'get', (o, opts) -> opts[o.name]
-	
-	return $: render: $.extend ((o, opts = {}) -> wait reduce o, opts), {
-		register: register
-	}
+	return $: { render }
 $.plugin
 	depends: "core"
 	provides: "request-queue"
@@ -2352,6 +2287,57 @@ $.plugin
 		@splice ($.sortedIndex @, item, iterator), 0, item
 		@
 		
+$.plugin
+	provides: "StateMachine"
+	depends: "type"
+, ->
+	$: StateMachine: class StateMachine
+		constructor: (stateTable) ->
+			@debug = false
+			@reset()
+			@table = stateTable
+			Object.defineProperty @, "modeline",
+				get: -> @table[@_mode]
+			Object.defineProperty @, "mode",
+				set: (m) ->
+					@_lastMode = @_mode
+					@_mode = m
+					if @_mode isnt @_lastMode and @modeline? and 'enter' of @modeline
+						ret = @modeline['enter'].call @
+						while $.is("function",ret)
+							ret = ret.call @
+					m
+				get: -> @_mode
+		reset: ->
+			@_mode = null
+			@_lastMode = null
+		GO: go = (m, enter=false) -> ->
+			if enter # force enter to trigger
+				@_mode = null
+			@mode = m
+		@GO: go
+		
+		tick: (c) ->
+			row = @modeline
+			if not row?
+				ret = null
+			else if c of row
+				ret = row[c]
+			else if 'def' of row
+				ret = row['def']
+			while $.is "function",ret
+				ret = ret.call @, c
+			ret
+		run: (inputs) ->
+			@mode = 0
+			for c in inputs
+				ret = @tick(c)
+			if $.is "function",@modeline?.eof
+				ret = @modeline.eof.call @
+			while $.is "function",ret
+				ret = ret.call @
+			@reset()
+			return @
 $.plugin
 	provides: "string"
 	depends: "function"

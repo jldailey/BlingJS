@@ -162,6 +162,164 @@
   $ = Bling;
 
   $.plugin({
+    provides: "EventEmitter",
+    depends: "type,hook"
+  }, function() {
+    return {
+      $: {
+        EventEmitter: Bling.init.append(function(obj) {
+          var add, list, listeners;
+          if (obj == null) {
+            obj = {};
+          }
+          listeners = Object.create(null);
+          list = function(e) {
+            return listeners[e] || (listeners[e] = []);
+          };
+          return $.inherit({
+            emit: function() {
+              var a, e, f, _i, _len, _ref;
+              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+              _ref = list(e);
+              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                f = _ref[_i];
+                f.apply(this, a);
+              }
+              return this;
+            },
+            on: add = function(e, f) {
+              var k, v;
+              switch ($.type(e)) {
+                case 'object':
+                  for (k in e) {
+                    v = e[k];
+                    this.addListener(k, v);
+                  }
+                  break;
+                case 'string':
+                  list(e).push(f);
+                  this.emit('newListener', e, f);
+              }
+              return this;
+            },
+            addListener: add,
+            removeListener: function(e, f) {
+              var i, l;
+              if ((i = (l = list(e)).indexOf(f)) > -1) {
+                return l.splice(i, 1);
+              }
+            },
+            removeAllListeners: function(e) {
+              return listeners[e] = [];
+            },
+            setMaxListeners: function(n) {},
+            listeners: function(e) {
+              return list(e).slice(0);
+            }
+          }, obj);
+        })
+      }
+    };
+  });
+
+  $.plugin({
+    provides: "StateMachine",
+    depends: "type"
+  }, function() {
+    var StateMachine;
+    return {
+      $: {
+        StateMachine: StateMachine = (function() {
+          var go;
+
+          function StateMachine(stateTable) {
+            this.debug = false;
+            this.reset();
+            this.table = stateTable;
+            Object.defineProperty(this, "modeline", {
+              get: function() {
+                return this.table[this._mode];
+              }
+            });
+            Object.defineProperty(this, "mode", {
+              set: function(m) {
+                var ret;
+                this._lastMode = this._mode;
+                this._mode = m;
+                if (this._mode !== this._lastMode && (this.modeline != null) && 'enter' in this.modeline) {
+                  ret = this.modeline['enter'].call(this);
+                  while ($.is("function", ret)) {
+                    ret = ret.call(this);
+                  }
+                }
+                return m;
+              },
+              get: function() {
+                return this._mode;
+              }
+            });
+          }
+
+          StateMachine.prototype.reset = function() {
+            this._mode = null;
+            return this._lastMode = null;
+          };
+
+          StateMachine.prototype.GO = go = function(m, enter) {
+            if (enter == null) {
+              enter = false;
+            }
+            return function() {
+              if (enter) {
+                this._mode = null;
+              }
+              return this.mode = m;
+            };
+          };
+
+          StateMachine.GO = go;
+
+          StateMachine.prototype.tick = function(c) {
+            var ret, row;
+            row = this.modeline;
+            if (row == null) {
+              ret = null;
+            } else if (c in row) {
+              ret = row[c];
+            } else if ('def' in row) {
+              ret = row['def'];
+            }
+            while ($.is("function", ret)) {
+              ret = ret.call(this, c);
+            }
+            return ret;
+          };
+
+          StateMachine.prototype.run = function(inputs) {
+            var c, ret, _i, _len, _ref;
+            this.mode = 0;
+            for (_i = 0, _len = inputs.length; _i < _len; _i++) {
+              c = inputs[_i];
+              ret = this.tick(c);
+            }
+            if ($.is("function", (_ref = this.modeline) != null ? _ref.eof : void 0)) {
+              ret = this.modeline.eof.call(this);
+            }
+            while ($.is("function", ret)) {
+              ret = ret.call(this);
+            }
+            this.reset();
+            return this;
+          };
+
+          return StateMachine;
+
+        })()
+      }
+    };
+  });
+
+  $.plugin({
     depends: "core",
     provides: "async"
   }, function() {
@@ -2685,67 +2843,6 @@
   }
 
   $.plugin({
-    provides: "EventEmitter",
-    depends: "type,hook"
-  }, function() {
-    return {
-      $: {
-        EventEmitter: Bling.init.append(function(obj) {
-          var add, list, listeners;
-          if (obj == null) {
-            obj = {};
-          }
-          listeners = Object.create(null);
-          list = function(e) {
-            return listeners[e] || (listeners[e] = []);
-          };
-          return $.inherit({
-            emit: function() {
-              var a, e, f, _i, _len, _ref;
-              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-              _ref = list(e);
-              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                f = _ref[_i];
-                f.apply(this, a);
-              }
-              return this;
-            },
-            on: add = function(e, f) {
-              var k, v;
-              switch ($.type(e)) {
-                case 'object':
-                  for (k in e) {
-                    v = e[k];
-                    this.addListener(k, v);
-                  }
-                  break;
-                case 'string':
-                  list(e).push(f);
-                  this.emit('newListener', e, f);
-              }
-              return this;
-            },
-            addListener: add,
-            removeListener: function(e, f) {
-              var i, l;
-              if ((i = (l = list(e)).indexOf(f)) > -1) {
-                return l.splice(i, 1);
-              }
-            },
-            removeAllListeners: function(e) {
-              return listeners[e] = [];
-            },
-            setMaxListeners: function(n) {},
-            listeners: function(e) {
-              return list(e).slice(0);
-            }
-          }, obj);
-        })
-      }
-    };
-  });
-
-  $.plugin({
     depends: "dom,function,core",
     provides: "event"
   }, function() {
@@ -3975,7 +4072,9 @@
           return p.finish(result);
         }
       });
-      f.apply(null, args);
+      $.immediate(function() {
+        return f.apply(null, args);
+      });
       return p;
     };
     Progress = function(max) {
@@ -4413,7 +4512,7 @@
     provides: "render",
     depends: "promise"
   }, function() {
-    var consume_forever, log, object_handlers, reduce, register, render;
+    var consume_forever, finalize, log, object_handlers, reduce, register, render;
     log = $.logger("[render]");
     consume_forever = function(promise, opts, p) {
       if (p == null) {
@@ -4434,10 +4533,11 @@
       return p;
     };
     render = function(o, opts) {
+      var r;
       if (opts == null) {
         opts = {};
       }
-      return consume_forever(reduce([o], opts), opts);
+      return consume_forever(r = reduce([o], opts), opts);
     };
     object_handlers = {
       text: function(o, opts) {
@@ -4448,11 +4548,15 @@
     render.register = register = function(t, f) {
       return object_handlers[t] = f;
     };
-    reduce = function(o, opts) {
+    render.reduce = reduce = function(o, opts) {
       var finish_q, has_promises, i, m, n, p, q, t, x, _fn, _i, _len, _ref;
       switch (t = $.type(o)) {
         case "string":
+        case "html":
           return o;
+        case "null":
+        case "undefined":
+          return t;
         case "promise":
           q = $.Promise();
           o.wait(finish_q = function(err, result) {
@@ -4468,7 +4572,7 @@
           });
           return q;
         case "number":
-          return $.toRepr(o);
+          return String(o);
         case "array":
         case "bling":
           p = $.Progress(m = 1);
@@ -4477,7 +4581,7 @@
             if (err) {
               return q.fail(err);
             } else {
-              return q.finish(result);
+              return q.finish(finalize(n, opts));
             }
           });
           n = [];
@@ -4485,11 +4589,10 @@
           _fn = function(x, i) {
             var finish_p, y;
             n[i] = y = reduce(x, opts);
-            log("n[" + i + "] = ", y);
             if ($.is('promise', y)) {
               has_promises = true;
               p.progress(null, ++m);
-              finish_p = function(err, result) {
+              return y.wait(finish_p = function(err, result) {
                 var rp;
                 if (err) {
                   return p.fail(err);
@@ -4500,8 +4603,7 @@
                 } else {
                   return p.finish(n[i] = rp);
                 }
-              };
-              return y.wait(finish_p);
+              });
             }
           };
           for (i = _i = 0, _len = o.length; _i < _len; i = ++_i) {
@@ -4512,7 +4614,7 @@
           if (has_promises) {
             return q;
           } else {
-            return n;
+            return finalize(n);
           }
           break;
         case "function":
@@ -4535,6 +4637,66 @@
           return "[ cant reduce type: " + t + " ]";
       }
     };
+    finalize = function(o, opts) {
+      var t, x;
+      switch (t = $.type(o)) {
+        case "string":
+        case "html":
+          return o;
+        case "number":
+          return String(o);
+        case "array":
+        case "bling":
+          return ((function() {
+            var _i, _len, _results;
+            _results = [];
+            for (_i = 0, _len = o.length; _i < _len; _i++) {
+              x = o[_i];
+              _results.push(finalize(x));
+            }
+            return _results;
+          })()).join('');
+        case "null":
+        case "undefined":
+          return t;
+        default:
+          return "[ cant finalize type: " + t + " ]";
+      }
+    };
+    register('link', function(o, opts) {
+      var k;
+      return [
+        "<a", (function() {
+          var _i, _len, _ref, _results;
+          _ref = ["href", "name", "target"];
+          _results = [];
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            k = _ref[_i];
+            if (k in this) {
+              _results.push([" ", k, "='", this[k], "'"]);
+            }
+          }
+          return _results;
+        }).call(this), ">", reduce(this.content, opts), "</a>"
+      ];
+    });
+    register('let', function(o, opts) {
+      var save;
+      save = opts[o.name];
+      opts[o.name] = o.value;
+      try {
+        return reduce(o.content, opts);
+      } finally {
+        if (save === void 0) {
+          delete opts[o.name];
+        } else {
+          opts[o.name] = save;
+        }
+      }
+    });
+    register('get', function(o, opts) {
+      return reduce(opts[o.name], opts);
+    });
     return {
       $: {
         render: render
@@ -4746,103 +4908,6 @@
       sortedInsert: function(item, iterator) {
         this.splice($.sortedIndex(this, item, iterator), 0, item);
         return this;
-      }
-    };
-  });
-
-  $.plugin({
-    provides: "StateMachine",
-    depends: "type"
-  }, function() {
-    var StateMachine;
-    return {
-      $: {
-        StateMachine: StateMachine = (function() {
-          var go;
-
-          function StateMachine(stateTable) {
-            this.debug = false;
-            this.reset();
-            this.table = stateTable;
-            Object.defineProperty(this, "modeline", {
-              get: function() {
-                return this.table[this._mode];
-              }
-            });
-            Object.defineProperty(this, "mode", {
-              set: function(m) {
-                var ret;
-                this._lastMode = this._mode;
-                this._mode = m;
-                if (this._mode !== this._lastMode && (this.modeline != null) && 'enter' in this.modeline) {
-                  ret = this.modeline['enter'].call(this);
-                  while ($.is("function", ret)) {
-                    ret = ret.call(this);
-                  }
-                }
-                return m;
-              },
-              get: function() {
-                return this._mode;
-              }
-            });
-          }
-
-          StateMachine.prototype.reset = function() {
-            this._mode = null;
-            return this._lastMode = null;
-          };
-
-          StateMachine.prototype.GO = go = function(m, enter) {
-            if (enter == null) {
-              enter = false;
-            }
-            return function() {
-              if (enter) {
-                this._mode = null;
-              }
-              return this.mode = m;
-            };
-          };
-
-          StateMachine.GO = go;
-
-          StateMachine.prototype.tick = function(c) {
-            var ret, row;
-            row = this.modeline;
-            if (row == null) {
-              ret = null;
-            } else if (c in row) {
-              ret = row[c];
-            } else if ('def' in row) {
-              ret = row['def'];
-            }
-            while ($.is("function", ret)) {
-              ret = ret.call(this, c);
-            }
-            return ret;
-          };
-
-          StateMachine.prototype.run = function(inputs) {
-            var c, ret, _i, _len, _ref;
-            this.mode = 0;
-            for (_i = 0, _len = inputs.length; _i < _len; _i++) {
-              c = inputs[_i];
-              ret = this.tick(c);
-            }
-            if ($.is("function", (_ref = this.modeline) != null ? _ref.eof : void 0)) {
-              ret = this.modeline.eof.call(this);
-            }
-            while ($.is("function", ret)) {
-              ret = ret.call(this);
-            }
-            this.reset();
-            return this;
-          };
-
-          return StateMachine;
-
-        })()
       }
     };
   });

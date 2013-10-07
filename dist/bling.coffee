@@ -64,6 +64,79 @@ extend Bling, do ->
 		data
 $ = Bling
 $.plugin
+	provides: "EventEmitter"
+	depends: "type,hook"
+, ->
+	$: EventEmitter: Bling.init.append (obj = {}) ->
+		listeners = Object.create null
+		list = (e) -> (listeners[e] or= [])
+		$.inherit {
+			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
+			on: add = (e, f) ->
+				switch $.type e
+					when 'object' then @addListener(k,v) for k,v of e
+					when 'string'
+						list(e).push(f)
+						@emit('newListener', e, f)
+				return @
+			addListener: add
+			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
+			removeAllListeners: (e) -> listeners[e] = []
+			setMaxListeners:    (n) -> # who really needs this in the core API?
+			listeners:          (e) -> list(e).slice 0
+		}, obj
+$.plugin
+	provides: "StateMachine"
+	depends: "type"
+, ->
+	$: StateMachine: class StateMachine
+		constructor: (stateTable) ->
+			@debug = false
+			@reset()
+			@table = stateTable
+			Object.defineProperty @, "modeline",
+				get: -> @table[@_mode]
+			Object.defineProperty @, "mode",
+				set: (m) ->
+					@_lastMode = @_mode
+					@_mode = m
+					if @_mode isnt @_lastMode and @modeline? and 'enter' of @modeline
+						ret = @modeline['enter'].call @
+						while $.is("function",ret)
+							ret = ret.call @
+					m
+				get: -> @_mode
+		reset: ->
+			@_mode = null
+			@_lastMode = null
+		GO: go = (m, enter=false) -> ->
+			if enter # force enter to trigger
+				@_mode = null
+			@mode = m
+		@GO: go
+		
+		tick: (c) ->
+			row = @modeline
+			if not row?
+				ret = null
+			else if c of row
+				ret = row[c]
+			else if 'def' of row
+				ret = row['def']
+			while $.is "function",ret
+				ret = ret.call @, c
+			ret
+		run: (inputs) ->
+			@mode = 0
+			for c in inputs
+				ret = @tick(c)
+			if $.is "function",@modeline?.eof
+				ret = @modeline.eof.call @
+			while $.is "function",ret
+				ret = ret.call @
+			@reset()
+			return @
+$.plugin
 	depends: "core"
 	provides: "async"
 , ->
@@ -1260,28 +1333,6 @@ if $.global.document?
 				return toNode @[0]
 		}
 $.plugin
-	provides: "EventEmitter"
-	depends: "type,hook"
-, ->
-	$: EventEmitter: Bling.init.append (obj = {}) ->
-		listeners = Object.create null
-		list = (e) -> (listeners[e] or= [])
-		$.inherit {
-			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-			on: add = (e, f) ->
-				switch $.type e
-					when 'object' then @addListener(k,v) for k,v of e
-					when 'string'
-						list(e).push(f)
-						@emit('newListener', e, f)
-				return @
-			addListener: add
-			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
-			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
-			listeners:          (e) -> list(e).slice 0
-		}, obj
-$.plugin
 	depends: "dom,function,core"
 	provides: "event"
 , ->
@@ -1892,7 +1943,7 @@ $.plugin
 		p = $.Promise()
 		args.push (err, result) ->
 			if err then p.fail(err) else p.finish(result)
-		f args...
+		$.immediate -> f args...
 		p
 	Progress = (max = 1.0) ->
 		cur = 0.0
@@ -2138,7 +2189,8 @@ $.plugin
 , ->
 	log = $.logger "[render]"
 	consume_forever = (promise, opts, p = $.Promise()) ->
-		return $.Promise().finish(reduce promise, opts) unless $.is "promise", promise
+		unless $.is "promise", promise
+			return $.Promise().finish(reduce promise, opts)
 		promise.wait (err, result) ->
 			r = reduce result, opts
 			if $.is 'promise', r
@@ -2146,14 +2198,15 @@ $.plugin
 			else p.finish(r)
 		p
 	render = (o, opts = {}) ->
-		consume_forever (reduce [ o ], opts), opts
+		consume_forever r = (reduce [ o ], opts), opts
 	object_handlers = {
 		text: (o, opts) -> reduce o[opts.lang ? "EN"], opts
 	}
 	render.register = register = (t, f) -> object_handlers[t] = f
-	reduce = (o, opts) -> # all objects become either arrays, promises, or strings
+	render.reduce = reduce = (o, opts) -> # all objects become either arrays, promises, or strings
 		switch t = $.type o
-			when "string" then o
+			when "string","html" then o
+			when "null","undefined" then t
 			when "promise"
 				q = $.Promise()
 				o.wait finish_q = (err, result) ->
@@ -2163,31 +2216,29 @@ $.plugin
 					else
 						q.finish r
 				q
-			when "number" then $.toRepr(o)
+			when "number" then String(o)
 			when "array", "bling"
-				p = $.Progress m = 1
-				q = $.Promise()
+				p = $.Progress m = 1 # always start with one step (creation)
+				q = $.Promise() # use a summary promise for public view
 				p.wait (err, result) ->
-					if err then q.fail(err) else q.finish(result)
+					if err then q.fail(err) else q.finish(finalize n, opts)
 				n = []
 				has_promises = false
 				for x, i in o then do (x,i) ->
-					n[i] = y = reduce x, opts
-					log "n[#{i}] = ", y
+					n[i] = y = reduce x, opts # recurse here
 					if $.is 'promise', y
 						has_promises = true
 						p.progress null, ++m
-						finish_p = (err, result) ->
+						y.wait finish_p = (err, result) -> # recursive promise trampoline
 							return p.fail(err) if err
 							rp = reduce result, opts
 							if $.is 'promise', rp
 								rp.wait finish_p
 							else
 								p.finish n[i] = rp
-						y.wait finish_p
-				p.finish(1) # setup is complete
+				p.finish(1) # creation is complete
 				if has_promises then q
-				else n
+				else finalize n
 			when "function" then switch f.length
 				when 0,1 then reduce f(opts)
 				else $.Promise.wrap f, opts
@@ -2197,6 +2248,27 @@ $.plugin
 				else "[ no handler for object type: '#{t}' #{JSON.stringify(o).substr 0,20}... ]"
 			else "[ cant reduce type: #{t} ]"
 	
+	finalize = (o, opts) -> # what to do once all the promises have been waited for and replaced with their results
+		return switch t = $.type o
+			when "string","html" then o
+			when "number" then String(o)
+			when "array","bling" then (finalize(x) for x in o).join ''
+			when "null","undefined" then t
+			else "[ cant finalize type: #{t} ]"
+	register 'link', (o, opts) -> [
+		"<a"
+			[" ",k,"='",@[k],"'"] for k in ["href","name","target"] when k of @
+		">",reduce(@content,opts),"</a>"
+	]
+	register 'let', (o, opts) ->
+		save = opts[o.name]
+		opts[o.name] = o.value
+		try return reduce o.content, opts
+		finally
+			if save is undefined then delete opts[o.name]
+			else opts[o.name] = save
+	
+	register 'get', (o, opts) -> reduce opts[o.name], opts
 	return $: { render }
 $.plugin
 	depends: "core"
@@ -2287,57 +2359,6 @@ $.plugin
 		@splice ($.sortedIndex @, item, iterator), 0, item
 		@
 		
-$.plugin
-	provides: "StateMachine"
-	depends: "type"
-, ->
-	$: StateMachine: class StateMachine
-		constructor: (stateTable) ->
-			@debug = false
-			@reset()
-			@table = stateTable
-			Object.defineProperty @, "modeline",
-				get: -> @table[@_mode]
-			Object.defineProperty @, "mode",
-				set: (m) ->
-					@_lastMode = @_mode
-					@_mode = m
-					if @_mode isnt @_lastMode and @modeline? and 'enter' of @modeline
-						ret = @modeline['enter'].call @
-						while $.is("function",ret)
-							ret = ret.call @
-					m
-				get: -> @_mode
-		reset: ->
-			@_mode = null
-			@_lastMode = null
-		GO: go = (m, enter=false) -> ->
-			if enter # force enter to trigger
-				@_mode = null
-			@mode = m
-		@GO: go
-		
-		tick: (c) ->
-			row = @modeline
-			if not row?
-				ret = null
-			else if c of row
-				ret = row[c]
-			else if 'def' of row
-				ret = row['def']
-			while $.is "function",ret
-				ret = ret.call @, c
-			ret
-		run: (inputs) ->
-			@mode = 0
-			for c in inputs
-				ret = @tick(c)
-			if $.is "function",@modeline?.eof
-				ret = @modeline.eof.call @
-			while $.is "function",ret
-				ret = ret.call @
-			@reset()
-			return @
 $.plugin
 	provides: "string"
 	depends: "function"

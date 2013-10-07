@@ -55,4 +55,22 @@ describe "Render", ->
 					p
 				$.render({ t: "promise-test" }).wait expect "OK", done
 
+		describe "nesting", ->
+			it "case one", (done) ->
+				$.render.register "nesting-one", (o, opts) -> $.render.reduce o.content, opts
+				$.render({t:"nesting-one",content:{t:"text",EN:"Hello"}}).wait expect "Hello", done
+			it "case two", (done) ->
+				$.render.register "nesting-two", (o, opts) -> $.render.reduce o.content, opts
+				$.render({t:"nesting-two",content:[
+					{t:"text",EN:"Hello"},
+					" World"
+				]}).wait expect "Hello World", done
+			it "case three", (done) ->
+				$.render.register "nesting-three", (o, opts) -> $.render.reduce o.content, opts
+				$.render({t:"nesting-three",content:[
+					{t:"text",EN:"Hello"},
+					p = $.Promise()
+				]}).wait expect "Hello World", done
+				p.finish " World"
+
 

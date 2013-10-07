@@ -1930,6 +1930,7 @@ $.plugin
 			get: -> result isnt NoValue
 		$.defineProperty ret, 'failed',
 			get: -> err isnt NoValue
+		ret.promiseId = $.random.string 6
 		return ret
 	Promise.compose = (promises...) ->
 		p = $.Progress(promises.length)
@@ -1942,7 +1943,7 @@ $.plugin
 		p = $.Promise()
 		args.push (err, result) ->
 			if err then p.fail(err) else p.finish(result)
-		f args...
+		$.immediate -> f args...
 		p
 	Progress = (max = 1.0) ->
 		cur = 0.0
@@ -1950,12 +1951,16 @@ $.plugin
 			progress: (args...) ->
 				return cur unless args.length
 				cur = args[0] ? cur
-				max = args[1] if args.length > 1
-				@__proto__.__proto__.finish(max) if cur >= max
-				@emit 'progress', cur, max
+				max = (args[1] ? max) if args.length > 1
+				item = if args.length > 2 then args[2] else max
+				@__proto__.__proto__.finish(item) if cur >= max
+				@emit 'progress', cur, max, item
 				@
-			finish: (delta = 1) ->
-				@progress cur + delta
+			finish: (delta) ->
+				item = delta
+				unless isFinite(delta)
+					delta = 1
+				@progress cur + delta, max, item
 			include: (promise) ->
 				@progress cur, max + 1
 				promise.wait (err) =>
@@ -2182,74 +2187,78 @@ $.plugin
 	provides: "render"
 	depends: "promise"
 , ->
-	$.type.extend null, render: (o) ->
-		$.log "zomg, cant render type: #{$.type o}"
-		return ""
-	$.type.extend 'string',  render: $.identity
-	$.type.extend 'promise', render: $.identity
-	$.type.extend 'number', render: $.toString
-	$.type.extend 'array', render: (a, opts) -> ((reduce x, opts) for x in a)
-	$.type.extend 'bling', render: (b, opts) -> $((reduce x, opts) for x in b)
-	$.type.extend 'function', render: (f, opts) ->
-		switch f.length
-			when 0, 1 then reduce f opts
-			when 2 then $.Promise.wrap f, opts
+	log = $.logger "[render]"
+	consume_forever = (promise, opts, p = $.Promise()) ->
+		unless $.is "promise", promise
+			return $.Promise().finish(reduce promise, opts)
+		promise.wait (err, result) ->
+			r = reduce result, opts
+			if $.is 'promise', r
+				consume_forever r, opts, p
+			else p.finish(r)
+		p
+	render = (o, opts = {}) ->
+		consume_forever r = (reduce [ o ], opts), opts
 	object_handlers = {
-		text: (o, opts) -> o[opts.lang ? "EN"]
+		text: (o, opts) -> reduce o[opts.lang ? "EN"], opts
 	}
-	register = (t, f) -> object_handlers[t] = f
-	$.type.extend 'object', render: (o, opts) ->
-		t = o.t ? o.type
-		unless t of object_handlers
-			return "[no handler for object type: '#{t}' #{JSON.stringify(o).substr 0,20}...]"
-		object_handlers[t].call o, o, opts
-	reduce = (o, opts) ->
-		t = $.type.lookup(o)
-		unless 'render' of t
-			throw new Error "cant pack type: #{$.type o}"
-		$.type.lookup(o).render(o, opts)
-	wait = (a) ->
-		p = $.Progress 1 # we always have at least one step of progress (the creation)
-		q = $.Promise()
-		wait_helper a, p, 1
-		p.finish 1 # progress creation is complete
-		p.wait (err, result) -> if err then q.fail(err) else q.finish(finalize a)
-		q
-	wait_helper = (a, p, m) ->
-		start = m
-		for x, i in a then do (x, i, a) ->
-			finisher = (err, result) ->
-				a[i] = if err then err else reduce result
-				if $.is 'promise', a[i]
-					p.progress null, ++m
-					a[i].wait finisher
-				p.finish(1)
-			if $.is 'promise', x
-				p.progress null, ++m
-				x.wait finisher
-			else if $.is 'array', x
-				m = wait_helper x, p, m
-		m
+	render.register = register = (t, f) -> object_handlers[t] = f
+	render.reduce = reduce = (o, opts) -> # all objects become either arrays, promises, or strings
+		switch t = $.type o
+			when "string","html" then o
+			when "null","undefined" then t
+			when "promise"
+				q = $.Promise()
+				o.wait finish_q = (err, result) ->
+					return q.fail(err) if err
+					if $.is 'promise', r = reduce result, opts
+						r.wait finish_q
+					else
+						q.finish r
+				q
+			when "number" then String(o)
+			when "array", "bling"
+				p = $.Progress m = 1 # always start with one step (creation)
+				q = $.Promise() # use a summary promise for public view
+				p.wait (err, result) ->
+					if err then q.fail(err) else q.finish(finalize n, opts)
+				n = []
+				has_promises = false
+				for x, i in o then do (x,i) ->
+					n[i] = y = reduce x, opts # recurse here
+					if $.is 'promise', y
+						has_promises = true
+						p.progress null, ++m
+						y.wait finish_p = (err, result) -> # recursive promise trampoline
+							return p.fail(err) if err
+							rp = reduce result, opts
+							if $.is 'promise', rp
+								rp.wait finish_p
+							else
+								p.finish n[i] = rp
+				p.finish(1) # creation is complete
+				if has_promises then q
+				else finalize n
+			when "function" then switch f.length
+				when 0,1 then reduce f(opts)
+				else $.Promise.wrap f, opts
+			when "object"
+				if (t = o.t ? o.type) of object_handlers
+					object_handlers[t].call o, o, opts
+				else "[ no handler for object type: '#{t}' #{JSON.stringify(o).substr 0,20}... ]"
+			else "[ cant reduce type: #{t} ]"
 	
-	finalize = (a) ->
-		return switch t = $.type a
-			when 'array', 'bling' then a.map(finalize).join ''
-			when 'string','html' then a
-			when "null", "undefined" then ''
-			else "[bad final type: #{t}]"
-	register 'html', -> [
-		"<!DOCTYPE html><html><head>"
-			@head
-		"</head><body>"
-			@body
-		"</body></html>"
-	]
-	register 'text', (o, opts) ->
-		o[opts.lang ? "EN"]
-	register 'link', -> [
+	finalize = (o, opts) -> # what to do once all the promises have been waited for and replaced with their results
+		return switch t = $.type o
+			when "string","html" then o
+			when "number" then String(o)
+			when "array","bling" then (finalize(x) for x in o).join ''
+			when "null","undefined" then t
+			else "[ cant finalize type: #{t} ]"
+	register 'link', (o, opts) -> [
 		"<a"
 			[" ",k,"='",@[k],"'"] for k in ["href","name","target"] when k of @
-		">",@content,"</a>"
+		">",reduce(@content,opts),"</a>"
 	]
 	register 'let', (o, opts) ->
 		save = opts[o.name]
@@ -2258,11 +2267,9 @@ $.plugin
 		finally
 			if save is undefined then delete opts[o.name]
 			else opts[o.name] = save
-	register 'get', (o, opts) -> opts[o.name]
 	
-	return $: render: $.extend ((o, opts = {}) -> wait reduce o, opts), {
-		register: register
-	}
+	register 'get', (o, opts) -> reduce opts[o.name], opts
+	return $: { render }
 $.plugin
 	depends: "core"
 	provides: "request-queue"

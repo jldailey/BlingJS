@@ -1,12 +1,11 @@
 $.plugin
 	provides: "url,URL"
 , ->
-	url_re = /\b(?:([a-z+]+):)(?:\/{1,2}([^:?\/#]*))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i
+	url_re = /\b(?:([a-z+]+):)(?:\/{1,2}([^?\/#]*?))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i
 
 
 	parse = (str, parseQuery=false) ->
-		m = str?.match url_re
-		ret = if m? then {
+		ret = if (m = str?.match url_re) then {
 			protocol: m[1]
 			host:     m[2]
 			port:     m[3]
@@ -14,10 +13,10 @@ $.plugin
 			query:    m[5]?.replace /^\?/,''
 			hash:     m[6]?.replace /^#/, ''
 		} else null
-		
-		if parseQuery
-			query = ret?.query ? ""
-			ret.query = {}
+
+		if ret? and parseQuery
+			query = ret.query ? ""
+			ret.query = Object.create null
 			for pair in query.split('&')
 				if (i = pair.indexOf '=') > -1
 					ret.query[pair.substring 0,i] = unescape pair.substring i+1
@@ -25,7 +24,7 @@ $.plugin
 					ret.query[pair] = null
 			delete ret.query[""]
 
-		return ret
+		ret
 
 	clean = (val, re, prefix = '', suffix ='') ->
 		x = val ? ""

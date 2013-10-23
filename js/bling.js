@@ -6678,14 +6678,13 @@
     provides: "url,URL"
   }, function() {
     var clean, parse, stringify, url_re;
-    url_re = /\b(?:([a-z+]+):)(?:\/{1,2}([^:?\/#]*))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i;
+    url_re = /\b(?:([a-z+]+):)(?:\/{1,2}([^?\/#]*?))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i;
     parse = function(str, parseQuery) {
       var i, m, pair, query, ret, _i, _len, _ref, _ref1, _ref2, _ref3;
       if (parseQuery == null) {
         parseQuery = false;
       }
-      m = str != null ? str.match(url_re) : void 0;
-      ret = m != null ? {
+      ret = (m = str != null ? str.match(url_re) : void 0) ? {
         protocol: m[1],
         host: m[2],
         port: m[3],
@@ -6693,9 +6692,9 @@
         query: (_ref = m[5]) != null ? _ref.replace(/^\?/, '') : void 0,
         hash: (_ref1 = m[6]) != null ? _ref1.replace(/^#/, '') : void 0
       } : null;
-      if (parseQuery) {
-        query = (_ref2 = ret != null ? ret.query : void 0) != null ? _ref2 : "";
-        ret.query = {};
+      if ((ret != null) && parseQuery) {
+        query = (_ref2 = ret.query) != null ? _ref2 : "";
+        ret.query = Object.create(null);
         _ref3 = query.split('&');
         for (_i = 0, _len = _ref3.length; _i < _len; _i++) {
           pair = _ref3[_i];

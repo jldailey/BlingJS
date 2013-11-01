@@ -65,6 +65,7 @@ $.plugin
 
 		# When adding a new type to the regisry:
 		register = (name, data) ->
+			unless 'is' of data then throw new Error("$.type.register given a second argument without an 'is' function")
 			# * Put the type check in order (if it isn't already).
 			order.unshift name if not (name of cache)
 			# * inherit from the base type and store in the cache.

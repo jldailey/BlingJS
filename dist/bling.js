@@ -3866,19 +3866,51 @@
     depends: "core,function",
     provides: "promise"
   }, function() {
-    var NoValue, Progress, Promise, ret;
+    var NoValue, Progress, Promise;
     NoValue = function() {};
     Promise = function(obj) {
-      var err, result, ret, waiting;
+      var end, err, result, ret, waiting;
       if (obj == null) {
         obj = {};
       }
       waiting = $();
       err = result = NoValue;
+      end = function(error, value) {
+        var caught, e, w, _ref;
+        if ((err === result && result === NoValue)) {
+          err = error;
+          result = value;
+          caught = null;
+          while (w = waiting.shift()) {
+            if ((_ref = w.timeout) != null) {
+              _ref.cancel();
+            }
+            try {
+              switch (false) {
+                case err === NoValue:
+                  w(err, null);
+                  break;
+                case result === NoValue:
+                  w(null, result);
+              }
+            } catch (_error) {
+              e = _error;
+              if (caught == null) {
+                caught = e;
+              }
+            }
+          }
+          if (caught) {
+            throw caught;
+          }
+        }
+        return null;
+      };
       ret = $.inherit({
         wait: function(timeout, cb) {
+          var _ref;
           if ($.is('function', timeout)) {
-            cb = timeout;
+            _ref = [timeout, void 0], cb = _ref[0], timeout = _ref[1];
           }
           if (err !== NoValue) {
             return $.immediate(function() {
@@ -3891,7 +3923,7 @@
             });
           }
           waiting.push(cb);
-          if (isFinite(timeout)) {
+          if (isFinite(parseFloat(timeout))) {
             cb.timeout = $.delay(timeout, function() {
               var i;
               if ((i = waiting.indexOf(cb)) > -1) {
@@ -3903,53 +3935,11 @@
           return this;
         },
         finish: function(value) {
-          var caught, w, _ref;
-          if ((err === result && result === NoValue)) {
-            caught = null;
-            while (waiting.length) {
-              w = waiting.shift();
-              if ((_ref = w.timeout) != null) {
-                _ref.cancel();
-              }
-              try {
-                w(null, value);
-              } catch (_error) {
-                err = _error;
-                if (caught == null) {
-                  caught = err;
-                }
-              }
-            }
-            result = value;
-            if (caught) {
-              throw caught;
-            }
-          }
+          end(NoValue, value);
           return this;
         },
         fail: function(error) {
-          var caught, e, w, _ref;
-          if ((err === result && result === NoValue)) {
-            err = error;
-            caught = null;
-            while (waiting.length) {
-              w = waiting.shift();
-              if ((_ref = w.timeout) != null) {
-                _ref.cancel();
-              }
-              try {
-                w(error, null);
-              } catch (_error) {
-                e = _error;
-                if (caught == null) {
-                  caught = e;
-                }
-              }
-            }
-            if (caught) {
-              throw caught;
-            }
-          }
+          end(error, NoValue);
           return this;
         },
         reset: function() {
@@ -3983,10 +3973,10 @@
             return p.finish(1);
           }
         });
-        p.finish('setup');
+        p.finish(1);
       }
     };
-    Promise.call = function() {
+    Promise.wrapCall = function() {
       var args, f, p;
       f = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
       try {
@@ -4091,7 +4081,7 @@
         }
       });
     });
-    return ret = {
+    return {
       $: {
         Promise: Promise,
         Progress: Progress

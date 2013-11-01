@@ -10,11 +10,5 @@ echo Making new release: $2 from current release: $1... && \
 	rm package.json.bak && \
 	echo Committing package.json && \
 	git commit package.json -m "v$2" &> /dev/null && \
-	echo Building public site && \
-	make site &> /dev/null && \
-	echo Deploying site && \
-	git push &> /dev/null && \
-	echo Publishing to github && \
-	git push github &> /dev/null && \
 	echo Publishing to npm && \
 	npm publish

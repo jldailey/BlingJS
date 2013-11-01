@@ -64,79 +64,6 @@ extend Bling, do ->
 		data
 $ = Bling
 $.plugin
-	provides: "EventEmitter"
-	depends: "type,hook"
-, ->
-	$: EventEmitter: Bling.init.append (obj = {}) ->
-		listeners = Object.create null
-		list = (e) -> (listeners[e] or= [])
-		$.inherit {
-			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
-			on: add = (e, f) ->
-				switch $.type e
-					when 'object' then @addListener(k,v) for k,v of e
-					when 'string'
-						list(e).push(f)
-						@emit('newListener', e, f)
-				return @
-			addListener: add
-			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
-			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
-			listeners:          (e) -> list(e).slice 0
-		}, obj
-$.plugin
-	provides: "StateMachine"
-	depends: "type"
-, ->
-	$: StateMachine: class StateMachine
-		constructor: (stateTable) ->
-			@debug = false
-			@reset()
-			@table = stateTable
-			Object.defineProperty @, "modeline",
-				get: -> @table[@_mode]
-			Object.defineProperty @, "mode",
-				set: (m) ->
-					@_lastMode = @_mode
-					@_mode = m
-					if @_mode isnt @_lastMode and @modeline? and 'enter' of @modeline
-						ret = @modeline['enter'].call @
-						while $.is("function",ret)
-							ret = ret.call @
-					m
-				get: -> @_mode
-		reset: ->
-			@_mode = null
-			@_lastMode = null
-		GO: go = (m, enter=false) -> ->
-			if enter # force enter to trigger
-				@_mode = null
-			@mode = m
-		@GO: go
-		
-		tick: (c) ->
-			row = @modeline
-			if not row?
-				ret = null
-			else if c of row
-				ret = row[c]
-			else if 'def' of row
-				ret = row['def']
-			while $.is "function",ret
-				ret = ret.call @, c
-			ret
-		run: (inputs) ->
-			@mode = 0
-			for c in inputs
-				ret = @tick(c)
-			if $.is "function",@modeline?.eof
-				ret = @modeline.eof.call @
-			while $.is "function",ret
-				ret = ret.call @
-			@reset()
-			return @
-$.plugin
 	depends: "core"
 	provides: "async"
 , ->
@@ -1333,6 +1260,28 @@ if $.global.document?
 				return toNode @[0]
 		}
 $.plugin
+	provides: "EventEmitter"
+	depends: "type,hook"
+, ->
+	$: EventEmitter: Bling.init.append (obj = {}) ->
+		listeners = Object.create null
+		list = (e) -> (listeners[e] or= [])
+		$.inherit {
+			emit:               (e, a...) -> (f.apply(@, a) for f in list(e)); @
+			on: add = (e, f) ->
+				switch $.type e
+					when 'object' then @addListener(k,v) for k,v of e
+					when 'string'
+						list(e).push(f)
+						@emit('newListener', e, f)
+				return @
+			addListener: add
+			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
+			removeAllListeners: (e) -> listeners[e] = []
+			setMaxListeners:    (n) -> # who really needs this in the core API?
+			listeners:          (e) -> list(e).slice 0
+		}, obj
+$.plugin
 	depends: "dom,function,core"
 	provides: "event"
 , ->
@@ -1908,19 +1857,27 @@ $.plugin
 				@
 			finish: (value) ->
 				if err is result is NoValue
-					result = value
-					for w in waiting
-						w(null, value)
+					caught = null
+					while waiting.length
+						w = waiting.shift()
 						w.timeout?.cancel()
-					waiting.clear()
+						try w(null, value)
+						catch err
+							caught ?= err
+					result = value
+					if caught
+						throw caught
 				@
 			fail: (error)  ->
 				if err is result is NoValue
 					err = error
-					for w in waiting
-						w(error, null)
+					caught = null
+					while waiting.length
+						w = waiting.shift()
 						w.timeout?.cancel()
-					waiting.clear()
+						try w(error, null)
+						catch e then caught ?= e
+					if caught then throw caught
 				@
 			reset: ->
 				err = result = NoValue
@@ -1932,19 +1889,17 @@ $.plugin
 			get: -> err isnt NoValue
 		ret.promiseId = $.random.string 6
 		return ret
-	Promise.compose = (promises...) ->
-		p = $.Progress(promises.length)
-		$(promises).select('wait').call (err, data) ->
-			return p.fail err if err
-			p.finish 1 unless p.failed
-		return p
-	
-	Promise.wrap = (f, args...) ->
-		p = $.Promise()
-		args.push (err, result) ->
-			if err then p.fail(err) else p.finish(result)
-		$.immediate -> f args...
-		p
+	Promise.compose = Promise.parallel = (promises...) ->
+		try p = $.Progress(promises.length + 1) # always an extra one for setup, so an empty list is finished immediately
+		finally
+			$(promises).select('wait').call (err, data) ->
+				if err then p.fail(err) else p.finish 1
+			p.finish 'setup'
+	Promise.call = (f, args...) ->
+		try p = $.Promise()
+		finally # the last argument to f will be a callback that finishes the promise
+			args.push (err, result) -> if err then p.fail(err) else p.finish(result)
+			$.immediate -> f args...
 	Progress = (max = 1.0) ->
 		cur = 0.0
 		return $.inherit {
@@ -1968,22 +1923,20 @@ $.plugin
 					@finish(1)
 		}, p = Promise()
 	Promise.xhr = (xhr) ->
-		p = $.Promise()
-		xhr.onreadystatechange = ->
+		try p = $.Promise()
+		finally xhr.onreadystatechange = ->
 			if @readyState is @DONE
 				if @status is 200
 					p.finish xhr.responseText
 				else
 					p.fail "#{@status} #{@statusText}"
-		return p
 	$.depend 'dom', ->
 		Promise.image = (src) ->
-			p = $.Promise()
-			image = new Image()
-			image.onload = -> p.finish(image)
-			image.onerror = (evt) -> p.fail(evt)
-			image.src = src
-			return p
+			try p = $.Promise()
+			finally $.extend image = new Image(),
+				onerror: (e) -> p.fail e
+				onload: -> p.finish image
+				src: src
 	
 	$.depend 'type', ->
 		$.type.register 'promise', is: (o) ->
@@ -2359,6 +2312,57 @@ $.plugin
 		@splice ($.sortedIndex @, item, iterator), 0, item
 		@
 		
+$.plugin
+	provides: "StateMachine"
+	depends: "type"
+, ->
+	$: StateMachine: class StateMachine
+		constructor: (stateTable) ->
+			@debug = false
+			@reset()
+			@table = stateTable
+			Object.defineProperty @, "modeline",
+				get: -> @table[@_mode]
+			Object.defineProperty @, "mode",
+				set: (m) ->
+					@_lastMode = @_mode
+					@_mode = m
+					if @_mode isnt @_lastMode and @modeline? and 'enter' of @modeline
+						ret = @modeline['enter'].call @
+						while $.is("function",ret)
+							ret = ret.call @
+					m
+				get: -> @_mode
+		reset: ->
+			@_mode = null
+			@_lastMode = null
+		GO: go = (m, enter=false) -> ->
+			if enter # force enter to trigger
+				@_mode = null
+			@mode = m
+		@GO: go
+		
+		tick: (c) ->
+			row = @modeline
+			if not row?
+				ret = null
+			else if c of row
+				ret = row[c]
+			else if 'def' of row
+				ret = row['def']
+			while $.is "function",ret
+				ret = ret.call @, c
+			ret
+		run: (inputs) ->
+			@mode = 0
+			for c in inputs
+				ret = @tick(c)
+			if $.is "function",@modeline?.eof
+				ret = @modeline.eof.call @
+			while $.is "function",ret
+				ret = ret.call @
+			@reset()
+			return @
 $.plugin
 	provides: "string"
 	depends: "function"
@@ -3087,6 +3091,7 @@ $.plugin
 				a.push type
 			
 		register = (name, data) ->
+			unless 'is' of data then throw new Error("$.type.register given a second argument without an 'is' function")
 			order.unshift name if not (name of cache)
 			cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
 			cache[name][name] = (o) -> o

@@ -6,7 +6,8 @@ YUI_VERSION=2.4.7
 COFFEE=node_modules/.bin/coffee
 JLDOM=node_modules/jldom
 MOCHA=node_modules/.bin/mocha
-MOCHA_OPTS=--compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R dot
+MOCHA_FMT=spec
+MOCHA_OPTS=--compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R ${MOCHA_FMT} -s 500
 WATCH="coffee watch.coffee"
 
 TEST_FILES=$(shell ls test/*.coffee | grep -v setup.coffee )
@@ -25,7 +26,7 @@ test: dist $(PASS_FILES)
 	@echo "All tests are passing."
 
 test/bling.coffee.pass: test/bling.coffee bling.coffee
-	@echo Running $<
+	# @echo Running $<
 	@$(MOCHA) $(MOCHA_OPTS) $< && touch $@
 
 test/%.coffee.pass: test/%.coffee plugins/%.coffee bling.coffee

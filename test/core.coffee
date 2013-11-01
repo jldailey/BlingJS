@@ -4,7 +4,7 @@ describe "Core plugin:", ->
 	describe "$.log", ->
 		describe ".out", ->
 			it "defaults to console.log", ->
-			it "is called by $.log", ->
+			it "redirects output", ->
 				try
 					pass = false
 					$.log.out = (arg) -> pass = arg
@@ -14,7 +14,7 @@ describe "Core plugin:", ->
 					$.log.out = console.log
 
 	describe "$.logger", ->
-		it "creates a logger with a fixed prefix", ->
+		it "creates a logging function that applies a fixed prefix", ->
 			f = $.logger('[magic]')
 			message = ""
 			try
@@ -39,11 +39,11 @@ describe "Core plugin:", ->
 			a = $([1,2,3])
 			b = a.map (->)
 			assert.notEqual a,b
-		it "containing the results of f(each item)", ->
+		it "the new set contains the result of f(each item)", ->
 			assert.deepEqual $([1,2,3]).map(->@*@), [1,4,9]
 	
 	describe ".filterMap(f)", ->
-		it "works like map, but can omit some results", ->
+		it "mapping to null filters from the result", ->
 			assert.deepEqual $(1,2,3,4).filterMap(->
 				if @ % 2 then @*@
 				else null
@@ -68,13 +68,13 @@ describe "Core plugin:", ->
 			assert.deepEqual d, [5,6,7,4]
 
 	describe ".coalesce()", ->
-		it "should return the first non-null item", ->
+		it "returns the first non-null item", ->
 			assert.equal $.coalesce(null, 42, 22), 42
-		it "should accept an array as argument", ->
+		it "accepts an array as argument", ->
 			assert.equal($.coalesce([null, 14, 42]), 14)
-		it "should descend arrays if nested", ->
+		it "descends arrays if nested", ->
 			assert.equal($.coalesce([null, [null, 14], 42]), 14)
-		it "should span arrays if given multiple", ->
+		it "spans arrays if given multiple", ->
 			assert.equal $.coalesce([null, null], [null, [null, 14], 42]), 14
 
 	describe ".reduce()", ->
@@ -113,10 +113,11 @@ describe "Core plugin:", ->
 		]
 		it "extracts values from properties of items in a set", ->
 			assert.deepEqual selectObjects.select('id'), [1,2,3]
-		it "supports nested property names", ->
-			assert.deepEqual selectObjects.select("parent.id"), [2,4,6]
-		it "supports nesting into arrays", ->
-			assert.deepEqual selectObjects.select("children.0.id"), [3,6,9]
+		describe "nested property names", ->
+			it "in objects", ->
+				assert.deepEqual selectObjects.select("parent.id"), [2,4,6]
+			it "into arrays", ->
+				assert.deepEqual selectObjects.select("children.0.id"), [3,6,9]
 		it "supports multiple arguments (creating simplified objects)", ->
 			assert.deepEqual selectObjects.select("pX","pY"), [
 				{ pX: 2, pY: 3 },
@@ -135,7 +136,7 @@ describe "Core plugin:", ->
 				{ pX: 3, pY: 4, id: 4 },
 				{ pX: 4, pY: 5, id: 6 }
 			]
-		it "supports the * (read: flatten) operator", ->
+		it "supports the * (i.e. flatten) operator", ->
 			assert.deepEqual selectObjects.select("children.*.id"), [3,5,6,9]
 		it "does not fail to select when asked for missing columns", ->
 			assert.deepEqual selectObjects.select("pX","noExist","pY"), [
@@ -162,46 +163,50 @@ describe "Core plugin:", ->
 		it "removes multiple properties", ->
 			assert.deepEqual $({a:1,b:2,c:3},{a:2,b:3,c:4}).clean('b','c').select('a'), [1, 2]
 
-	describe ".take()", ->
-		it "take0", -> assert.deepEqual $([1,2,3,4]).take(0), []
-		it "take1", -> assert.deepEqual $([1,2,3,4]).take(1), [1]
-		it "take2", -> assert.deepEqual $([1,2,3,4]).take(2), [1,2]
-		it "take3", -> assert.deepEqual $([1,2,3,4]).take(3), [1,2,3]
-		it "take4", -> assert.deepEqual $([1,2,3,4]).take(4), [1,2,3,4]
-		it "take5", -> assert.deepEqual $([1,2,3,4]).take(5), [1,2,3,4]
+	describe ".take(N)", ->
+		it "selects the first N items", -> assert.deepEqual $([1,2,3,4]).take(2), [1,2]
+		it "can take all the items", -> assert.deepEqual $([1,2,3,4]).take(4), [1,2,3,4]
+		it "taking too much is not an error", -> assert.deepEqual $([1,2,3,4]).take(5), [1,2,3,4]
+		it "can take a single item", -> assert.deepEqual $([1,2,3,4]).take(1), [1]
+		it "can take an empty set", -> assert.deepEqual $([1,2,3,4]).take(0), []
 
 	describe ".skip()", ->
-		it "skip0", -> assert.deepEqual $([1,2,3,4]).skip(0), [1,2,3,4]
-		it "skip1", -> assert.deepEqual $([1,2,3,4]).skip(1), [2,3,4]
-		it "skip2", -> assert.deepEqual $([1,2,3,4]).skip(2), [3,4]
-		it "skip3", -> assert.deepEqual $([1,2,3,4]).skip(3), [4]
-		it "skip4", -> assert.deepEqual $([1,2,3,4]).skip(4), []
-		it "skip5", -> assert.deepEqual $([1,2,3,4]).skip(5), []
+		it "selects everything except the first N items", ->
+			assert.deepEqual $([1,2,3,4]).skip(2), [3,4]
+		it "can skip nothing", -> assert.deepEqual $([1,2,3,4]).skip(0), [1,2,3,4]
+		it "can skip everything", -> assert.deepEqual $([1,2,3,4]).skip(4), []
+		it "can skip more than everything", -> assert.deepEqual $([1,2,3,4]).skip(5), []
 
 	describe ".first()", ->
 		a = $([1,2,3,4])
 		it "returns a single element", -> assert.equal a.first(), 1
-		it "acts like take", -> assert.deepEqual a.first(5), [1,2,3,4]
-		it "acts like take", -> assert.deepEqual a.first(2), [1,2]
-		it "acts like take", -> assert.deepEqual a.first(0), []
+		describe "if given an argument", ->
+			it "acts like .take()", ->
+				assert.deepEqual a.first(5), [1,2,3,4]
+				assert.deepEqual a.first(2), [1,2]
+				assert.deepEqual a.first(0), []
 
 	describe ".last()", ->
 		a = $([1,2,3,4])
-		it "returns last element", -> assert.equal a.last(), 4
-		it "returns multiple if asked", -> assert.deepEqual a.last(2), [3,4]
-		it "returns empty if asked", -> assert.deepEqual a.last(0), []
-		it "returns as much as it can", -> assert.deepEqual a.last(5), [1,2,3,4]
+		it "selects the last element", -> assert.equal a.last(), 4
+		it "can select the last few", -> assert.deepEqual a.last(2), [3,4]
+		it "can select none", -> assert.deepEqual a.last(0), []
+		it "can select too much", -> assert.deepEqual a.last(5), [1,2,3,4]
 
 	describe ".slice()", ->
-		a = $([1,2,3,4,5])
-		it "slice1", -> assert.deepEqual $([1,2,3,4,5]).slice(0,5), [1,2,3,4,5]
-		it "slice2", -> assert.deepEqual $([1,2,3,4,5]).slice(1,5), [2,3,4,5]
-		it "slice3", -> assert.deepEqual $([1,2,3,4,5]).slice(2,5), [3,4,5]
-		it "slice4", -> assert.deepEqual $([1,2,3,4,5]).slice(3,5), [4,5]
-		it "slice5", -> assert.deepEqual $([1,2,3,4,5]).slice(4,5), [5]
-		it "slice6", -> assert.deepEqual $([1,2,3,4,5]).slice(1,-2), [2,3]
-		it "slice7", -> assert.deepEqual $([1,2,3,4,5]).slice(-1,-3), [5,4]
-		it "slice8", -> assert.deepEqual $([1,2,3,4,5]).slice(-1,-4), [5,4,3]
+		it "selects a sub-section of items", ->
+			assert.deepEqual $(1,2,3,4,5).slice(1,4), [2,3,4]
+		it "can select any range", ->
+			assert.deepEqual $(1,2,3,4,5).slice(0,5), [1,2,3,4,5]
+			assert.deepEqual $(1,2,3,4,5).slice(1,5), [2,3,4,5]
+			assert.deepEqual $(1,2,3,4,5).slice(2,5), [3,4,5]
+			assert.deepEqual $(1,2,3,4,5).slice(3,5), [4,5]
+			assert.deepEqual $(1,2,3,4,5).slice(4,5), [5]
+		it "can use negative indices", ->
+			assert.deepEqual $(1,2,3,4,5).slice(1,-2), [2,3]
+		it "can reverse the contents of the slice", ->
+			assert.deepEqual $(1,2,3,4,5).slice(-1,-3), [5,4]
+			assert.deepEqual $(1,2,3,4,5).slice(-1,-4), [5,4,3]
 
 	describe ".push()", ->
 		it "appends to the set", ->
@@ -270,24 +275,24 @@ describe "Core plugin:", ->
 		describe ".delay(ms, f)", ->
 			it "runs f after a delay of ms", (done) ->
 				t = $.now
-				$.delay 100, ->
-					delta = Math.abs(($.now - t) - 100)
-					assert delta < 25
+				$.delay 40, ->
+					delta = Math.abs(($.now - t) - 40)
+					assert delta < 10
 					done()
 			it "can be cancelled", (done) ->
 				pass = true
-				d = $.delay 300, -> pass = false
-				$.delay 100, -> d.cancel()
-				$.delay 500, ->
+				d = $.delay 100, -> pass = false
+				$.delay 10, -> d.cancel()
+				$.delay 150, ->
 					assert pass
 					done()
 			it "accepts multiple timeouts at once", (done) ->
 				count = 0
 				$.delay
-					50: -> count += 1
-					100: -> count += 2
-					200: -> count += 3
-					300: ->
+					20: -> count += 1
+					40: -> count += 2
+					60: -> count += 3
+					80: ->
 						assert.equal count, 6
 						done()
 				
@@ -300,18 +305,18 @@ describe "Core plugin:", ->
 		describe ".interval(ms, f)", ->
 			it "runs f repeatedly", (done) ->
 				count = 0
-				i = $.interval 100, -> count += 1
-				$.delay 1000, ->
+				i = $.interval 20, -> count += 1
+				$.delay 200, ->
 					assert 9 <= count <= 11, "Count: #{count} is not between 9 and 11"
 					i.cancel()
 					done()
 			it "can be paused/resumed", (done) ->
 				count = 0
-				i = $.interval 100, -> count += 1
-				$.delay 300, -> i.pause()
-				$.delay 700, -> i.resume()
-				$.delay 1000, ->
-					assert 5 <= count <= 7, "Count: #{count} is not between 5 and 7"
+				i = $.interval 20, -> count += 1
+				$.delay 100, -> i.pause()
+				$.delay 200, -> i.resume()
+				$.delay 400, ->
+					assert 11 <= count <= 15, "Count: #{count} is not between 11 and 15"
 					i.cancel()
 					done()
 

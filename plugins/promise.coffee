@@ -61,20 +61,18 @@ $.plugin
 
 		return ret
 
-	Promise.compose = (promises...) ->
-		p = $.Progress(promises.length)
-		$(promises).select('wait').call (err, data) ->
-			return p.fail err if err
-			p.finish 1 unless p.failed
-		return p
-	
-	Promise.wrap = (f, args...) ->
-		p = $.Promise()
-		# the last argument to f will be a callback that finishes the promise
-		args.push (err, result) ->
-			if err then p.fail(err) else p.finish(result)
-		$.immediate -> f args...
-		p
+	Promise.compose = Promise.parallel = (promises...) ->
+		try p = $.Progress(promises.length + 1) # always an extra one for setup, so an empty list is finished immediately
+		finally
+			$(promises).select('wait').call (err, data) ->
+				if err then p.fail(err) else p.finish 1
+			p.finish 'setup'
+
+	Promise.call = (f, args...) ->
+		try p = $.Promise()
+		finally # the last argument to f will be a callback that finishes the promise
+			args.push (err, result) -> if err then p.fail(err) else p.finish(result)
+			$.immediate -> f args...
 
 	Progress = (max = 1.0) ->
 		cur = 0.0
@@ -105,23 +103,21 @@ $.plugin
 
 	# Helper for wrapping an XHR object in a Promise
 	Promise.xhr = (xhr) ->
-		p = $.Promise()
-		xhr.onreadystatechange = ->
+		try p = $.Promise()
+		finally xhr.onreadystatechange = ->
 			if @readyState is @DONE
 				if @status is 200
 					p.finish xhr.responseText
 				else
 					p.fail "#{@status} #{@statusText}"
-		return p
 
 	$.depend 'dom', ->
 		Promise.image = (src) ->
-			p = $.Promise()
-			image = new Image()
-			image.onload = -> p.finish(image)
-			image.onerror = (evt) -> p.fail(evt)
-			image.src = src
-			return p
+			try p = $.Promise()
+			finally $.extend image = new Image(),
+				onerror: (e) -> p.fail e
+				onload: -> p.finish image
+				src: src
 	
 	$.depend 'type', ->
 		$.type.register 'promise', is: (o) ->

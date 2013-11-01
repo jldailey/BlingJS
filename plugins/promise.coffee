@@ -7,49 +7,35 @@ $.plugin
 	Promise = (obj = {}) ->
 		waiting = $()
 		err = result = NoValue
+		end = (error, value) ->
+			if err is result is NoValue
+				err = error
+				result = value
+				caught = null
+				while w = waiting.shift()
+					w.timeout?.cancel()
+					try switch
+						when err isnt NoValue then w(err, null)
+						when result isnt NoValue then w(null, result)
+					catch e then caught ?= e
+				if caught then throw caught
+			null
 		ret = $.inherit {
-			wait: (timeout, cb) ->
-				# .wait([timeout], callback) ->
+			wait: (timeout, cb) -> # .wait([timeout], callback) ->
 				if $.is 'function', timeout
-					cb = timeout
+					[cb, timeout] = [timeout, undefined]
 				return $.immediate(-> cb err, null) if err isnt NoValue
 				return $.immediate(-> cb null,result) if result isnt NoValue
 				waiting.push cb
-				if isFinite timeout
+				if isFinite parseFloat timeout
 					cb.timeout = $.delay timeout, ->
 						if (i = waiting.indexOf cb) > -1
 							waiting.splice i, 1
 							cb('timeout', null)
 				@
-			finish: (value) ->
-				if err is result is NoValue
-					caught = null
-					while waiting.length
-						w = waiting.shift()
-						w.timeout?.cancel()
-						try w(null, value)
-						catch err
-							caught ?= err
-					# dont save the result until all waiters finished
-					result = value
-					# now throw any deferred error
-					if caught
-						throw caught
-				@
-			fail: (error)  ->
-				if err is result is NoValue
-					err = error
-					caught = null
-					while waiting.length
-						w = waiting.shift()
-						w.timeout?.cancel()
-						try w(error, null)
-						catch e then caught ?= e
-					if caught then throw caught
-				@
-			reset: ->
-				err = result = NoValue
-				@
+			finish: (value) -> end NoValue, value; @
+			fail:   (error) -> end error, NoValue; @
+			reset:          -> err = result = NoValue; @
 		}, $.EventEmitter(obj)
 
 		$.defineProperty ret, 'finished',
@@ -66,9 +52,9 @@ $.plugin
 		finally
 			$(promises).select('wait').call (err, data) ->
 				if err then p.fail(err) else p.finish 1
-			p.finish 'setup'
+			p.finish 1
 
-	Promise.call = (f, args...) ->
+	Promise.wrapCall = (f, args...) ->
 		try p = $.Promise()
 		finally # the last argument to f will be a callback that finishes the promise
 			args.push (err, result) -> if err then p.fail(err) else p.finish(result)
@@ -126,4 +112,4 @@ $.plugin
 				'finish' of o and
 				'fail' of o
 
-	ret = $: { Promise, Progress }
+	return $: { Promise, Progress }

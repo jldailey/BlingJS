@@ -23,19 +23,29 @@ $.plugin
 				@
 			finish: (value) ->
 				if err is result is NoValue
-					result = value
-					for w in waiting
-						w(null, value)
+					caught = null
+					while waiting.length
+						w = waiting.shift()
 						w.timeout?.cancel()
-					waiting.clear()
+						try w(null, value)
+						catch err
+							caught ?= err
+					# dont save the result until all waiters finished
+					result = value
+					# now throw any deferred error
+					if caught
+						throw caught
 				@
 			fail: (error)  ->
 				if err is result is NoValue
 					err = error
-					for w in waiting
-						w(error, null)
+					caught = null
+					while waiting.length
+						w = waiting.shift()
 						w.timeout?.cancel()
-					waiting.clear()
+						try w(error, null)
+						catch e then caught ?= e
+					if caught then throw caught
 				@
 			reset: ->
 				err = result = NoValue

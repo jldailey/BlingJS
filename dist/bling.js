@@ -1078,10 +1078,23 @@
         var props;
         props = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
         return this.each(function() {
-          var prop, _i, _len;
+          var key, prop, _i, _j, _len, _len1, _ref;
           for (_i = 0, _len = props.length; _i < _len; _i++) {
             prop = props[_i];
-            delete this[prop];
+            switch ($.type(prop)) {
+              case 'string':
+              case 'number':
+                delete this[prop];
+                break;
+              case 'regexp':
+                _ref = Object.keys(this);
+                for (_j = 0, _len1 = _ref.length; _j < _len1; _j++) {
+                  key = _ref[_j];
+                  if (prop.test(key)) {
+                    delete this[key];
+                  }
+                }
+            }
           }
           return null;
         });

@@ -502,7 +502,11 @@ $.plugin
 		clean: (props...) ->
 			@each ->
 				for prop in props
-					delete @[prop]
+					switch $.type prop
+						when 'string','number' then delete @[prop]
+						when 'regexp'
+							for key in Object.keys(@) when prop.test key
+								delete @[key]
 				null
 		take: (n = 1) ->
 			end = Math.min n, @length

@@ -162,6 +162,11 @@ describe "Core plugin:", ->
 			assert.deepEqual $({a:1,b:2},{a:2,b:3}).clean('b').select('a'), [1, 2]
 		it "removes multiple properties", ->
 			assert.deepEqual $({a:1,b:2,c:3},{a:2,b:3,c:4}).clean('b','c').select('a'), [1, 2]
+		it "removes multiple properties via regexp", ->
+			assert.deepEqual $(
+				{aa: 1, ab: 2, ba: 3 },
+				{az: 2, ay: 3, wa: 4 }
+			).clean(/^a/), [ { ba: 3 }, { wa: 4 } ]
 
 	describe ".take(N)", ->
 		it "selects the first N items", -> assert.deepEqual $([1,2,3,4]).take(2), [1,2]

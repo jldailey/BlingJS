@@ -7,15 +7,21 @@ $.plugin
 	provides: "pubsub"
 , ->
 
-
 	class Hub
 		constructor: ->
 			@listeners = {} # a mapping of channel name to a list of listeners
 		publish: (channel, args...) ->
+			caught = null
 			for listener in @listeners[channel] or= []
 				if @filter(listener, args...)
-					listener(args...)
-			args
+					try listener(args...)
+					catch err
+						caught ?= err
+			if caught then throw caught
+			switch args.length
+				when 0 then null
+				when 1 then args[0]
+				else args
 		filter: (listener, message) ->
 			if 'patternObject' of listener
 				return $.matches listener.patternObject, message

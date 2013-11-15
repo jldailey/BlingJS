@@ -1,76 +1,77 @@
 [$, assert] = require './setup'
 
 describe "$.Promise()", ->
-	p = $.Promise()
-	pass = false
-	it "can be waited on", ->
-		p.wait (err, data) -> pass = data
-	it "can be finished", ->
-		p.finish true
-	it "passes the finished data to listeners", ->
-		assert pass
-	it "calls back in next tick if already finished", (done) ->
-		pass = false
-		p.wait (err, data) -> pass = data
-		assert.equal pass, false # hasn't been touched yet in this tick
-		$.immediate ->
-			assert pass
-			done()
-	it "can be checked", ->
-		assert.equal $.Promise().finished, false
-		assert.equal $.Promise().finish().finished, true
-		assert.equal $.Promise().failed, false
-		assert.equal $.Promise().fail().failed, true
-	it "can be reset", ->
-		pass = false
-		p.reset()
-		p.wait (err, data) -> pass = data
-		assert.equal pass, false # not fired yet
-		p.finish(true)
-		assert pass
-	it "clears callbacks after fire", (done) ->
-		id = 0
-		# register handler A
-		p.wait (err, data) -> id += data
-		# schedule A to run immediately
-		p.finish 1
-		# handler B
-		p.wait (err, data) -> id += data # handler B
-		# schedule B to run immediately
-		p.finish 1
-		# if A or B runs twice, id will be >= 3
-		$.immediate ->
-			assert.equal id, 2
-			done()
-
-	it "ignores more than one call to .finish()", ->
-		pass = 1
-		a = $.Promise().wait -> pass += pass
-		a.finish()
-		a.finish()
-		assert.equal pass, 2 # not 4, if it had run twice
-
-	it "ignores more than one call to .fail()", ->
-		pass = 1
-		a = $.Promise().wait (err, data) -> pass += err
-		a.fail pass
-		a.fail pass
-		assert.equal pass, 2 # not 4, if it had run twice
-
-	describe "optional timeout", ->
-		it "sets error to 'timeout'", (done) ->
-			$.Promise().wait 100, (err, data) ->
-				assert.equal err, 'timeout'
+	describe "wait", ->
+		it "queues a callback", (done) ->
+			$.Promise().wait((err, data) -> done(err)).finish()
+		it "calls back in a later tick if already finished", (done) ->
+			output = null
+			$.Promise().finish("magic").wait (err, data) ->
+				output = data
+			# it does not fire yet
+			assert.equal output, null
+			$.delay 20, ->
+				assert.equal output, "magic"
 				done()
-		it "does not fire an error if the promise is finished in time", (done) ->
-			pass = false
-			$.Promise().wait(100, (err, data) ->
-				assert.equal err, null
-				pass = data
-			).finish true
-			$.delay 200, ->
-				assert.equal pass, true
-				done()
+	describe "finish", ->
+		it "passes data to queued callbacks", (done) ->
+			$.Promise().wait((err, data) ->
+				if data isnt "magic"
+					done "failed: no magic!"
+				else done()
+			).finish "magic"
+		it "ignores repeated calls", ->
+			count = 1
+			a = $.Promise().wait -> count += count
+			a.finish()
+			a.finish()
+			assert.equal count, 2 # not 4, if it had run twice
+		describe "optional timeout", ->
+			it "sets error to 'timeout'", (done) ->
+				$.Promise().wait 100, (err, data) ->
+					assert.equal err, 'timeout'
+					done()
+			it "does not fire an error if the promise is finished in time", (done) ->
+				pass = false
+				$.Promise().wait(100, (err, data) ->
+					assert.equal err, null
+					pass = data
+				).finish true
+				$.delay 200, ->
+					assert.equal pass, true
+					done()
+	describe "fail", ->
+		it "passes errors to queued callbacks", (done) ->
+			$.Promise().wait((err, data) ->
+				if err isnt "fizzle"
+					done "failed: no fizzle!"
+				else done()
+				).fail "fizzle"
+		it "ignores repeated calls", ->
+			pass = 1
+			a = $.Promise().wait (err, data) -> pass += err
+			a.fail pass
+			a.fail pass
+			assert.equal pass, 2 # not 4, if it had run twice
+	describe "reset", ->
+		it "resets", ->
+			rp = $.Promise()
+			count = 0
+			rp.wait (err, data) -> count += data
+			rp.finish 1
+			assert.equal count, 1
+			rp.reset()
+			rp.wait (err, data) -> count += data
+			rp.finish 1
+			assert.equal count, 2 # if it's 1 then the second waiter never fired
+			# if it's 3 then the first waiter fired twice
+	describe "status flags", ->
+		it "finished", ->
+			assert.equal $.Promise().finished, false
+			assert.equal $.Promise().finish().finished, true
+		it "failed", ->
+			assert.equal $.Promise().failed, false
+			assert.equal $.Promise().fail().failed, true
 
 	describe "inheritance", ->
 		it "works with default constructor", ->
@@ -155,16 +156,16 @@ describe "$.Progress", ->
 		it "can 'include' recursively", (ok) ->
 			run = (level, cb) ->
 				unless level > 0
-					$.immediate cb
+					$.delay 10, cb
 					return $.Promise().finish()
 				done = $.Progress(2)
 				done.include run level-1, ->
 					done.finish(1)
-					$.immediate ->
-						assert.equal done.finished, true
+					$.delay 10, ->
+						assert.equal done.finished, true, "done should be true"
 				done.finish(1)
-				assert.equal done.finished, false
-				$.immediate cb
+				assert.equal done.finished, false, "done should be false"
+				$.delay 10, cb
 				done
 			run 5, ok
 

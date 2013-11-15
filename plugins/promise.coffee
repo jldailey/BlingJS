@@ -24,14 +24,17 @@ $.plugin
 			wait: (timeout, cb) -> # .wait([timeout], callback) ->
 				if $.is 'function', timeout
 					[cb, timeout] = [timeout, undefined]
-				return $.immediate(-> cb err, null) if err isnt NoValue
-				return $.immediate(-> cb null,result) if result isnt NoValue
-				waiting.push cb
-				if isFinite parseFloat timeout
-					cb.timeout = $.delay timeout, ->
-						if (i = waiting.indexOf cb) > -1
-							waiting.splice i, 1
-							cb('timeout', null)
+				if err isnt NoValue
+					$.delay 0, -> cb err, null
+				else if result isnt NoValue
+					$.delay 0, -> cb null, result
+				else
+					waiting.push cb
+					if isFinite parseFloat timeout
+						cb.timeout = $.delay timeout, ->
+							if (i = waiting.indexOf cb) > -1
+								waiting.splice i, 1
+								cb('timeout', null)
 				@
 			finish: (value) -> end NoValue, value; @
 			fail:   (error) -> end error, NoValue; @

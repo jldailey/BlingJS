@@ -44,23 +44,27 @@ extend Bling, do ->
 	incomplete = (n) ->
 		(if (typeof n) is "string" then n.split /, */ else n)
 		.filter (x) -> not (x of complete)
-	depend: depend = (needs, func) ->
+	depend = (needs, func) ->
 		if (needs = incomplete needs).length is 0 then func()
 		else
 			waiting.push (need) ->
 				(needs.splice i, 1) if (i = needs.indexOf need) > -1
 				return (needs.length is 0 and func)
 		func
+	depend: depend
 	depends: depend # alias
 	provide: (needs, data) ->
+		caught = null
 		for need in incomplete needs
 			complete[need] = i = 0
 			while i < waiting.length
 				if (ready = waiting[i] need)
 					waiting.splice i,1
-					ready data
+					try ready data
+					catch err then caught = err
 					i = 0 # start over in case a nested dependency removed stuff 'behind' i
 				else i++
+		if caught then throw caught
 		data
 $ = Bling
 $.plugin
@@ -1863,14 +1867,17 @@ $.plugin
 			wait: (timeout, cb) -> # .wait([timeout], callback) ->
 				if $.is 'function', timeout
 					[cb, timeout] = [timeout, undefined]
-				return $.immediate(-> cb err, null) if err isnt NoValue
-				return $.immediate(-> cb null,result) if result isnt NoValue
-				waiting.push cb
-				if isFinite parseFloat timeout
-					cb.timeout = $.delay timeout, ->
-						if (i = waiting.indexOf cb) > -1
-							waiting.splice i, 1
-							cb('timeout', null)
+				if err isnt NoValue
+					$.delay 0, -> cb err, null
+				else if result isnt NoValue
+					$.delay 0, -> cb null, result
+				else
+					waiting.push cb
+					if isFinite parseFloat timeout
+						cb.timeout = $.delay timeout, ->
+							if (i = waiting.indexOf cb) > -1
+								waiting.splice i, 1
+								cb('timeout', null)
 				@
 			finish: (value) -> end NoValue, value; @
 			fail:   (error) -> end error, NoValue; @
@@ -2026,10 +2033,17 @@ $.plugin
 		constructor: ->
 			@listeners = {} # a mapping of channel name to a list of listeners
 		publish: (channel, args...) ->
+			caught = null
 			for listener in @listeners[channel] or= []
 				if @filter(listener, args...)
-					listener(args...)
-			args
+					try listener(args...)
+					catch err
+						caught ?= err
+			if caught then throw caught
+			switch args.length
+				when 0 then null
+				when 1 then args[0]
+				else args
 		filter: (listener, message) ->
 			if 'patternObject' of listener
 				return $.matches listener.patternObject, message

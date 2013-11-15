@@ -122,24 +122,26 @@
         return !(x in complete);
       });
     };
+    depend = function(needs, func) {
+      if ((needs = incomplete(needs)).length === 0) {
+        func();
+      } else {
+        waiting.push(function(need) {
+          var i;
+          if ((i = needs.indexOf(need)) > -1) {
+            needs.splice(i, 1);
+          }
+          return needs.length === 0 && func;
+        });
+      }
+      return func;
+    };
     return {
-      depend: depend = function(needs, func) {
-        if ((needs = incomplete(needs)).length === 0) {
-          func();
-        } else {
-          waiting.push(function(need) {
-            var i;
-            if ((i = needs.indexOf(need)) > -1) {
-              needs.splice(i, 1);
-            }
-            return needs.length === 0 && func;
-          });
-        }
-        return func;
-      },
+      depend: depend,
       depends: depend,
       provide: function(needs, data) {
-        var i, need, ready, _i, _len, _ref;
+        var caught, err, i, need, ready, _i, _len, _ref;
+        caught = null;
         _ref = incomplete(needs);
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           need = _ref[_i];
@@ -147,12 +149,20 @@
           while (i < waiting.length) {
             if ((ready = waiting[i](need))) {
               waiting.splice(i, 1);
-              ready(data);
+              try {
+                ready(data);
+              } catch (_error) {
+                err = _error;
+                caught = err;
+              }
               i = 0;
             } else {
               i++;
             }
           }
+        }
+        if (caught) {
+          throw caught;
         }
         return data;
       }
@@ -3926,24 +3936,24 @@
             _ref = [timeout, void 0], cb = _ref[0], timeout = _ref[1];
           }
           if (err !== NoValue) {
-            return $.immediate(function() {
+            $.delay(0, function() {
               return cb(err, null);
             });
-          }
-          if (result !== NoValue) {
-            return $.immediate(function() {
+          } else if (result !== NoValue) {
+            $.delay(0, function() {
               return cb(null, result);
             });
-          }
-          waiting.push(cb);
-          if (isFinite(parseFloat(timeout))) {
-            cb.timeout = $.delay(timeout, function() {
-              var i;
-              if ((i = waiting.indexOf(cb)) > -1) {
-                waiting.splice(i, 1);
-                return cb('timeout', null);
-              }
-            });
+          } else {
+            waiting.push(cb);
+            if (isFinite(parseFloat(timeout))) {
+              cb.timeout = $.delay(timeout, function() {
+                var i;
+                if ((i = waiting.indexOf(cb)) > -1) {
+                  waiting.splice(i, 1);
+                  return cb('timeout', null);
+                }
+              });
+            }
           }
           return this;
         },
@@ -4226,16 +4236,34 @@
       }
 
       Hub.prototype.publish = function() {
-        var args, channel, listener, _base, _i, _len, _ref;
+        var args, caught, channel, err, listener, _base, _i, _len, _ref;
         channel = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+        caught = null;
         _ref = (_base = this.listeners)[channel] || (_base[channel] = []);
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           listener = _ref[_i];
           if (this.filter.apply(this, [listener].concat(__slice.call(args)))) {
-            listener.apply(null, args);
+            try {
+              listener.apply(null, args);
+            } catch (_error) {
+              err = _error;
+              if (caught == null) {
+                caught = err;
+              }
+            }
           }
         }
-        return args;
+        if (caught) {
+          throw caught;
+        }
+        switch (args.length) {
+          case 0:
+            return null;
+          case 1:
+            return args[0];
+          default:
+            return args;
+        }
       };
 
       Hub.prototype.filter = function(listener, message) {

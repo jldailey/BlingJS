@@ -282,8 +282,9 @@ $.plugin
 					a.push it
 			a
 
-		# Get a new set of booleans, true if the node from _this_
-		# matched the CSS expression.
+		# Get a new set of booleans, true if a node matches a CSS selector,
+		# or if a string matches a regular expression.
+		# e.g. $('a','b').matches(/^a/) == [true, false]
 		matches: (expr) ->
 			switch $.type expr
 				when "string" then @select('matchesSelector').call(expr)
@@ -292,6 +293,7 @@ $.plugin
 
 		# Each node in _this_ contributes all children matching the
 		# CSS expression to a new set.
+		# TODO: move this to the dom plugin
 		querySelectorAll: (expr) ->
 			@filter("*")
 			.reduce (a, i) ->

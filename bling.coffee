@@ -131,23 +131,29 @@ extend Bling, do ->
 	incomplete = (n) ->
 		(if (typeof n) is "string" then n.split /, */ else n)
 		.filter (x) -> not (x of complete)
-	depend: depend = (needs, func) ->
+
+	depend = (needs, func) ->
 		if (needs = incomplete needs).length is 0 then func()
 		else
 			waiting.push (need) ->
 				(needs.splice i, 1) if (i = needs.indexOf need) > -1
 				return (needs.length is 0 and func)
 		func
+
+	depend: depend
 	depends: depend # alias
 	provide: (needs, data) ->
+		caught = null
 		for need in incomplete needs
 			complete[need] = i = 0
 			while i < waiting.length
 				if (ready = waiting[i] need)
 					waiting.splice i,1
-					ready data
+					try ready data
+					catch err then caught = err
 					i = 0 # start over in case a nested dependency removed stuff 'behind' i
 				else i++
+		if caught then throw caught
 		data
 
 $ = Bling

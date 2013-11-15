@@ -27,6 +27,15 @@ describe "PubSub plugin:", ->
 		$.subscribe 'test-channel', (data) -> pass = data
 		$.publish 'test-channel', true
 		assert pass
+	it "doesn't crash if one listeners fails", (done) ->
+		pass = false
+		$.subscribe 'fail-channel', (data) -> throw "failed!"
+		$.subscribe 'fail-channel', (data) -> pass = data
+		try $.publish 'fail-channel', true
+		catch err
+			assert.equal err, "failed!" # the error still gets thrown
+			assert pass # but not before all the non-failing listeners attempt to run
+			done()
 	describe ".subscribe()", ->
 		hub = new $.Hub()
 		it "attaches basic listeners to a channel", ->

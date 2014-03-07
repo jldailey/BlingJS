@@ -535,7 +535,7 @@ $.plugin
 			positive ?= true
 			g = switch $.type f
 				when "object" then (x) -> $.matches f,x
-				when "string" then (x) -> x.matchesSelector?(f) ? false
+				when "string" then (x) -> x?.matchesSelector?(f) ? false
 				when "regexp" then (x) -> f.test(x)
 				when "function" then f
 				else throw new Error "unsupported argument to filter: #{$.type f}"
@@ -551,11 +551,6 @@ $.plugin
 				when "string" then @select('matchesSelector').call(expr)
 				when "regexp" then @map (x) -> expr.test x
 				else throw new Error "unsupported argument to matches: #{$.type expr}"
-		querySelectorAll: (expr) ->
-			@filter("*")
-			.reduce (a, i) ->
-				a.extend i.querySelectorAll expr
-			, $()
 		weave: (b) ->
 			c = $()
 			for i in [@length-1..0] by -1
@@ -1259,6 +1254,11 @@ if $.global.document?
 							else (-> $(@querySelectorAll css).take(limit) )
 					)
 					.flatten()
+			querySelectorAll: (expr) ->
+				@filter("*")
+				.reduce (a, i) ->
+					a.extend i.querySelectorAll expr
+				, $()
 			clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @
 			toFragment: ->
 				if @length > 1
@@ -2634,8 +2634,8 @@ $.plugin
 		emitNode: ->
 			if @tag
 				node = document.createElement @tag
-				node.id = @id or null
-				node.className = @cls or null
+				if @id then node.id = @id
+				if @cls then node.className = @cls
 				for k of @attrs
 					node.setAttribute k, @attrs[k]
 				@cursor.appendChild node

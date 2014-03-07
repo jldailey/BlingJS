@@ -1213,7 +1213,7 @@
             case "string":
               return function(x) {
                 var _ref2;
-                return (_ref2 = typeof x.matchesSelector === "function" ? x.matchesSelector(f) : void 0) != null ? _ref2 : false;
+                return (_ref2 = x != null ? typeof x.matchesSelector === "function" ? x.matchesSelector(f) : void 0 : void 0) != null ? _ref2 : false;
               };
             case "regexp":
               return function(x) {
@@ -1248,11 +1248,6 @@
           default:
             throw new Error("unsupported argument to matches: " + ($.type(expr)));
         }
-      },
-      querySelectorAll: function(expr) {
-        return this.filter("*").reduce(function(a, i) {
-          return a.extend(i.querySelectorAll(expr));
-        }, $());
       },
       weave: function(b) {
         var c, i, _i, _j, _ref, _ref1;
@@ -2681,6 +2676,11 @@
                 };
             }
           })()).flatten();
+        },
+        querySelectorAll: function(expr) {
+          return this.filter("*").reduce(function(a, i) {
+            return a.extend(i.querySelectorAll(expr));
+          }, $());
         },
         clone: function(deep) {
           if (deep == null) {
@@ -5487,8 +5487,12 @@
         var k, node;
         if (this.tag) {
           node = document.createElement(this.tag);
-          node.id = this.id || null;
-          node.className = this.cls || null;
+          if (this.id) {
+            node.id = this.id;
+          }
+          if (this.cls) {
+            node.className = this.cls;
+          }
           for (k in this.attrs) {
             node.setAttribute(k, this.attrs[k]);
           }

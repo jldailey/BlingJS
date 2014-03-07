@@ -89,8 +89,8 @@ $.plugin
 		emitNode: ->
 			if @tag
 				node = document.createElement @tag
-				node.id = @id or null
-				node.className = @cls or null
+				if @id? then node.id = @id
+				if @cls? then node.className = @cls
 				for k of @attrs
 					node.setAttribute k, @attrs[k]
 				@cursor.appendChild node

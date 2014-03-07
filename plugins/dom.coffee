@@ -367,6 +367,14 @@ if $.global.document?
 					# Flatten all the nodelists into a single set.
 					.flatten()
 
+			# Each node in _this_ contributes all children matching the
+			# CSS expression to a new set.
+			querySelectorAll: (expr) ->
+				@filter("*")
+				.reduce (a, i) ->
+					a.extend i.querySelectorAll expr
+				, $()
+
 			# Collect a new set, full of clones of the DOM Nodes in the input set.
 			clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @
 

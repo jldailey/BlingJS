@@ -268,7 +268,7 @@ $.plugin
 				# * pattern object: `.filter({ enabled: true })`
 				when "object" then (x) -> $.matches f,x
 				# * selector string: `.filter("td.selected")`
-				when "string" then (x) -> x.matchesSelector?(f) ? false
+				when "string" then (x) -> x?.matchesSelector?(f) ? false
 				# * RegExp object: `.filter(/^prefix-/)`
 				when "regexp" then (x) -> f.test(x)
 				# * function: `.filter (x) -> (x%2) is 1`
@@ -290,15 +290,6 @@ $.plugin
 				when "string" then @select('matchesSelector').call(expr)
 				when "regexp" then @map (x) -> expr.test x
 				else throw new Error "unsupported argument to matches: #{$.type expr}"
-
-		# Each node in _this_ contributes all children matching the
-		# CSS expression to a new set.
-		# TODO: move this to the dom plugin
-		querySelectorAll: (expr) ->
-			@filter("*")
-			.reduce (a, i) ->
-				a.extend i.querySelectorAll expr
-			, $()
 
 		# Get a new set with items interleaved from the items in _a_ and
 		# _b_. The result is:

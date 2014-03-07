@@ -44,23 +44,27 @@ extend Bling, do ->
 	incomplete = (n) ->
 		(if (typeof n) is "string" then n.split /, */ else n)
 		.filter (x) -> not (x of complete)
-	depend: depend = (needs, func) ->
+	depend = (needs, func) ->
 		if (needs = incomplete needs).length is 0 then func()
 		else
 			waiting.push (need) ->
 				(needs.splice i, 1) if (i = needs.indexOf need) > -1
 				return (needs.length is 0 and func)
 		func
+	depend: depend
 	depends: depend # alias
 	provide: (needs, data) ->
+		caught = null
 		for need in incomplete needs
 			complete[need] = i = 0
 			while i < waiting.length
 				if (ready = waiting[i] need)
 					waiting.splice i,1
-					ready data
+					try ready data
+					catch err then caught = err
 					i = 0 # start over in case a nested dependency removed stuff 'behind' i
 				else i++
+		if caught then throw caught
 		data
 $ = Bling
 $.plugin
@@ -502,7 +506,11 @@ $.plugin
 		clean: (props...) ->
 			@each ->
 				for prop in props
-					delete @[prop]
+					switch $.type prop
+						when 'string','number' then delete @[prop]
+						when 'regexp'
+							for key in Object.keys(@) when prop.test key
+								delete @[key]
 				null
 		take: (n = 1) ->
 			end = Math.min n, @length
@@ -527,7 +535,7 @@ $.plugin
 			positive ?= true
 			g = switch $.type f
 				when "object" then (x) -> $.matches f,x
-				when "string" then (x) -> x.matchesSelector?(f) ? false
+				when "string" then (x) -> x?.matchesSelector?(f) ? false
 				when "regexp" then (x) -> f.test(x)
 				when "function" then f
 				else throw new Error "unsupported argument to filter: #{$.type f}"
@@ -543,11 +551,6 @@ $.plugin
 				when "string" then @select('matchesSelector').call(expr)
 				when "regexp" then @map (x) -> expr.test x
 				else throw new Error "unsupported argument to matches: #{$.type expr}"
-		querySelectorAll: (expr) ->
-			@filter("*")
-			.reduce (a, i) ->
-				a.extend i.querySelectorAll expr
-			, $()
 		weave: (b) ->
 			c = $()
 			for i in [@length-1..0] by -1
@@ -1251,6 +1254,11 @@ if $.global.document?
 							else (-> $(@querySelectorAll css).take(limit) )
 					)
 					.flatten()
+			querySelectorAll: (expr) ->
+				@filter("*")
+				.reduce (a, i) ->
+					a.extend i.querySelectorAll expr
+				, $()
 			clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @
 			toFragment: ->
 				if @length > 1
@@ -1859,14 +1867,17 @@ $.plugin
 			wait: (timeout, cb) -> # .wait([timeout], callback) ->
 				if $.is 'function', timeout
 					[cb, timeout] = [timeout, undefined]
-				return $.immediate(-> cb err, null) if err isnt NoValue
-				return $.immediate(-> cb null,result) if result isnt NoValue
-				waiting.push cb
-				if isFinite parseFloat timeout
-					cb.timeout = $.delay timeout, ->
-						if (i = waiting.indexOf cb) > -1
-							waiting.splice i, 1
-							cb('timeout', null)
+				if err isnt NoValue
+					$.delay 0, -> cb err, null
+				else if result isnt NoValue
+					$.delay 0, -> cb null, result
+				else
+					waiting.push cb
+					if isFinite parseFloat timeout
+						cb.timeout = $.delay timeout, ->
+							if (i = waiting.indexOf cb) > -1
+								waiting.splice i, 1
+								cb('timeout', null)
 				@
 			finish: (value) -> end NoValue, value; @
 			fail:   (error) -> end error, NoValue; @
@@ -2022,10 +2033,17 @@ $.plugin
 		constructor: ->
 			@listeners = {} # a mapping of channel name to a list of listeners
 		publish: (channel, args...) ->
+			caught = null
 			for listener in @listeners[channel] or= []
 				if @filter(listener, args...)
-					listener(args...)
-			args
+					try listener(args...)
+					catch err
+						caught ?= err
+			if caught then throw caught
+			switch args.length
+				when 0 then null
+				when 1 then args[0]
+				else args
 		filter: (listener, message) ->
 			if 'patternObject' of listener
 				return $.matches listener.patternObject, message
@@ -2616,8 +2634,8 @@ $.plugin
 		emitNode: ->
 			if @tag
 				node = document.createElement @tag
-				node.id = @id or null
-				node.className = @cls or null
+				if @id then node.id = @id
+				if @cls then node.className = @cls
 				for k of @attrs
 					node.setAttribute k, @attrs[k]
 				@cursor.appendChild node

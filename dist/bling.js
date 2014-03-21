@@ -3957,6 +3957,13 @@
           }
           return this;
         },
+        then: function(f) {
+          return this.wait(function(err, x) {
+            if (!err) {
+              return f(x);
+            }
+          });
+        },
         finish: function(value) {
           end(NoValue, value);
           return this;

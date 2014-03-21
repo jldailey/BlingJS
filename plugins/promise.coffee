@@ -36,6 +36,7 @@ $.plugin
 								waiting.splice i, 1
 								cb('timeout', null)
 				@
+			then: (f) -> @wait (err, x) -> unless err then f(x)
 			finish: (value) -> end NoValue, value; @
 			fail:   (error) -> end error, NoValue; @
 			reset:          -> err = result = NoValue; @

@@ -10,9 +10,9 @@ MOCHA_FMT=spec
 MOCHA_OPTS=--compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R ${MOCHA_FMT} -s 500
 WATCH="coffee watch.coffee"
 
-TEST_FILES=$(shell ls test/*.coffee | grep -v setup.coffee )
-PASS_FILES=$(subst .coffee,.coffee.pass,$(shell ls test/*.coffee | grep -v setup.coffee ))
-TIME_FILES=$(subst .coffee,.coffee.time,$(shell ls bench/*.coffee | grep -v setup.coffee ))
+TEST_FILES=$(shell ls test/*.coffee | grep -v setup.coffee | sort )
+PASS_FILES=$(subst .coffee,.coffee.pass,$(shell ls test/*.coffee | grep -v setup.coffee | sort ))
+TIME_FILES=$(subst .coffee,.coffee.time,$(shell ls bench/*.coffee | grep -v setup.coffee | sort ))
 
 
 all: dist report
@@ -66,7 +66,7 @@ $(DIST)/%.js: $(DIST)/%.coffee $(COFFEE)
 	@echo Compiling $< to $@...
 	@(cd $(DIST) && ../$(COFFEE) -cm $(subst $(DIST)/,,$<))
 
-$(DIST)/bling.coffee: bling.coffee $(shell ls $(PLUGINS)/*.coffee)
+$(DIST)/bling.coffee: bling.coffee $(shell ls $(PLUGINS)/*.coffee | sort)
 	@echo Packing plugins into $@...
 	@cat $^ | sed -E 's/^	*#.*$$//g' | grep -v '^ *$$' > $@
 

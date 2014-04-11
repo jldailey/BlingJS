@@ -85,12 +85,12 @@ $.plugin
 			# Properly **Capitalize** Each Word In A String.
 			capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
 
-			slugize: (phrase) -> phrase
-				.toLowerCase()
-				.replace(/^\s+/, '')
-				.replace(/\s+$/, '')
-				.replace(/\t/g, ' ')
-				.replace(/[^A-Za-z0-9 ]/g, '')
+			slugize: (phrase) -> phrase \
+				.toLowerCase() \
+				.replace(/^\s+/, '') \
+				.replace(/\s+$/, '') \
+				.replace(/\t/g, ' ') \
+				.replace(/[^A-Za-z0-9 ]/g, '') \
 				.replace(/\s+/g,'-')
 
 			# Convert a _camelCase_ name to a _dash-name_.

@@ -261,18 +261,18 @@ if $.global.document?
 						for i in [0...n = Math.max v.length, nn = setters.length] by 1
 							setters[i%nn](key, v[i%n], "")
 					else if $.is 'function', v
-						values = @select("style.#{key}")
-							.weave(@map computeCSSProperty key)
-							.fold($.coalesce)
-							.weave(setters)
+						values = @select("style.#{key}") \
+							.weave(@map computeCSSProperty key) \
+							.fold($.coalesce) \
+							.weave(setters) \
 							.fold (setter, value) -> setter(key, v.call value, value)
 					# So, the key is simple, and if the value is a string,
 					# just do simple assignment (using setProperty).
 					else setters.call key, v, ""
 					return @
 				# Else, we are reading CSS properties.
-				else @select("style.#{key}")
-					.weave(@map computeCSSProperty key)
+				else @select("style.#{key}") \
+					.weave(@map computeCSSProperty key) \
 					.fold($.coalesce)
 
 			# Set css properties by injecting a style element in the the

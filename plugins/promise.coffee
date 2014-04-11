@@ -27,7 +27,10 @@ $.plugin
 				if err isnt NoValue
 					$.delay 0, -> cb err, null
 				else if result isnt NoValue
-					$.delay 0, -> cb null, result
+					$.delay 0, ->
+						try
+							cb null, result
+						catch _err then cb _err, null
 				else
 					waiting.push cb
 					if isFinite parseFloat timeout

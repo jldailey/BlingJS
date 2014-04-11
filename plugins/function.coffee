@@ -33,7 +33,7 @@ $.plugin
 				args.splice 0, 0, t
 				r = f.bind.apply f, args
 			else
-				r = (a...) -> f.apply t, (args if args.length else a)
+				r = (a...) -> f.apply t, (if args.length then args else a)
 			$.extend r, { toString: -> "bound-method of #{t}.#{f.name}" }
 		# __$.partial(f, args...)__ returns a new function that
 		# has a subset of the arguments already specified.

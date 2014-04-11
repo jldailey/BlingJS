@@ -2434,13 +2434,18 @@ $.plugin
 			toRepr: (x) -> $.type.lookup(x).repr(x)
 			px: (x, delta=0) -> x? and (parseInt(x,10)+(parseInt(delta)|0))+"px"
 			capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
-			slugize: (phrase) -> phrase \
-				.toLowerCase() \
-				.replace(/^\s+/, '') \
-				.replace(/\s+$/, '') \
-				.replace(/\t/g, ' ') \
-				.replace(/[^A-Za-z0-9 ]/g, '') \
-				.replace(/\s+/g,'-')
+			slugize: (phrase, slug="-") ->
+				phrase = switch $.type phrase
+					when 'null','undefined' then ""
+					when 'object' then ($.slugize(k,slug) + slug + $.slugize(v, slug) for k,v of phrase).join slug
+					when 'array','bling' then phrase.map((item)-> $.slugize item, slug).join slug
+					else String(phrase)
+				phrase.toLowerCase() \
+					.replace(/^\s+/, '') \
+					.replace(/\s+$/, '') \
+					.replace(/\t/g, ' ') \
+					.replace(/[^A-Za-z0-9. -]/g, '') \
+					.replace(/\s+/g,'-')
 			dashize: (name) ->
 				ret = ""
 				for i in [0...(name?.length|0)]
@@ -2451,16 +2456,21 @@ $.plugin
 					ret += String.fromCharCode(c)
 				ret
 			camelize: (name) ->
+				name = $.slugize(name)
 				name.split('-')
 				while (i = name?.indexOf('-')) > -1
 					name = $.stringSplice(name, i, i+2, name[i+1].toUpperCase())
 				name
 			commaize: (num, comma=',',dot='.') ->
-				s = String(num)
-				[a, b] = s.split dot
-				if a.length > 3
-					a = $.stringReverse $.stringReverse(a).match(/\d{1,3}/g).join()
-				return if b? then "#{a}.#{b}" else a
+				if $.is 'number', num
+					s = String(num)
+					if not isFinite num
+						return s
+					sign = if (num < 0) then "-" else ""
+					[a, b] = s.split '.' # split the whole part from the decimal part
+					if a.length > 3 # if the whole part is long enough to need commas
+						a = $.stringReverse $.stringReverse(a).match(/\d{1,3}/g).join comma
+					return sign + a + (if b? then dot+b else "")
 			padLeft: (s, n, c = " ") ->
 				while s.length < n
 					s = c + s
@@ -2492,7 +2502,7 @@ $.plugin
 					start += nn
 				s.substring(0,start) + n + s.substring(end)
 			
-			stringReverse: (s) -> s.split(//).reverse().join('')
+			stringReverse: (s) -> s.split('').reverse().join('')
 			checksum: (s) ->
 				a = 1; b = 0
 				for i in [0...s.length]

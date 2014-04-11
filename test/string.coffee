@@ -49,10 +49,12 @@ describe "String plugin:", ->
 			assert.equal $.stringSplice("foobar",0,6,"baz"), "baz"
 		it "should prepend text", ->
 			assert.equal $.stringSplice("foobar",0,0,"baz"), "bazfoobar"
+	describe ".stringReverse(s)", ->
+		it "should reverse s", ->
+			assert.equal $.stringReverse("abcd"), "dcba"
 	describe ".checkSum()", ->
 		it "should compute the same hash as adler32", ->
 			assert.equal $.checksum("foobar"), 145425018
-		it "should not just hash the one thing", ->
 			assert.equal $.checksum("foobarbaz"), 310051767
 	describe ".toString()", ->
 		describe "should output", ->
@@ -76,6 +78,10 @@ describe "String plugin:", ->
 			assert.equal $.camelize("foo-bar"), "fooBar"
 		it "converts all dashed letter to captials", ->
 			assert.equal $.camelize("-foo-bar"), "FooBar"
+		it "cleans deviant input with slugize", ->
+			assert.equal $.camelize(undefined), ""
+			assert.equal $.camelize(null), ""
+			assert.equal $.camelize([ {a:1}, {b:2} ]), "a1B2"
 	describe ".commaize", ->
 		it "adds comma to long numbers", ->
 			assert.equal $.commaize(1004023), "1,004,023"
@@ -83,12 +89,37 @@ describe "String plugin:", ->
 			assert.equal $.commaize(4267.5398), "4,267.5398"
 		it "works with really long numbers", ->
 			assert.equal $.commaize(1234567890), "1,234,567,890"
+		it "works with really short numbers", ->
+			assert.equal $.commaize(0), "0"
+		it "works with negative numbers", ->
+			assert.equal $.commaize(-1234.56), "-1,234.56"
+		it "can be given the seperator", ->
+			assert.equal $.commaize(123456, '.'), "123.456"
+		it "can be given the seperator and decimal", ->
+			assert.equal $.commaize(-1234.56, '.', ','), "-1.234,56"
+		it "ignores non-numbers", ->
+			assert.equal $.commaize(NaN), "NaN"
+			assert.equal $.commaize(Infinity), "Infinity"
+			assert.equal $.commaize({ a: 1 }), undefined
 	describe ".slugize", ->
 		it "converts a phrase to a slug", ->
 			assert.equal $.slugize("foo bar"), "foo-bar"
 			assert.equal $.slugize(" foo bar "), "foo-bar"
 		it "strips special characters", ->
 			assert.equal $.slugize("\x01foo bar\n"), "foo-bar"
+		it "lowercases everything", ->
+			assert.equal $.slugize("FOob ARR"), "foob-arr"
+		it "handles empty strings", ->
+			assert.equal $.slugize(""), ""
+		it "handles garbage", ->
+			assert.equal $.slugize(undefined), ""
+			assert.equal $.slugize(null), ""
+		it "handles numbers", ->
+			assert.equal $.slugize(1234.56), "1234.56"
+		it "handles objects", ->
+			assert.equal $.slugize({ a: 1 }), "a-1"
+		it "handles arrays", ->
+			assert.equal $.slugize([ {a:1}, {b:2} ]), "a-1-b-2"
 	describe ".dashize", ->
 		it "converts camelCase to dash-case", ->
 			assert.equal $.dashize("fooBar"), "foo-bar"
@@ -96,5 +127,4 @@ describe "String plugin:", ->
 			assert.equal $.dashize("FooBar"), "-foo-bar"
 	describe "::replace", ->
 		it "maps replace over a set of strings", ->
-			assert.deepEqual $(["abc","bbc","cbc"]).replace(/bc$/,''),
-				['a','b','c']
+			assert.deepEqual $(["abc","bbc","cbc"]).replace(/bc$/,''), ['a','b','c']

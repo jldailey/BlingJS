@@ -162,7 +162,7 @@ $.plugin
 					start += nn
 				s.substring(0,start) + n + s.substring(end)
 			
-			stringReverse: (s) -> s.split(//).reverse().join('')
+			stringReverse: (s) -> s.split(/.{0}/).reverse().join('')
 
 			# __$.checksum(s)__ computes the Adler32 checksum of a string.
 			checksum: (s) ->

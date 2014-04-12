@@ -42,6 +42,7 @@ describe "Date plugin:", ->
 			d1 = new Date(1000000000)
 			describe "supports fields", ->
 				it "yyyy", -> assert.equal $.date.format(d1, "yyyy"), "1970"
+				it "YY", -> assert.equal $.date.format(d1, "YY"), "70"
 				it "mm", -> assert.equal $.date.format(d1, "mm"), "01"
 				it "dd", -> assert.equal $.date.format(d1, "dd"), "12"
 				it "HH", -> assert.equal $.date.format(d1, "HH"), "13"

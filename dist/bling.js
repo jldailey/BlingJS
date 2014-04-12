@@ -900,7 +900,7 @@
       }
       return Math.min(i, o.length);
     };
-    baseTime = $.now;
+    baseTime = 0;
     return {
       $: {
         log: $.extend(function() {
@@ -908,7 +908,7 @@
           a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
           prefix = "+" + ($.padLeft(String($.now - baseTime), $.log.prefixSize, '0')) + ":";
           if (baseTime === 0 || prefix.length > $.log.prefixSize + 2) {
-            prefix = $.date.format(baseTime = $.now, "dd/mm/YY HH:MM:SS", "ms");
+            prefix = $.date.format(baseTime = $.now, "dd/mm/YY HH:MM:SS:", "ms");
           }
           if (a.length && $.is("string", a[0])) {
             a[0] = "" + prefix + " " + a[0];

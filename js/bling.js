@@ -907,8 +907,8 @@
           var a, prefix, _ref;
           a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
           prefix = "+" + ($.padLeft(String($.now - baseTime), $.log.prefixSize, '0')) + ":";
-          if (prefix.length > $.log.prefixSize + 2) {
-            prefix = "" + (baseTime = $.now) + ":";
+          if (baseTime === 0 || prefix.length > $.log.prefixSize + 2) {
+            prefix = $.date.format(baseTime = $.now, "dd/mm/YY HH:MM:SS", "ms");
           }
           if (a.length && $.is("string", a[0])) {
             a[0] = "" + prefix + " " + a[0];
@@ -1673,6 +1673,9 @@
     };
     formats = {
       yyyy: Date.prototype.getUTCFullYear,
+      YY: function() {
+        return String(this.getUTCFullYear()).substr(2);
+      },
       mm: function() {
         return this.getUTCMonth() + 1;
       },

@@ -22,8 +22,8 @@ $.plugin
 		$:
 			log: $.extend((a...) ->
 				prefix = "+#{$.padLeft String($.now - baseTime), $.log.prefixSize, '0'}:"
-				if prefix.length > $.log.prefixSize + 2
-					prefix = "#{baseTime = $.now}:"
+				if baseTime is 0 or prefix.length > $.log.prefixSize + 2
+					prefix = $.date.format(baseTime = $.now, "dd/mm/YY HH:MM:SS", "ms")
 				if a.length and $.is "string", a[0]
 					a[0] = "#{prefix} #{a[0]}"
 				else

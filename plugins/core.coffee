@@ -17,13 +17,13 @@ $.plugin
 		i += o.length while i < 0
 		Math.min i, o.length
 
-	baseTime = $.now
+	baseTime = 0
 	return {
 		$:
 			log: $.extend((a...) ->
 				prefix = "+#{$.padLeft String($.now - baseTime), $.log.prefixSize, '0'}:"
 				if baseTime is 0 or prefix.length > $.log.prefixSize + 2
-					prefix = $.date.format(baseTime = $.now, "dd/mm/YY HH:MM:SS", "ms")
+					prefix = $.date.format(baseTime = $.now, "dd/mm/YY HH:MM:SS:", "ms")
 				if a.length and $.is "string", a[0]
 					a[0] = "#{prefix} #{a[0]}"
 				else

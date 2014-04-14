@@ -3992,42 +3992,49 @@
     var NoValue, Progress, Promise;
     NoValue = function() {};
     Promise = function(obj) {
-      var end, err, result, ret, waiting;
+      var consume_all, end, err, result, ret, waiting,
+        _this = this;
       if (obj == null) {
         obj = {};
       }
       waiting = $();
       err = result = NoValue;
-      end = function(error, value) {
-        var caught, e, w, _ref;
-        if ((err === result && result === NoValue)) {
-          err = error;
-          result = value;
-          caught = null;
-          while (w = waiting.shift()) {
-            if ((_ref = w.timeout) != null) {
-              _ref.cancel();
-            }
-            try {
-              switch (false) {
-                case err === NoValue:
-                  w(err, null);
-                  break;
-                case result === NoValue:
-                  w(null, result);
-              }
-            } catch (_error) {
-              e = _error;
-              if (caught == null) {
-                caught = e;
-              }
-            }
+      consume_all = function(e, v) {
+        var w, _e, _ref, _results;
+        _results = [];
+        while (w = waiting.shift()) {
+          if ((_ref = w.timeout) != null) {
+            _ref.cancel();
           }
-          if (caught) {
-            throw caught;
+          try {
+            _results.push(w(e, v));
+          } catch (_error) {
+            _e = _error;
+            _results.push(w(_e, null));
           }
         }
-        return null;
+        return _results;
+      };
+      end = function(error, value) {
+        if ((err === result && result === NoValue)) {
+          if (value === _this) {
+            throw new TypeError("cant resolve a promise with itself");
+          }
+          if ($.is('promise', value)) {
+            value.wait(function(e, v) {
+              return end(e, v);
+            });
+            return _this;
+          }
+          if (error !== NoValue) {
+            consume_all(error, null);
+          } else if (value !== NoValue) {
+            consume_all(null, value);
+          }
+          err = error;
+          result = value;
+        }
+        return _this;
       };
       ret = $.inherit({
         wait: function(timeout, cb) {
@@ -4037,16 +4044,32 @@
           }
           if (err !== NoValue) {
             $.delay(0, function() {
-              return cb(err, null);
+              var __err, _err, _ref1;
+              try {
+                return cb(err, null);
+              } catch (_error) {
+                _err = _error;
+                try {
+                  return cb(_err, null);
+                } catch (_error) {
+                  __err = _error;
+                  return $.log("Fatal error in Promise callback:", (_ref1 = _err.stack) != null ? _ref1 : String(_err));
+                }
+              }
             });
           } else if (result !== NoValue) {
             $.delay(0, function() {
-              var _err;
+              var __err, _err, _ref1;
               try {
                 return cb(null, result);
               } catch (_error) {
                 _err = _error;
-                return cb(_err, null);
+                try {
+                  return cb(_err, null);
+                } catch (_error) {
+                  __err = _error;
+                  return $.log("Fatal error in Promise callback:", (_ref1 = _err.stack) != null ? _ref1 : String(_err));
+                }
               }
             });
           } else {
@@ -4063,9 +4086,11 @@
           }
           return this;
         },
-        then: function(f) {
+        then: function(f, e) {
           return this.wait(function(err, x) {
-            if (!err) {
+            if (err) {
+              return typeof e === "function" ? e(err) : void 0;
+            } else {
               return f(x);
             }
           });
@@ -4074,7 +4099,15 @@
           end(NoValue, value);
           return this;
         },
+        resolve: function(value) {
+          end(NoValue, value);
+          return this;
+        },
         fail: function(error) {
+          end(error, NoValue);
+          return this;
+        },
+        reject: function(error) {
           end(error, NoValue);
           return this;
         },
@@ -4235,9 +4268,13 @@
     $.depend('type', function() {
       return $.type.register('promise', {
         is: function(o) {
+          var err;
           try {
-            return (typeof o === 'object') && 'wait' in o && 'finish' in o && 'fail' in o;
-          } catch (_error) {}
+            return (typeof o === 'object') && 'then' in o;
+          } catch (_error) {
+            err = _error;
+            return false;
+          }
         }
       });
     });

@@ -96,7 +96,7 @@ describe "$.Promise()", ->
 			a.finish()
 			b.finish()
 			assert pass
-	describe ".collect()", (done) ->
+	describe ".collect()", ->
 		it "exists", ->
 			assert 'collect' of $.Promise
 		it "is a function", ->
@@ -108,12 +108,22 @@ describe "$.Promise()", ->
 			a = $.Promise()
 			b = $.Promise()
 			c = $.Promise()
-			$.Promise.collect([a, b, c]).then (list) ->
-				assert.deepEqual list, ['a', 'b', 'c']
+			$.Promise.collect([a,b,c]).then (list) ->
+				assert.deepEqual list, ['a','b','c']
 				done()
-			a.finish('a')
 			b.finish('b')
 			c.finish('c')
+			a.finish('a')
+		it "can mix errors and results, in order", (done) ->
+			a = $.Promise()
+			b = $.Promise()
+			c = $.Promise()
+			$.Promise.collect([a,b,c]).then (list) ->
+				assert.deepEqual list, ['a','err_b','c']
+				done()
+			b.fail("err_b")
+			c.finish('c')
+			a.finish('a')
 
 describe "$.Progress", ->
 	it "is a Promise", ->

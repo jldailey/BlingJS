@@ -4112,12 +4112,14 @@
         p.finish(1);
       }
     };
-    Promise.collect = function() {
-      var i, p, promise, promises, q, ret, _fn, _i, _len;
-      promises = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+    Promise.collect = function(promises) {
+      var i, p, promise, q, ret, _fn, _i, _len;
       ret = [];
+      if (promises == null) {
+        return $.Promise().finish(ret);
+      }
       p = $.Promise();
-      q = $.Progress(promises.length);
+      q = $.Progress(1 + promises.length);
       _fn = function(i) {
         return promise.wait(function(err, result) {
           ret[i] = err != null ? err : result;
@@ -4131,6 +4133,7 @@
       q.then(function() {
         return p.finish(ret);
       });
+      q.finish(1);
       return p;
     };
     Promise.wrapCall = function() {

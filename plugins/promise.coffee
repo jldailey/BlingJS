@@ -61,16 +61,18 @@ $.plugin
 				if err then p.fail(err) else p.finish 1
 			p.finish 1
 	
-	Promise.collect = (promises...) ->
+	Promise.collect = (promises) ->
 		ret = []
+		unless promises? then return $.Promise().finish(ret)
 		p = $.Promise()
-		q = $.Progress(promises.length)
+		q = $.Progress(1 + promises.length)
 		for promise, i in promises then do (i) ->
 			promise.wait (err, result) ->
 				ret[i] = err ? result
 				q.finish(1)
 		q.then ->
 			p.finish(ret)
+		q.finish(1) # always one step of progress for the setup
 		return p
 
 	Promise.wrapCall = (f, args...) ->

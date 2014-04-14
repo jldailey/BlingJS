@@ -108,7 +108,7 @@ describe "$.Promise()", ->
 			a = $.Promise()
 			b = $.Promise()
 			c = $.Promise()
-			$.Promise.collect(a, b, c).then (list) ->
+			$.Promise.collect([a, b, c]).then (list) ->
 				assert.deepEqual list, ['a', 'b', 'c']
 				done()
 			a.finish('a')

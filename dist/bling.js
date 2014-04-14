@@ -4112,6 +4112,27 @@
         p.finish(1);
       }
     };
+    Promise.collect = function() {
+      var i, p, promise, promises, q, ret, _fn, _i, _len;
+      promises = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+      ret = [];
+      p = $.Promise();
+      q = $.Progress(promises.length);
+      _fn = function(i) {
+        return promise.wait(function(err, result) {
+          ret[i] = err != null ? err : result;
+          return q.finish(1);
+        });
+      };
+      for (i = _i = 0, _len = promises.length; _i < _len; i = ++_i) {
+        promise = promises[i];
+        _fn(i);
+      }
+      q.then(function() {
+        return p.finish(ret);
+      });
+      return p;
+    };
     Promise.wrapCall = function() {
       var args, f, p;
       f = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];

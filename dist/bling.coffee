@@ -1951,6 +1951,18 @@ $.plugin
 			$(promises).select('wait').call (err, data) ->
 				if err then p.fail(err) else p.finish 1
 			p.finish 1
+	
+	Promise.collect = (promises...) ->
+		ret = []
+		p = $.Promise()
+		q = $.Progress(promises.length)
+		for promise, i in promises then do (i) ->
+			promise.wait (err, result) ->
+				ret[i] = err ? result
+				q.finish(1)
+		q.then ->
+			p.finish(ret)
+		return p
 	Promise.wrapCall = (f, args...) ->
 		try p = $.Promise()
 		finally # the last argument to f will be a callback that finishes the promise

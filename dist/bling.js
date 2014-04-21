@@ -5053,7 +5053,7 @@
     provides: "string",
     depends: "function"
   }, function() {
-    var safer;
+    var escape_single_quotes, safer;
     safer = function(f) {
       return function() {
         var a, err;
@@ -5065,6 +5065,9 @@
           return "[Error: " + err.message + "]";
         }
       };
+    };
+    escape_single_quotes = function(s) {
+      return s.replace(/([^\\]{1})'/g, "$1\\'");
     };
     $.type.extend({
       unknown: {
@@ -5092,27 +5095,21 @@
       string: {
         number: safer(parseFloat),
         repr: function(s) {
-          return "'" + s + "'";
+          return "'" + (escape_single_quotes(s)) + "'";
         }
       },
       array: {
         string: safer(function(a) {
-          var x;
-          return "[" + ((function() {
-            var _i, _len, _results;
-            _results = [];
-            for (_i = 0, _len = a.length; _i < _len; _i++) {
-              x = a[_i];
-              _results.push($.toString(x));
-            }
-            return _results;
-          })()).join(",") + "]";
+          return "[" + (a.map($.toString).join()) + "]";
+        }),
+        repr: safer(function(a) {
+          return "[" + (a.map($.toRepr).join()) + "]";
         })
       },
       "arguments": {
         string: safer(function(a) {
           var x;
-          return "{arguments[" + (((function() {
+          return "[" + (((function() {
             var _i, _len, _results;
             _results = [];
             for (_i = 0, _len = a.length; _i < _len; _i++) {
@@ -5120,7 +5117,19 @@
               _results.push($.toString(x));
             }
             return _results;
-          })()).join(",")) + "]}";
+          })()).join()) + "]";
+        }),
+        repr: safer(function(a) {
+          var x;
+          return "[" + (((function() {
+            var _i, _len, _results;
+            _results = [];
+            for (_i = 0, _len = a.length; _i < _len; _i++) {
+              x = a[_i];
+              _results.push($.toRepr(x));
+            }
+            return _results;
+          })()).join()) + "]";
         })
       },
       object: {
@@ -5154,11 +5163,11 @@
         })
       },
       "function": {
-        string: function(f) {
-          return f.toString().replace(/^([^{]*){(?:.|\n|\r)*}$/, '$1{ ... }');
-        },
         repr: function(f) {
           return f.toString();
+        },
+        string: function(f) {
+          return f.toString().replace(/^([^{]*){(?:.|\n|\r)*}$/, '$1{ ... }');
         }
       },
       number: {
@@ -5301,7 +5310,10 @@
         stringTruncate: function(s, n, c) {
           var r, x;
           if (c == null) {
-            c = "...";
+            c = '...';
+          }
+          if (s.length <= n) {
+            return s;
           }
           s = s.split(' ');
           r = [];
@@ -5312,7 +5324,7 @@
               r.push(x);
             }
           }
-          return r.join('') + c;
+          return r.join(' ') + c;
         },
         stringCount: function(s, x, i, n) {
           var j;
@@ -6496,7 +6508,8 @@
           return typeof (_base = lookup(o))[t] === "function" ? _base[t].apply(_base, [o].concat(__slice.call(rest))) : void 0;
         },
         "with": function(f) {
-          return _with_cache[f];
+          var _ref;
+          return (_ref = _with_cache[f]) != null ? _ref : [];
         }
       });
     })();
@@ -6573,6 +6586,9 @@
         type: _type,
         is: _type.is,
         as: _type.as,
+        isDefined: function(o) {
+          return o != null;
+        },
         isSimple: function(o) {
           var _ref;
           return (_ref = _type(o)) === "string" || _ref === "number" || _ref === "bool";

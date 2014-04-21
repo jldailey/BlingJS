@@ -2408,10 +2408,10 @@ $.plugin
 	provides: "string"
 	depends: "function"
 , ->
-	safer = (f) ->
-		(a...) ->
-			try return f(a...)
-			catch err then return "[Error: #{err.message}]"
+	safer = (f) -> (a...) ->
+		try return f(a...)
+		catch err then return "[Error: #{err.message}]"
+	escape_single_quotes = (s) -> s.replace(/([^\\]{1})'/g,"$1\\'")
 	$.type.extend
 		unknown:
 			string: safer (o) -> o.toString?() ? String(o)
@@ -2421,9 +2421,13 @@ $.plugin
 		undefined: { string: -> "undefined" }
 		string:
 			number: safer parseFloat
-			repr:   (s) -> "'#{s}'"
-		array:  { string: safer (a) -> "[" + ($.toString(x) for x in a).join(",") + "]" }
-		arguments: { string: safer (a) -> "{arguments[#{($.toString(x) for x in a).join(",")}]}" }
+			repr: (s) -> "'#{escape_single_quotes s}'"
+		array:
+			string: safer (a) -> "[#{a.map($.toString).join()}]"
+			repr: safer (a) -> "[#{a.map($.toRepr).join()}]"
+		arguments:
+			string: safer (a) -> "[#{($.toString(x) for x in a).join()}]"
+			repr: safer (a) -> "[#{($.toRepr(x) for x in a).join()}]"
 		object:
 			string: safer (o) ->
 				ret = []
@@ -2444,10 +2448,10 @@ $.plugin
 					ret.push "#{k}:#{$.toRepr v}"
 				"{" + ret.join(', ') + "}"
 		function:
-			string: (f) -> f.toString().replace(/^([^{]*){(?:.|\n|\r)*}$/, '$1{ ... }')
 			repr: (f) -> f.toString()
+			string: (f) -> f.toString().replace(/^([^{]*){(?:.|\n|\r)*}$/, '$1{ ... }')
 		number:
-			repr:   (n) -> String(n)
+			repr: (n) -> String(n)
 			string: safer (n) -> switch
 				when n.precision? then n.toPrecision(n.precision)
 				when n.fixed? then n.toFixed(n.fixed)
@@ -2509,15 +2513,17 @@ $.plugin
 				while s.length < n
 					s = s + c
 				s
-			stringTruncate: (s, n, c = "...") ->
-				s = s.split(' ')
+			stringTruncate: (s, n, c='...') ->
+				if s.length <= n
+					return s
+				s = s.split(' ') # split into words.
 				r = []
 				while n > 0
 					x = s.shift()
 					n -= x.length
 					if n >= 0
 						r.push x
-				r.join('') + c
+				r.join(' ') + c
 			stringCount: (s, x, i = 0, n = 0) ->
 				if (j = s.indexOf x,i) > i-1
 					$.stringCount s, x, j+1, n+1
@@ -3180,7 +3186,7 @@ $.plugin
 			get: (t) -> cache[t]
 			is: (t, o) -> cache[t]?.is.call o, o
 			as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
-			with: (f) -> _with_cache[f]
+			with: (f) -> _with_cache[f] ? []
 	_type.extend
 		unknown:   { array: (o) -> [o] }
 		null:      { array: (o) -> [] }
@@ -3205,6 +3211,7 @@ $.plugin
 		type: _type
 		is: _type.is
 		as: _type.as
+		isDefined: (o) -> o?
 		isSimple: (o) -> _type(o) in ["string", "number", "bool"]
 		isEmpty: (o) -> o in ["", null, undefined] or o.length is 0 or (typeof o is "object" and Object.keys(o).length is 0)
 	defineProperty: (name, opts) -> @each -> $.defineProperty @, name, opts

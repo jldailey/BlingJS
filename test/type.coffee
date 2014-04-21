@@ -1,7 +1,7 @@
 [$, assert] = require './setup'
 
 describe "Type plugin:", ->
-	describe ".type()", ->
+	describe "$.type()", ->
 		describe "should classify", ->
 			it "'string'", -> assert.equal $.type(''), 'string'
 			it "'number'", -> assert.equal $.type(42), 'number'
@@ -14,7 +14,7 @@ describe "Type plugin:", ->
 			it "'window'", -> assert.equal $.type(window), "global"
 			it "'arguments'", -> assert.equal $.type(arguments), "arguments"
 
-	describe ".is()", ->
+	describe "$.is()", ->
 		describe "should identify", ->
 			it "'string'", -> assert $.is 'string', ''
 			it "'number'", -> assert $.is 'number', 42
@@ -27,14 +27,17 @@ describe "Type plugin:", ->
 			it "'window'", -> assert $.is "global", window
 			it "'arguments'", -> assert $.is "arguments", arguments
 	
-	describe ".with()", ->
+	describe "$.with()", ->
 		$.type.extend 'object', blerg: -> "blerg"
 		$.type.extend 'array', blerg: -> "blurg"
 
 		it "selects type with a given method", ->
 			assert.deepEqual $($.type.with 'blerg').select('name'), [ 'object', 'array' ]
 
-	describe ".inherit(a,b)", ->
+		it "returns an empty list if no types found", ->
+			assert.equal $.type.with('no-such-method').length, 0
+
+	describe "$.inherit(a,b)", ->
 		it "should set b's __proto__ to a", ->
 			a = a: 1
 			b = b: 2
@@ -60,7 +63,7 @@ describe "Type plugin:", ->
 			assert.equal b.__proto__, a
 			assert.equal c.a, 1
 
-	describe ".extend(a,b)", ->
+	describe "$.extend(a,b)", ->
 		a = a: 1
 		b = b: 2
 		c = $.extend a, b
@@ -117,6 +120,16 @@ describe "Type plugin:", ->
 		describe "should reject", ->
 			it "objects", -> assert not $.isSimple {}
 			it "arrays", -> assert not $.isSimple []
+	
+	describe ".isDefined()", ->
+		describe "should accept", ->
+			it "objects", -> assert $.isDefined {}
+			it "arrays", -> assert $.isDefined []
+			it "strings", -> assert $.isDefined ""
+			it "numbers", -> assert $.isDefined 42
+		describe "should reject", ->
+			it "null", -> assert not $.isDefined null
+			it "undefined", -> assert not $.isDefined undefined
 
 	describe ".isEmpty()", ->
 		describe "should accept", ->
@@ -145,4 +158,11 @@ describe "Type plugin:", ->
 	describe ".as()", ->
 		describe "should convert", ->
 			it "strings to numbers", -> assert.equal ($.as "number", "1234"), 1234
+			it "numbers to strings", -> assert.equal ($.as "string", -123.45), "-123.45"
+			it "nulls to strings", ->
+				assert.equal ($.as "string", null), "null"
+				assert.equal ($.as "string", undefined), "undefined"
+				assert.equal ($.as "string"), "undefined"
+			it "arguments", ->
+				assert.equal ($.as "string", (-> arguments)(1,2,3)), "[1,2,3]"
 

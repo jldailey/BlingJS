@@ -60,7 +60,7 @@ describe "String plugin:", ->
 		describe "should output", ->
 			it "blings", ->
 				assert.equal $([2,3,4]).toString(), "$([2, 3, 4])"
-			it "functions", ->
+			it "functions (without the code body)", ->
 				assert.equal $.toString(-> $.log), "function () { ... }"
 			it "objects", ->assert.equal $.toString({a:{b:1}}), "{a:{b:1}}"
 			it "null", -> assert.equal $.toString(null), "null"
@@ -70,9 +70,39 @@ describe "String plugin:", ->
 			$.defineProperty obj, 'xxx',
 				get: -> throw new Error "forbidden"
 			assert.equal $.toString(obj), "{a:1, xxx:[Error: forbidden]}"
-	describe ".stringTruncate()", ->
+	describe ".toRepr()", ->
+		describe "should produce code-parseable output for", ->
+			it "blings", ->
+				assert.equal $([2,3,4]).toRepr(), "$([2, 3, 4])"
+				assert.equal $([{a:1},[],"Hello"]).toRepr(), "$([{a:1}, [], 'Hello'])"
+			describe "strings", ->
+				it "with no single quotes inside", -> assert.equal $.toRepr("a"), "'a'"
+				it "with single quotes inside", -> assert.equal $.toRepr("a 'fine' day"), "'a \\'fine\\' day'"
+				it "with pre-escaped single quotes", -> assert.equal $.toRepr("a \\'fine\\' day"), "'a \\'fine\\' day'"
+				it "multi-line strings", -> assert.equal $.toRepr("a fine\n day"), "'a fine\n day'"
+			it "numbers", ->
+				assert.equal $.toRepr(-54.32), "-54.32"
+				assert.equal $.toRepr(Infinity), "Infinity"
+				assert.equal $.toRepr(NaN), "NaN"
+			it "nulls", ->
+				assert.equal $([null]).toRepr(), "$([null])"
+				assert.equal $([undefined]).toRepr(), "$([undefined])"
+			it "functions", ->
+				assert.equal $([(x) -> x + "a"]).toRepr().replace(/\n\s+/g,' '), '$([function (x) { return x + "a"; }])'
+			it "objects", ->
+				assert.equal $([{a:1, b:"s", c: [1,2,3]}]).toRepr(), "$([{a:1, b:'s', c:[1,2,3]}])"
+			it "arrays", ->
+				assert.equal $([["a",2,3]]).toRepr(), "$([['a',2,3]])"
+			it "arguments", ->
+				assert.equal (-> $.toRepr arguments)(1,2,3), "[1,2,3]"
+
+	describe ".stringTruncate(string, len)", ->
 		it "should truncate long strings and add ellipses", ->
 			assert.equal ($.stringTruncate "long string", 6), "long..."
+		it "should try to keep words whole", ->
+			assert.equal ($.stringTruncate "super long string", 10), "super long..."
+		it "doesnt count spaces toward final length", ->
+			assert.equal ($.stringTruncate "super long string", 9), "super long..."
 	describe ".camelize", ->
 		it "converts dash-case to camelCase", ->
 			assert.equal $.camelize("foo-bar"), "fooBar"
@@ -109,22 +139,25 @@ describe "String plugin:", ->
 			assert.equal $.slugize("\x01foo bar\n"), "foo-bar"
 		it "lowercases everything", ->
 			assert.equal $.slugize("FOob ARR"), "foob-arr"
-		it "handles empty strings", ->
-			assert.equal $.slugize(""), ""
-		it "handles garbage", ->
-			assert.equal $.slugize(undefined), ""
-			assert.equal $.slugize(null), ""
-		it "handles numbers", ->
-			assert.equal $.slugize(1234.56), "1234.56"
-		it "handles objects", ->
-			assert.equal $.slugize({ a: 1 }), "a-1"
-		it "handles arrays", ->
-			assert.equal $.slugize([ {a:1}, {b:2} ]), "a-1-b-2"
+		describe "handles", ->
+			it "empty strings", ->
+				assert.equal $.slugize(""), ""
+			it "junk", ->
+				assert.equal $.slugize(undefined), ""
+				assert.equal $.slugize(null), ""
+			it "numbers", ->
+				assert.equal $.slugize(1234.56), "1234.56"
+			it "objects", ->
+				assert.equal $.slugize({ a: 1 }), "a-1"
+			it "arrays", ->
+				assert.equal $.slugize([ {a:1}, {b:2} ]), "a-1-b-2"
 	describe ".dashize", ->
 		it "converts camelCase to dash-case", ->
 			assert.equal $.dashize("fooBar"), "foo-bar"
 		it "all capital letters get dashed", ->
 			assert.equal $.dashize("FooBar"), "-foo-bar"
-	describe "::replace", ->
+		it "already dashed words get left alone", ->
+			assert.equal $.dashize("foo-bar"), "foo-bar"
+	describe "::replace(regex,repl)", ->
 		it "maps replace over a set of strings", ->
 			assert.deepEqual $(["abc","bbc","cbc"]).replace(/bc$/,''), ['a','b','c']

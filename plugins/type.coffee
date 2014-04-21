@@ -130,7 +130,9 @@ $.plugin
 			get: (t) -> cache[t]
 			is: (t, o) -> cache[t]?.is.call o, o
 			as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
-			with: (f) -> _with_cache[f]
+			# Find all types with a certain function available:
+			# e.g. $.type.with('compact') == a list of all compactable types
+			with: (f) -> _with_cache[f] ? []
 
 		# Example: Calling $.type directly will get you the simple name of the
 		# best match.
@@ -198,6 +200,7 @@ $.plugin
 		is: _type.is
 		# `$.as("number", "1234")` attempt to convert types.
 		as: _type.as
+		isDefined: (o) -> o?
 		isSimple: (o) -> _type(o) in ["string", "number", "bool"]
 		isEmpty: (o) -> o in ["", null, undefined] or o.length is 0 or (typeof o is "object" and Object.keys(o).length is 0)
 	defineProperty: (name, opts) -> @each -> $.defineProperty @, name, opts

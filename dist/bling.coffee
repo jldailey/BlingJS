@@ -1808,7 +1808,7 @@ $.plugin
 						return false
 				return true
 			else return obj is pattern
-	matches.Any = -> # magic token
+	class matches.Any # magic token
 	return $: matches: matches
 $.plugin
 	provides: "math"

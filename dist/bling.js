@@ -3698,7 +3698,12 @@
           return obj === pattern;
       }
     };
-    matches.Any = function() {};
+    matches.Any = (function() {
+      function Any() {}
+
+      return Any;
+
+    })();
     return {
       $: {
         matches: matches

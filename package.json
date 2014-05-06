@@ -20,7 +20,7 @@
 		"extra": "latest"
 	},
 	"devDependencies": {
-		"coffee-script": "1.6.3",
+		"coffee-script": "latest",
 		"jldom": "latest",
 		"mocha": "latest"
 	}

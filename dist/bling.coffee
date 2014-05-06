@@ -1789,7 +1789,7 @@ $.plugin
 		ret = $.Promise()
 		document.head.appendChild elem = $.extend document.createElement(elementName), props,
 			onload: -> ret.resolve elem
-			onerror: -> ret.fail.apply ret, arguments
+			onerror: -> ret.reject.apply ret, arguments
 		ret
 	$:
 		script: (src) ->
@@ -1991,7 +1991,7 @@ $.plugin
 	Promise.wrapCall = (f, args...) ->
 		try p = $.Promise()
 		finally # the last argument to f will be a callback that finishes the promise
-			args.push (err, result) -> if err then p.resolve(err) else p.resolve(result)
+			args.push (err, result) -> if err then p.reject(err) else p.resolve(result)
 			$.immediate -> f args...
 	Progress = (max = 1.0) ->
 		cur = 0.0

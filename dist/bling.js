@@ -3655,7 +3655,7 @@
           return ret.resolve(elem);
         },
         onerror: function() {
-          return ret.fail.apply(ret, arguments);
+          return ret.reject.apply(ret, arguments);
         }
       }));
       return ret;
@@ -4207,7 +4207,7 @@
       } finally {
         args.push(function(err, result) {
           if (err) {
-            return p.resolve(err);
+            return p.reject(err);
           } else {
             return p.resolve(result);
           }

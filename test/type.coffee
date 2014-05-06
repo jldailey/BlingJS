@@ -10,7 +10,7 @@ describe "Type plugin:", ->
 			it "'array'", -> assert.equal $.type([]), "array"
 			it "'function'", -> assert.equal $.type(->), "function"
 			it "'bool'", -> assert.equal $.type(true), "bool"
-			it "'regexp'", -> assert.equal $.type(//), "regexp"
+			it "'regexp'", -> assert.equal $.type(/./), "regexp"
 			it "'window'", -> assert.equal $.type(window), "global"
 			it "'arguments'", -> assert.equal $.type(arguments), "arguments"
 
@@ -26,7 +26,7 @@ describe "Type plugin:", ->
 			it "'regexp'", -> assert $.is "regexp", /^$/
 			it "'window'", -> assert $.is "global", window
 			it "'arguments'", -> assert $.is "arguments", arguments
-	
+
 	describe "$.with()", ->
 		$.type.extend 'object', blerg: -> "blerg"
 		$.type.extend 'array', blerg: -> "blurg"
@@ -120,7 +120,7 @@ describe "Type plugin:", ->
 		describe "should reject", ->
 			it "objects", -> assert not $.isSimple {}
 			it "arrays", -> assert not $.isSimple []
-	
+
 	describe ".isDefined()", ->
 		describe "should accept", ->
 			it "objects", -> assert $.isDefined {}

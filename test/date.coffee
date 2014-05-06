@@ -32,11 +32,12 @@ describe "Date plugin:", ->
 			it "returns a stamp", ->
 				assert $.is 'number', $.date.midnight new Date 0
 			it "shifts a date to midnight of that day", ->
-				assert.notEqual -1, $.date.unstamp($.date.midnight new Date 1000000000).toUTCString().indexOf("00:00:00 GMT")
+				assert.notEqual -1,
+					$.date.unstamp($.date.midnight new Date 1000000000).toUTCString().indexOf("00:00:00 GMT")
 			it "supports chaining", ->
-				assert.equal $($.date.range 1000, 1000000, 3)
-					.midnight()
-					.dateFormat("HHMMSS")
+				assert.equal $($.date.range 1000, 1000000, 3) \
+					.midnight() \
+					.dateFormat("HHMMSS") \
 					.ints().sum(), 0
 		describe ".format()", ->
 			d1 = new Date(1000000000)
@@ -51,8 +52,8 @@ describe "Date plugin:", ->
 			it "supports spacing and punctuation", ->
 				assert.equal $.date.format(d1, "yyyy-mm-dd HH:MM:SS"), "1970-01-12 13:46:40"
 			it "supports chaining as .dateFormat()", ->
-				assert.equal $($.date.range 1000, 1000000, 3)
-					.dateFormat("dd")
+				assert.equal $($.date.range 1000, 1000000, 3) \
+					.dateFormat("dd") \
 					.ints().sum(), 35
 		describe ".parse()", ->
 			it "supports the same formats as .format()", ->
@@ -61,7 +62,7 @@ describe "Date plugin:", ->
 				assert $(["1970-01-12 13:46:40"]).dateParse("yyyy-mm-dd HH:MM:SS", "ms").first() is 1000000000
 		describe ".range()", ->
 			it "generates a range of date stamps", ->
-				assert.equal $($.date.range(1000, 1000000, 3))
-					.unstamp()
-					.select("getUTCDate").call()
+				assert.equal $($.date.range(1000, 1000000, 3)) \
+					.unstamp() \
+					.select("getUTCDate").call() \
 					.ints().sum(), 35 # == 1 + 4 + 7 + 10 + 13 (every 3 days from Jan 1 1970 for 2 weeks)

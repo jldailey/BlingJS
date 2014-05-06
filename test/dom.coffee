@@ -153,7 +153,8 @@ describe "DOM", ->
 		it "creates DOM nodes", ->
 			assert $.is 'node', $.synth('div').first()
 		it "uses CSS-like selectors", ->
-			assert.equal $.synth('div.cls#id[a=b][c=d] span p "text"').first().toString(), '<div id="id" class="cls" a="b" c="d"><span><p>text</p></span></div>'
+			assert.equal $.synth('div.cls#id[a=b][c=d] span p "text"').first().toString(),
+				'<div id="id" class="cls" a="b" c="d"><span><p>text</p></span></div>'
 		describe "supports CSS selectors:", ->
 			it "id", -> assert.equal $.synth('div#id').first().id, "id"
 			it "class", -> assert.equal $.synth('div.cls').first().className, "cls"
@@ -163,8 +164,10 @@ describe "DOM", ->
 			it "attributes (multiple)", -> assert.deepEqual $.synth('div[a=b][c=d]').first().attributes, {a:'b',c:'d'}
 			it "text (single quotes)", -> assert.equal $.synth("div 'text'").first().toString(), "<div>text</div>"
 			it "text (double quotes)", -> assert.equal $.synth('div "text"').first().toString(), "<div>text</div>"
-			it "entity escaped", -> assert.equal $.synth('div "text&amp;stuff"').first().toString(), "<div>text&amp;stuff</div>"
-			it "entity un-escaped", -> assert.equal $.synth('div "text&stuff"').first().toString(), "<div>text&stuff</div>"
+			it "entity escaped", -> assert.equal $.synth('div "text&amp;stuff"').first().toString(),
+				"<div>text&amp;stuff</div>"
+			it "entity un-escaped", -> assert.equal $.synth('div "text&stuff"').first().toString(),
+				"<div>text&stuff</div>"
 		it "accepts multiline templates", ->
 			assert.equal $.synth("""
 				div.clsA[type=text]
@@ -174,7 +177,7 @@ describe "DOM", ->
 
 	describe ".rect()", ->
 		it "returns a ClientRect for each DOM node", ->
-			assert.deepEqual $("td").take(2)
+			assert.deepEqual $("td").take(2) \
 				.rect().map(-> $.isType "ClientRect", @),
 				[true,true]
 		it "will shim in a fake rect for the window", ->
@@ -186,14 +189,14 @@ describe "DOM", ->
 				right: window.innerWidth
 				bottom: window.innerHeight
 			}
-	
+
 	describe ".css()", ->
 		it "accepts a single argument", ->
 			assert.deepEqual $('td').css('width'), $.zeros(8).map -> ''
 		it "sets when called with two arguments", ->
 			$("td").css("width", "100px")
 			assert.deepEqual $('td').css('width'), $.zeros(8).map -> '100px'
-		
+
 	describe "Events", ->
 		it ".bind/trigger()", ->
 			pass = false

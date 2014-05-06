@@ -60,7 +60,7 @@ describe "$.BNET", ->
 
 	]
 
-	toCodes = (s) -> s.split(//).map (c) -> c.charCodeAt(0)
+	toCodes = (s) -> s.split('').map (c) -> c.charCodeAt(0)
 	explode = (a) -> $(a).map((x) -> switch
 			when $.is 'number', x then x
 			else toCodes x

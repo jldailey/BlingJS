@@ -44,8 +44,7 @@ $.plugin
 		"object":
 			symbol: "}"
 			pack: (o) ->
-					(packOne(k)+packOne(v) for k,v of o when k isnt "constructor" and o.hasOwnProperty(k)
-					).join ''
+				(packOne(k)+packOne(v) for k,v of o when k isnt "constructor" and o.hasOwnProperty(k)).join ''
 			unpack: (s) ->
 				data = {}
 				while s.length > 0
@@ -83,7 +82,7 @@ $.plugin
 				unless 'constructor' of o
 					throw new Error("TNET: cant pack non-class as class")
 				unless o.constructor of class_index
-					throw new Error("TNET: cant pack unregistered class (name: #{o.constructor.name}, text: #{o.constructor.toString()}")
+					throw new Error("TNET: cant pack unregistered class (name: #{o.constructor.name}")
 				packOne(class_index[o.constructor]) + packOne(o, "object")
 			unpack: (s) ->
 				[i, rest] = unpackOne(s)
@@ -92,11 +91,11 @@ $.plugin
 					obj.__proto__ = classes[i - 1].prototype
 				else throw new Error("TNET: attempt to unpack unregistered class index: #{i}")
 				obj
-	
+
 	makeFunction = (name, args, body) ->
 		eval("var f = function #{name}(#{args}){#{body}}")
 		return f
-	
+
 	classes = []
 	class_index = {}
 	register = (klass) ->

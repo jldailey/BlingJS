@@ -30,7 +30,7 @@ $.plugin
 				@_mode = null
 			@mode = m
 		@GO: go
-		
+
 		tick: (c) ->
 			row = @modeline
 			if not row?

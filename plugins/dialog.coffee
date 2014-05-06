@@ -2,20 +2,31 @@ $.plugin
 	depends: 'hook,synth,delay'
 	provides: 'dialog'
 , ->
-	
+
+	prefixes = ["-webkit","-moz"]
+
 	transition = (props, duration) ->
 		props = props.split /, */
-		["-webkit","-moz"].map((prefix) ->
-			"#{prefix}-transition-property: #{props.join ', '}; #{prefix}-transition-duration: #{props.map(-> duration).join ", "};"
+		prefixes.map((prefix) ->
+			"
+			#{prefix}-transition-property: #{props.join ', '};
+			#{prefix}-transition-duration: #{props.map(-> duration).join ", "};
+			"
 		).join ' '
-	
+
 	# inject css
 	injectCSS = ->
 		$('head style.dialog').remove()
 		$.synth("style.dialog '
 			.dialog, .modal { position: absolute; }
 			.modal { background: rgba(0,0,0,.3); opacity: 0; }
-			.dialog { box-shadow: 8px 8px 4px rgba(0,0,0,.4); border-radius: 8px; background: white; padding: 6px; #{transition "left", ".15s"} }
+			.dialog {
+				box-shadow: 8px 8px 4px rgba(0,0,0,.4);
+				border-radius: 8px;
+				background: white;
+				padding: 6px;
+				#{transition "left", ".15s"}
+			}
 			.dialog > .title { text-align: center; width: 100%; }
 			.dialog > .content { width: 100%; }
 		'".replace(/\t+|\n+/g,' ')).prependTo("head")
@@ -50,7 +61,7 @@ $.plugin
 		).trigger('resize')
 
 		dialog
-	
+
 	createDialog.getDefaultOptions = ->
 		id: "dialog-" + $.random.string 4
 		target: "body"
@@ -67,13 +78,12 @@ $.plugin
 			modal.emit('cancel')
 				.fadeOut(200, -> modal.remove())
 				.find(".dialog", 1).css left: 0
-	
+
 	createDialog.getContent = (type, stuff) ->
 		switch type
 			when "synth" then $.synth(stuff)
 			when "html" then $.HTML.parse(stuff)
 			when "text" then document.createTextNode(stuff)
-	
 
 	return {
 		$:
@@ -113,5 +123,4 @@ $.plugin
 					top: $.px top - (rect.height / 2)
 					left: $.px left - (rect.width / 2)
 	}
-
 

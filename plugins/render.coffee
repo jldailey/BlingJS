@@ -70,8 +70,9 @@ $.plugin
 					object_handlers[t].call o, o, opts
 				else "[ no handler for object type: '#{t}' #{JSON.stringify(o).substr 0,20}... ]"
 			else "[ cant reduce type: #{t} ]"
-	
-	finalize = (o, opts) -> # what to do once all the promises have been waited for and replaced with their results
+
+	# what to do once all the promises have been waited for and replaced with their results
+	finalize = (o, opts) ->
 		return switch t = $.type o
 			when "string","html" then o
 			when "number" then String(o)
@@ -92,7 +93,7 @@ $.plugin
 		finally
 			if save is undefined then delete opts[o.name]
 			else opts[o.name] = save
-	
+
 	register 'get', (o, opts) -> reduce opts[o.name], opts
 
 	return $: { render }

@@ -21,12 +21,12 @@ $.plugin
 			current_engine = v
 	template.__defineGetter__ 'engine', -> current_engine
 
-	
 	template.register_engine 'null', do ->
 		return (text, values) ->
 			text
 
-	match_forward = (text, find, against, start, stop = -1) -> # a brace-matcher, useful in most template parsing steps
+	# a bracket-matcher, useful in most template parsing steps
+	match_forward = (text, find, against, start, stop = -1) ->
 		count = 1
 		if stop < 0
 			stop = text.length + 1 + stop
@@ -41,7 +41,8 @@ $.plugin
 		return -1
 
 	template.register_engine 'pythonic', do ->
-		type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/ # '%.2f' becomes [key, pad, fixed, type, remainder]
+		# '%.2f' becomes [key, pad, fixed, type, remainder]
+		type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/
 		chunk_re = /%[\(\/]/
 
 		compile = (text) ->
@@ -117,7 +118,7 @@ $.plugin
 				{ # 1: read anything
 				}
 			]
-			
+
 		return (text, values) ->
 			text
 

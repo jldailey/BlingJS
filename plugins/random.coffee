@@ -14,7 +14,7 @@ $.plugin
 			MT[0] = seed
 			for i in [1..623]
 				MT[i] = 0xFFFFFFFF & (1812433253 * (MT[i-1] ^ (MT[i-1] >>> 30)) + i)
-		
+
 		generate_numbers = ->
 			for i in [0..623]
 				y = ((MT[i] & 0x80000000) >>> 31) + (0x7FFFFFFF & MT[ (i+1) % 624 ])
@@ -39,7 +39,7 @@ $.plugin
 
 		$.defineProperty next, "seed",
 			set: (v) -> init_generator(v)
-		
+
 		next.seed = +new Date()
 
 		return $.extend next,

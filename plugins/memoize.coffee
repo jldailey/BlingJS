@@ -40,4 +40,3 @@ $.plugin
 				if opts.cache.has key then opts.cache.get key
 				else opts.cache.set key, opts.f.apply @, arguments
 
-	

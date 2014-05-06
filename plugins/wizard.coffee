@@ -40,7 +40,7 @@ $.plugin
 				left: $.px window.innerWidth
 			slide = $.extend $.dialog.getDefaultOptions(), slide
 			d.find('.title').append $.dialog.getContent slide.titleType, slide.title
-			d.find('.content').append $.dialog.getContent slide.contentType, slide.content
+			d.find('.content').append $.dialog.getContent slide.contentType,slide.content
 			d.appendTo(modal).fadeOut(0)
 		dialogs = modal.find('.dialog')
 		dialogs.take(1).show()

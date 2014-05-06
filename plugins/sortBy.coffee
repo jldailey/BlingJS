@@ -24,4 +24,3 @@ $.plugin
 		@splice ($.sortedIndex @, item, iterator), 0, item
 		@
 
-		

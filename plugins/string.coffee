@@ -87,9 +87,10 @@ $.plugin
 			# `nodes.zap 'style.width', -> $.px @, + 100`
 
 			# Properly **Capitalize** Each Word In A String.
-			capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
+			capitalize: (name) ->
+				(name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
 
-			slugize: (phrase, slug="-") ->
+			slugize: slugize = (phrase, slug="-") ->
 				phrase = switch $.type phrase
 					when 'null','undefined' then ""
 					when 'object' then ($.slugize(k,slug) + slug + $.slugize(v, slug) for k,v of phrase).join slug
@@ -101,6 +102,7 @@ $.plugin
 					.replace(/\t/g, ' ') \
 					.replace(/[^A-Za-z0-9. -]/g, '') \
 					.replace(/\s+/g,'-')
+			stubize: slugize
 
 			# Convert a _camelCase_ name to a _dash-name_.
 			dashize: (name) ->
@@ -177,7 +179,7 @@ $.plugin
 				if start < 0
 					start += nn
 				s.substring(0,start) + n + s.substring(end)
-			
+
 			stringReverse: (s) -> s.split('').reverse().join('')
 
 			# __$.checksum(s)__ computes the Adler32 checksum of a string.
@@ -207,7 +209,7 @@ $.plugin
 						append:  (s) => items.push s; @length += len s
 						prepend: (s) => items.splice 0,0,s; @length += len s
 						clear:       => ret = @toString(); items = []; @length = 0; ret
-						toString:    => items.join("")
+						toString:    -> items.join("")
 		toString: -> $.toString @
 		toRepr: -> $.toRepr @
 		replace: (patt, repl) ->

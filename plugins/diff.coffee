@@ -13,7 +13,7 @@ $.plugin
 				iw + lev(s,i,n, t,j+1,m-1,dw,iw,sw),
 				(sw * (s[i] isnt t[j])) + lev(s,i+1,n-1, t,j+1,m-1,dw,iw,sw)
 			)
-	
+
 	collapse = (ops) -> # combines similar operations in a sequence
 		$.inherit {
 			toHTML: ->

@@ -89,8 +89,9 @@ $.plugin
 							button: 0,
 							relatedTarget: null
 						, args
-						e.initMouseEvent evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
-							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+						e.initMouseEvent evt_i, args.bubbles, args.cancelable, $.global, args.detail,
+							args.screenX, args.screenY, args.clientX, args.clientY,
+							args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
 							args.button, args.relatedTarget
 
 					when "blur", "focus", "reset", "submit", "abort", "change", "load", "unload" # UI events
@@ -116,9 +117,10 @@ $.plugin
 							scale: 1.0,
 							rotation: 0.0
 						, args
-						e.initTouchEvent(evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
-							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-							args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
+						e.initTouchEvent evt_i, args.bubbles, args.cancelable, $.global, args.detail,
+							args.screenX, args.screenY, args.clientX, args.clientY,
+							args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+							args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation
 
 					when "gesturestart", "gestureend", "gesturecancel" # gesture events
 						e = document.createEvent "GestureEvents"

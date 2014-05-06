@@ -70,7 +70,7 @@ $.plugin
 	keyName = {}
 	for name, code of keyCode
 		keyName[code] or= name
-	
+
 	return $:
 		keyCode: (name) -> keyCode[name] ? name
 		keyName: (code) -> keyName[code] ? code

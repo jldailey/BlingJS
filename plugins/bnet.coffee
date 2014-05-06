@@ -47,8 +47,8 @@ $.plugin
 		"object":
 			symbol: "}"
 			pack: (o) ->
-					(packOne(k)+packOne(v) for k,v of o when k isnt "constructor" and o.hasOwnProperty(k)
-					).join ''
+				(packOne(k)+packOne(v) for k,v of o when k isnt "constructor" and o.hasOwnProperty(k)
+				).join ''
 			unpack: (s) ->
 				data = {}
 				while s.length > 0
@@ -86,7 +86,7 @@ $.plugin
 				unless 'constructor' of o
 					throw new Error("TNET: cant pack non-class as class")
 				unless o.constructor of class_index
-					throw new Error("TNET: cant pack unregistered class (name: #{o.constructor.name}, text: #{o.constructor.toString()}")
+					throw new Error("TNET: cant pack unregistered class (name: #{o.constructor.name}")
 				packOne(class_index[o.constructor]) + packOne(o, "object")
 			unpack: (s) ->
 				[i, rest] = unpackOne(s)
@@ -95,11 +95,11 @@ $.plugin
 					obj.__proto__ = classes[i - 1].prototype
 				else throw new Error("TNET: attempt to unpack unregistered class index: #{i}")
 				obj
-	
+
 	makeFunction = (name, args, body) ->
 		eval("var f = function #{name}(#{args}){#{body}}")
 		return f
-	
+
 	classes = []
 	class_index = {}
 	register = (klass) ->
@@ -108,7 +108,7 @@ $.plugin
 	Symbols = {} # Reverse the lookup table, for use during unpacking
 	do reIndex = -> for t,v of Types
 		Symbols[v.symbol] = v
-	
+
 	decodeUInt = (s) ->
 		n = 0
 		for _,i in s
@@ -126,7 +126,7 @@ $.plugin
 			s = s + String.fromCharCode(n & 0xFF)
 			n = n >> 8
 		s
-	
+
 	unpackOne = (data) ->
 		return unless data?
 		if (i = data.indexOf DIVIDER) >= 0
@@ -151,7 +151,7 @@ $.plugin
 		header = if len is 0 then "\0"
 		else encodeUInt(len) + DIVIDER
 		return header + data + t.symbol
-	
+
 	$:
 		BNET:
 			Types: Types
@@ -159,4 +159,4 @@ $.plugin
 			stringify: packOne
 			parse: (x) -> unpackOne(x)?[0]
 
-	
+

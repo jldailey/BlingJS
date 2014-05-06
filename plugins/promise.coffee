@@ -82,12 +82,13 @@ $.plugin
 		return ret
 
 	Promise.compose = Promise.parallel = (promises...) ->
-		try p = $.Progress(promises.length + 1) # always an extra one for setup, so an empty list is finished immediately
+		# always an extra one for setup, so an empty list is finished immediately
+		try p = $.Progress(promises.length + 1)
 		finally
 			$(promises).select('wait').call (err, data) ->
 				if err then p.fail(err) else p.finish 1
 			p.finish 1
-	
+
 	Promise.collect = (promises) ->
 		ret = []
 		unless promises? then return $.Promise().finish(ret)
@@ -152,7 +153,7 @@ $.plugin
 				onerror: (e) -> p.fail e
 				onload: -> p.finish image
 				src: src
-	
+
 	$.depend 'type', ->
 		$.type.register 'promise', is: (o) ->
 			try return (typeof o is 'object')	and 'then' of o

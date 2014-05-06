@@ -11,15 +11,24 @@ $.plugin
 	# This is perhaps the cleanest use of the type system so far...
 	$.type.extend
 		unknown: { trace: $.identity }
-		object:  { trace: (label, o, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
-		array:   { trace: (label, o, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length] by 1); o }
+		object:  { trace: (label, o, tracer) ->
+			(o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o))
+			return o
+		}
+		array:   { trace: (label, o, tracer) ->
+			(o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length] by 1)
+			return o
+		}
 		function:
 			trace: (label, f, tracer) ->
 				label or= f.name
 				r = (a...) ->
 					start = +new Date
 					f.apply @, a
-					tracer "#{@name or $.type(@)}.#{label}(#{$(a).map($.toRepr).join ','}): #{(+new Date - start).toFixed 0}ms"
+					label = "#{@name or $.type(@)}.#{label}"
+					args = $(a).map($.toRepr).join ','
+					elapsed = (+new Date - start).toFixed 0
+					tracer "#{label}(#{args}): #{elapsed}ms"
 				# tracer "Trace: #{label} created."
 				r.toString = -> "{Trace '#{label}' of #{f.toString()}"
 				r
@@ -33,7 +42,7 @@ $.plugin
 		ret = do f
 		logger "[#{label}] #{(+new Date - start).toFixed 0}ms"
 		return ret
-		
+
 	return $:
 		time: time
 		trace: (label, o, tracer) ->

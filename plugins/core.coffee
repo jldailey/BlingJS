@@ -62,7 +62,7 @@ $.plugin
 				if v?
 					b.push v
 			b
-		
+
 		# Chainable way to apply some arbitrary function
 		tap: (f) -> f.call @, @
 
@@ -92,9 +92,19 @@ $.plugin
 		# Get a new set whose items are all in _this_ and _other.
 		intersect: (other) -> $(x for x in @ when x in other) # another very beatiful expression
 		# True if item is in _this_ set.
-		contains: (item, strict = true) -> ((strict and t is item) or (not strict and `t == item`) for t in @).reduce ((a,x) -> a or x), false
+		contains: (item, strict = true) ->
+			if strict
+				return @indexOf(item) > -1
+			else for t in @ when `t == item`
+				return true
+			false
 		# Get an integer count of items in _this_.
-		count: (item, strict = true) -> $(1 for t in @ when (item is undefined) or (strict and t is item) or (not strict and `t == item`)).sum()
+		count: (item, strict = true) ->
+			$(1 for t in @ \
+				when (item is undefined) \
+				or (strict and t is item) \
+				or (not strict and `t == item`)
+			).sum()
 		# Get the first non-null item in _this_.
 		coalesce: ->
 			for i in @

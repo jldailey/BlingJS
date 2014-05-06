@@ -61,11 +61,12 @@ $.plugin
 			a = (_with_cache[method] or= [])
 			if (i = a.indexOf type) is -1
 				a.push type
-			
+
 
 		# When adding a new type to the regisry:
 		register = (name, data) ->
-			unless 'is' of data then throw new Error("$.type.register given a second argument without an 'is' function")
+			unless 'is' of data
+				throw new Error("$.type.register given a second argument without an 'is' function")
 			# * Put the type check in order (if it isn't already).
 			order.unshift name if not (name of cache)
 			# * inherit from the base type and store in the cache.
@@ -114,7 +115,7 @@ $.plugin
 		register "bool",      is: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
 		register "array",     is: Array.isArray or (o) -> isType Array, o
 		register "function",  is: (o) -> typeof o is "function"
-		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
+		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of @
 		register "arguments", is: (o) -> try 'callee' of o and 'length' of o
 		# These checks for null and undefined are small exceptions to the
 		# simple-first idea, since they are precise and getting them out
@@ -202,5 +203,6 @@ $.plugin
 		as: _type.as
 		isDefined: (o) -> o?
 		isSimple: (o) -> _type(o) in ["string", "number", "bool"]
-		isEmpty: (o) -> o in ["", null, undefined] or o.length is 0 or (typeof o is "object" and Object.keys(o).length is 0)
+		isEmpty: (o) -> o in ["", null, undefined] \
+			or o.length is 0 or (typeof o is "object" and Object.keys(o).length is 0)
 	defineProperty: (name, opts) -> @each -> $.defineProperty @, name, opts

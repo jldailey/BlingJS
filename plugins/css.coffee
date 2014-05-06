@@ -26,7 +26,7 @@ $.plugin
 				break # Unclosed comments
 			str = str.substring(0,i) + str.substring(j+2)
 		str
-	
+
 	parse = (str, into) ->
 		# <Selector> { <Rule> ... } ...
 		if m = str.match /([^{]+){/
@@ -46,7 +46,7 @@ $.plugin
 				# Continue recursively until the whole string has been consumed
 				return parse(rest, into)
 		return into
-	
+
 	specialOps = '>+~'
 	compact = (obj) ->
 		# Given a flat parsing of CSS, compact the resulting object

@@ -125,6 +125,23 @@ describe "$.Promise()", ->
 			c.finish('c')
 			a.finish('a')
 
+	describe ".handler()", ->
+		it "is a function", ->
+			assert.equal $.type($.Promise().handler), 'function'
+		it "is an (err, data) callback", ->
+			assert.equal $.Promise().handler.length, 2
+		it "can resolve a promise", (done) ->
+			p = $.Promise()
+			p.handler(null, true)
+			p.then -> done()
+		it "can reject a promise", (done) ->
+			p = $.Promise()
+			p.handler(new Error(), null)
+			p.wait (err) ->
+				assert (err?)
+				done()
+
+
 describe "$.Progress", ->
 	it "is a Promise", ->
 		p = $.Progress()

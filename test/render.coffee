@@ -51,7 +51,7 @@ describe "Render", ->
 			it "promise", (done) ->
 				$.render.register "promise-test", (o, opts) ->
 					p = $.Promise()
-					$.delay 200, -> p.finish("OK")
+					$.delay 200, -> p.resolve("OK")
 					p
 				$.render({ t: "promise-test" }).wait expect "OK", done
 
@@ -71,6 +71,6 @@ describe "Render", ->
 					{t:"text",EN:"Hello"},
 					p = $.Promise()
 				]}).wait expect "Hello World", done
-				p.finish " World"
+				p.resolve " World"
 
 

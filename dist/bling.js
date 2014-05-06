@@ -3652,7 +3652,7 @@
       ret = $.Promise();
       document.head.appendChild(elem = $.extend(document.createElement(elementName), props, {
         onload: function() {
-          return ret.finish(elem);
+          return ret.resolve(elem);
         },
         onerror: function() {
           return ret.fail.apply(ret, arguments);
@@ -4006,7 +4006,7 @@
     var NoValue, Progress, Promise;
     NoValue = function() {};
     Promise = function(obj) {
-      var consume_all, end, err, result, ret, waiting;
+      var consume_all, end, err, isFailed, isFinished, result, ret, waiting;
       if (obj == null) {
         obj = {};
       }
@@ -4138,15 +4138,23 @@
           }
         }
       }, $.EventEmitter(obj));
+      isFinished = function() {
+        return result !== NoValue;
+      };
       $.defineProperty(ret, 'finished', {
-        get: function() {
-          return result !== NoValue;
-        }
+        get: isFinished
       });
+      $.defineProperty(ret, 'resolved', {
+        get: isFinished
+      });
+      isFailed = function() {
+        return err !== NoValue;
+      };
       $.defineProperty(ret, 'failed', {
-        get: function() {
-          return err !== NoValue;
-        }
+        get: isFailed
+      });
+      $.defineProperty(ret, 'rejected', {
+        get: isFailed
       });
       ret.promiseId = $.random.string(6);
       return ret;
@@ -4159,26 +4167,26 @@
       } finally {
         $(promises).select('wait').call(function(err, data) {
           if (err) {
-            return p.fail(err);
+            return p.reject(err);
           } else {
-            return p.finish(1);
+            return p.resolve(1);
           }
         });
-        p.finish(1);
+        p.resolve(1);
       }
     };
     Promise.collect = function(promises) {
       var i, p, promise, q, ret, _fn, _i, _len;
       ret = [];
       if (promises == null) {
-        return $.Promise().finish(ret);
+        return $.Promise().resolve(ret);
       }
       p = $.Promise();
       q = $.Progress(1 + promises.length);
       _fn = function(i) {
         return promise.wait(function(err, result) {
           ret[i] = err != null ? err : result;
-          return q.finish(1);
+          return q.resolve(1);
         });
       };
       for (i = _i = 0, _len = promises.length; _i < _len; i = ++_i) {
@@ -4186,9 +4194,9 @@
         _fn(i);
       }
       q.then(function() {
-        return p.finish(ret);
+        return p.resolve(ret);
       });
-      q.finish(1);
+      q.resolve(1);
       return p;
     };
     Promise.wrapCall = function() {
@@ -4199,9 +4207,9 @@
       } finally {
         args.push(function(err, result) {
           if (err) {
-            return p.fail(err);
+            return p.resolve(err);
           } else {
-            return p.finish(result);
+            return p.resolve(result);
           }
         });
         $.immediate(function() {
@@ -4228,7 +4236,7 @@
           }
           item = args.length > 2 ? args[2] : max;
           if (cur >= max) {
-            this.__proto__.__proto__.finish(item);
+            this.__proto__.__proto__.resolve(item);
           }
           this.emit('progress', cur, max, item);
           return this;
@@ -4240,6 +4248,9 @@
             delta = 1;
           }
           return this.progress(cur + delta, max, item);
+        },
+        resolve: function(delta) {
+          return this.finish(delta);
         },
         include: function(promise) {
           this.progress(cur, max + 1);
@@ -4262,9 +4273,9 @@
         xhr.onreadystatechange = function() {
           if (this.readyState === this.DONE) {
             if (this.status === 200) {
-              return p.finish(xhr.responseText);
+              return p.resolve(xhr.responseText);
             } else {
-              return p.fail("" + this.status + " " + this.statusText);
+              return p.resolve("" + this.status + " " + this.statusText);
             }
           }
         };
@@ -4278,10 +4289,10 @@
         } finally {
           $.extend(image = new Image(), {
             onerror: function(e) {
-              return p.fail(e);
+              return p.resolve(e);
             },
             onload: function() {
-              return p.finish(image);
+              return p.resolve(image);
             },
             src: src
           });
@@ -4679,7 +4690,7 @@
         p = $.Promise();
       }
       if (!$.is("promise", promise)) {
-        return $.Promise().finish(reduce(promise, opts));
+        return $.Promise().resolve(reduce(promise, opts));
       }
       promise.wait(function(err, result) {
         var r;
@@ -4687,7 +4698,7 @@
         if ($.is('promise', r)) {
           return consume_forever(r, opts, p);
         } else {
-          return p.finish(r);
+          return p.resolve(r);
         }
       });
       return p;
@@ -4722,12 +4733,12 @@
           o.wait(finish_q = function(err, result) {
             var r;
             if (err) {
-              return q.fail(err);
+              return q.reject(err);
             }
             if ($.is('promise', r = reduce(result, opts))) {
               return r.wait(finish_q);
             } else {
-              return q.finish(r);
+              return q.resolve(r);
             }
           });
           return q;
@@ -4739,9 +4750,9 @@
           q = $.Promise();
           p.wait(function(err, result) {
             if (err) {
-              return q.fail(err);
+              return q.reject(err);
             } else {
-              return q.finish(finalize(n, opts));
+              return q.resolve(finalize(n, opts));
             }
           });
           n = [];
@@ -4755,13 +4766,13 @@
               return y.wait(finish_p = function(err, result) {
                 var rp;
                 if (err) {
-                  return p.fail(err);
+                  return p.reject(err);
                 }
                 rp = reduce(result, opts);
                 if ($.is('promise', rp)) {
                   return rp.wait(finish_p);
                 } else {
-                  return p.finish(n[i] = rp);
+                  return p.resolve(n[i] = rp);
                 }
               });
             }
@@ -4770,7 +4781,7 @@
             x = o[i];
             _fn(x, i);
           }
-          p.finish(1);
+          p.resolve(1);
           if (has_promises) {
             return q;
           } else {

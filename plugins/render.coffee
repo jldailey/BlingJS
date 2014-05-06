@@ -7,12 +7,12 @@ $.plugin
 
 	consume_forever = (promise, opts, p = $.Promise()) ->
 		unless $.is "promise", promise
-			return $.Promise().finish(reduce promise, opts)
+			return $.Promise().resolve(reduce promise, opts)
 		promise.wait (err, result) ->
 			r = reduce result, opts
 			if $.is 'promise', r
 				consume_forever r, opts, p
-			else p.finish(r)
+			else p.resolve(r)
 		p
 
 	render = (o, opts = {}) ->
@@ -24,7 +24,6 @@ $.plugin
 	# Objects are handled based on their "t" or "type" property.
 	render.register = register = (t, f) -> object_handlers[t] = f
 
-
 	render.reduce = reduce = (o, opts) -> # all objects become either arrays, promises, or strings
 		switch t = $.type o
 			when "string","html" then o
@@ -32,11 +31,11 @@ $.plugin
 			when "promise"
 				q = $.Promise()
 				o.wait finish_q = (err, result) ->
-					return q.fail(err) if err
+					return q.reject(err) if err
 					if $.is 'promise', r = reduce result, opts
 						r.wait finish_q
 					else
-						q.finish r
+						q.resolve r
 				q
 			when "number" then String(o)
 			when "array", "bling"
@@ -44,7 +43,7 @@ $.plugin
 				# more steps will be added later during the recursion
 				q = $.Promise() # use a summary promise for public view
 				p.wait (err, result) ->
-					if err then q.fail(err) else q.finish(finalize n, opts)
+					if err then q.reject(err) else q.resolve(finalize n, opts)
 				n = []
 				has_promises = false
 				for x, i in o then do (x,i) ->
@@ -53,13 +52,13 @@ $.plugin
 						has_promises = true
 						p.progress null, ++m
 						y.wait finish_p = (err, result) -> # recursive promise trampoline
-							return p.fail(err) if err
+							return p.reject(err) if err
 							rp = reduce result, opts
 							if $.is 'promise', rp
 								rp.wait finish_p
 							else
-								p.finish n[i] = rp
-				p.finish(1) # creation is complete
+								p.resolve n[i] = rp
+				p.resolve(1) # creation is complete
 				if has_promises then q
 				else finalize n
 			when "function" then switch f.length

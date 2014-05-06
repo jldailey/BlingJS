@@ -7,5 +7,5 @@ $.bench 'Promise: 10,000 waiting', ->
 	p = new $.Promise()
 	for _ in [0...10000]
 		p.wait handler
-	p.finish 1
+	p.resolve 1
 	assert.equal sum, 10000

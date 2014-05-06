@@ -74,10 +74,13 @@ $.plugin
 				if err then ret.reject(err) else ret.resolve(data)
 		}, $.EventEmitter(obj)
 
-		$.defineProperty ret, 'finished',
-			get: -> result isnt NoValue
-		$.defineProperty ret, 'failed',
-			get: -> err isnt NoValue
+		isFinished = -> result isnt NoValue
+		$.defineProperty ret, 'finished', get: isFinished
+		$.defineProperty ret, 'resolved', get: isFinished
+
+		isFailed = -> err isnt NoValue
+		$.defineProperty ret, 'failed',   get: isFailed
+		$.defineProperty ret, 'rejected', get: isFailed
 
 		ret.promiseId = $.random.string 6
 
@@ -88,26 +91,26 @@ $.plugin
 		try p = $.Progress(promises.length + 1)
 		finally
 			$(promises).select('wait').call (err, data) ->
-				if err then p.fail(err) else p.finish 1
-			p.finish 1
+				if err then p.reject(err) else p.resolve 1
+			p.resolve 1
 
 	Promise.collect = (promises) ->
 		ret = []
-		unless promises? then return $.Promise().finish(ret)
+		unless promises? then return $.Promise().resolve(ret)
 		p = $.Promise()
 		q = $.Progress(1 + promises.length)
 		for promise, i in promises then do (i) ->
 			promise.wait (err, result) ->
 				ret[i] = err ? result
-				q.finish(1)
-		q.then -> p.finish(ret)
-		q.finish(1)
+				q.resolve(1)
+		q.then -> p.resolve(ret)
+		q.resolve(1)
 		p
 
 	Promise.wrapCall = (f, args...) ->
 		try p = $.Promise()
 		finally # the last argument to f will be a callback that finishes the promise
-			args.push (err, result) -> if err then p.fail(err) else p.finish(result)
+			args.push (err, result) -> if err then p.reject(err) else p.resolve(result)
 			$.immediate -> f args...
 
 	Progress = (max = 1.0) ->
@@ -123,7 +126,7 @@ $.plugin
 				max = (args[1] ? max) if args.length > 1
 				item = if args.length > 2 then args[2] else max
 				if cur >= max
-					@__proto__.__proto__.finish(item)
+					@__proto__.__proto__.resolve(item)
 				@emit 'progress', cur, max, item
 				@
 			finish: (delta) ->
@@ -131,6 +134,8 @@ $.plugin
 				unless isFinite(delta)
 					delta = 1
 				@progress cur + delta, max, item
+			resolve: (delta) -> @finish delta
+
 			include: (promise) ->
 				@progress cur, max + 1
 				promise.wait (err) =>
@@ -144,16 +149,16 @@ $.plugin
 		finally xhr.onreadystatechange = ->
 			if @readyState is @DONE
 				if @status is 200
-					p.finish xhr.responseText
+					p.resolve xhr.responseText
 				else
-					p.fail "#{@status} #{@statusText}"
+					p.resolve "#{@status} #{@statusText}"
 
 	$.depend 'dom', ->
 		Promise.image = (src) ->
 			try p = $.Promise()
 			finally $.extend image = new Image(),
-				onerror: (e) -> p.fail e
-				onload: -> p.finish image
+				onerror: (e) -> p.resolve e
+				onload: -> p.resolve image
 				src: src
 
 	$.depend 'type', ->

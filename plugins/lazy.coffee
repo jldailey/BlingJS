@@ -8,8 +8,8 @@ $.plugin
 	lazy_load = (elementName, props) ->
 		ret = $.Promise()
 		document.head.appendChild elem = $.extend document.createElement(elementName), props,
-			onload: -> ret.finish elem
-			onerror: -> ret.fail.apply ret, arguments
+			onload: -> ret.resolve elem
+			onerror: -> ret.reject.apply ret, arguments
 		ret
 	$:
 		# __$.script(src)__ loads javascript files asynchronously.

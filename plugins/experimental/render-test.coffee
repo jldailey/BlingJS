@@ -11,4 +11,4 @@ $.render({t:"nesting-three",content:[
 	{t:"text",EN:"Hello"},
 	p = $.Promise()
 ]}).wait expect "Hello World"
-p.finish " World"
+p.resolve " World"

@@ -7,35 +7,35 @@
 ].map require
 
 opts = Optimist.options('t', {
-		alias: 'throttle'
-		default: 7
-		describe: "Seconds to wait between restart attempts."
-	})
-	.options('r', {
-		alias: 'restart-code'
-		default: 1
-		describe: "Restart any watched process that exits with this exit code. [0-255]."
-	})
-	.options('i', {
-		alias: 'immediate'
-		default: false
-		describe: "Spawn 'command [args...]' immediately."
-	})
-	.boolean('i')
-	.options('x', {
-		alias: 'exclude'
-		default: 'node_modules'
-		describe: "Pattern for directories to avoid watching"
-	})
-	.options('v', {
-		alias: 'verbose'
-		default: false
-		describe: 'Verbose output'
-	})
-	.boolean('v')
-	.demand(1)
-	.usage("Usage: $0 [options...] -- 'pattern' -- [ENV=val] command [args...]")
-	.argv
+	alias: 'throttle'
+	default: 7
+	describe: "Seconds to wait between restart attempts."
+})
+.options('r', {
+	alias: 'restart-code'
+	default: 1
+	describe: "Restart any watched process that exits with this exit code. [0-255]."
+})
+.options('i', {
+	alias: 'immediate'
+	default: false
+	describe: "Spawn 'command [args...]' immediately."
+})
+.boolean('i')
+.options('x', {
+	alias: 'exclude'
+	default: 'node_modules'
+	describe: "Pattern for directories to avoid watching"
+})
+.options('v', {
+	alias: 'verbose'
+	default: false
+	describe: 'Verbose output'
+})
+.boolean('v')
+.demand(1)
+.usage("Usage: $0 [options...] -- 'pattern' -- [ENV=val] command [args...]")
+.argv
 
 log = $.logger "[watch]"
 
@@ -80,7 +80,7 @@ recurseDir = (path, cb) ->
 						# If we recurse, include it's progress as part of ours
 						done.include recurseDir dir, cb
 					# Mark this file as complete
-					done.finish(1)
+					done.resolve(1)
 	done
 
 dirsWatched = 0

@@ -353,10 +353,11 @@
           return function() {
             ret[index] = arguments;
             if (++done >= todo) {
-              return fin.apply(ret);
+              fin.apply(ret);
             } else {
-              return next(done);
+              next(done);
             }
+            return null;
           };
         };
         (next = (function(_this) {
@@ -384,8 +385,9 @@
           return function() {
             ret[index] = arguments;
             if (++done >= todo) {
-              return fin.apply(ret);
+              fin.apply(ret);
             }
+            return null;
           };
         };
         _results = [];

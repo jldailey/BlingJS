@@ -151,11 +151,12 @@ $.plugin
 				fin.apply ret
 				return @
 			done = 0
-			finish_one = (index) -> ->
-				ret[index] = arguments
-				if ++done >= todo
-					fin.apply ret
-				else next(done)
+			finish_one = (index) ->
+				->
+					ret[index] = arguments # this typically captures [err, result]; but by convention only
+					if ++done >= todo then fin.apply ret
+					else next(done)
+					null
 			do next = (i=0) => $.immediate => @[i](finish_one(i))
 			return @
 		parallel: (fin = $.identity) ->
@@ -165,10 +166,11 @@ $.plugin
 				fin.apply ret
 				return @
 			done = 0
-			finish_one = (index) -> ->
+			finish_one = (index) -> -> # see the comments in .series, same approach used here for collating the output
 				ret[index] = arguments
 				if ++done >= todo
 					fin.apply ret
+				null
 			for i in [0...todo] by 1
 				@[i](finish_one(i))
 	}

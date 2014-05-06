@@ -4127,9 +4127,9 @@
         },
         handler: function(err, data) {
           if (err) {
-            return this.reject(err);
+            return ret.reject(err);
           } else {
-            return this.resolve(data);
+            return ret.resolve(data);
           }
         }
       }, $.EventEmitter(obj));

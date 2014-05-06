@@ -1957,7 +1957,7 @@ $.plugin
 			reject:  (error) -> end error, NoValue; @
 			reset:           -> err = result = NoValue; @
 			handler: (err, data) ->
-				if err then @reject(err) else @resolve(data)
+				if err then ret.reject(err) else ret.resolve(data)
 		}, $.EventEmitter(obj)
 		$.defineProperty ret, 'finished',
 			get: -> result isnt NoValue

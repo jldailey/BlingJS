@@ -7,7 +7,7 @@ COFFEE=node_modules/.bin/coffee
 JLDOM=node_modules/jldom
 MOCHA=node_modules/.bin/mocha
 MOCHA_FMT=spec
-MOCHA_OPTS=--compilers coffee:coffee-script --globals document,window,Bling,$$,_ -R ${MOCHA_FMT} -s 500
+MOCHA_OPTS=--compilers coffee:coffee-script/register --globals document,window,Bling,$$,_ -R ${MOCHA_FMT} -s 500
 WATCH="coffee watch.coffee"
 
 TEST_FILES=$(shell ls test/*.coffee | grep -v setup.coffee | sort )
@@ -85,8 +85,10 @@ yuicompressor.jar:
 report:
 	@cd $(DIST) && wc -c `ls *.coffee *.js *.gz | sort -n` | grep -v total
 
-clean:
+clean-test:
 	rm -f test/pass test/*.pass
+	
+clean: clean-test
 	rm -rf $(DIST)/*
 	rm -rf yuicompressor.zip yuicompressor.jar yuicompressor-$(YUI_VERSION)
 

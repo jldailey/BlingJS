@@ -125,8 +125,8 @@ $.plugin
 					name = $.stringSplice(name, i, i+2, name[i+1].toUpperCase())
 				name
 
-			# Add decorative commas to long numbers
-			commaize: (num, comma=',',dot='.') ->
+			# Add decorative commas to long numbers (or currencies)
+			commaize: (num, comma=',',dot='.',currency='') ->
 				if $.is 'number', num
 					s = String(num)
 					if not isFinite num
@@ -135,7 +135,7 @@ $.plugin
 					[a, b] = s.split '.' # split the whole part from the decimal part
 					if a.length > 3 # if the whole part is long enough to need commas
 						a = $.stringReverse $.stringReverse(a).match(/\d{1,3}/g).join comma
-					return sign + a + (if b? then dot+b else "")
+					return sign + currency + a + (if b? then dot+b else "")
 
 			# Fill the left side of a string to make it a fixed width.
 			padLeft: (s, n, c = " ") ->

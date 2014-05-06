@@ -1681,6 +1681,9 @@
       YY: function() {
         return String(this.getUTCFullYear()).substr(2);
       },
+      yy: function() {
+        return String(this.getUTCFullYear()).substr(2);
+      },
       mm: function() {
         return this.getUTCMonth() + 1;
       },
@@ -5288,13 +5291,16 @@
           }
           return name;
         },
-        commaize: function(num, comma, dot) {
+        commaize: function(num, comma, dot, currency) {
           var a, b, s, sign, _ref;
           if (comma == null) {
             comma = ',';
           }
           if (dot == null) {
             dot = '.';
+          }
+          if (currency == null) {
+            currency = '';
           }
           if ($.is('number', num)) {
             s = String(num);
@@ -5306,7 +5312,7 @@
             if (a.length > 3) {
               a = $.stringReverse($.stringReverse(a).match(/\d{1,3}/g).join(comma));
             }
-            return sign + a + (b != null ? dot + b : "");
+            return sign + currency + a + (b != null ? dot + b : "");
           }
         },
         padLeft: function(s, n, c) {

@@ -771,6 +771,7 @@ $.plugin
 	formats =
 		yyyy: Date::getUTCFullYear
 		YY: -> String(@getUTCFullYear()).substr(2)
+		yy: -> String(@getUTCFullYear()).substr(2)
 		mm: -> @getUTCMonth() + 1
 		dd: Date::getUTCDate
 		HH: Date::getUTCHours
@@ -2493,7 +2494,7 @@ $.plugin
 				while (i = name?.indexOf('-')) > -1
 					name = $.stringSplice(name, i, i+2, name[i+1].toUpperCase())
 				name
-			commaize: (num, comma=',',dot='.') ->
+			commaize: (num, comma=',',dot='.',currency='') ->
 				if $.is 'number', num
 					s = String(num)
 					if not isFinite num
@@ -2502,7 +2503,7 @@ $.plugin
 					[a, b] = s.split '.' # split the whole part from the decimal part
 					if a.length > 3 # if the whole part is long enough to need commas
 						a = $.stringReverse $.stringReverse(a).match(/\d{1,3}/g).join comma
-					return sign + a + (if b? then dot+b else "")
+					return sign + currency + a + (if b? then dot+b else "")
 			padLeft: (s, n, c = " ") ->
 				while s.length < n
 					s = c + s

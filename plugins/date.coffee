@@ -24,6 +24,7 @@ $.plugin
 	formats =
 		yyyy: Date::getUTCFullYear
 		YY: -> String(@getUTCFullYear()).substr(2)
+		yy: -> String(@getUTCFullYear()).substr(2)
 		mm: -> @getUTCMonth() + 1
 		dd: Date::getUTCDate
 		HH: Date::getUTCHours

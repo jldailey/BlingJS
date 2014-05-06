@@ -551,7 +551,7 @@
             throw new Error("TNET: cant pack non-class as class");
           }
           if (!(o.constructor in class_index)) {
-            throw new Error("TNET: cant pack unregistered class (name: " + o.constructor.name + ", text: " + (o.constructor.toString()));
+            throw new Error("TNET: cant pack unregistered class (name: " + o.constructor.name);
           }
           return packOne(class_index[o.constructor]) + packOne(o, "object");
         },
@@ -1066,21 +1066,21 @@
         }).call(this));
       },
       contains: function(item, strict) {
-        var t;
+        var t, _i, _len;
         if (strict == null) {
           strict = true;
         }
-        return ((function() {
-          var _i, _len, _results;
-          _results = [];
+        if (strict) {
+          return this.indexOf(item) > -1;
+        } else {
           for (_i = 0, _len = this.length; _i < _len; _i++) {
             t = this[_i];
-            _results.push((strict && t === item) || (!strict && t == item));
+            if (t == item) {
+              return true;
+            }
           }
-          return _results;
-        }).call(this)).reduce((function(a, x) {
-          return a || x;
-        }), false);
+        }
+        return false;
       },
       count: function(item, strict) {
         var t;
@@ -2014,18 +2014,17 @@
     depends: 'hook,synth,delay',
     provides: 'dialog'
   }, function() {
-    var createDialog, injectCSS, transition;
+    var createDialog, injectCSS, prefixes, transition;
+    prefixes = ["-webkit", "-moz"];
     transition = function(props, duration) {
       props = props.split(/, */);
-      return ["-webkit", "-moz"].map(function(prefix) {
-        return "" + prefix + "-transition-property: " + (props.join(', ')) + "; " + prefix + "-transition-duration: " + (props.map(function() {
-          return duration;
-        }).join(", ")) + ";";
+      return prefixes.map(function(prefix) {
+        return "			";
       }).join(' ');
     };
     injectCSS = function() {
       $('head style.dialog').remove();
-      return $.synth(("style.dialog '			.dialog, .modal { position: absolute; }			.modal { background: rgba(0,0,0,.3); opacity: 0; }			.dialog { box-shadow: 8px 8px 4px rgba(0,0,0,.4); border-radius: 8px; background: white; padding: 6px; " + (transition("left", ".15s")) + " }			.dialog > .title { text-align: center; width: 100%; }			.dialog > .content { width: 100%; }		'").replace(/\t+|\n+/g, ' ')).prependTo("head");
+      return $.synth("style.dialog '			.dialog, .modal { position: absolute; }			.modal { background: rgba(0,0,0,.3); opacity: 0; }			.dialog {				box-shadow: 8px 8px 4px rgba(0,0,0,.4);				border-radius: 8px;				background: white;				padding: 6px;			}			.dialog > .title { text-align: center; width: 100%; }			.dialog > .content { width: 100%; }		'".replace(/\t+|\n+/g, ' ')).prependTo("head");
     };
     createDialog = function(opts) {
       var contentNode, dialog, dialogSynth, modal, titleNode;
@@ -5058,7 +5057,7 @@
     provides: "string",
     depends: "function"
   }, function() {
-    var escape_single_quotes, safer;
+    var escape_single_quotes, safer, slugize;
     safer = function(f) {
       return function() {
         var a, err;
@@ -5220,7 +5219,7 @@
             return x[0].toUpperCase() + x.substring(1).toLowerCase();
           })).join(" ");
         },
-        slugize: function(phrase, slug) {
+        slugize: slugize = function(phrase, slug) {
           var k, v;
           if (slug == null) {
             slug = "-";
@@ -5251,6 +5250,7 @@
           })();
           return phrase.toLowerCase().replace(/^\s+/, '').replace(/\s+$/, '').replace(/\t/g, ' ').replace(/[^A-Za-z0-9. -]/g, '').replace(/\s+/g, '-');
         },
+        stubize: slugize,
         dashize: function(name) {
           var c, i, ret, _i, _ref;
           ret = "";
@@ -6002,7 +6002,7 @@
             throw new Error("TNET: cant pack non-class as class");
           }
           if (!(o.constructor in class_index)) {
-            throw new Error("TNET: cant pack unregistered class (name: " + o.constructor.name + ", text: " + (o.constructor.toString()));
+            throw new Error("TNET: cant pack unregistered class (name: " + o.constructor.name);
           }
           return packOne(class_index[o.constructor]) + packOne(o, "object");
         },
@@ -6114,11 +6114,14 @@
           var r;
           label || (label = f.name);
           r = function() {
-            var a, start;
+            var a, args, elapsed, start;
             a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
             start = +(new Date);
             f.apply(this, a);
-            return tracer("" + (this.name || $.type(this)) + "." + label + "(" + ($(a).map($.toRepr).join(',')) + "): " + ((+(new Date) - start).toFixed(0)) + "ms");
+            label = "" + (this.name || $.type(this)) + "." + label;
+            args = $(a).map($.toRepr).join(',');
+            elapsed = (+(new Date) - start).toFixed(0);
+            return tracer("" + label + "(" + args + "): " + elapsed + "ms");
           };
           r.toString = function() {
             return "{Trace '" + label + "' of " + (f.toString());

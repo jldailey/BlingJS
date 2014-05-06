@@ -118,7 +118,6 @@ $.plugin
 				@_mode = null
 			@mode = m
 		@GO: go
-		
 		tick: (c) ->
 			row = @modeline
 			if not row?
@@ -220,8 +219,8 @@ $.plugin
 		"object":
 			symbol: "}"
 			pack: (o) ->
-					(packOne(k)+packOne(v) for k,v of o when k isnt "constructor" and o.hasOwnProperty(k)
-					).join ''
+				(packOne(k)+packOne(v) for k,v of o when k isnt "constructor" and o.hasOwnProperty(k)
+				).join ''
 			unpack: (s) ->
 				data = {}
 				while s.length > 0
@@ -259,7 +258,7 @@ $.plugin
 				unless 'constructor' of o
 					throw new Error("TNET: cant pack non-class as class")
 				unless o.constructor of class_index
-					throw new Error("TNET: cant pack unregistered class (name: #{o.constructor.name}, text: #{o.constructor.toString()}")
+					throw new Error("TNET: cant pack unregistered class (name: #{o.constructor.name}")
 				packOne(class_index[o.constructor]) + packOne(o, "object")
 			unpack: (s) ->
 				[i, rest] = unpackOne(s)
@@ -268,11 +267,9 @@ $.plugin
 					obj.__proto__ = classes[i - 1].prototype
 				else throw new Error("TNET: attempt to unpack unregistered class index: #{i}")
 				obj
-	
 	makeFunction = (name, args, body) ->
 		eval("var f = function #{name}(#{args}){#{body}}")
 		return f
-	
 	classes = []
 	class_index = {}
 	register = (klass) ->
@@ -280,7 +277,6 @@ $.plugin
 	Symbols = {} # Reverse the lookup table, for use during unpacking
 	do reIndex = -> for t,v of Types
 		Symbols[v.symbol] = v
-	
 	decodeUInt = (s) ->
 		n = 0
 		for _,i in s
@@ -297,7 +293,6 @@ $.plugin
 			s = s + String.fromCharCode(n & 0xFF)
 			n = n >> 8
 		s
-	
 	unpackOne = (data) ->
 		return unless data?
 		if (i = data.indexOf DIVIDER) >= 0
@@ -321,14 +316,12 @@ $.plugin
 		header = if len is 0 then "\0"
 		else encodeUInt(len) + DIVIDER
 		return header + data + t.symbol
-	
 	$:
 		BNET:
 			Types: Types
 			registerClass: register
 			stringify: packOne
 			parse: (x) -> unpackOne(x)?[0]
-	
 $.plugin
 	provides: "cache"
 	depends: "core, sortBy"
@@ -490,7 +483,6 @@ $.plugin
 				if v?
 					b.push v
 			b
-		
 		tap: (f) -> f.call @, @
 		replaceWith: (array) ->
 			for i in [0...array.length] by 1
@@ -507,8 +499,18 @@ $.plugin
 			ret
 		distinct: (strict = true) -> @union @, strict
 		intersect: (other) -> $(x for x in @ when x in other) # another very beatiful expression
-		contains: (item, strict = true) -> ((strict and t is item) or (not strict and `t == item`) for t in @).reduce ((a,x) -> a or x), false
-		count: (item, strict = true) -> $(1 for t in @ when (item is undefined) or (strict and t is item) or (not strict and `t == item`)).sum()
+		contains: (item, strict = true) ->
+			if strict
+				return @indexOf(item) > -1
+			else for t in @ when `t == item`
+				return true
+			false
+		count: (item, strict = true) ->
+			$(1 for t in @ \
+				when (item is undefined) \
+				or (strict and t is item) \
+				or (not strict and `t == item`)
+			).sum()
 		coalesce: ->
 			for i in @
 				if $.is('array',i) or $.is('bling',i) then i = $(i).coalesce()
@@ -687,7 +689,6 @@ $.plugin
 				break # Unclosed comments
 			str = str.substring(0,i) + str.substring(j+2)
 		str
-	
 	parse = (str, into) ->
 		if m = str.match /([^{]+){/
 			selector = trim m[1]
@@ -705,7 +706,6 @@ $.plugin
 			if rest.length > 0
 				return parse(rest, into)
 		return into
-	
 	specialOps = '>+~'
 	compact = (obj) ->
 		ret = {}
@@ -898,19 +898,24 @@ $.plugin
 	depends: 'hook,synth,delay'
 	provides: 'dialog'
 , ->
-	
+	prefixes = ["-webkit","-moz"]
 	transition = (props, duration) ->
 		props = props.split /, */
-		["-webkit","-moz"].map((prefix) ->
-			"#{prefix}-transition-property: #{props.join ', '}; #{prefix}-transition-duration: #{props.map(-> duration).join ", "};"
+		prefixes.map((prefix) ->
+			"
+			"
 		).join ' '
-	
 	injectCSS = ->
 		$('head style.dialog').remove()
 		$.synth("style.dialog '
 			.dialog, .modal { position: absolute; }
 			.modal { background: rgba(0,0,0,.3); opacity: 0; }
-			.dialog { box-shadow: 8px 8px 4px rgba(0,0,0,.4); border-radius: 8px; background: white; padding: 6px; #{transition "left", ".15s"} }
+			.dialog {
+				box-shadow: 8px 8px 4px rgba(0,0,0,.4);
+				border-radius: 8px;
+				background: white;
+				padding: 6px;
+			}
 			.dialog > .title { text-align: center; width: 100%; }
 			.dialog > .content { width: 100%; }
 		'".replace(/\t+|\n+/g,' ')).prependTo("head")
@@ -937,7 +942,6 @@ $.plugin
 			dialog.centerOn(modal).show()
 		).trigger('resize')
 		dialog
-	
 	createDialog.getDefaultOptions = ->
 		id: "dialog-" + $.random.string 4
 		target: "body"
@@ -954,13 +958,11 @@ $.plugin
 			modal.emit('cancel')
 				.fadeOut(200, -> modal.remove())
 				.find(".dialog", 1).css left: 0
-	
 	createDialog.getContent = (type, stuff) ->
 		switch type
 			when "synth" then $.synth(stuff)
 			when "html" then $.HTML.parse(stuff)
 			when "text" then document.createTextNode(stuff)
-	
 	return {
 		$:
 			dialog: createDialog
@@ -1011,7 +1013,6 @@ $.plugin
 				iw + lev(s,i,n, t,j+1,m-1,dw,iw,sw),
 				(sw * (s[i] isnt t[j])) + lev(s,i+1,n-1, t,j+1,m-1,dw,iw,sw)
 			)
-	
 	collapse = (ops) -> # combines similar operations in a sequence
 		$.inherit {
 			toHTML: ->
@@ -1411,8 +1412,9 @@ $.plugin
 							button: 0,
 							relatedTarget: null
 						, args
-						e.initMouseEvent evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
-							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+						e.initMouseEvent evt_i, args.bubbles, args.cancelable, $.global, args.detail,
+							args.screenX, args.screenY, args.clientX, args.clientY,
+							args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
 							args.button, args.relatedTarget
 					when "blur", "focus", "reset", "submit", "abort", "change", "load", "unload" # UI events
 						e = document.createEvent "UIEvents"
@@ -1435,9 +1437,10 @@ $.plugin
 							scale: 1.0,
 							rotation: 0.0
 						, args
-						e.initTouchEvent(evt_i, args.bubbles, args.cancelable, $.global, args.detail, args.screenX, args.screenY,
-							args.clientX, args.clientY, args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
-							args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation)
+						e.initTouchEvent evt_i, args.bubbles, args.cancelable, $.global, args.detail,
+							args.screenX, args.screenY, args.clientX, args.clientY,
+							args.ctrlKey, args.altKey, args.shiftKey, args.metaKey,
+							args.touches, args.targetTouches, args.changedTouches, args.scale, args.rotation
 					when "gesturestart", "gestureend", "gesturecancel" # gesture events
 						e = document.createEvent "GestureEvents"
 						args = $.extend {
@@ -1772,7 +1775,6 @@ $.plugin
 	keyName = {}
 	for name, code of keyCode
 		keyName[code] or= name
-	
 	return $:
 		keyCode: (name) -> keyCode[name] ? name
 		keyName: (code) -> keyName[code] ? code
@@ -1893,7 +1895,6 @@ $.plugin
 				key = opts.hash arguments
 				if opts.cache.has key then opts.cache.get key
 				else opts.cache.set key, opts.f.apply @, arguments
-	
 $.plugin
 	depends: "core,function"
 	provides: "promise"
@@ -1963,12 +1964,11 @@ $.plugin
 		ret.promiseId = $.random.string 6
 		return ret
 	Promise.compose = Promise.parallel = (promises...) ->
-		try p = $.Progress(promises.length + 1) # always an extra one for setup, so an empty list is finished immediately
+		try p = $.Progress(promises.length + 1)
 		finally
 			$(promises).select('wait').call (err, data) ->
 				if err then p.fail(err) else p.finish 1
 			p.finish 1
-	
 	Promise.collect = (promises) ->
 		ret = []
 		unless promises? then return $.Promise().finish(ret)
@@ -2024,7 +2024,6 @@ $.plugin
 				onerror: (e) -> p.fail e
 				onload: -> p.finish image
 				src: src
-	
 	$.depend 'type', ->
 		$.type.register 'promise', is: (o) ->
 			try return (typeof o is 'object')	and 'then' of o
@@ -2167,7 +2166,6 @@ $.plugin
 			MT[0] = seed
 			for i in [1..623]
 				MT[i] = 0xFFFFFFFF & (1812433253 * (MT[i-1] ^ (MT[i-1] >>> 30)) + i)
-		
 		generate_numbers = ->
 			for i in [0..623]
 				y = ((MT[i] & 0x80000000) >>> 31) + (0x7FFFFFFF & MT[ (i+1) % 624 ])
@@ -2188,7 +2186,6 @@ $.plugin
 			(y + a) / b
 		$.defineProperty next, "seed",
 			set: (v) -> init_generator(v)
-		
 		next.seed = +new Date()
 		return $.extend next,
 			real: real = (min, max) ->
@@ -2292,8 +2289,7 @@ $.plugin
 					object_handlers[t].call o, o, opts
 				else "[ no handler for object type: '#{t}' #{JSON.stringify(o).substr 0,20}... ]"
 			else "[ cant reduce type: #{t} ]"
-	
-	finalize = (o, opts) -> # what to do once all the promises have been waited for and replaced with their results
+	finalize = (o, opts) ->
 		return switch t = $.type o
 			when "string","html" then o
 			when "number" then String(o)
@@ -2312,7 +2308,6 @@ $.plugin
 		finally
 			if save is undefined then delete opts[o.name]
 			else opts[o.name] = save
-	
 	register 'get', (o, opts) -> reduce opts[o.name], opts
 	return $: { render }
 $.plugin
@@ -2353,14 +2348,14 @@ $.plugin
 	try
 		nodemailer = require 'nodemailer'
 	catch err
-		`return`
+		return
 	transport = null
 	openTransport = ->
 		transport or= nodemailer.createTransport 'SMTP',
 			service: 'SendGrid'
 			auth:
 				user: $.config.get 'SENDGRID_USERNAME'
-				pass: $.config.get 'SENDGRID_PASSWORD' # this should be set manually by 'heroku config:add SENDGRID_PASSWORD=xyz123'
+				pass: $.config.get 'SENDGRID_PASSWORD'
 	closeTransport = ->
 		transport?.close()
 		transport = null
@@ -2403,7 +2398,6 @@ $.plugin
 	sortedInsert: (item, iterator) ->
 		@splice ($.sortedIndex @, item, iterator), 0, item
 		@
-		
 $.plugin
 	provides: "string"
 	depends: "function"
@@ -2467,8 +2461,9 @@ $.plugin
 						"[Error: #{err.message}]"
 			toRepr: (x) -> $.type.lookup(x).repr(x)
 			px: (x, delta=0) -> x? and (parseInt(x,10)+(parseInt(delta)|0))+"px"
-			capitalize: (name) -> (name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
-			slugize: (phrase, slug="-") ->
+			capitalize: (name) ->
+				(name.split(" ").map (x) -> x[0].toUpperCase() + x.substring(1).toLowerCase()).join(" ")
+			slugize: slugize = (phrase, slug="-") ->
 				phrase = switch $.type phrase
 					when 'null','undefined' then ""
 					when 'object' then ($.slugize(k,slug) + slug + $.slugize(v, slug) for k,v of phrase).join slug
@@ -2480,6 +2475,7 @@ $.plugin
 					.replace(/\t/g, ' ') \
 					.replace(/[^A-Za-z0-9. -]/g, '') \
 					.replace(/\s+/g,'-')
+			stubize: slugize
 			dashize: (name) ->
 				ret = ""
 				for i in [0...(name?.length|0)]
@@ -2537,7 +2533,6 @@ $.plugin
 				if start < 0
 					start += nn
 				s.substring(0,start) + n + s.substring(end)
-			
 			stringReverse: (s) -> s.split('').reverse().join('')
 			checksum: (s) ->
 				a = 1; b = 0
@@ -2560,7 +2555,7 @@ $.plugin
 						append:  (s) => items.push s; @length += len s
 						prepend: (s) => items.splice 0,0,s; @length += len s
 						clear:       => ret = @toString(); items = []; @length = 0; ret
-						toString:    => items.join("")
+						toString:    -> items.join("")
 		toString: -> $.toString @
 		toRepr: -> $.toRepr @
 		replace: (patt, repl) ->
@@ -2724,11 +2719,10 @@ $.plugin
 		else
 			current_engine = v
 	template.__defineGetter__ 'engine', -> current_engine
-	
 	template.register_engine 'null', do ->
 		return (text, values) ->
 			text
-	match_forward = (text, find, against, start, stop = -1) -> # a brace-matcher, useful in most template parsing steps
+	match_forward = (text, find, against, start, stop = -1) ->
 		count = 1
 		if stop < 0
 			stop = text.length + 1 + stop
@@ -2742,7 +2736,7 @@ $.plugin
 				return i
 		return -1
 	template.register_engine 'pythonic', do ->
-		type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/ # '%.2f' becomes [key, pad, fixed, type, remainder]
+		type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/
 		chunk_re = /%[\(\/]/
 		compile = (text) ->
 			chunks = text.split chunk_re
@@ -2803,7 +2797,6 @@ $.plugin
 				{ # 1: read anything
 				}
 			]
-			
 		return (text, values) ->
 			text
 	return $: { template }
@@ -2873,8 +2866,7 @@ $.plugin
 		"object":
 			symbol: "}"
 			pack: (o) ->
-					(packOne(k)+packOne(v) for k,v of o when k isnt "constructor" and o.hasOwnProperty(k)
-					).join ''
+				(packOne(k)+packOne(v) for k,v of o when k isnt "constructor" and o.hasOwnProperty(k)).join ''
 			unpack: (s) ->
 				data = {}
 				while s.length > 0
@@ -2912,7 +2904,7 @@ $.plugin
 				unless 'constructor' of o
 					throw new Error("TNET: cant pack non-class as class")
 				unless o.constructor of class_index
-					throw new Error("TNET: cant pack unregistered class (name: #{o.constructor.name}, text: #{o.constructor.toString()}")
+					throw new Error("TNET: cant pack unregistered class (name: #{o.constructor.name}")
 				packOne(class_index[o.constructor]) + packOne(o, "object")
 			unpack: (s) ->
 				[i, rest] = unpackOne(s)
@@ -2921,11 +2913,9 @@ $.plugin
 					obj.__proto__ = classes[i - 1].prototype
 				else throw new Error("TNET: attempt to unpack unregistered class index: #{i}")
 				obj
-	
 	makeFunction = (name, args, body) ->
 		eval("var f = function #{name}(#{args}){#{body}}")
 		return f
-	
 	classes = []
 	class_index = {}
 	register = (klass) ->
@@ -2965,15 +2955,24 @@ $.plugin
 , ->
 	$.type.extend
 		unknown: { trace: $.identity }
-		object:  { trace: (label, o, tracer) -> (o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o)); o }
-		array:   { trace: (label, o, tracer) -> (o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length] by 1); o }
+		object:  { trace: (label, o, tracer) ->
+			(o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o))
+			return o
+		}
+		array:   { trace: (label, o, tracer) ->
+			(o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length] by 1)
+			return o
+		}
 		function:
 			trace: (label, f, tracer) ->
 				label or= f.name
 				r = (a...) ->
 					start = +new Date
 					f.apply @, a
-					tracer "#{@name or $.type(@)}.#{label}(#{$(a).map($.toRepr).join ','}): #{(+new Date - start).toFixed 0}ms"
+					label = "#{@name or $.type(@)}.#{label}"
+					args = $(a).map($.toRepr).join ','
+					elapsed = (+new Date - start).toFixed 0
+					tracer "#{label}(#{args}): #{elapsed}ms"
 				r.toString = -> "{Trace '#{label}' of #{f.toString()}"
 				r
 	time = (label, f, logger) ->
@@ -2985,7 +2984,6 @@ $.plugin
 		ret = do f
 		logger "[#{label}] #{(+new Date - start).toFixed 0}ms"
 		return ret
-		
 	return $:
 		time: time
 		trace: (label, o, tracer) ->
@@ -3146,9 +3144,9 @@ $.plugin
 			a = (_with_cache[method] or= [])
 			if (i = a.indexOf type) is -1
 				a.push type
-			
 		register = (name, data) ->
-			unless 'is' of data then throw new Error("$.type.register given a second argument without an 'is' function")
+			unless 'is' of data
+				throw new Error("$.type.register given a second argument without an 'is' function")
 			order.unshift name if not (name of cache)
 			cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
 			cache[name][name] = (o) -> o
@@ -3175,7 +3173,7 @@ $.plugin
 		register "bool",      is: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
 		register "array",     is: Array.isArray or (o) -> isType Array, o
 		register "function",  is: (o) -> typeof o is "function"
-		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of @ # Use the same crude method as jQuery for detecting the window, not very safe but it does work in Node and the browser
+		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of @
 		register "arguments", is: (o) -> try 'callee' of o and 'length' of o
 		register "undefined", is: (x) -> x is undefined
 		register "null",      is: (x) -> x is null
@@ -3213,7 +3211,8 @@ $.plugin
 		as: _type.as
 		isDefined: (o) -> o?
 		isSimple: (o) -> _type(o) in ["string", "number", "bool"]
-		isEmpty: (o) -> o in ["", null, undefined] or o.length is 0 or (typeof o is "object" and Object.keys(o).length is 0)
+		isEmpty: (o) -> o in ["", null, undefined] \
+			or o.length is 0 or (typeof o is "object" and Object.keys(o).length is 0)
 	defineProperty: (name, opts) -> @each -> $.defineProperty @, name, opts
 $.plugin
 	depends: 'math'
@@ -3328,7 +3327,6 @@ $.plugin
 		is: (x) -> typeof x is "string" and UNIT_RE.test(x)
 		number: (x) -> parseFloat(x)
 		string: (x) -> "'#{x}'"
-	
 	{
 		$:
 			units:
@@ -3419,7 +3417,7 @@ $.plugin
 				left: $.px window.innerWidth
 			slide = $.extend $.dialog.getDefaultOptions(), slide
 			d.find('.title').append $.dialog.getContent slide.titleType, slide.title
-			d.find('.content').append $.dialog.getContent slide.contentType, slide.content
+			d.find('.content').append $.dialog.getContent slide.contentType,slide.content
 			d.appendTo(modal).fadeOut(0)
 		dialogs = modal.find('.dialog')
 		dialogs.take(1).show()

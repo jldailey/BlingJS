@@ -23,10 +23,11 @@ $.plugin
 
 	formats =
 		yyyy: Date::getUTCFullYear
-		YY: -> String(@getUTCFullYear()).substr(2)
-		yy: -> String(@getUTCFullYear()).substr(2)
+		YY: YY = -> String(@getUTCFullYear()).substr(2)
+		yy: YY
 		mm: -> @getUTCMonth() + 1
 		dd: Date::getUTCDate
+		dw: Date::getDay # day of the week, 1=monday
 		HH: Date::getUTCHours
 		MM: Date::getUTCMinutes
 		SS: Date::getUTCSeconds
@@ -52,7 +53,7 @@ $.plugin
 		number: (o, unit) -> $.date.stamp o, unit
 
 	$.type.extend 'string', date: (o, fmt = $.date.defaultFormat) -> new Date $.date.parse o, fmt, "ms"
-	$.type.extend 'number', date: (o, unit) -> $.date.unstamp o, unit
+	$.type.extend 'number', date: (o, unit = $.date.defaultUnit) -> $.date.unstamp o, unit
 
 	adder = (key) ->
 		(stamp, delta, stamp_unit = $.date.defaultUnit) ->

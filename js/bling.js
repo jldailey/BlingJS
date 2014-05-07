@@ -1690,12 +1690,12 @@
         return this.getUTCMonth() + 1;
       },
       dd: Date.prototype.getUTCDate,
-      dw: Date.prototype.getDay,
+      dw: Date.prototype.getUTCDay,
       dW: function() {
-        return shortDays[parseInt(this.getDay(), 10) - 1];
+        return shortDays[parseInt(this.getUTCDay(), 10) - 1];
       },
       DW: function() {
-        return longDays[parseInt(this.getDay(), 10) - 1];
+        return longDays[parseInt(this.getUTCDay(), 10) - 1];
       },
       HH: Date.prototype.getUTCHours,
       MM: Date.prototype.getUTCMinutes,

@@ -21,6 +21,9 @@ $.plugin
 		days: d
 	}
 
+	shortDays = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+	longDays = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+
 	formats =
 		yyyy: Date::getUTCFullYear
 		YY: YY = -> String(@getUTCFullYear()).substr(2)
@@ -28,6 +31,8 @@ $.plugin
 		mm: -> @getUTCMonth() + 1
 		dd: Date::getUTCDate
 		dw: Date::getDay # day of the week, 1=monday
+		dW: -> shortDays[parseInt(@getDay(), 10) - 1]
+		DW: -> longDays[parseInt(@getDay(), 10) - 1]
 		HH: Date::getUTCHours
 		MM: Date::getUTCMinutes
 		SS: Date::getUTCSeconds

@@ -151,11 +151,12 @@ $.plugin
 				fin.apply ret
 				return @
 			done = 0
-			finish_one = (index) -> ->
-				ret[index] = arguments
-				if ++done >= todo
-					fin.apply ret
-				else next(done)
+			finish_one = (index) ->
+				->
+					ret[index] = arguments # this typically captures [err, result]; but by convention only
+					if ++done >= todo then fin.apply ret
+					else next(done)
+					null
 			do next = (i=0) => $.immediate => @[i](finish_one(i))
 			return @
 		parallel: (fin = $.identity) ->
@@ -165,10 +166,11 @@ $.plugin
 				fin.apply ret
 				return @
 			done = 0
-			finish_one = (index) -> ->
+			finish_one = (index) -> -> # see the comments in .series, same approach used here for collating the output
 				ret[index] = arguments
 				if ++done >= todo
 					fin.apply ret
+				null
 			for i in [0...todo] by 1
 				@[i](finish_one(i))
 	}
@@ -768,12 +770,17 @@ $.plugin
 		day: d
 		days: d
 	}
+	shortDays = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+	longDays = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
 	formats =
 		yyyy: Date::getUTCFullYear
-		YY: -> String(@getUTCFullYear()).substr(2)
-		yy: -> String(@getUTCFullYear()).substr(2)
+		YY: YY = -> String(@getUTCFullYear()).substr(2)
+		yy: YY
 		mm: -> @getUTCMonth() + 1
 		dd: Date::getUTCDate
+		dw: Date::getDay # day of the week, 1=monday
+		dW: -> shortDays[parseInt(@getDay(), 10) - 1]
+		DW: -> longDays[parseInt(@getDay(), 10) - 1]
 		HH: Date::getUTCHours
 		MM: Date::getUTCMinutes
 		SS: Date::getUTCSeconds
@@ -795,7 +802,7 @@ $.plugin
 		string: (o, fmt, unit) -> $.date.format o, fmt, unit
 		number: (o, unit) -> $.date.stamp o, unit
 	$.type.extend 'string', date: (o, fmt = $.date.defaultFormat) -> new Date $.date.parse o, fmt, "ms"
-	$.type.extend 'number', date: (o, unit) -> $.date.unstamp o, unit
+	$.type.extend 'number', date: (o, unit = $.date.defaultUnit) -> $.date.unstamp o, unit
 	adder = (key) ->
 		(stamp, delta, stamp_unit = $.date.defaultUnit) ->
 			date = $.date.unstamp(stamp, stamp_unit)
@@ -1786,8 +1793,8 @@ $.plugin
 	lazy_load = (elementName, props) ->
 		ret = $.Promise()
 		document.head.appendChild elem = $.extend document.createElement(elementName), props,
-			onload: -> ret.finish elem
-			onerror: -> ret.fail.apply ret, arguments
+			onload: -> ret.resolve elem
+			onerror: -> ret.reject.apply ret, arguments
 		ret
 	$:
 		script: (src) ->
@@ -1960,34 +1967,36 @@ $.plugin
 			handler: (err, data) ->
 				if err then ret.reject(err) else ret.resolve(data)
 		}, $.EventEmitter(obj)
-		$.defineProperty ret, 'finished',
-			get: -> result isnt NoValue
-		$.defineProperty ret, 'failed',
-			get: -> err isnt NoValue
+		isFinished = -> result isnt NoValue
+		$.defineProperty ret, 'finished', get: isFinished
+		$.defineProperty ret, 'resolved', get: isFinished
+		isFailed = -> err isnt NoValue
+		$.defineProperty ret, 'failed',   get: isFailed
+		$.defineProperty ret, 'rejected', get: isFailed
 		ret.promiseId = $.random.string 6
 		return ret
 	Promise.compose = Promise.parallel = (promises...) ->
-		try p = $.Progress(promises.length + 1)
-		finally
-			$(promises).select('wait').call (err, data) ->
-				if err then p.fail(err) else p.finish 1
-			p.finish 1
+		p = $.Progress(1 + promises.length)
+		$(promises).select('wait').call (err, data) ->
+			if err then p.reject(err) else p.resolve 1
+		p.resolve 1
+		return p
 	Promise.collect = (promises) ->
 		ret = []
-		unless promises? then return $.Promise().finish(ret)
 		p = $.Promise()
+		unless promises? then return p.resolve(ret)
 		q = $.Progress(1 + promises.length)
 		for promise, i in promises then do (i) ->
 			promise.wait (err, result) ->
 				ret[i] = err ? result
-				q.finish(1)
-		q.then -> p.finish(ret)
-		q.finish(1)
+				q.resolve(1)
+		q.then -> p.resolve(ret)
+		q.resolve(1)
 		p
 	Promise.wrapCall = (f, args...) ->
 		try p = $.Promise()
 		finally # the last argument to f will be a callback that finishes the promise
-			args.push (err, result) -> if err then p.fail(err) else p.finish(result)
+			args.push (err, result) -> if err then p.reject(err) else p.resolve(result)
 			$.immediate -> f args...
 	Progress = (max = 1.0) ->
 		cur = 0.0
@@ -1998,7 +2007,7 @@ $.plugin
 				max = (args[1] ? max) if args.length > 1
 				item = if args.length > 2 then args[2] else max
 				if cur >= max
-					@__proto__.__proto__.finish(item)
+					@__proto__.__proto__.resolve(item)
 				@emit 'progress', cur, max, item
 				@
 			finish: (delta) ->
@@ -2006,6 +2015,7 @@ $.plugin
 				unless isFinite(delta)
 					delta = 1
 				@progress cur + delta, max, item
+			resolve: (delta) -> @finish delta
 			include: (promise) ->
 				@progress cur, max + 1
 				promise.wait (err) =>
@@ -2017,15 +2027,15 @@ $.plugin
 		finally xhr.onreadystatechange = ->
 			if @readyState is @DONE
 				if @status is 200
-					p.finish xhr.responseText
+					p.resolve xhr.responseText
 				else
-					p.fail "#{@status} #{@statusText}"
+					p.resolve "#{@status} #{@statusText}"
 	$.depend 'dom', ->
 		Promise.image = (src) ->
 			try p = $.Promise()
 			finally $.extend image = new Image(),
-				onerror: (e) -> p.fail e
-				onload: -> p.finish image
+				onerror: (e) -> p.resolve e
+				onload: -> p.resolve image
 				src: src
 	$.depend 'type', ->
 		$.type.register 'promise', is: (o) ->
@@ -2235,12 +2245,12 @@ $.plugin
 	log = $.logger "[render]"
 	consume_forever = (promise, opts, p = $.Promise()) ->
 		unless $.is "promise", promise
-			return $.Promise().finish(reduce promise, opts)
+			return $.Promise().resolve(reduce promise, opts)
 		promise.wait (err, result) ->
 			r = reduce result, opts
 			if $.is 'promise', r
 				consume_forever r, opts, p
-			else p.finish(r)
+			else p.resolve(r)
 		p
 	render = (o, opts = {}) ->
 		consume_forever r = (reduce [ o ], opts), opts
@@ -2255,18 +2265,18 @@ $.plugin
 			when "promise"
 				q = $.Promise()
 				o.wait finish_q = (err, result) ->
-					return q.fail(err) if err
+					return q.reject(err) if err
 					if $.is 'promise', r = reduce result, opts
 						r.wait finish_q
 					else
-						q.finish r
+						q.resolve r
 				q
 			when "number" then String(o)
 			when "array", "bling"
 				p = $.Progress m = 1 # always start with one step (creation)
 				q = $.Promise() # use a summary promise for public view
 				p.wait (err, result) ->
-					if err then q.fail(err) else q.finish(finalize n, opts)
+					if err then q.reject(err) else q.resolve(finalize n, opts)
 				n = []
 				has_promises = false
 				for x, i in o then do (x,i) ->
@@ -2275,13 +2285,13 @@ $.plugin
 						has_promises = true
 						p.progress null, ++m
 						y.wait finish_p = (err, result) -> # recursive promise trampoline
-							return p.fail(err) if err
+							return p.reject(err) if err
 							rp = reduce result, opts
 							if $.is 'promise', rp
 								rp.wait finish_p
 							else
-								p.finish n[i] = rp
-				p.finish(1) # creation is complete
+								p.resolve n[i] = rp
+				p.resolve(1) # creation is complete
 				if has_promises then q
 				else finalize n
 			when "function" then switch f.length

@@ -770,12 +770,17 @@ $.plugin
 		day: d
 		days: d
 	}
+	shortDays = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+	longDays = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
 	formats =
 		yyyy: Date::getUTCFullYear
-		YY: -> String(@getUTCFullYear()).substr(2)
-		yy: -> String(@getUTCFullYear()).substr(2)
+		YY: YY = -> String(@getUTCFullYear()).substr(2)
+		yy: YY
 		mm: -> @getUTCMonth() + 1
 		dd: Date::getUTCDate
+		dw: Date::getDay # day of the week, 1=monday
+		dW: -> shortDays[parseInt(@getDay(), 10) - 1]
+		DW: -> longDays[parseInt(@getDay(), 10) - 1]
 		HH: Date::getUTCHours
 		MM: Date::getUTCMinutes
 		SS: Date::getUTCSeconds
@@ -797,7 +802,7 @@ $.plugin
 		string: (o, fmt, unit) -> $.date.format o, fmt, unit
 		number: (o, unit) -> $.date.stamp o, unit
 	$.type.extend 'string', date: (o, fmt = $.date.defaultFormat) -> new Date $.date.parse o, fmt, "ms"
-	$.type.extend 'number', date: (o, unit) -> $.date.unstamp o, unit
+	$.type.extend 'number', date: (o, unit = $.date.defaultUnit) -> $.date.unstamp o, unit
 	adder = (key) ->
 		(stamp, delta, stamp_unit = $.date.defaultUnit) ->
 			date = $.date.unstamp(stamp, stamp_unit)
@@ -1971,15 +1976,15 @@ $.plugin
 		ret.promiseId = $.random.string 6
 		return ret
 	Promise.compose = Promise.parallel = (promises...) ->
-		try p = $.Progress(promises.length + 1)
-		finally
-			$(promises).select('wait').call (err, data) ->
-				if err then p.reject(err) else p.resolve 1
-			p.resolve 1
+		p = $.Progress(1 + promises.length)
+		$(promises).select('wait').call (err, data) ->
+			if err then p.reject(err) else p.resolve 1
+		p.resolve 1
+		return p
 	Promise.collect = (promises) ->
 		ret = []
-		unless promises? then return $.Promise().resolve(ret)
 		p = $.Promise()
+		unless promises? then return p.resolve(ret)
 		q = $.Progress(1 + promises.length)
 		for promise, i in promises then do (i) ->
 			promise.wait (err, result) ->

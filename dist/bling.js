@@ -1658,7 +1658,7 @@
     provides: 'date',
     depends: 'type'
   }, function() {
-    var adder, d, floor, format_keys, formats, h, m, ms, parser_keys, parsers, s, units, _ref;
+    var YY, adder, d, floor, format_keys, formats, h, longDays, m, ms, parser_keys, parsers, s, shortDays, units, _ref;
     _ref = [1, 1000, 1000 * 60, 1000 * 60 * 60, 1000 * 60 * 60 * 24], ms = _ref[0], s = _ref[1], m = _ref[2], h = _ref[3], d = _ref[4];
     units = {
       ms: ms,
@@ -1678,18 +1678,25 @@
       day: d,
       days: d
     };
+    shortDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    longDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     formats = {
       yyyy: Date.prototype.getUTCFullYear,
-      YY: function() {
+      YY: YY = function() {
         return String(this.getUTCFullYear()).substr(2);
       },
-      yy: function() {
-        return String(this.getUTCFullYear()).substr(2);
-      },
+      yy: YY,
       mm: function() {
         return this.getUTCMonth() + 1;
       },
       dd: Date.prototype.getUTCDate,
+      dw: Date.prototype.getDay,
+      dW: function() {
+        return shortDays[parseInt(this.getDay(), 10) - 1];
+      },
+      DW: function() {
+        return longDays[parseInt(this.getDay(), 10) - 1];
+      },
       HH: Date.prototype.getUTCHours,
       MM: Date.prototype.getUTCMinutes,
       SS: Date.prototype.getUTCSeconds,
@@ -1733,6 +1740,9 @@
     });
     $.type.extend('number', {
       date: function(o, unit) {
+        if (unit == null) {
+          unit = $.date.defaultUnit;
+        }
         return $.date.unstamp(o, unit);
       }
     });
@@ -4162,26 +4172,24 @@
     Promise.compose = Promise.parallel = function() {
       var p, promises;
       promises = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-      try {
-        return p = $.Progress(promises.length + 1);
-      } finally {
-        $(promises).select('wait').call(function(err, data) {
-          if (err) {
-            return p.reject(err);
-          } else {
-            return p.resolve(1);
-          }
-        });
-        p.resolve(1);
-      }
+      p = $.Progress(1 + promises.length);
+      $(promises).select('wait').call(function(err, data) {
+        if (err) {
+          return p.reject(err);
+        } else {
+          return p.resolve(1);
+        }
+      });
+      p.resolve(1);
+      return p;
     };
     Promise.collect = function(promises) {
       var i, p, promise, q, ret, _fn, _i, _len;
       ret = [];
-      if (promises == null) {
-        return $.Promise().resolve(ret);
-      }
       p = $.Promise();
+      if (promises == null) {
+        return p.resolve(ret);
+      }
       q = $.Progress(1 + promises.length);
       _fn = function(i) {
         return promise.wait(function(err, result) {

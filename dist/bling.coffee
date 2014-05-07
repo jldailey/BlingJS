@@ -778,9 +778,9 @@ $.plugin
 		yy: YY
 		mm: -> @getUTCMonth() + 1
 		dd: Date::getUTCDate
-		dw: Date::getDay # day of the week, 1=monday
-		dW: -> shortDays[parseInt(@getDay(), 10) - 1]
-		DW: -> longDays[parseInt(@getDay(), 10) - 1]
+		dw: Date::getUTCDay # day of the week, 1=monday
+		dW: -> shortDays[parseInt(@getUTCDay(), 10) - 1]
+		DW: -> longDays[parseInt(@getUTCDay(), 10) - 1]
 		HH: Date::getUTCHours
 		MM: Date::getUTCMinutes
 		SS: Date::getUTCSeconds

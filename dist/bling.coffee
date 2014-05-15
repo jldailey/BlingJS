@@ -644,7 +644,7 @@ $.plugin
 		flatten: ->
 			b = $()
 			for item, i in @
-				if ($.is 'array', item) or ($.is 'bling', item) or ($.is 'arguments', item)
+				if ($.is 'array', item) or ($.is 'bling', item) or ($.is 'arguments', item) or ($.is 'nodelist', item)
 					for j in item then b.push(j)
 				else b.push(item)
 			b
@@ -1164,7 +1164,7 @@ if $.global.document?
 								@removeChild @childNodes[1]
 			append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
 				x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
-				@each -> @appendChild x.cloneNode true
+				@each (n) -> n?.appendChild? x.cloneNode true
 			appendText: (text) ->
 				node = document.createTextNode(text)
 				@each -> @appendChild node.cloneNode true
@@ -3426,9 +3426,9 @@ $.plugin
 		if $("style.dialog").length is 0
 			$.synth("style").text
 		for slide in slides.slice(1)
-			d = $.synth('div.dialog div.title + div.content').css
-				left: $.px window.innerWidth
 			slide = $.extend $.dialog.getDefaultOptions(), slide
+			d = $.synth('div.dialog#'+slide.id+' div.title + div.content').css
+				left: $.px window.innerWidth
 			d.find('.title').append $.dialog.getContent slide.titleType, slide.title
 			d.find('.content').append $.dialog.getContent slide.contentType,slide.content
 			d.appendTo(modal).fadeOut(0)

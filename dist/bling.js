@@ -1446,7 +1446,7 @@
         b = $();
         for (i = _i = 0, _len = this.length; _i < _len; i = ++_i) {
           item = this[i];
-          if (($.is('array', item)) || ($.is('bling', item)) || ($.is('arguments', item))) {
+          if (($.is('array', item)) || ($.is('bling', item)) || ($.is('arguments', item)) || ($.is('nodelist', item))) {
             for (_j = 0, _len1 = item.length; _j < _len1; _j++) {
               j = item[_j];
               b.push(j);
@@ -2544,8 +2544,8 @@
         },
         append: function(x) {
           x = toNode(x);
-          return this.each(function() {
-            return this.appendChild(x.cloneNode(true));
+          return this.each(function(n) {
+            return n != null ? typeof n.appendChild === "function" ? n.appendChild(x.cloneNode(true)) : void 0 : void 0;
           });
         },
         appendText: function(text) {
@@ -7049,10 +7049,10 @@
           _ref1 = slides.slice(1);
           for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
             slide = _ref1[_i];
-            d = $.synth('div.dialog div.title + div.content').css({
+            slide = $.extend($.dialog.getDefaultOptions(), slide);
+            d = $.synth('div.dialog#' + slide.id + ' div.title + div.content').css({
               left: $.px(window.innerWidth)
             });
-            slide = $.extend($.dialog.getDefaultOptions(), slide);
             d.find('.title').append($.dialog.getContent(slide.titleType, slide.title));
             d.find('.content').append($.dialog.getContent(slide.contentType, slide.content));
             d.appendTo(modal).fadeOut(0);

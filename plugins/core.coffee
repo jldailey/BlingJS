@@ -335,7 +335,7 @@ $.plugin
 		flatten: ->
 			b = $()
 			for item, i in @
-				if ($.is 'array', item) or ($.is 'bling', item) or ($.is 'arguments', item)
+				if ($.is 'array', item) or ($.is 'bling', item) or ($.is 'arguments', item) or ($.is 'nodelist', item)
 					for j in item then b.push(j)
 				else b.push(item)
 			b

@@ -122,7 +122,7 @@ if $.global.document?
 
 			append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
 				x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
-				@each -> @appendChild x.cloneNode true
+				@each (n) -> n?.appendChild? x.cloneNode true
 
 			appendText: (text) ->
 				node = document.createTextNode(text)

@@ -36,9 +36,9 @@ $.plugin
 		if $("style.dialog").length is 0
 			$.synth("style").text
 		for slide in slides.slice(1)
-			d = $.synth('div.dialog div.title + div.content').css
-				left: $.px window.innerWidth
 			slide = $.extend $.dialog.getDefaultOptions(), slide
+			d = $.synth('div.dialog#'+slide.id+' div.title + div.content').css
+				left: $.px window.innerWidth
 			d.find('.title').append $.dialog.getContent slide.titleType, slide.title
 			d.find('.content').append $.dialog.getContent slide.contentType,slide.content
 			d.appendTo(modal).fadeOut(0)

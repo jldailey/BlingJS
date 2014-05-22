@@ -1950,8 +1950,6 @@
                 if ((i = this.indexOf(f)) > -1) {
                   this.splice(i, 1);
                   clearTimeout(f.timeout);
-                } else {
-                  $.log("Warning: attempted to cancel a delay that wasn't waiting:", f);
                 }
                 return this;
               }
@@ -1959,30 +1957,45 @@
           })());
           return function(n, f) {
             var b, k, v;
-            if ($.is('object', n)) {
-              b = $((function() {
-                var _results;
-                _results = [];
-                for (k in n) {
-                  v = n[k];
-                  _results.push($.delay(k, v));
-                }
-                return _results;
-              })()).select('cancel');
-              return {
-                cancel: function() {
-                  return b.call();
-                }
-              };
-            } else if ($.is('function', f)) {
-              timeoutQueue.add(f, parseInt(n, 10));
-              return {
-                cancel: function() {
-                  return timeoutQueue.cancel(f);
-                }
-              };
-            } else {
-              return $.log("Warning: bad arguments to $.delay (expected: int,function given: " + ($.type(n)) + "," + ($.type(f)) + ")");
+            switch (false) {
+              case !$.is('object', n):
+                b = $((function() {
+                  var _results;
+                  _results = [];
+                  for (k in n) {
+                    v = n[k];
+                    _results.push($.delay(k, v));
+                  }
+                  return _results;
+                })());
+                return {
+                  cancel: function() {
+                    return b.select('cancel').call();
+                  },
+                  unref: function() {
+                    return b.select('unref').call();
+                  },
+                  ref: function() {
+                    return b.select('ref').call();
+                  }
+                };
+              case !$.is('function', f):
+                timeoutQueue.add(f, parseInt(n, 10));
+                return {
+                  cancel: function() {
+                    return timeoutQueue.cancel(f);
+                  },
+                  unref: function(f) {
+                    var _ref;
+                    return (_ref = f.timeout) != null ? _ref.unref() : void 0;
+                  },
+                  ref: function(f) {
+                    var _ref;
+                    return (_ref = f.timeout) != null ? _ref.ref() : void 0;
+                  }
+                };
+              default:
+                throw new Error("Bad arguments to $.delay (expected: int,function given: " + ($.type(n)) + "," + ($.type(f)) + ")");
             }
           };
         })(),
@@ -2024,7 +2037,7 @@
         }
       },
       delay: function(n, f) {
-        $.delay(n, f);
+        $.delay(n, $.bind(this, f));
         return this;
       }
     };
@@ -4014,49 +4027,65 @@
     provides: "promise"
   }, function() {
     var NoValue, Progress, Promise;
-    NoValue = function() {};
+    NoValue = (function() {
+      function NoValue() {}
+
+      return NoValue;
+
+    })();
     Promise = function(obj) {
-      var consume_all, end, err, isFailed, isFinished, result, ret, waiting;
+      var consume_all, consume_one, end, err, isFailed, isFinished, result, ret, waiting;
       if (obj == null) {
         obj = {};
       }
-      waiting = $();
+      waiting = new Array();
       err = result = NoValue;
       consume_all = function(e, v) {
-        var w, _e, _ref, _results;
-        _results = [];
+        var w;
         while (w = waiting.shift()) {
-          if ((_ref = w.timeout) != null) {
-            _ref.cancel();
-          }
+          consume_one(w, e, v);
+        }
+        return null;
+      };
+      consume_one = function(cb, e, v) {
+        var __e, _e, _ref;
+        if ((_ref = cb.timeout) != null) {
+          _ref.cancel();
+        }
+        try {
+          cb(e, v);
+        } catch (_error) {
+          _e = _error;
           try {
-            _results.push(w(e, v));
+            cb(_e, null);
           } catch (_error) {
-            _e = _error;
-            _results.push(w(_e, null));
+            __e = _error;
+            $.log("Fatal error in promise callback:", __e != null ? __e.stack : void 0, "caused by:", _e != null ? _e.stack : void 0);
           }
         }
-        return _results;
+        return null;
       };
       end = (function(_this) {
         return function(error, value) {
           if ((err === result && result === NoValue)) {
-            if (value === _this) {
-              throw new TypeError("cant resolve a promise with itself");
-            }
-            if ($.is('promise', value)) {
-              value.wait(function(e, v) {
-                return end(e, v);
-              });
-              return _this;
-            }
             if (error !== NoValue) {
-              consume_all(error, null);
+              err = error;
             } else if (value !== NoValue) {
-              consume_all(null, value);
+              result = value;
             }
-            err = error;
-            result = value;
+            switch (false) {
+              case value !== _this:
+                return end(new TypeError("cant resolve a promise with itself"));
+              case !$.is('promise', value):
+                value.wait(end);
+                return _this;
+                break;
+              case error === NoValue:
+                consume_all(error, null);
+                break;
+              case value === NoValue:
+                consume_all(null, value);
+            }
           }
           return _this;
         };
@@ -4065,37 +4094,15 @@
         wait: function(timeout, cb) {
           var _ref;
           if ($.is('function', timeout)) {
-            _ref = [timeout, void 0], cb = _ref[0], timeout = _ref[1];
+            _ref = [timeout, Infinity], cb = _ref[0], timeout = _ref[1];
           }
           if (err !== NoValue) {
-            $.delay(0, function() {
-              var __err, _err, _ref1;
-              try {
-                return cb(err, null);
-              } catch (_error) {
-                _err = _error;
-                try {
-                  return cb(_err, null);
-                } catch (_error) {
-                  __err = _error;
-                  return $.log("Fatal error in Promise callback:", (_ref1 = _err.stack) != null ? _ref1 : String(_err));
-                }
-              }
+            $.immediate(function() {
+              return consume_one(cb, err, null);
             });
           } else if (result !== NoValue) {
-            $.delay(0, function() {
-              var __err, _err, _ref1;
-              try {
-                return cb(null, result);
-              } catch (_error) {
-                _err = _error;
-                try {
-                  return cb(_err, null);
-                } catch (_error) {
-                  __err = _error;
-                  return $.log("Fatal error in Promise callback:", (_ref1 = _err.stack) != null ? _ref1 : String(_err));
-                }
-              }
+            $.immediate(function() {
+              return consume_one(cb, null, result);
             });
           } else {
             waiting.push(cb);
@@ -4104,7 +4111,7 @@
                 var i;
                 if ((i = waiting.indexOf(cb)) > -1) {
                   waiting.splice(i, 1);
-                  return cb('timeout', null);
+                  return consume_one(cb, err = 'timeout', void 0);
                 }
               });
             }
@@ -4146,6 +4153,19 @@
           } else {
             return ret.resolve(data);
           }
+        },
+        toString: function() {
+          ("Promise[" + this.promiseId + "](") + (function() {
+            switch (false) {
+              case result === NoValue:
+                return "resolved";
+              case err === NoValue:
+                return "rejected";
+              default:
+                return "pending";
+            }
+          })();
+          return +")";
         }
       }, $.EventEmitter(obj));
       isFinished = function() {
@@ -4180,8 +4200,7 @@
           return p.resolve(1);
         }
       });
-      p.resolve(1);
-      return p;
+      return p.resolve(1);
     };
     Promise.collect = function(promises) {
       var i, p, promise, q, ret, _fn, _i, _len;
@@ -4249,7 +4268,7 @@
           this.emit('progress', cur, max, item);
           return this;
         },
-        finish: function(delta) {
+        resolve: function(delta) {
           var item;
           item = delta;
           if (!isFinite(delta)) {
@@ -4257,17 +4276,18 @@
           }
           return this.progress(cur + delta, max, item);
         },
-        resolve: function(delta) {
-          return this.finish(delta);
+        finish: function(delta) {
+          return this.resolve(delta);
         },
         include: function(promise) {
           this.progress(cur, max + 1);
           return promise.wait((function(_this) {
             return function(err) {
               if (err) {
-                return _this.fail(err);
+                return _this.reject(err);
+              } else {
+                return _this.resolve(1);
               }
-              return _this.finish(1);
             };
           })(this));
         }

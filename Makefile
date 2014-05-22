@@ -10,9 +10,9 @@ MOCHA_FMT=spec
 MOCHA_OPTS=--compilers coffee:coffee-script/register --globals document,window,Bling,$$,_ -R ${MOCHA_FMT} -s 500 --bail
 WATCH="coffee watch.coffee"
 
-TEST_FILES=$(shell ls test/*.coffee | grep -v setup.coffee | sort )
-PASS_FILES=$(subst .coffee,.coffee.pass,$(shell ls test/*.coffee | grep -v setup.coffee | sort ))
-TIME_FILES=$(subst .coffee,.coffee.time,$(shell ls bench/*.coffee | grep -v setup.coffee | sort ))
+TEST_FILES=$(shell ls test/*.coffee | grep -v setup.coffee | sort -f )
+PASS_FILES=$(subst .coffee,.coffee.pass,$(shell ls test/*.coffee | grep -v setup.coffee | sort -f ))
+TIME_FILES=$(subst .coffee,.coffee.time,$(shell ls bench/*.coffee | grep -v setup.coffee | sort -f ))
 
 
 all: dist report
@@ -66,7 +66,7 @@ $(DIST)/%.js: $(DIST)/%.coffee $(COFFEE)
 	@echo Compiling $< to $@...
 	@(cd $(DIST) && ../$(COFFEE) -cm $(subst $(DIST)/,,$<))
 
-$(DIST)/bling.coffee: bling.coffee $(shell ls $(PLUGINS)/*.coffee | sort)
+$(DIST)/bling.coffee: bling.coffee $(shell ls $(PLUGINS)/*.coffee | sort -f)
 	@echo Packing plugins into $@...
 	@cat $^ | sed -E 's/^	*#.*$$//g' | grep -v '^ *$$' > $@
 
@@ -100,6 +100,5 @@ $(COFFEE):
 
 $(JLDOM):
 	npm install jldom
-
 
 .PHONY: all bling clean dist site test

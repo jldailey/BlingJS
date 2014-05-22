@@ -66,8 +66,9 @@ describe "$.Promise()", ->
 			assert.equal count, 2 # if it's 1 then the second waiter never fired
 			# if it's 3 then the first waiter fired twice
 	describe "status flags", ->
-		it "resolved", ->
+		it ".resolved is false at first", ->
 			assert.equal $.Promise().resolved, false
+		it ".resolved is true after .resolve()", ->
 			assert.equal $.Promise().resolve().resolved, true
 		it "rejected", ->
 			assert.equal $.Promise().rejected, false
@@ -140,7 +141,6 @@ describe "$.Promise()", ->
 			p.wait (err) ->
 				assert (err?)
 				done()
-
 
 describe "$.Progress", ->
 	it "is a Promise", ->

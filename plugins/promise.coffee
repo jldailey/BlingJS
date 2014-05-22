@@ -3,64 +3,55 @@ $.plugin
 	depends: "core,function"
 	provides: "promise"
 , ->
-	NoValue = -> # a totem
+	class NoValue # a named totem
 	Promise = (obj = {}) ->
-		waiting = $()
+		waiting = new Array()
 		err = result = NoValue
 		consume_all = (e, v) ->
 			while w = waiting.shift()
-				w.timeout?.cancel()
-				try w e, v
-				catch _e then w _e, null
+				consume_one w, e, v
+			null
+		consume_one = (cb, e, v) ->
+			cb.timeout?.cancel()
+			try cb e, v
+			catch _e
+				try cb _e, null
+				catch __e
+					$.log "Fatal error in promise callback:", __e?.stack, "caused by:", _e?.stack
+			null
+
 		end = (error, value) =>
 			if err is result is NoValue
-
-				# fatal error: passing a promise to it's own resolver
-				if value is @
-					throw new TypeError("cant resolve a promise with itself")
-
-				# you can resolve one promise with another:
-				if $.is 'promise', value
-					value.wait (e, v) -> end e, v
-					return @
-
-				# every waiting callback gets consumed and called
 				if error isnt NoValue
-					consume_all error, null
+					err = error
 				else if value isnt NoValue
-					consume_all null, value
-
-				# save the results
-				err = error
-				result = value
+					result = value
+				switch
+					# fatal error: passing a promise to it's own resolver
+					when value is @ then return end new TypeError "cant resolve a promise with itself"
+					# but, you can resolve one promise with another:
+					when $.is 'promise', value then (value.wait end; return @)
+					# every waiting callback gets consumed and called
+					when error isnt NoValue then consume_all error, null
+					when value isnt NoValue then consume_all null, value
 
 			return @
 
 		ret = $.inherit {
 			wait: (timeout, cb) -> # .wait([timeout], callback) ->
 				if $.is 'function', timeout
-					[cb, timeout] = [timeout, undefined]
+					[cb, timeout] = [timeout, Infinity]
 				if err isnt NoValue
-					$.delay 0, ->
-						try cb err, null
-						catch _err
-							try cb _err, null
-							catch __err
-								$.log "Fatal error in Promise callback:", _err.stack ? String(_err)
+					$.immediate -> consume_one cb, err, null
 				else if result isnt NoValue
-					$.delay 0, ->
-						try cb null, result
-						catch _err
-							try cb _err, null
-							catch __err
-								$.log "Fatal error in Promise callback:", _err.stack ? String(_err)
+					$.immediate -> consume_one cb, null, result
 				else # this promise hasn't been resolved OR rejected yet
-					waiting.push cb
+					waiting.push cb # so save this callback for later
 					if isFinite parseFloat timeout
 						cb.timeout = $.delay timeout, ->
 							if (i = waiting.indexOf cb) > -1
 								waiting.splice i, 1
-								cb 'timeout', null
+								consume_one cb, err = 'timeout', undefined
 				@
 			then: (f, e) -> @wait (err, x) ->
 				if err then e?(err)
@@ -69,9 +60,16 @@ $.plugin
 			resolve: (value) -> end NoValue, value; @
 			fail:    (error) -> end error, NoValue; @
 			reject:  (error) -> end error, NoValue; @
-			reset:           -> err = result = NoValue; @
+			reset:           -> err = result = NoValue; @ # blasphemy!
 			handler: (err, data) ->
+				# use 'ret' here instead of '@' to prevent binding issues later
 				if err then ret.reject(err) else ret.resolve(data)
+			toString: ->
+				"Promise[#{@promiseId}](" + switch
+					when result isnt NoValue then "resolved"
+					when err isnt NoValue then "rejected"
+					else "pending"
+				+ ")"
 		}, $.EventEmitter(obj)
 
 		isFinished = -> result isnt NoValue
@@ -92,7 +90,6 @@ $.plugin
 		$(promises).select('wait').call (err, data) ->
 			if err then p.reject(err) else p.resolve 1
 		p.resolve 1
-		return p
 
 	Promise.collect = (promises) ->
 		ret = []
@@ -129,18 +126,18 @@ $.plugin
 					@__proto__.__proto__.resolve(item)
 				@emit 'progress', cur, max, item
 				@
-			finish: (delta) ->
+			resolve: (delta) ->
 				item = delta
 				unless isFinite(delta)
 					delta = 1
 				@progress cur + delta, max, item
-			resolve: (delta) -> @finish delta
+			finish: (delta) -> @resolve delta
 
 			include: (promise) ->
 				@progress cur, max + 1
 				promise.wait (err) =>
-					return @fail(err) if err
-					@finish(1)
+					if err then @reject err
+					else @resolve 1
 		}, p = Promise()
 
 	# Helper for wrapping an XHR object in a Promise

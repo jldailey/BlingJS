@@ -38,14 +38,22 @@ $.plugin
 			# intentionally.  Throughout this library, the convention is
 			# to put the simple things first, to improve code flow:
 			# > `$.delay 5, ->` is better than `$.delay (->), 5`
-			(n, f) ->
-				if $.is 'object', n
-					b = $($.delay(k,v) for k,v of n).select('cancel')
-					cancel: -> b.call()
-				else if $.is('function', f)
+			(n, f) -> switch
+				when $.is 'object', n
+					b = $($.delay(k,v) for k,v of n)
+					{
+						cancel: -> b.select('cancel').call()
+						unref: -> b.select('unref').call()
+						ref: -> b.select('ref').call()
+					}
+				when $.is 'function', f
 					timeoutQueue.add f, parseInt(n,10)
-					cancel: -> timeoutQueue.cancel(f)
-				else $.log "Warning: bad arguments to $.delay (expected: int,function given: #{$.type n},#{$.type f})"
+					{
+						cancel: -> timeoutQueue.cancel(f)
+						unref: (f) -> f.timeout?.unref()
+						ref: (f) -> f.timeout?.ref()
+					}
+				else throw new Error "Bad arguments to $.delay (expected: int,function given: #{$.type n},#{$.type f})"
 
 		immediate: do -> switch
 			when 'setImmediate' of $.global then $.global.setImmediate
@@ -60,9 +68,8 @@ $.plugin
 				pause: (p=true) -> paused = p
 				resume: (p=true) -> paused = not p
 
-
 	# Continue with _f_ after _n_ milliseconds.
 	delay: (n, f) ->
-		$.delay n, f
+		$.delay n, $.bind @, f
 		@
 

@@ -7,7 +7,7 @@ COFFEE=node_modules/.bin/coffee
 JLDOM=node_modules/jldom
 MOCHA=node_modules/.bin/mocha
 MOCHA_FMT=spec
-MOCHA_OPTS=--compilers coffee:coffee-script/register --globals document,window,Bling,$$,_ -R ${MOCHA_FMT} -s 500
+MOCHA_OPTS=--compilers coffee:coffee-script/register --globals document,window,Bling,$$,_ -R ${MOCHA_FMT} -s 500 --bail
 WATCH="coffee watch.coffee"
 
 TEST_FILES=$(shell ls test/*.coffee | grep -v setup.coffee | sort )

@@ -31,7 +31,6 @@ $.plugin
 					if (i = @indexOf f) > -1
 						@splice i, 1
 						clearTimeout f.timeout
-					else $.log "Warning: attempted to cancel a delay that wasn't waiting:", f
 					@
 
 			# Note that this reverses the order of _n_ and _f_

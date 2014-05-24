@@ -38,6 +38,7 @@ $.plugin
 			return @
 
 		ret = $.inherit {
+			promiseId: $.random.string 6
 			wait: (timeout, cb) -> # .wait([timeout], callback) ->
 				if $.is 'function', timeout
 					[cb, timeout] = [timeout, Infinity]
@@ -64,13 +65,13 @@ $.plugin
 			handler: (err, data) ->
 				# use 'ret' here instead of '@' to prevent binding issues later
 				if err then ret.reject(err) else ret.resolve(data)
-			toString: ->
-				"Promise[#{@promiseId}](" + switch
-					when result isnt NoValue then "resolved"
-					when err isnt NoValue then "rejected"
-					else "pending"
-				+ ")"
+			inspect: -> "{Promise[#{@promiseId}] #{getState()}}"
 		}, $.EventEmitter(obj)
+
+		getState = -> switch
+			when result isnt NoValue then "resolved"
+			when err isnt NoValue then "rejected"
+			else "pending"
 
 		isFinished = -> result isnt NoValue
 		$.defineProperty ret, 'finished', get: isFinished
@@ -79,8 +80,6 @@ $.plugin
 		isFailed = -> err isnt NoValue
 		$.defineProperty ret, 'failed',   get: isFailed
 		$.defineProperty ret, 'rejected', get: isFailed
-
-		ret.promiseId = $.random.string 6
 
 		return ret
 
@@ -138,7 +137,9 @@ $.plugin
 				promise.wait (err) =>
 					if err then @reject err
 					else @resolve 1
-		}, p = Promise()
+
+			inspect: -> "{Progress[#{@promiseId}] #{cur}/#{max}}"
+		}, Promise()
 
 	# Helper for wrapping an XHR object in a Promise
 	Promise.xhr = (xhr) ->

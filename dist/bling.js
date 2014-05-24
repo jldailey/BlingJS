@@ -3937,7 +3937,7 @@
 
     })();
     Promise = function(obj) {
-      var consume_all, consume_one, end, err, isFailed, isFinished, result, ret, waiting;
+      var consume_all, consume_one, end, err, getState, isFailed, isFinished, result, ret, waiting;
       if (obj == null) {
         obj = {};
       }
@@ -3994,6 +3994,7 @@
         };
       })(this);
       ret = $.inherit({
+        promiseId: $.random.string(6),
         wait: function(timeout, cb) {
           var _ref;
           if ($.is('function', timeout)) {
@@ -4057,20 +4058,20 @@
             return ret.resolve(data);
           }
         },
-        toString: function() {
-          ("Promise[" + this.promiseId + "](") + (function() {
-            switch (false) {
-              case result === NoValue:
-                return "resolved";
-              case err === NoValue:
-                return "rejected";
-              default:
-                return "pending";
-            }
-          })();
-          return +")";
+        inspect: function() {
+          return "{Promise[" + this.promiseId + "] " + (getState()) + "}";
         }
       }, $.EventEmitter(obj));
+      getState = function() {
+        switch (false) {
+          case result === NoValue:
+            return "resolved";
+          case err === NoValue:
+            return "rejected";
+          default:
+            return "pending";
+        }
+      };
       isFinished = function() {
         return result !== NoValue;
       };
@@ -4089,7 +4090,6 @@
       $.defineProperty(ret, 'rejected', {
         get: isFailed
       });
-      ret.promiseId = $.random.string(6);
       return ret;
     };
     Promise.compose = Promise.parallel = function() {
@@ -4148,7 +4148,7 @@
       }
     };
     Progress = function(max) {
-      var cur, p;
+      var cur;
       if (max == null) {
         max = 1.0;
       }
@@ -4193,8 +4193,11 @@
               }
             };
           })(this));
+        },
+        inspect: function() {
+          return "{Progress[" + this.promiseId + "] " + cur + "/" + max + "}";
         }
-      }, p = Promise());
+      }, Promise());
     };
     Promise.xhr = function(xhr) {
       var p;

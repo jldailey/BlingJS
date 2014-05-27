@@ -74,12 +74,12 @@ describe "String plugin:", ->
 		describe "should produce code-parseable output for", ->
 			it "blings", ->
 				assert.equal $([2,3,4]).toRepr(), "$([2, 3, 4])"
-				assert.equal $([{a:1},[],"Hello"]).toRepr(), "$([{a:1}, [], 'Hello'])"
+				assert.equal $([{a:1},[],"Hello"]).toRepr(), "$([{\"a\": 1}, [], 'Hello'])"
 			describe "strings", ->
-				it "with no single quotes inside", -> assert.equal $.toRepr("a"), "'a'"
-				it "with single quotes inside", -> assert.equal $.toRepr("a 'fine' day"), "'a \\'fine\\' day'"
+				it "with no single quotes inside",   -> assert.equal $.toRepr("a"), "'a'"
+				it "with single quotes inside",      -> assert.equal $.toRepr("a 'fine' day"), "'a \\'fine\\' day'"
 				it "with pre-escaped single quotes", -> assert.equal $.toRepr("a \\'fine\\' day"), "'a \\'fine\\' day'"
-				it "multi-line strings", -> assert.equal $.toRepr("a fine\n day"), "'a fine\n day'"
+				it "multi-line strings",             -> assert.equal $.toRepr("a fine\n day"), "'a fine\n day'"
 			it "numbers", ->
 				assert.equal $.toRepr(-54.32), "-54.32"
 				assert.equal $.toRepr(Infinity), "Infinity"
@@ -90,11 +90,16 @@ describe "String plugin:", ->
 			it "functions", ->
 				assert.equal $([(x) -> x + "a"]).toRepr().replace(/\n\s+/g,' '), '$([function (x) { return x + "a"; }])'
 			it "objects", ->
-				assert.equal $([{a:1, b:"s", c: [1,2,3]}]).toRepr(), "$([{a:1, b:'s', c:[1,2,3]}])"
+				assert.equal $.toRepr([{a:1, b:"s", c: [1,2,3]}]), """[{"a": 1, "b": 's', "c": [1, 2, 3]}]"""
 			it "arrays", ->
-				assert.equal $([["a",2,3]]).toRepr(), "$([['a',2,3]])"
+				assert.equal $.toRepr([["a",2,3]]), "[['a', 2, 3]]"
 			it "arguments", ->
-				assert.equal (-> $.toRepr arguments)(1,2,3), "[1,2,3]"
+				assert.equal (-> $.toRepr arguments)(1,2,3), "[1, 2, 3]"
+			it "should not fail", ->
+				obj = a: 1
+				$.defineProperty obj, 'xxx',
+					get: -> throw new Error "kinjiru!"
+				assert.equal $.toRepr(obj), """{"a": 1, "xxx": '[Error: kinjiru!]'}"""
 
 	describe ".stringTruncate(string, len)", ->
 		it "should truncate long strings and add ellipses", ->
@@ -131,6 +136,11 @@ describe "String plugin:", ->
 			assert.equal $.commaize(NaN), "NaN"
 			assert.equal $.commaize(Infinity), "Infinity"
 			assert.equal $.commaize({ a: 1 }), undefined
+		describe "currency", ->
+			it "is optional", ->
+				assert.equal $.commaize(1000, null, null, "$"), "$1,000"
+			it "supports negative amounts", ->
+				assert.equal $.commaize(-1000, null, null, "$"), "-$1,000"
 	describe ".slugize", ->
 		it "converts a phrase to a slug", ->
 			assert.equal $.slugize("foo bar"), "foo-bar"

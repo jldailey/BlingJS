@@ -2437,11 +2437,11 @@ $.plugin
 			number: safer parseFloat
 			repr: (s) -> "'#{escape_single_quotes s}'"
 		array:
-			string: safer (a) -> "[#{a.map($.toString).join()}]"
-			repr: safer (a) -> "[#{a.map($.toRepr).join()}]"
+			string: safer (a) -> "[#{a.map($.toString).join(', ')}]"
+			repr: safer (a) -> "[#{a.map($.toRepr).join(', ')}]"
 		arguments:
-			string: safer (a) -> "[#{($.toString(x) for x in a).join()}]"
-			repr: safer (a) -> "[#{($.toRepr(x) for x in a).join()}]"
+			string: safer (a) -> "[#{($.toString(x) for x in a).join(', ')}]"
+			repr: safer (a) -> "[#{($.toRepr(x) for x in a).join(', ')}]"
 		object:
 			string: safer (o) ->
 				ret = []
@@ -2459,7 +2459,7 @@ $.plugin
 						v = o[k]
 					catch err
 						v = "[Error: #{err.message}]"
-					ret.push "#{k}:#{$.toRepr v}"
+					ret.push "\"#{k}\": #{$.toRepr v}"
 				"{" + ret.join(', ') + "}"
 		function:
 			repr: (f) -> f.toString()

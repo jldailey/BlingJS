@@ -5166,10 +5166,10 @@
       },
       array: {
         string: safer(function(a) {
-          return "[" + (a.map($.toString).join()) + "]";
+          return "[" + (a.map($.toString).join(', ')) + "]";
         }),
         repr: safer(function(a) {
-          return "[" + (a.map($.toRepr).join()) + "]";
+          return "[" + (a.map($.toRepr).join(', ')) + "]";
         })
       },
       "arguments": {
@@ -5183,7 +5183,7 @@
               _results.push($.toString(x));
             }
             return _results;
-          })()).join()) + "]";
+          })()).join(', ')) + "]";
         }),
         repr: safer(function(a) {
           var x;
@@ -5195,7 +5195,7 @@
               _results.push($.toRepr(x));
             }
             return _results;
-          })()).join()) + "]";
+          })()).join(', ')) + "]";
         })
       },
       object: {
@@ -5223,7 +5223,7 @@
               err = _error;
               v = "[Error: " + err.message + "]";
             }
-            ret.push("" + k + ":" + ($.toRepr(v)));
+            ret.push("\"" + k + "\": " + ($.toRepr(v)));
           }
           return "{" + ret.join(', ') + "}";
         })

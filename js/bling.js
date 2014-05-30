@@ -175,164 +175,6 @@
   $ = Bling;
 
   $.plugin({
-    provides: "EventEmitter",
-    depends: "type,hook"
-  }, function() {
-    return {
-      $: {
-        EventEmitter: Bling.init.append(function(obj) {
-          var add, list, listeners;
-          if (obj == null) {
-            obj = {};
-          }
-          listeners = Object.create(null);
-          list = function(e) {
-            return listeners[e] || (listeners[e] = []);
-          };
-          return $.inherit({
-            emit: function() {
-              var a, e, f, _i, _len, _ref;
-              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-              _ref = list(e);
-              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                f = _ref[_i];
-                f.apply(this, a);
-              }
-              return this;
-            },
-            on: add = function(e, f) {
-              var k, v;
-              switch ($.type(e)) {
-                case 'object':
-                  for (k in e) {
-                    v = e[k];
-                    this.addListener(k, v);
-                  }
-                  break;
-                case 'string':
-                  list(e).push(f);
-                  this.emit('newListener', e, f);
-              }
-              return this;
-            },
-            addListener: add,
-            removeListener: function(e, f) {
-              var i, l;
-              if ((i = (l = list(e)).indexOf(f)) > -1) {
-                return l.splice(i, 1);
-              }
-            },
-            removeAllListeners: function(e) {
-              return listeners[e] = [];
-            },
-            setMaxListeners: function(n) {},
-            listeners: function(e) {
-              return list(e).slice(0);
-            }
-          }, obj);
-        })
-      }
-    };
-  });
-
-  $.plugin({
-    provides: "StateMachine",
-    depends: "type"
-  }, function() {
-    var StateMachine;
-    return {
-      $: {
-        StateMachine: StateMachine = (function() {
-          var go;
-
-          function StateMachine(stateTable) {
-            this.debug = false;
-            this.reset();
-            this.table = stateTable;
-            Object.defineProperty(this, "modeline", {
-              get: function() {
-                return this.table[this._mode];
-              }
-            });
-            Object.defineProperty(this, "mode", {
-              set: function(m) {
-                var ret;
-                this._lastMode = this._mode;
-                this._mode = m;
-                if (this._mode !== this._lastMode && (this.modeline != null) && 'enter' in this.modeline) {
-                  ret = this.modeline['enter'].call(this);
-                  while ($.is("function", ret)) {
-                    ret = ret.call(this);
-                  }
-                }
-                return m;
-              },
-              get: function() {
-                return this._mode;
-              }
-            });
-          }
-
-          StateMachine.prototype.reset = function() {
-            this._mode = null;
-            return this._lastMode = null;
-          };
-
-          StateMachine.prototype.GO = go = function(m, enter) {
-            if (enter == null) {
-              enter = false;
-            }
-            return function() {
-              if (enter) {
-                this._mode = null;
-              }
-              return this.mode = m;
-            };
-          };
-
-          StateMachine.GO = go;
-
-          StateMachine.prototype.tick = function(c) {
-            var ret, row;
-            row = this.modeline;
-            if (row == null) {
-              ret = null;
-            } else if (c in row) {
-              ret = row[c];
-            } else if ('def' in row) {
-              ret = row['def'];
-            }
-            while ($.is("function", ret)) {
-              ret = ret.call(this, c);
-            }
-            return ret;
-          };
-
-          StateMachine.prototype.run = function(inputs) {
-            var c, ret, _i, _len, _ref;
-            this.mode = 0;
-            for (_i = 0, _len = inputs.length; _i < _len; _i++) {
-              c = inputs[_i];
-              ret = this.tick(c);
-            }
-            if ($.is("function", (_ref = this.modeline) != null ? _ref.eof : void 0)) {
-              ret = this.modeline.eof.call(this);
-            }
-            while ($.is("function", ret)) {
-              ret = ret.call(this);
-            }
-            this.reset();
-            return this;
-          };
-
-          return StateMachine;
-
-        })()
-      }
-    };
-  });
-
-  $.plugin({
     depends: "core",
     provides: "async"
   }, function() {
@@ -2901,6 +2743,67 @@
   }
 
   $.plugin({
+    provides: "EventEmitter",
+    depends: "type,hook"
+  }, function() {
+    return {
+      $: {
+        EventEmitter: Bling.init.append(function(obj) {
+          var add, list, listeners;
+          if (obj == null) {
+            obj = {};
+          }
+          listeners = Object.create(null);
+          list = function(e) {
+            return listeners[e] || (listeners[e] = []);
+          };
+          return $.inherit({
+            emit: function() {
+              var a, e, f, _i, _len, _ref;
+              e = arguments[0], a = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+              _ref = list(e);
+              for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                f = _ref[_i];
+                f.apply(this, a);
+              }
+              return this;
+            },
+            on: add = function(e, f) {
+              var k, v;
+              switch ($.type(e)) {
+                case 'object':
+                  for (k in e) {
+                    v = e[k];
+                    this.addListener(k, v);
+                  }
+                  break;
+                case 'string':
+                  list(e).push(f);
+                  this.emit('newListener', e, f);
+              }
+              return this;
+            },
+            addListener: add,
+            removeListener: function(e, f) {
+              var i, l;
+              if ((i = (l = list(e)).indexOf(f)) > -1) {
+                return l.splice(i, 1);
+              }
+            },
+            removeAllListeners: function(e) {
+              return listeners[e] = [];
+            },
+            setMaxListeners: function(n) {},
+            listeners: function(e) {
+              return list(e).slice(0);
+            }
+          }, obj);
+        })
+      }
+    };
+  });
+
+  $.plugin({
     depends: "dom,function,core",
     provides: "event"
   }, function() {
@@ -4034,7 +3937,7 @@
 
     })();
     Promise = function(obj) {
-      var consume_all, consume_one, end, err, isFailed, isFinished, result, ret, waiting;
+      var consume_all, consume_one, end, err, getState, isFailed, isFinished, result, ret, waiting;
       if (obj == null) {
         obj = {};
       }
@@ -4091,6 +3994,7 @@
         };
       })(this);
       ret = $.inherit({
+        promiseId: $.random.string(6),
         wait: function(timeout, cb) {
           var _ref;
           if ($.is('function', timeout)) {
@@ -4154,20 +4058,20 @@
             return ret.resolve(data);
           }
         },
-        toString: function() {
-          ("Promise[" + this.promiseId + "](") + (function() {
-            switch (false) {
-              case result === NoValue:
-                return "resolved";
-              case err === NoValue:
-                return "rejected";
-              default:
-                return "pending";
-            }
-          })();
-          return +")";
+        inspect: function() {
+          return "{Promise[" + this.promiseId + "] " + (getState()) + "}";
         }
       }, $.EventEmitter(obj));
+      getState = function() {
+        switch (false) {
+          case result === NoValue:
+            return "resolved";
+          case err === NoValue:
+            return "rejected";
+          default:
+            return "pending";
+        }
+      };
       isFinished = function() {
         return result !== NoValue;
       };
@@ -4186,7 +4090,6 @@
       $.defineProperty(ret, 'rejected', {
         get: isFailed
       });
-      ret.promiseId = $.random.string(6);
       return ret;
     };
     Promise.compose = Promise.parallel = function() {
@@ -4245,7 +4148,7 @@
       }
     };
     Progress = function(max) {
-      var cur, p;
+      var cur;
       if (max == null) {
         max = 1.0;
       }
@@ -4290,8 +4193,11 @@
               }
             };
           })(this));
+        },
+        inspect: function() {
+          return "{Progress[" + this.promiseId + "] " + cur + "/" + max + "}";
         }
-      }, p = Promise());
+      }, Promise());
     };
     Promise.xhr = function(xhr) {
       var p;
@@ -5113,6 +5019,103 @@
   });
 
   $.plugin({
+    provides: "StateMachine",
+    depends: "type"
+  }, function() {
+    var StateMachine;
+    return {
+      $: {
+        StateMachine: StateMachine = (function() {
+          var go;
+
+          function StateMachine(stateTable) {
+            this.debug = false;
+            this.reset();
+            this.table = stateTable;
+            Object.defineProperty(this, "modeline", {
+              get: function() {
+                return this.table[this._mode];
+              }
+            });
+            Object.defineProperty(this, "mode", {
+              set: function(m) {
+                var ret;
+                this._lastMode = this._mode;
+                this._mode = m;
+                if (this._mode !== this._lastMode && (this.modeline != null) && 'enter' in this.modeline) {
+                  ret = this.modeline['enter'].call(this);
+                  while ($.is("function", ret)) {
+                    ret = ret.call(this);
+                  }
+                }
+                return m;
+              },
+              get: function() {
+                return this._mode;
+              }
+            });
+          }
+
+          StateMachine.prototype.reset = function() {
+            this._mode = null;
+            return this._lastMode = null;
+          };
+
+          StateMachine.prototype.GO = go = function(m, enter) {
+            if (enter == null) {
+              enter = false;
+            }
+            return function() {
+              if (enter) {
+                this._mode = null;
+              }
+              return this.mode = m;
+            };
+          };
+
+          StateMachine.GO = go;
+
+          StateMachine.prototype.tick = function(c) {
+            var ret, row;
+            row = this.modeline;
+            if (row == null) {
+              ret = null;
+            } else if (c in row) {
+              ret = row[c];
+            } else if ('def' in row) {
+              ret = row['def'];
+            }
+            while ($.is("function", ret)) {
+              ret = ret.call(this, c);
+            }
+            return ret;
+          };
+
+          StateMachine.prototype.run = function(inputs) {
+            var c, ret, _i, _len, _ref;
+            this.mode = 0;
+            for (_i = 0, _len = inputs.length; _i < _len; _i++) {
+              c = inputs[_i];
+              ret = this.tick(c);
+            }
+            if ($.is("function", (_ref = this.modeline) != null ? _ref.eof : void 0)) {
+              ret = this.modeline.eof.call(this);
+            }
+            while ($.is("function", ret)) {
+              ret = ret.call(this);
+            }
+            this.reset();
+            return this;
+          };
+
+          return StateMachine;
+
+        })()
+      }
+    };
+  });
+
+  $.plugin({
     provides: "string",
     depends: "function"
   }, function() {
@@ -5163,10 +5166,10 @@
       },
       array: {
         string: safer(function(a) {
-          return "[" + (a.map($.toString).join()) + "]";
+          return "[" + (a.map($.toString).join(', ')) + "]";
         }),
         repr: safer(function(a) {
-          return "[" + (a.map($.toRepr).join()) + "]";
+          return "[" + (a.map($.toRepr).join(', ')) + "]";
         })
       },
       "arguments": {
@@ -5180,7 +5183,7 @@
               _results.push($.toString(x));
             }
             return _results;
-          })()).join()) + "]";
+          })()).join(', ')) + "]";
         }),
         repr: safer(function(a) {
           var x;
@@ -5192,7 +5195,7 @@
               _results.push($.toRepr(x));
             }
             return _results;
-          })()).join()) + "]";
+          })()).join(', ')) + "]";
         })
       },
       object: {
@@ -5220,7 +5223,7 @@
               err = _error;
               v = "[Error: " + err.message + "]";
             }
-            ret.push("" + k + ":" + ($.toRepr(v)));
+            ret.push("\"" + k + "\": " + ($.toRepr(v)));
           }
           return "{" + ret.join(', ') + "}";
         })

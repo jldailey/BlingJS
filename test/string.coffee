@@ -171,3 +171,10 @@ describe "String plugin:", ->
 	describe "::replace(regex,repl)", ->
 		it "maps replace over a set of strings", ->
 			assert.deepEqual $(["abc","bbc","cbc"]).replace(/bc$/,''), ['a','b','c']
+
+	describe "::indexOf(regex,offset=0)", ->
+		b = $(["abc", "bbc", "cbc", "bbd"])
+		it "adds regex support over Array::indexOf", ->
+			assert.equal 1, b.indexOf(/^bb/)
+		it "supports an offset", ->
+			assert.equal 3, b.indexOf(/^bb/, 2)

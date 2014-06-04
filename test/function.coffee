@@ -43,5 +43,5 @@ describe "Functions plugin:", ->
 			assert.equal $.toRepr( {
 				a: { b: "c" }
 				d: { f: -> "e" }
-			} ), "{a:{b:'c'}, d:{f:function () {\n              return \"e\";\n            }}}"
+			} ), '{"a": {"b": \'c\'}, "d": {"f": function () {\n              return \"e\";\n            }}}'
 

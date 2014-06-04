@@ -164,5 +164,5 @@ describe "Type plugin:", ->
 				assert.equal ($.as "string", undefined), "undefined"
 				assert.equal ($.as "string"), "undefined"
 			it "arguments", ->
-				assert.equal ($.as "string", (-> arguments)(1,2,3)), "[1,2,3]"
+				assert.equal ($.as "string", (-> arguments)(1,2,3)), "[1, 2, 3]"
 

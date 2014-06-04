@@ -5503,10 +5503,13 @@
           return s.replace(patt, repl);
         });
       },
-      indexOf: function(target) {
+      indexOf: function(target, offset) {
         var i, _i, _ref;
+        if (offset == null) {
+          offset = 0;
+        }
         if ($.is('regexp', target)) {
-          for (i = _i = 0, _ref = this.length; _i < _ref; i = _i += 1) {
+          for (i = _i = offset, _ref = this.length; _i < _ref; i = _i += 1) {
             if (target.test(this[i])) {
               return i;
             }

@@ -11,7 +11,7 @@ $.plugin
 		# and a structure for listing the bottom N keys.
 		log = $.logger "[LRU]"
 
-		constructor: (@capacity = 1000) ->
+		constructor: (@capacity = 1000, @defaultTtl = Infinity) ->
 			# at least 1 capacity
 			@capacity = Math.max 1, @capacity
 			# evict at least 3, as much as 10%
@@ -29,7 +29,7 @@ $.plugin
 				null
 
 			reIndex = (i, j) ->
-				for x in [i..j]
+				for x in [i..j] when 0 <= x < order.length
 					index[order[x].k] = x
 				null
 
@@ -45,10 +45,14 @@ $.plugin
 			noValue	= v: undefined
 
 			$.extend @,
-				# eff: -> ({ k: order[i], eff: eff(i) } for i in [0...order.length] by 1)
-				debug: -> return order
 				has: (k) -> k of index
-				set: (k, v) ->
+				del: (k) ->
+					if k of index
+						i = index[k]
+						order.splice i, 1
+						delete index[k]
+						reIndex i, order.length - 1
+				set: (k, v, ttl = @defaultTtl) =>
 					if k of index
 						d = order[i = index[k]]
 						d.v = v
@@ -60,6 +64,9 @@ $.plugin
 						i = $.sortedIndex order, item, eff
 						order.splice i, 0, item
 						reIndex i, order.length - 1
+					if ttl < Infinity
+						$.delay ttl, =>
+							@del(k)
 					v
 				get: (k) ->
 					ret = noValue

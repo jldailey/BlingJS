@@ -47,4 +47,20 @@ describe "$.Cache", ->
 				.map((a) -> cache.get a),
 				# 'b' will have been preserved b/c of it's efficiency
 				[ undefined, 2, undefined, undefined, 5, 6 ]
+		it "supports a default TTL on all keys", (done) ->
+			cache = new $.Cache(10, 50)
+			cache.set('a', 'A')
+			cache.set('b', 'B')
+			$.delay 100, ->
+				assert.equal cache.get('a'), undefined
+				assert.equal cache.get('b'), undefined
+				done()
+		it "supports a TTL on single keys", (done) ->
+			cache = new $.Cache(10)
+			cache.set('a', 'A')
+			cache.set('b', 'B', 30)
+			$.delay 100, ->
+				assert.equal cache.get('a'), 'A'
+				assert.equal cache.get('b'), undefined
+				done()
 

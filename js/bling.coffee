@@ -258,7 +258,7 @@ $.plugin
 , ->
 	class EffCache
 		log = $.logger "[LRU]"
-		constructor: (@capacity = 1000) ->
+		constructor: (@capacity = 1000, @defaultTtl = Infinity) ->
 			@capacity = Math.max 1, @capacity
 			@evictCount = Math.max 3, Math.floor @capacity * .1
 			index = Object.create null
@@ -270,7 +270,7 @@ $.plugin
 						delete index[k = order.pop().k]
 				null
 			reIndex = (i, j) ->
-				for x in [i..j]
+				for x in [i..j] when 0 <= x < order.length
 					index[order[x].k] = x
 				null
 			rePosition = (i) ->
@@ -283,9 +283,14 @@ $.plugin
 				null
 			noValue	= v: undefined
 			$.extend @,
-				debug: -> return order
 				has: (k) -> k of index
-				set: (k, v) ->
+				del: (k) ->
+					if k of index
+						i = index[k]
+						order.splice i, 1
+						delete index[k]
+						reIndex i, order.length - 1
+				set: (k, v, ttl = @defaultTtl) =>
 					if k of index
 						d = order[i = index[k]]
 						d.v = v
@@ -297,6 +302,9 @@ $.plugin
 						i = $.sortedIndex order, item, eff
 						order.splice i, 0, item
 						reIndex i, order.length - 1
+					if ttl < Infinity
+						$.delay ttl, =>
+							@del(k)
 					v
 				get: (k) ->
 					ret = noValue
@@ -2580,9 +2588,9 @@ $.plugin
 		toRepr: -> $.toRepr @
 		replace: (patt, repl) ->
 			@map (s) -> s.replace(patt, repl)
-		indexOf: (target) ->
+		indexOf: (target, offset=0) ->
 			if $.is 'regexp', target
-				for i in [0...@length] by 1
+				for i in [offset...@length] by 1
 					if target.test @[i]
 						return i
 				return -1

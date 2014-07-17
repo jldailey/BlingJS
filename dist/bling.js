@@ -520,9 +520,10 @@
 
       log = $.logger("[LRU]");
 
-      function EffCache(capacity) {
+      function EffCache(capacity, defaultTtl) {
         var autoEvict, eff, index, noValue, order, reIndex, rePosition;
         this.capacity = capacity != null ? capacity : 1000;
+        this.defaultTtl = defaultTtl != null ? defaultTtl : Infinity;
         this.capacity = Math.max(1, this.capacity);
         this.evictCount = Math.max(3, Math.floor(this.capacity * .1));
         index = Object.create(null);
@@ -544,7 +545,9 @@
         reIndex = function(i, j) {
           var x, _i;
           for (x = _i = i; i <= j ? _i <= j : _i >= j; x = i <= j ? ++_i : --_i) {
-            index[order[x].k] = x;
+            if ((0 <= x && x < order.length)) {
+              index[order[x].k] = x;
+            }
           }
           return null;
         };
@@ -563,33 +566,49 @@
           v: void 0
         };
         $.extend(this, {
-          debug: function() {
-            return order;
-          },
           has: function(k) {
             return k in index;
           },
-          set: function(k, v) {
-            var d, i, item;
+          del: function(k) {
+            var i;
             if (k in index) {
-              d = order[i = index[k]];
-              d.v = v;
-              d.w += 1;
-              rePosition(i);
-            } else {
-              autoEvict();
-              item = {
-                k: k,
-                v: v,
-                r: 0,
-                w: 1
-              };
-              i = $.sortedIndex(order, item, eff);
-              order.splice(i, 0, item);
-              reIndex(i, order.length - 1);
+              i = index[k];
+              order.splice(i, 1);
+              delete index[k];
+              return reIndex(i, order.length - 1);
             }
-            return v;
           },
+          set: (function(_this) {
+            return function(k, v, ttl) {
+              var d, i, item;
+              if (ttl == null) {
+                ttl = _this.defaultTtl;
+              }
+              if (k in index) {
+                d = order[i = index[k]];
+                d.v = v;
+                d.w += 1;
+                rePosition(i);
+              } else {
+                autoEvict();
+                item = {
+                  k: k,
+                  v: v,
+                  r: 0,
+                  w: 1
+                };
+                i = $.sortedIndex(order, item, eff);
+                order.splice(i, 0, item);
+                reIndex(i, order.length - 1);
+              }
+              if (ttl < Infinity) {
+                $.delay(ttl, function() {
+                  return _this.del(k);
+                });
+              }
+              return v;
+            };
+          })(this),
           get: function(k) {
             var i, ret;
             ret = noValue;

@@ -17,20 +17,23 @@ $.plugin
 		i += o.length while i < 0
 		Math.min i, o.length
 
-	baseTime = $.now
+	baseTime = 0
 	return {
 		$:
 			log: $.extend((a...) ->
 				prefix = "+#{$.padLeft String($.now - baseTime), $.log.prefixSize, '0'}:"
-				if prefix.length > $.log.prefixSize + 2
-					prefix = "#{baseTime = $.now}:"
+				if baseTime is 0 or prefix.length > $.log.prefixSize + 2
+					prefix = $.date.format(baseTime = $.now, "dd/mm/YY HH:MM:SS:", "ms")
 				if a.length and $.is "string", a[0]
 					a[0] = "#{prefix} #{a[0]}"
 				else
 					a.unshift prefix
-				console.log a...
+				$.log.out a...
 				return a[a.length-1] if a.length
-			, prefixSize: 5)
+			, {
+				out: -> console.log.apply console, arguments
+				prefixSize: 5
+			})
 			logger: (prefix) -> (m...) -> m.unshift(prefix); $.log m...
 			assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 			coalesce: (a...) -> $(a).coalesce()
@@ -46,7 +49,11 @@ $.plugin
 
 		# Get a new set with the results of calling a function of every
 		# item in _this_.
-		map: (f) -> $( f.call(t,t) for t in @ )
+		map: (f) -> # CS comprehensions generate too much extra code for such a critical bottle-neck
+			b = $()
+			i = 0
+			(b[i++] = f.call t,t) for t in @
+			return b
 
 		filterMap: (f) ->
 			b = $()
@@ -55,7 +62,7 @@ $.plugin
 				if v?
 					b.push v
 			b
-		
+
 		# Chainable way to apply some arbitrary function
 		tap: (f) -> f.call @, @
 
@@ -85,9 +92,19 @@ $.plugin
 		# Get a new set whose items are all in _this_ and _other.
 		intersect: (other) -> $(x for x in @ when x in other) # another very beatiful expression
 		# True if item is in _this_ set.
-		contains: (item, strict = true) -> ((strict and t is item) or (not strict and `t == item`) for t in @).reduce ((a,x) -> a or x), false
+		contains: (item, strict = true) ->
+			if strict
+				return @indexOf(item) > -1
+			else for t in @ when `t == item`
+				return true
+			false
 		# Get an integer count of items in _this_.
-		count: (item, strict = true) -> $(1 for t in @ when (item is undefined) or (strict and t is item) or (not strict and `t == item`)).sum()
+		count: (item, strict = true) ->
+			$(1 for t in @ \
+				when (item is undefined) \
+				or (strict and t is item) \
+				or (not strict and `t == item`)
+			).sum()
 		# Get the first non-null item in _this_.
 		coalesce: ->
 			for i in @
@@ -111,7 +128,9 @@ $.plugin
 		# Get a new set of properties from every item in _this_.
 		select: do ->
 			# First, a private helper that will read property `prop` from some object later.
-			getter = (prop) -> -> if $.is("function",v = @[prop]) then $.bound(@,v) else v
+			getter = (prop) ->
+				->
+					if $.is("function",v = @[prop]) then $.bound(@,v) else v
 			# Recursively split `p` on `.` and map the getter helper
 			# to read a set of complex `p` values from an object.
 			# > `$([x]).select("name") == [ x.name ]`
@@ -120,28 +139,49 @@ $.plugin
 				switch type = $.type p
 					when 'regexp' then selectMany.call @, p
 					when 'string'
-						if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
+						if p is "*" then @flatten()
+						else if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
 						else @map(getter p)
 					else $()
 			selectMany = (a...) ->
 				n = @length
 				lists = Object.create(null)
+				# Use each property in the arguments to select a list of values,
+				# so that's one list per property, and each list has one member per input object
 				for p in a
+					# Selecting with a regexp should expand the regexp so that:
+					#    $('*').select(/Width$/)
+					# is the same as:
+					#    $('*').select('innerWidth','clientWidth',etc...)
 					if $.is 'regexp', p
-						for match in $.keysOf(@first()).filter(p)
+						# TODO: currently only expanded based on the keys of the first object
+						# should it be the distinct union of all keys or something?
+						for match in $.keysOf(@[0]).filter(p)
 							lists[match] = @select(match)
+					# Otherwise, just select a simple list of property values.
 					else lists[p] = @select(p)
 				i = 0
+				# Now, pivot all these lists into one list of objects,
+				# each object in the output gets one property from each list.
 				@map ->
+					# Create one output object
 					obj = Object.create(null)
 					for p of lists
-						obj[$(p.split '.').last()] = lists[p][i]
+						# If you originally asked to select "propA.propB.propC",
+						# store that under "propC" on the output objects.
+						key = p.split('.').pop()
+						val = lists[p][i]
+						# If the key was not defined on the original objects,
+						# dont define it on the output objects.
+						unless val is undefined
+							obj[key] = val
 					i++
 					obj
 			return ->
 				switch arguments.length
+					when 0 then @
 					when 1 then selectOne.apply @, arguments
-					when 2 then selectMany.apply @, arguments
+					else selectMany.apply @, arguments
 
 		# Replace any false-ish items in _this_ with _x_.
 		# > `$("<a>").select('parentNode').or(document)`
@@ -185,7 +225,15 @@ $.plugin
 			@
 
 		# Remove a property from each item.
-		clean: (prop) -> @each -> delete @[prop]
+		clean: (props...) ->
+			@each ->
+				for prop in props
+					switch $.type prop
+						when 'string','number' then delete @[prop]
+						when 'regexp'
+							for key in Object.keys(@) when prop.test key
+								delete @[key]
+				null
 
 		# Get a new set with only the first _n_ items from _this_.
 		take: (n = 1) ->
@@ -218,11 +266,19 @@ $.plugin
 
 		# Get a new set containing only items that match _f_. _f_ can be
 		# any of:
-		filter: (f, limit=@length) ->
+		filter: (f, limit, positive) ->
+			if $.is "bool", limit
+				[positive, limit] = [limit, positive]
+			if $.is "number", positive
+				[limit, positive] = [positive, limit]
+			limit ?= @length
+			positive ?= true
 			# The argument _f_ can be any of:
 			g = switch $.type f
+				# * pattern object: `.filter({ enabled: true })`
+				when "object" then (x) -> $.matches f,x
 				# * selector string: `.filter("td.selected")`
-				when "string" then (x) -> x.matchesSelector(f)
+				when "string" then (x) -> x?.matchesSelector?(f) ? false
 				# * RegExp object: `.filter(/^prefix-/)`
 				when "regexp" then (x) -> f.test(x)
 				# * function: `.filter (x) -> (x%2) is 1`
@@ -230,27 +286,20 @@ $.plugin
 				else throw new Error "unsupported argument to filter: #{$.type f}"
 			a = $()
 			for it in @
-				if g.call(it,it)
+				if (!! g.call it,it) is positive
 					if --limit < 0
 						break
 					a.push it
 			a
 
-		# Get a new set of booleans, true if the node from _this_
-		# matched the CSS expression.
+		# Get a new set of booleans, true if a node matches a CSS selector,
+		# or if a string matches a regular expression.
+		# e.g. $('a','b').matches(/^a/) == [true, false]
 		matches: (expr) ->
 			switch $.type expr
 				when "string" then @select('matchesSelector').call(expr)
 				when "regexp" then @map (x) -> expr.test x
 				else throw new Error "unsupported argument to matches: #{$.type expr}"
-
-		# Each node in _this_ contributes all children matching the
-		# CSS expression to a new set.
-		querySelectorAll: (expr) ->
-			@filter("*")
-			.reduce (a, i) ->
-				a.extend i.querySelectorAll expr
-			, $()
 
 		# Get a new set with items interleaved from the items in _a_ and
 		# _b_. The result is:
@@ -285,7 +334,10 @@ $.plugin
 		# Get a new set with all items from subsets in one set.
 		flatten: ->
 			b = $()
-			(b.push(j) for j in i) for i in @
+			for item, i in @
+				if ($.is 'array', item) or ($.is 'bling', item) or ($.is 'arguments', item) or ($.is 'nodelist', item)
+					for j in item then b.push(j)
+				else b.push(item)
 			b
 
 		# Call every function in _this_ with the same arguments.
@@ -309,4 +361,14 @@ $.plugin
 		toArray: ->
 			@__proto__ = Array::
 			@ # no copies, yay?
+
+		# Remove all items
+		clear: -> @splice 0, @length
+
+		# Find the index of the first item that matches
+		indexWhere: (f) ->
+			for x,i in @
+				return i if (f.call x,x)
+			return -1
+
 	}

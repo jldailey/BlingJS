@@ -14,7 +14,7 @@ $.plugin
 	UNIT_RE = null
 	do makeUnitRegex = ->
 		joined = units.filter(/.+/).join '|'
-		UNIT_RE = new RegExp "(\\d+\\.*\\d*)((?:#{joined})/*(?:#{joined})*)"
+		UNIT_RE = new RegExp "(\\d+\\.*\\d*)((?:#{joined})/*(?:#{joined})*)$"
 
 	# Return the units portion of a string: "4.2px" yields "px"
 	parseUnits = (s) ->
@@ -28,12 +28,11 @@ $.plugin
 		[numer_b, denom_b] = b.split '/'
 		if denom_a? and denom_b?
 			return conv(denom_b, denom_a) * conv(numer_a, numer_b)
-		if a of conv
-			if b of conv[a]
-				return conv[a][b]()
+		if a of conv and (b of conv[a])
+			return conv[a][b]()
 		0
 
-	# A locker is a function for returning a fixed value, 
+	# A locker is a function for returning a fixed value,
 	# `locker <expression>` evaluates the expression and returns the result later.
 	locker = (x) -> -> x
 
@@ -103,7 +102,8 @@ $.plugin
 		setConversion 'f', 'frames', -> 1
 		setConversion 'sec', 'f', -> 60
 
-		# Now fill in the conversions, and assign the reference back so further calls to setConversion will do the exhaustive fill.
+		# Now fill in the conversions, and assign the reference back
+		# so further calls to setConversion will do the exhaustive fill.
 		do fillConversions = ->
 			# set up all the identity conversions (self to self, or to unitless)
 			conv[''] = {}
@@ -140,10 +140,10 @@ $.plugin
 
 
 	$.type.register "units",
-		match: (x) -> typeof x is "string" and UNIT_RE.test(x)
+		is: (x) -> typeof x is "string" and UNIT_RE.test(x)
 		number: (x) -> parseFloat(x)
 		string: (x) -> "'#{x}'"
-	
+
 	{
 		$:
 			units:

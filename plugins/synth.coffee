@@ -1,67 +1,18 @@
 $.plugin
-	provides: "StateMachine"
-, ->
-	$: StateMachine: class StateMachine
-		constructor: (stateTable) ->
-			@debug = false
-			@reset()
-			@table = stateTable
-			Object.defineProperty @, "modeline",
-				get: -> @table[@_mode]
-			Object.defineProperty @, "mode",
-				set: (m) ->
-					@_lastMode = @_mode
-					@_mode = m
-					if @_mode isnt @_lastMode and @modeline? and 'enter' of @modeline
-						ret = @modeline['enter'].call @
-						while $.is("function",ret)
-							ret = ret.call @
-					m
-				get: -> @_mode
-
-		reset: ->
-			@_mode = null
-			@_lastMode = null
-
-		# static and instance versions of a state-changer factory
-		GO: (m) -> -> @mode = m
-		@GO: (m) -> -> @mode = m
-		
-		tick: (c) ->
-			row = @modeline
-			if not row?
-				ret = null
-			else if c of row
-				ret = row[c]
-			else if 'def' of row
-				ret = row['def']
-			while $.is "function",ret
-				ret = ret.call @, c
-			ret
-
-		run: (inputs) ->
-			@mode = 0
-			for c in inputs
-				ret = @tick(c)
-			if $.is "function",@modeline?.eof
-				ret = @modeline.eof.call @
-			while $.is "function",ret
-				ret = ret.call @
-			@reset()
-			return @
-
-$.plugin
 	provides: "synth"
 	depends: "StateMachine, type"
 , ->
 	class SynthMachine extends $.StateMachine
 		basic =
 			"#": @GO 2
-			".": @GO 3
+			".": @GO 3, true
 			"[": @GO 4
 			'"': @GO 6
 			"'": @GO 7
 			" ": @GO 8
+			"\t": @GO 8
+			"\n": @GO 8
+			"\r": @GO 8
 			",": @GO 10
 			"+": @GO 11
 			eof: @GO 13
@@ -138,8 +89,8 @@ $.plugin
 		emitNode: ->
 			if @tag
 				node = document.createElement @tag
-				node.id = @id or null
-				node.className = @cls or null
+				if @id then node.id = @id
+				if @cls then node.className = @cls
 				for k of @attrs
 					node.setAttribute k, @attrs[k]
 				@cursor.appendChild node

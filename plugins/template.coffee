@@ -1,37 +1,32 @@
-do ($ = Bling) ->
+$.plugin
+	depends: "StateMachine"
+	provides: "template"
+, -> # Template plugin, pythonic style: %(value).2f
+	current_engine = null
+	engines = {}
 
-	$.plugin () -> # Template plugin, pythonic style: %(value).2f
-		current_engine = null
-		engines = {}
+	template = {
+		register_engine: (name, render_func) ->
+			engines[name] = render_func
+			if not current_engine?
+				current_engine = name
+		render: (text, args) ->
+			if current_engine of engines
+				engines[current_engine](text, args)
+	}
+	template.__defineSetter__ 'engine', (v) ->
+		if not v of engines
+			throw new Error "invalid template engine: #{v} not one of #{Object.Keys(engines)}"
+		else
+			current_engine = v
+	template.__defineGetter__ 'engine', -> current_engine
 
-		template = {
-			register_engine: (name, render_func) ->
-				engines[name] = render_func
-				if not current_engine?
-					current_engine = name
-			render: (text, args) ->
-				if current_engine of engines
-					engines[current_engine](text, args)
-		}
-		template.__defineSetter__ 'engine', (v) ->
-			if not v of engines
-				throw new Error "invalid template engine: #{v} not one of #{Object.Keys(engines)}"
-			else
-				current_engine = v
-		template.__defineGetter__ 'engine', () -> current_engine
-
-		return {
-			name: 'Template'
-			$:
-				template: template
-		}
-	
-	$.template.register_engine 'null', (() ->
+	template.register_engine 'null', do ->
 		return (text, values) ->
 			text
-	)()
 
-	match_forward = (text, find, against, start, stop = -1) -> # a brace-matcher, useful in most template parsing steps
+	# a bracket-matcher, useful in most template parsing steps
+	match_forward = (text, find, against, start, stop = -1) ->
 		count = 1
 		if stop < 0
 			stop = text.length + 1 + stop
@@ -45,9 +40,9 @@ do ($ = Bling) ->
 				return i
 		return -1
 
-	$.template.register_engine 'pythonic', (() ->
-
-		type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/ # '%.2f' becomes [key, pad, fixed, type, remainder]
+	template.register_engine 'pythonic', do ->
+		# '%.2f' becomes [key, pad, fixed, type, remainder]
+		type_re = /([0-9#0+-]*)\.*([0-9#+-]*)([diouxXeEfFgGcrsqm])((?:.|\n)*)/
 		chunk_re = /%[\(\/]/
 
 		compile = (text) ->
@@ -111,9 +106,8 @@ do ($ = Bling) ->
 			output.join ""
 
 		return render
-	)()
 
-	$.template.register_engine 'js-eval', (() -> # work in progress...
+	template.register_engine 'js-eval', do -> # work in progress...
 		class TemplateMachine extends $.StateMachine
 			@STATE_TABLE = [
 				{ # 0: START
@@ -124,7 +118,8 @@ do ($ = Bling) ->
 				{ # 1: read anything
 				}
 			]
-			
+
 		return (text, values) ->
 			text
-	)()
+
+	return $: { template }

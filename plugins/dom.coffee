@@ -3,12 +3,12 @@
 # Only works if there is a global document.
 if $.global.document?
 	$.plugin
-		depends: "function,type"
+		depends: "function,type,string"
 		provides: "dom"
 	, ->
 		bNodelistsAreSpecial = false
 		$.type.register "nodelist",
-			match:  (o) -> o? and $.isType "NodeList", o
+			is:  (o) -> o? and $.isType "NodeList", o
 			hash:   (o) -> $($.hash(i) for i in x).sum()
 			array:  do ->
 				try # probe to see if this browsers allows direct modification of a nodelist's prototype
@@ -20,23 +20,23 @@ if $.global.document?
 			string: (o) -> "{Nodelist:["+$(o).select('nodeName').join(",")+"]}"
 			node:   (o) -> $(o).toFragment()
 		$.type.register "node",
-			match:  (o) -> o?.nodeType > 0
+			is:  (o) -> o?.nodeType > 0
 			hash:   (o) -> $.checksum(o.nodeName) + $.hash(o.attributes) + $.checksum(o.innerHTML)
 			string: (o) -> o.toString()
 			node:   $.identity
 		$.type.register "fragment",
-			match:  (o) -> o?.nodeType is 11
+			is:  (o) -> o?.nodeType is 11
 			hash:   (o) -> $($.hash(x) for x in o.childNodes).sum()
 			string: (o) -> o.toString()
 			node:   $.identity
 		$.type.register "html",
-			match:  (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
+			is:  (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
 			# Convert html to node.
 			node:   (h) ->
 				# Put the html into a new div.
 				(node = document.createElement('div')).innerHTML = h
 				# If there's only one resulting child, return that Node.
-				if n = (childNodes = node.childNodes).length is 1
+				if (n = (childNodes = node.childNodes).length) is 1
 					return node.removeChild(childNodes[0])
 				# Otherwise, copy all the div's children into a new
 				# fragment.
@@ -122,7 +122,11 @@ if $.global.document?
 
 			append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
 				x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
-				@each -> @appendChild x.cloneNode true
+				@each (n) -> n?.appendChild? x.cloneNode true
+
+			appendText: (text) ->
+				node = document.createTextNode(text)
+				@each -> @appendChild node.cloneNode true
 
 			appendTo: (x) -> # .appendTo(/n/) - each node [or fragment] will become the last child of x
 				clones = @map( -> @cloneNode true)
@@ -180,7 +184,10 @@ if $.global.document?
 					else if @parentNode
 						@parentNode.removeChild(@)
 
-			replace: (n) -> # .replace(/n/) - replace each node with n [or a clone]
+			replace: (n) -> # .replace(/n/) - replace each node with a clone of n
+				if $.is 'regexp', n
+					r = arguments[1]
+					return @map (s) -> s.replace(n, r)
 				n = toNode n
 				clones = @map(-> n.cloneNode true)
 				for i in [0...clones.length] by 1
@@ -188,12 +195,16 @@ if $.global.document?
 				clones
 
 			attr: (a,v) -> # .attr(a, [v]) - get [or set] an /a/ttribute [/v/alue]
-				return switch v
-					when undefined then @select("getAttribute").call(a, v)
-					when null then @select("removeAttribute").call(a, v)
+				if $.is 'object', a
+					@attr(k,v) for k,v of a
+				else switch v
+					when undefined
+						return @select("getAttribute").call(a, v)
+					when null
+						@select("removeAttribute").call(a, v); @
 					else
 						@select("setAttribute").call(a, v)
-						@
+				@
 
 			data: (k, v) -> @attr "data-#{$.dashize(k)}", v
 
@@ -250,18 +261,18 @@ if $.global.document?
 						for i in [0...n = Math.max v.length, nn = setters.length] by 1
 							setters[i%nn](key, v[i%n], "")
 					else if $.is 'function', v
-						values = @select("style.#{key}")
-							.weave(@map computeCSSProperty key)
-							.fold($.coalesce)
-							.weave(setters)
+						values = @select("style.#{key}") \
+							.weave(@map computeCSSProperty key) \
+							.fold($.coalesce) \
+							.weave(setters) \
 							.fold (setter, value) -> setter(key, v.call value, value)
 					# So, the key is simple, and if the value is a string,
 					# just do simple assignment (using setProperty).
 					else setters.call key, v, ""
 					return @
 				# Else, we are reading CSS properties.
-				else @select("style.#{key}")
-					.weave(@map computeCSSProperty key)
+				else @select("style.#{key}") \
+					.weave(@map computeCSSProperty key) \
 					.fold($.coalesce)
 
 			# Set css properties by injecting a style element in the the
@@ -313,7 +324,7 @@ if $.global.document?
 
 			# Get [or set] each item's position.
 			position: (left, top) ->
-				switch true
+				switch
 					# If called with no arguments, just return the position.
 					when not left? then @rect()
 					# If called with only one argument, only set "left".
@@ -356,6 +367,14 @@ if $.global.document?
 					# Flatten all the nodelists into a single set.
 					.flatten()
 
+			# Each node in _this_ contributes all children matching the
+			# CSS expression to a new set.
+			querySelectorAll: (expr) ->
+				@filter("*")
+				.reduce (a, i) ->
+					a.extend i.querySelectorAll expr
+				, $()
+
 			# Collect a new set, full of clones of the DOM Nodes in the input set.
 			clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @
 
@@ -364,7 +383,7 @@ if $.global.document?
 				if @length > 1
 					df = document.createDocumentFragment()
 					# Convert every item in _this_ to a DOM node, and then append it to the Fragment.
-					(@map toNode).map $.bound df, df.appendChild
+					(@map toNode).map (node) -> df.appendChild(node)
 					return df
 				return toNode @[0]
 		}

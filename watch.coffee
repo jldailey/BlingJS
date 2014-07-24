@@ -1,26 +1,94 @@
 #!/usr/bin/env coffee
 
-[Bling,Fs,Path,Proc] = ['bling','fs','path','child_process'].map require
+[ Bling, Fs, Path, Proc, Extra, Optimist ] = [
+	'./dist/bling.js','fs',
+	'path','child_process',
+	'extra', 'optimist'
+].map require
 
-if process.argv.length < 4
-	`return $.log("Usage: watch.coffee 'regex' 'shell command'")`
+opts = Optimist.options('t', {
+	alias: 'throttle'
+	default: 7
+	describe: "Seconds to wait between restart attempts."
+})
+.options('r', {
+	alias: 'restart-code'
+	default: 1
+	describe: "Restart any watched process that exits with this exit code. [0-255]."
+})
+.options('i', {
+	alias: 'immediate'
+	default: false
+	describe: "Spawn 'command [args...]' immediately."
+})
+.boolean('i')
+.options('x', {
+	alias: 'exclude'
+	default: 'node_modules'
+	describe: "Pattern for directories to avoid watching"
+})
+.options('v', {
+	alias: 'verbose'
+	default: false
+	describe: 'Verbose output'
+})
+.boolean('v')
+.demand(1)
+.usage("Usage: $0 [options...] -- 'pattern' -- [ENV=val] command [args...]")
+.argv
 
-exec = $.throttle 3000, $.trace 'exec', (file, cmd) -> Proc.exec cmd, (err, stdout, stderr) ->
-	$.log "[stdout]", stdout
-	$.log "[stderr]", stderr
+log = $.logger "[watch]"
 
-recurseDir = (path, cb) ->
-	cb(path)
-	Fs.readdir path, (err, files) ->
-		$(files).filter(/^[^.]/).each (file) ->
-			Fs.stat dir = Path.join(path, file), (err, stat) ->
-				if stat?.isDirectory()
-					recurseDir dir, cb
+log "Options:"
+log " Run immediately: #{opts.immediate}"
+log " Restart throttle: #{opts.throttle} sec"
+log " Exclude pattern: /#{opts.exclude}/"
+log " Restart on exit code: #{opts.r}"
+log " Verbose: #{opts.v}"
 
-[pattern, command] = $(process.argv).last(2)
+if opts.x
+	exc_re = new RegExp(opts.x)
+exclude = (dir) ->
+	opts.x and exc_re.test dir
+
+pattern = opts._[0]
 
 pattern = (try new RegExp pattern) or $.log 'bad pattern, using', /^[^.]/
 
-recurseDir '.', (dir) ->
+launch = $.throttle +opts.throttle * 1000, (file) ->
+	if opts.v then log "Spawning (reason: #{file})"
+	p = Extra.spawn( stdio: 'inherit' )
+	p.on 'close', (code) ->
+		log "Exit Code:", code
+		if code is +opts.r
+			log "Respawning..."
+			$.immediate -> launch "respawn option -r"
+
+if opts.immediate then $.immediate -> launch "immediate option -i"
+
+recurseDir = (path, cb) ->
+	done = $.Progress(1)
+	Fs.readdir path, (err, files) ->
+		cb(path)
+		$(files)
+			.filter(/^[^.]/)
+			# Set the maximum progress to the number of files we will stat
+			.tap(-> done.progress 0, @length; @ )
+			.each (file) ->
+				Fs.stat dir = Path.join(path, file), (err, stat) ->
+					if stat?.isDirectory() and not exclude(dir)
+						# If we recurse, include it's progress as part of ours
+						done.include recurseDir dir, cb
+					# Mark this file as complete
+					done.resolve(1)
+	done
+
+dirsWatched = 0
+recurseDir('.', (dir) ->
+	dirsWatched += 1
+	if opts.verbose then log "Watching", dir, "(#{dirsWatched})"
 	Fs.watch dir, (op, file) ->
-		pattern.test(file) and exec file, command
+		if pattern.test(file) then launch file
+).wait (err) ->
+	log "Watching #{dirsWatched} folders for changes."
+	if err then log "Error:", err

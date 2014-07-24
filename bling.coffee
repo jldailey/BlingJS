@@ -2,7 +2,7 @@
 
 # Philoshopy
 # ----------
-# 1. Always work on _sets_, scalars are annoying.
+# 1. Always work on _sets_.
 #    If you always write code to handle sets, you usually handle the scalar case for free.
 # 2. Don't alter global prototypes; play _nice_ with others.
 # 3. Have _fun_ and learn; about the DOM, about jQuery, about JavaScript and CoffeeScript.
@@ -50,15 +50,29 @@ extend = (a, b...) ->
 # So, the Bling constructor should not be called as `new Bling`,
 # rather it should be used python style: `Bling(stuff)`.
 class Bling # extends (new Array)
+	"Bling:nomunge"
 	constructor: (args...) ->
-		### See: plugins/hook.coffee ###
-		`return Bling.hook("bling-init", args)`
+		# If there was only one argument,
+		if args.length is 1
+			# Classify the type to get a type-instance.
+			# Then convert to an array-like
+			args = $.type.lookup(args[0]).array(args[0])
+		b = $.inherit Bling, args
+		# Firefox clobbers the length when you change the inheritance chain on an array, so we patch it up here
+		if args.length is 0 and args[0] isnt undefined
+			i = 0
+			i++ while args[i] isnt undefined
+			b.length = i
+		if 'init' of Bling # See: plugins/hook.coffee
+			# This allows plugins to modify the constructor behavior
+			return Bling.init(b)
+		return b
 
 # We specify an inheritance similar to `class Bling extends (new Array)`,
 # if such a thing were supported by the syntax directly.
-Bling.prototype = []
-Bling.prototype.constructor = Bling
-Bling.global = if window? then window else global
+Bling:: = []
+Bling::constructor = Bling
+Bling.global = do -> @
 
 # $.plugin( [ opts ], func )
 # -----------------
@@ -74,29 +88,28 @@ Bling.global = if window? then window else global
 # You can explicitly define static helpers by nesting under a `$` key:
 # > `$.plugin -> $: hello: -> "Hello!"`
 
+# This would only define $.hello()
+
 Bling.plugin = (opts, constructor) ->
 	if not constructor
 		constructor = opts
 		opts = {}
 
-	# Support a { depends: } option as a shortcut for `$.depends`.
+	# If this plugin depends on anything, then defer.
 	if "depends" of opts
 		return @depends opts.depends, =>
-			# Pass along the { provides: } option.
+			# Pass along any { provides: } option.
 			@plugin { provides: opts.provides }, constructor
 	try
 		# We call the plugin constructor and expect that it returns an
-		# object full of things to extend either Bling or it's prototype.
+		# object full of keys to extend either Bling or it's prototype.
 		if typeof (plugin = constructor?.call @,@) is "object"
-			# Record that this plugin loaded.
-			(Bling.plugin[opts.provides ? ""] or= []).push plugin
 			# If the plugin has a `$` key, extend the root with static items.
 			extend @, plugin?.$
-			# Clear off the static stuff.
-			delete plugin.$
 			# What remains extends the Bling prototype.
+			delete plugin.$
 			extend @prototype, plugin
-			# Finally, add static wrappers for anything that doesn't have one.
+			# Add static wrappers for anything that doesn't have one.
 			for key of plugin then do (key) =>
 				@[key] or= (a...) => (@::[key].apply Bling(a[0]), a[1...])
 			# Honor the { provides: } option.
@@ -119,22 +132,28 @@ extend Bling, do ->
 		(if (typeof n) is "string" then n.split /, */ else n)
 		.filter (x) -> not (x of complete)
 
-	depends: (needs, func) ->
+	depend = (needs, func) ->
 		if (needs = incomplete needs).length is 0 then func()
 		else
 			waiting.push (need) ->
 				(needs.splice i, 1) if (i = needs.indexOf need) > -1
 				return (needs.length is 0 and func)
 		func
+
+	depend: depend
+	depends: depend # alias
 	provide: (needs, data) ->
+		caught = null
 		for need in incomplete needs
 			complete[need] = i = 0
 			while i < waiting.length
-				if (func = waiting[i] need)
+				if (ready = waiting[i] need)
 					waiting.splice i,1
-					func data
+					try ready data
+					catch err then caught = err
 					i = 0 # start over in case a nested dependency removed stuff 'behind' i
 				else i++
+		if caught then throw caught
 		data
 
 $ = Bling

@@ -3,7 +3,8 @@ $.plugin
 	depends: 'type'
 , ->
 	# the set that $.randomString chooses from:
-	alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split ""
+	englishAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split ""
+	uuidAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 	$: random: do -> # Mersenne Twister algorithm, from the psuedocode on wikipedia
 		MT = new Array(624)
@@ -13,7 +14,7 @@ $.plugin
 			MT[0] = seed
 			for i in [1..623]
 				MT[i] = 0xFFFFFFFF & (1812433253 * (MT[i-1] ^ (MT[i-1] >>> 30)) + i)
-		
+
 		generate_numbers = ->
 			for i in [0..623]
 				y = ((MT[i] & 0x80000000) >>> 31) + (0x7FFFFFFF & MT[ (i+1) % 624 ])
@@ -38,7 +39,7 @@ $.plugin
 
 		$.defineProperty next, "seed",
 			set: (v) -> init_generator(v)
-		
+
 		next.seed = +new Date()
 
 		return $.extend next,
@@ -49,7 +50,7 @@ $.plugin
 					[min,max] = [0,min]
 				($.random() * (max - min)) + min
 			integer: integer = (min, max) -> Math.floor $.random.real(min,max)
-			string: string = (len, prefix="") ->
+			string: string = (len, prefix="", alphabet=englishAlphabet) ->
 				prefix += $.random.element(alphabet) while prefix.length < len
 				prefix
 			coin: coin = (balance=.5) -> $.random() <= balance
@@ -81,4 +82,6 @@ $.plugin
 				$( die(faces) for _ in [0...n] by 1 )
 			die: die = (faces) ->
 				$.random.integer(1,faces+1)
+			uuid: ->
+				$(8,4,4,4,12).map(-> $.random.string @,'',uuidAlphabet).join '-'
 

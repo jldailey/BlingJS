@@ -6,11 +6,13 @@ $.plugin
 	provides: "http"
 , ->
 	formencode = (obj) -> # create &foo=bar strings from object properties
-		o = JSON.parse(JSON.stringify(obj)) # quickly remove all non-stringable items
-		("#{i}=#{escape o[i]}" for i of o).join "&"
+		return if $.is 'object', obj
+			o = JSON.parse JSON.stringify obj # quickly remove all non-stringable items
+			("#{i}=#{escape o[i]}" for i of o).join "&"
+		else obj
 
 	$.type.register "http",
-		match: (o) -> $.isType 'XMLHttpRequest', o
+		is: (o) -> $.isType 'XMLHttpRequest', o
 		array: (o) -> [o]
 
 	return {
@@ -31,6 +33,7 @@ $.plugin
 					timeout: 0 # milliseconds, 0 is forever
 					followRedirects: false
 					withCredentials: false
+					headers: {}
 				}, opts
 				# Bind all the event handlers.
 				opts.state = $.bound(xhr, opts.state)
@@ -58,6 +61,8 @@ $.plugin
 								opts.success xhr.responseText
 							else
 								opts.error xhr.status, xhr.statusText
+				for k,v of opts.headers
+					xhr.setRequestHeader k, v
 				# Send the request body.
 				xhr.send opts.data
 				# Return the wrapped xhr object (for cancelling mostly)

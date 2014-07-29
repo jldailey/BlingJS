@@ -1119,10 +1119,12 @@ if $.global.document?
 			prepend: (x) -> # .prepend(/n/) - insert n [or a clone] as the first child of each node
 				if x?
 					x = toNode x
-					@take(1).each ->
-						before @childNodes[0], x
-					@skip(1).each ->
-						before @childNodes[0], x.cloneNode true
+					@take(1).each -> switch
+						when @childNodes.length > 0 then before @childNodes[0], x
+						else @appendChild x
+					@skip(1).each -> switch
+						when @childNodes.length then before @childNodes[0], x.cloneNode true
+						else @appendChild x.cloneNode true
 				@
 			prependTo: (x) -> # .prependTo(/n/) - each node [or a fragment] will become the first child of x
 				if x?

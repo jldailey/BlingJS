@@ -2444,10 +2444,20 @@
           if (x != null) {
             x = toNode(x);
             this.take(1).each(function() {
-              return before(this.childNodes[0], x);
+              switch (false) {
+                case !(this.childNodes.length > 0):
+                  return before(this.childNodes[0], x);
+                default:
+                  return this.appendChild(x);
+              }
             });
             this.skip(1).each(function() {
-              return before(this.childNodes[0], x.cloneNode(true));
+              switch (false) {
+                case !this.childNodes.length:
+                  return before(this.childNodes[0], x.cloneNode(true));
+                default:
+                  return this.appendChild(x.cloneNode(true));
+              }
             });
           }
           return this;

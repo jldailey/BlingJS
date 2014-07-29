@@ -37,7 +37,8 @@ describe "DOM", ->
 		it "renders a DOM node's contents as HTML", ->
 			assert.equal $("tr").html().first(), "<td>1,1</td><td>1,2</td>"
 		it "replaces a node's content with (parsed) HTML", ->
-			assert.equal $("div").html("<span>C</span>").html().first(), "<span>C</span>"
+			assert.equal $("div.c").html("<span>C</span>").html().first(), "<span>C</span>"
+
 	describe ".append()", ->
 		it "appends simple HTML", ->
 			try
@@ -56,7 +57,7 @@ describe "DOM", ->
 				assert.equal($("tr td.d").appendText("Hi").html().first(), "3,2Hi")
 			finally
 				$("tr td.d").html("3,2")
-	
+
 	describe ".appendTo() appends nodes", ->
 		it "to CSS selectors", ->
 			try assert.equal($("<span>Hi</span>").appendTo("tr td.d").toRepr(), "$([<span>Hi</span>])")
@@ -69,16 +70,30 @@ describe "DOM", ->
 		it "always at the end", ->
 			try assert.equal($("<span>Hi</span>").appendTo("tr td.d").select('parentNode').toRepr(), '$([<td class="d">3,2<span>Hi</span></td>])')
 			finally $("tr td.d span").remove()
+
 	describe ".prepend(x)", ->
 		it "makes x the first child of this", ->
 			try assert.equal $("tr td.d").prepend("<span>Hi</span>").html().first(),
 				"<span>Hi</span>3,2"
 			finally $("tr td.d span").remove()
+		it "works when prepending to an empty element", ->
+			try
+				$("div#empty").prepend("<span>prepend(x)</span>")
+				assert.deepEqual $("div#empty").text(), [ "prepend(x)" ]
+			finally
+				$("div#empty span").remove()
 	describe ".prependTo(x)", ->
 		it "makes this the first child of x", ->
 			try assert.equal $("<span>Hi</span>").prependTo("tr td.d").select('parentNode').html().first(),
 				"<span>Hi</span>3,2"
 			finally $("tr td.d span").remove()
+		it "works when prepending into an empty element", ->
+			assert.equal $("div#empty").first().childNodes.length, 0
+			try
+				$("<span>prependTo(x)</span>").prependTo("div#empty")
+				assert.equal $("div#empty").text().first(), "prependTo(x)"
+			finally $("div#empty span").remove()
+
 	it "before", -> assert.equal($("<a><b></b></a>").find("b").before("<c></c>").select('parentNode').toRepr(), "$([<a><c/><b/></a>])")
 	it "after1", -> assert.equal($("<a><b></b></a>").find("b").after("<c></c>").select('parentNode').toRepr(), "$([<a><b/><c/></a>])")
 	it "after2", -> assert.equal($("<b></b>").after("<c></c>").select('parentNode').toRepr(), "$([<b/><c/>])")
@@ -121,7 +136,7 @@ describe "DOM", ->
 	it "value3", -> assert.equal($("<input type='checkbox' checked />").val().toRepr(), "$(['on'])")
 	it "parents", -> assert.equal($("td.d").parents().first().select('nodeName').toRepr(), "$(['TR', 'TABLE', 'BODY', 'HTML'])")
 	it "prev", -> assert.equal($("div.c").prev().first().select('nodeName').filter(-> String(@) isnt "#TEXT").toRepr(), "$(['TABLE'])")
-	it "next", -> assert.equal($("div.c").next().first().select('nodeName').filter(-> String(@) isnt "#TEXT").toRepr(), "$(['P'])")
+	it "next", -> assert.equal($("div.c").next().first().select('nodeName').filter(-> String(@) isnt "#TEXT").toRepr(), "$(['P', 'DIV'])")
 	it "remove", ->
 		a = $("<a><b class='x'/><c class='x'/><d/></a>")
 		b = a.find(".x")
@@ -174,6 +189,8 @@ describe "DOM", ->
 					p + span
 				b 'Hello'
 			""").first().toString(), '<div class="clsA" type="text"><p/><span><b>Hello</b></span></div>'
+		it "does not add 'null' values for unspecified attributes", ->
+			assert.equal $.synth("div.cls").first().id, undefined
 
 	describe ".rect()", ->
 		it "returns a ClientRect for each DOM node", ->

@@ -524,7 +524,7 @@
         var autoEvict, eff, index, noValue, order, reIndex, rePosition;
         this.capacity = capacity != null ? capacity : 1000;
         this.defaultTtl = defaultTtl != null ? defaultTtl : Infinity;
-        this.capacity = Math.max(1, this.capacity);
+        this.capacity = Math.max(0, this.capacity);
         this.evictCount = Math.max(3, Math.floor(this.capacity * .1));
         index = Object.create(null);
         order = [];

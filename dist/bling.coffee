@@ -259,7 +259,7 @@ $.plugin
 	class EffCache
 		log = $.logger "[LRU]"
 		constructor: (@capacity = 1000, @defaultTtl = Infinity) ->
-			@capacity = Math.max 1, @capacity
+			@capacity = Math.max 0, @capacity
 			@evictCount = Math.max 3, Math.floor @capacity * .1
 			index = Object.create null
 			order = []

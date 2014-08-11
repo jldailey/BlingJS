@@ -12,8 +12,7 @@ $.plugin
 		log = $.logger "[LRU]"
 
 		constructor: (@capacity = 1000, @defaultTtl = Infinity) ->
-			# at least 1 capacity
-			@capacity = Math.max 1, @capacity
+			@capacity = Math.max 0, @capacity
 			# evict at least 3, as much as 10%
 			@evictCount = Math.max 3, Math.floor @capacity * .1
 			index = Object.create null

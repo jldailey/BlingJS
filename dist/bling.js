@@ -534,6 +534,9 @@
         autoEvict = (function(_this) {
           return function() {
             var k;
+            if (!(_this.capacity > 0)) {
+              return;
+            }
             if (order.length >= _this.capacity) {
               while (order.length + _this.evictCount - 1 >= _this.capacity) {
                 delete index[k = order.pop().k];
@@ -583,6 +586,9 @@
               var d, i, item;
               if (ttl == null) {
                 ttl = _this.defaultTtl;
+              }
+              if (!(_this.capacity > 0)) {
+                return v;
               }
               if (k in index) {
                 d = order[i = index[k]];

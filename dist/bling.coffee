@@ -265,6 +265,7 @@ $.plugin
 			order = []
 			eff = (o) -> -o.r / o.w
 			autoEvict = =>
+				return unless @capacity > 0
 				if order.length >= @capacity
 					while order.length + @evictCount - 1 >= @capacity
 						delete index[k = order.pop().k]
@@ -291,6 +292,7 @@ $.plugin
 						delete index[k]
 						reIndex i, order.length - 1
 				set: (k, v, ttl = @defaultTtl) =>
+					return v unless @capacity > 0
 					if k of index
 						d = order[i = index[k]]
 						d.v = v

@@ -524,7 +524,7 @@
         var autoEvict, eff, index, noValue, order, reIndex, rePosition;
         this.capacity = capacity != null ? capacity : 1000;
         this.defaultTtl = defaultTtl != null ? defaultTtl : Infinity;
-        this.capacity = Math.max(1, this.capacity);
+        this.capacity = Math.max(0, this.capacity);
         this.evictCount = Math.max(3, Math.floor(this.capacity * .1));
         index = Object.create(null);
         order = [];
@@ -534,6 +534,9 @@
         autoEvict = (function(_this) {
           return function() {
             var k;
+            if (!(_this.capacity > 0)) {
+              return;
+            }
             if (order.length >= _this.capacity) {
               while (order.length + _this.evictCount - 1 >= _this.capacity) {
                 delete index[k = order.pop().k];
@@ -583,6 +586,9 @@
               var d, i, item;
               if (ttl == null) {
                 ttl = _this.defaultTtl;
+              }
+              if (!(_this.capacity > 0)) {
+                return v;
               }
               if (k in index) {
                 d = order[i = index[k]];
@@ -3340,13 +3346,13 @@
         }
         return args;
       }), {
-        prepend: function(obj) {
-          chain.unshift(obj);
-          return obj;
+        prepend: function(o) {
+          chain.unshift(o);
+          return o;
         },
-        append: function(obj) {
-          chain.push(obj);
-          return obj;
+        append: function(o) {
+          chain.push(o);
+          return o;
         }
       });
     };
@@ -4054,7 +4060,11 @@
         then: function(f, e) {
           return this.wait(function(err, x) {
             if (err) {
-              return typeof e === "function" ? e(err) : void 0;
+              if (e != null) {
+                return e(err);
+              } else {
+                throw err;
+              }
             } else {
               return f(x);
             }
@@ -4839,7 +4849,7 @@
   });
 
   $.plugin({
-    depends: "core",
+    depends: "function",
     provides: "request-queue"
   }, function() {
     var RequestQueue;
@@ -6211,6 +6221,15 @@
           return o;
         }
       },
+      bling: {
+        trace: function(label, o, tracer) {
+          var i, _i, _ref;
+          for (i = _i = 0, _ref = o.length; _i < _ref; i = _i += 1) {
+            o[i] = $.trace(o[i], "" + label + "[" + i + "]", tracer);
+          }
+          return o;
+        }
+      },
       "function": {
         trace: function(label, f, tracer) {
           var r;
@@ -6976,6 +6995,7 @@
   });
 
   $.plugin({
+    depends: "type",
     provides: "url,URL"
   }, function() {
     var clean, parse, stringify, url_re;

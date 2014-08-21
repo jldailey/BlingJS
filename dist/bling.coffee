@@ -1597,11 +1597,11 @@ $.plugin
 				args = func.call @, args
 			args
 		), {
-			prepend: (obj) -> chain.unshift(obj); obj
-			append: (obj) -> chain.push(obj); obj
+			prepend: (o) -> chain.unshift o; o
+			append: (o) -> chain.push o; o
 		}
 	Bling.init = hook()
-	return $: hook: hook
+	return $: { hook }
 $.plugin
 	depends: "dom"
 	provides: "http"
@@ -1922,7 +1922,9 @@ $.plugin
 								consume_one cb, err = 'timeout', undefined
 				@
 			then: (f, e) -> @wait (err, x) ->
-				if err then e?(err)
+				if err
+					if e? then e(err)
+					else throw err
 				else f(x)
 			finish:  (value) -> end NoValue, value; @
 			resolve: (value) -> end NoValue, value; @
@@ -2293,10 +2295,10 @@ $.plugin
 	register 'get', (o, opts) -> reduce opts[o.name], opts
 	return $: { render }
 $.plugin
-	depends: "core"
+	depends: "function"
 	provides: "request-queue"
 , ->
-	$:
+	$: # A Queue of HTTP Requests
 		RequestQueue: class RequestQueue
 			constructor: (requester) ->
 				@requester = requester ? try require 'request'
@@ -2986,27 +2988,31 @@ $.plugin
 	depends: "function,type"
 , ->
 	$.type.extend
-		unknown: { trace: $.identity }
-		object:  { trace: (label, o, tracer) ->
+		unknown:  { trace: $.identity }
+		object:   { trace: (label, o, tracer) ->
 			(o[k] = $.trace(o[k], "#{label}.#{k}", tracer) for k in Object.keys(o))
-			return o
+			o
 		}
-		array:   { trace: (label, o, tracer) ->
+		array:    { trace: (label, o, tracer) ->
 			(o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length] by 1)
-			return o
+			o
 		}
-		function:
-			trace: (label, f, tracer) ->
-				label or= f.name
-				r = (a...) ->
-					start = +new Date
-					f.apply @, a
-					label = "#{@name or $.type(@)}.#{label}"
-					args = $(a).map($.toRepr).join ','
-					elapsed = (+new Date - start).toFixed 0
-					tracer "#{label}(#{args}): #{elapsed}ms"
-				r.toString = -> "{Trace '#{label}' of #{f.toString()}"
-				r
+		bling:    { trace: (label, o, tracer) ->
+			(o[i] = $.trace(o[i], "#{label}[#{i}]", tracer) for i in [0...o.length] by 1)
+			o
+		}
+		function: { trace: (label, f, tracer) ->
+			label or= f.name
+			r = (a...) ->
+				start = +new Date
+				f.apply @, a
+				label = "#{@name or $.type(@)}.#{label}"
+				args = $(a).map($.toRepr).join ','
+				elapsed = (+new Date - start).toFixed 0
+				tracer "#{label}(#{args}): #{elapsed}ms"
+			r.toString = -> "{Trace '#{label}' of #{f.toString()}"
+			r
+		}
 	time = (label, f, logger) ->
 		unless $.is "string", label
 			[f, logger, label] = [label, f, "trace"]
@@ -3372,6 +3378,7 @@ $.plugin
 				f.call((n = parseFloat x), n) + parseUnits x
 	}
 $.plugin
+	depends: "type",
 	provides: "url,URL"
 , ->
 	url_re = /\b(?:([a-z+]+):)(?:\/{1,2}([^?\/#]*?))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i

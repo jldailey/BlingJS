@@ -3346,13 +3346,13 @@
         }
         return args;
       }), {
-        prepend: function(obj) {
-          chain.unshift(obj);
-          return obj;
+        prepend: function(o) {
+          chain.unshift(o);
+          return o;
         },
-        append: function(obj) {
-          chain.push(obj);
-          return obj;
+        append: function(o) {
+          chain.push(o);
+          return o;
         }
       });
     };
@@ -4060,7 +4060,11 @@
         then: function(f, e) {
           return this.wait(function(err, x) {
             if (err) {
-              return typeof e === "function" ? e(err) : void 0;
+              if (e != null) {
+                return e(err);
+              } else {
+                throw err;
+              }
             } else {
               return f(x);
             }
@@ -4845,7 +4849,7 @@
   });
 
   $.plugin({
-    depends: "core",
+    depends: "function",
     provides: "request-queue"
   }, function() {
     var RequestQueue;
@@ -6217,6 +6221,15 @@
           return o;
         }
       },
+      bling: {
+        trace: function(label, o, tracer) {
+          var i, _i, _ref;
+          for (i = _i = 0, _ref = o.length; _i < _ref; i = _i += 1) {
+            o[i] = $.trace(o[i], "" + label + "[" + i + "]", tracer);
+          }
+          return o;
+        }
+      },
       "function": {
         trace: function(label, f, tracer) {
           var r;
@@ -6982,6 +6995,7 @@
   });
 
   $.plugin({
+    depends: "type",
     provides: "url,URL"
   }, function() {
     var clean, parse, stringify, url_re;

@@ -1,8 +1,9 @@
 $.plugin
+	depends: "type",
 	provides: "url,URL"
 , ->
-	url_re = /\b(?:([a-z+]+):)(?:\/{1,2}([^?\/#]*?))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i
 
+	url_re = /\b(?:([a-z+]+):)(?:\/{1,2}([^?\/#]*?))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i
 
 	parse = (str, parseQuery=false) ->
 		ret = if (m = str?.match url_re) then {

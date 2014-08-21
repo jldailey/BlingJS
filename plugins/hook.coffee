@@ -21,12 +21,12 @@ $.plugin
 				args = func.call @, args
 			args
 		), {
-			prepend: (obj) -> chain.unshift(obj); obj
-			append: (obj) -> chain.push(obj); obj
+			prepend: (o) -> chain.unshift o; o
+			append: (o) -> chain.push o; o
 		}
 
 	# The hook used by the constructor
 	Bling.init = hook()
 
-	return $: hook: hook
+	return $: { hook }
 

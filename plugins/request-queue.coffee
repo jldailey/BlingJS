@@ -1,8 +1,8 @@
 $.plugin
-	depends: "core"
+	depends: "function"
 	provides: "request-queue"
 , ->
-	$:
+	$: # A Queue of HTTP Requests
 		RequestQueue: class RequestQueue
 			constructor: (requester) ->
 				@requester = requester ? try require 'request'

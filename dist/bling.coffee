@@ -1975,17 +1975,16 @@ $.plugin
 				return cur unless args.length
 				cur = args[0] ? cur
 				max = (args[1] ? max) if args.length > 1
-				item = if args.length > 2 then args[2] else max
+				item = if args.length > 2 then args[2] else cur
 				if cur >= max
 					@__proto__.__proto__.resolve(item)
 				@emit 'progress', cur, max, item
 				@
-			resolve: (delta) ->
-				item = delta
+			resolve: (delta, item = delta) ->
 				unless isFinite(delta)
 					delta = 1
 				@progress cur + delta, max, item
-			finish: (delta) -> @resolve delta
+			finish: (delta, item) -> @resolve delta, item
 			include: (promise) ->
 				@progress cur, max + 1
 				promise.wait (err) =>

@@ -4203,23 +4203,24 @@
           if (args.length > 1) {
             max = (_ref1 = args[1]) != null ? _ref1 : max;
           }
-          item = args.length > 2 ? args[2] : max;
+          item = args.length > 2 ? args[2] : cur;
           if (cur >= max) {
             this.__proto__.__proto__.resolve(item);
           }
           this.emit('progress', cur, max, item);
           return this;
         },
-        resolve: function(delta) {
-          var item;
-          item = delta;
+        resolve: function(delta, item) {
+          if (item == null) {
+            item = delta;
+          }
           if (!isFinite(delta)) {
             delta = 1;
           }
           return this.progress(cur + delta, max, item);
         },
-        finish: function(delta) {
-          return this.resolve(delta);
+        finish: function(delta, item) {
+          return this.resolve(delta, item);
         },
         include: function(promise) {
           this.progress(cur, max + 1);

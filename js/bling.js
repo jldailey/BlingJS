@@ -3179,7 +3179,8 @@
   });
 
   $.plugin({
-    provides: "groupBy"
+    provides: "groupBy",
+    depends: "type"
   }, function() {
     return {
       groupBy: function(key) {
@@ -3219,6 +3220,22 @@
   }, function() {
     var array_hash, maxHash;
     maxHash = Math.pow(2, 32);
+    array_hash = function(d) {
+      return function(o) {
+        var x;
+        return d + $((function() {
+          var _i, _len, _results;
+          _results = [];
+          for (_i = 0, _len = o.length; _i < _len; _i++) {
+            x = o[_i];
+            _results.push($.hash(x));
+          }
+          return _results;
+        })()).reduce((function(a, x) {
+          return ((a * a) + (x | 0)) % maxHash;
+        }), 1);
+      };
+    };
     $.type.extend({
       unknown: {
         hash: function(o) {
@@ -3240,29 +3257,22 @@
         }
       },
       array: {
-        hash: array_hash = function(o) {
-          var x;
-          return 1816922041 + $((function() {
-            var _i, _len, _results;
-            _results = [];
-            for (_i = 0, _len = o.length; _i < _len; _i++) {
-              x = o[_i];
-              _results.push($.hash(x));
-            }
-            return _results;
-          })()).reduce((function(a, x) {
-            return ((a * a) + (x | 0)) % maxHash;
-          }), 1);
-        }
+        hash: array_hash(1816922041)
       },
       "arguments": {
-        hash: function(o) {
-          return 298517431 + array_hash(o);
-        }
+        hash: array_hash(298517431)
+      },
+      bling: {
+        hash: array_hash(92078573)
       },
       bool: {
         hash: function(o) {
           return parseInt(o ? 1 : void 0);
+        }
+      },
+      regexp: {
+        hash: function(o) {
+          return 148243084 + $.checksum($.toString(o));
         }
       }
     });
@@ -3641,20 +3651,30 @@
   $.plugin({
     provides: "matches"
   }, function() {
-    var matches;
+    var Contains, matches;
     matches = function(pattern, obj) {
       var k, v;
       switch ($.type(pattern)) {
         case 'function':
           if (pattern === matches.Any) {
             return true;
+          } else {
+            return obj === pattern;
           }
-          return obj === pattern;
         case 'regexp':
           return pattern.test(obj);
         case 'object':
         case 'array':
           if (obj == null) {
+            return false;
+          }
+          if (pattern instanceof Contains) {
+            for (k in obj) {
+              v = obj[k];
+              if (matches(pattern.item, v)) {
+                return true;
+              }
+            }
             return false;
           }
           for (k in pattern) {
@@ -3674,6 +3694,17 @@
       return Any;
 
     })();
+    Contains = (function() {
+      function Contains(item) {
+        this.item = item;
+      }
+
+      return Contains;
+
+    })();
+    matches.Contains = function(item) {
+      return new Contains(item);
+    };
     return {
       $: {
         matches: matches
@@ -4203,23 +4234,24 @@
           if (args.length > 1) {
             max = (_ref1 = args[1]) != null ? _ref1 : max;
           }
-          item = args.length > 2 ? args[2] : max;
+          item = args.length > 2 ? args[2] : cur;
           if (cur >= max) {
             this.__proto__.__proto__.resolve(item);
           }
           this.emit('progress', cur, max, item);
           return this;
         },
-        resolve: function(delta) {
-          var item;
-          item = delta;
+        resolve: function(delta, item) {
+          if (item == null) {
+            item = delta;
+          }
           if (!isFinite(delta)) {
             delta = 1;
           }
           return this.progress(cur + delta, max, item);
         },
-        finish: function(delta) {
-          return this.resolve(delta);
+        finish: function(delta, item) {
+          return this.resolve(delta, item);
         },
         include: function(promise) {
           this.progress(cur, max + 1);

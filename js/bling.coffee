@@ -1513,6 +1513,7 @@ $.plugin
 	partial: (a...) -> @map (f) -> $.partial f, a...
 $.plugin
 	provides: "groupBy"
+	depends: "type"
 , ->
 	groupBy: (key) ->
 		groups = {}
@@ -1528,25 +1529,17 @@ $.plugin
 	depends: "type"
 , ->
 	maxHash = Math.pow(2,32)
+	array_hash = (d) -> (o) -> d + $($.hash(x) for x in o).reduce(((a,x) -> ((a*a)+(x|0))%maxHash), 1)
 	$.type.extend
-		unknown: { hash: (o) -> $.checksum $.toString o }
-		object:  { hash: (o) ->
-			1970931729 + # $.hash(Object)
-				$($.hash(k) + $.hash(v) for k,v of o).sum()
-		}
-		array:   { hash: array_hash = (o) ->
-			1816922041 + # $.hash(Array)
-				$($.hash(x) for x in o).reduce(((a,x) -> ((a*a)+(x|0)) % maxHash), 1)
-		}
-		arguments: { hash: (o) ->
-			298517431 + # $.hash('Arguments')
-				array_hash o
-		}
-		bool:    { hash: (o) -> parseInt(1 if o) }
+		unknown:   { hash: (o) -> $.checksum $.toString o }
+		object:    { hash: (o) -> 1970931729 + $($.hash(k) + $.hash(v) for k,v of o).sum() }
+		array:     { hash: array_hash(1816922041) }
+		arguments: { hash: array_hash(298517431) }
+		bling:     { hash: array_hash(92078573) }
+		bool:      { hash: (o) -> parseInt(1 if o) }
+		regexp:    { hash: (o) -> 148243084 + $.checksum $.toString o }
 	return {
-		$:
-			hash: (x) ->
-				$.type.lookup(x).hash(x)
+		$: { hash: (x) -> $.type.lookup(x).hash(x) }
 		hash: -> $.hash @
 	}
 $.plugin ->
@@ -1776,11 +1769,14 @@ $.plugin
 	matches = (pattern, obj) ->
 		switch $.type pattern
 			when 'function'
-				if pattern is matches.Any then return true
-				return obj is pattern
+				return if pattern is matches.Any then true else (obj is pattern)
 			when 'regexp' then return pattern.test obj
 			when 'object', 'array'
 				unless obj?
+					return false
+				if pattern instanceof Contains
+					for k,v of obj
+						if matches pattern.item, v then return true
 					return false
 				for k, v of pattern
 					unless matches v, obj[k]
@@ -1788,6 +1784,8 @@ $.plugin
 				return true
 			else return obj is pattern
 	class matches.Any # magic token
+	class Contains then constructor: (@item) ->
+	matches.Contains = (item) -> new Contains(item)
 	return $: matches: matches
 $.plugin
 	provides: "math"
@@ -1975,17 +1973,16 @@ $.plugin
 				return cur unless args.length
 				cur = args[0] ? cur
 				max = (args[1] ? max) if args.length > 1
-				item = if args.length > 2 then args[2] else max
+				item = if args.length > 2 then args[2] else cur
 				if cur >= max
 					@__proto__.__proto__.resolve(item)
 				@emit 'progress', cur, max, item
 				@
-			resolve: (delta) ->
-				item = delta
+			resolve: (delta, item = delta) ->
 				unless isFinite(delta)
 					delta = 1
 				@progress cur + delta, max, item
-			finish: (delta) -> @resolve delta
+			finish: (delta, item) -> @resolve delta, item
 			include: (promise) ->
 				@progress cur, max + 1
 				promise.wait (err) =>

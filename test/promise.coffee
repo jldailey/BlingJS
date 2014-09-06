@@ -165,12 +165,16 @@ describe "$.Progress", ->
 			p.progress(9)
 			assert.equal p.progress(), 9
 			assert.equal _done, 0
-		it "completing progress resolvees the Promise", ->
+		it "completing progress resolves the Promise", ->
 			p.progress(10)
 			assert.equal _done, 10
-		it "result of resolved Progress is the final progress value", ->
-			p.progress(11.1)
-			assert.equal _done, 10 # the value at the time it was completed
+		it "result of resolved Progress is the final progress value", (done) ->
+			q = $.Progress(2)
+			q.then (item) ->
+				assert item is 'b'
+				done()
+			q.finish 1, 'a'
+			q.finish 1, 'b'
 		it "emits 'progress' events", ->
 			a = $.Progress(2)
 			data = []

@@ -3179,7 +3179,8 @@
   });
 
   $.plugin({
-    provides: "groupBy"
+    provides: "groupBy",
+    depends: "type"
   }, function() {
     return {
       groupBy: function(key) {
@@ -3219,6 +3220,22 @@
   }, function() {
     var array_hash, maxHash;
     maxHash = Math.pow(2, 32);
+    array_hash = function(d) {
+      return function(o) {
+        var x;
+        return d + $((function() {
+          var _i, _len, _results;
+          _results = [];
+          for (_i = 0, _len = o.length; _i < _len; _i++) {
+            x = o[_i];
+            _results.push($.hash(x));
+          }
+          return _results;
+        })()).reduce((function(a, x) {
+          return ((a * a) + (x | 0)) % maxHash;
+        }), 1);
+      };
+    };
     $.type.extend({
       unknown: {
         hash: function(o) {
@@ -3240,29 +3257,22 @@
         }
       },
       array: {
-        hash: array_hash = function(o) {
-          var x;
-          return 1816922041 + $((function() {
-            var _i, _len, _results;
-            _results = [];
-            for (_i = 0, _len = o.length; _i < _len; _i++) {
-              x = o[_i];
-              _results.push($.hash(x));
-            }
-            return _results;
-          })()).reduce((function(a, x) {
-            return ((a * a) + (x | 0)) % maxHash;
-          }), 1);
-        }
+        hash: array_hash(1816922041)
       },
       "arguments": {
-        hash: function(o) {
-          return 298517431 + array_hash(o);
-        }
+        hash: array_hash(298517431)
+      },
+      bling: {
+        hash: array_hash(92078573)
       },
       bool: {
         hash: function(o) {
           return parseInt(o ? 1 : void 0);
+        }
+      },
+      regexp: {
+        hash: function(o) {
+          return 148243084 + $.checksum($.toString(o));
         }
       }
     });

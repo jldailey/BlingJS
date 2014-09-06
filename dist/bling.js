@@ -3651,20 +3651,30 @@
   $.plugin({
     provides: "matches"
   }, function() {
-    var matches;
+    var Contains, matches;
     matches = function(pattern, obj) {
       var k, v;
       switch ($.type(pattern)) {
         case 'function':
           if (pattern === matches.Any) {
             return true;
+          } else {
+            return obj === pattern;
           }
-          return obj === pattern;
         case 'regexp':
           return pattern.test(obj);
         case 'object':
         case 'array':
           if (obj == null) {
+            return false;
+          }
+          if (pattern instanceof Contains) {
+            for (k in obj) {
+              v = obj[k];
+              if (matches(pattern.item, v)) {
+                return true;
+              }
+            }
             return false;
           }
           for (k in pattern) {
@@ -3684,6 +3694,17 @@
       return Any;
 
     })();
+    Contains = (function() {
+      function Contains(item) {
+        this.item = item;
+      }
+
+      return Contains;
+
+    })();
+    matches.Contains = function(item) {
+      return new Contains(item);
+    };
     return {
       $: {
         matches: matches

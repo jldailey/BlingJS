@@ -1769,11 +1769,14 @@ $.plugin
 	matches = (pattern, obj) ->
 		switch $.type pattern
 			when 'function'
-				if pattern is matches.Any then return true
-				return obj is pattern
+				return if pattern is matches.Any then true else (obj is pattern)
 			when 'regexp' then return pattern.test obj
 			when 'object', 'array'
 				unless obj?
+					return false
+				if pattern instanceof Contains
+					for k,v of obj
+						if matches pattern.item, v then return true
 					return false
 				for k, v of pattern
 					unless matches v, obj[k]
@@ -1781,6 +1784,8 @@ $.plugin
 				return true
 			else return obj is pattern
 	class matches.Any # magic token
+	class Contains then constructor: (@item) ->
+	matches.Contains = (item) -> new Contains(item)
 	return $: matches: matches
 $.plugin
 	provides: "math"

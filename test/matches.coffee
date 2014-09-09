@@ -39,6 +39,7 @@ describe ".matches()", ->
 				assert $.matches { a: $.matches.Any }, { a: 1 }
 			it "inside objects (negative)", ->
 				assert $.matches { a: $.matches.Any }, { b: 1 }
+		"""
 		describe "matches.Contains", ->
 			it "supports literal values contained in arrays", ->
 				assert $.matches $.matches.Contains('a'), ['a','b','c']
@@ -56,6 +57,9 @@ describe ".matches()", ->
 				assert.equal false, $.matches $.matches.Contains(/^c/), { a: "abc", b: "bca" }
 			it "does not support nesting", ->
 				assert.equal false, $.matches $.matches.Contains(/^a/), [ { a: "abc" } ]
+			it "supports nesting", ->
+				assert.equal true, $.matches { port: $.matches.Contains(1080) }, { foo: "bar", port: [ 1080 ] }
+		"""
 		it "nested", ->
 			assert $.matches {a: { b: 42 }}, {a: { b: 42 }}
 		it "nested (negative)", ->
@@ -74,6 +78,18 @@ describe ".matches()", ->
 				{ a: { b: "bar", c: { d: "foo" } } }
 	it "what happens when patterns are an array", ->
 		assert $.matches [1,2,3], [1,2,3,4]
+	describe "matching within arrays", ->
+		it "matches numbers", ->
+			assert $.matches 3, [1,2,3,4]
+		it "matches strings", ->
+			assert $.matches "a", ["a","b","c"]
+		it "matches regexes", ->
+			assert $.matches /^f/, ["bar", "foo"]
+		it "matches functions", ->
+			f = ->
+			assert $.matches f, [null, f]
+		it "matches nested objects", ->
+			assert $.matches {a:1}, [null, {a:1,b:2}]
 	it "does not crash when the matching object is null", ->
 		assert not $.matches {a:1}, null
 	it "fallbacks to basic comparisons if you dont pass a pattern", ->

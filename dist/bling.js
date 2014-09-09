@@ -3651,39 +3651,137 @@
   $.plugin({
     provides: "matches"
   }, function() {
-    var Contains, matches;
+    var matches;
     matches = function(pattern, obj) {
-      var k, v;
+      var k, obj_type, v, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _m;
+      if (pattern === matches.Any) {
+        return true;
+      }
+      obj_type = $.type(obj);
       switch ($.type(pattern)) {
+        case 'null':
+        case 'undefined':
+          return obj === pattern;
         case 'function':
-          if (pattern === matches.Any) {
-            return true;
-          } else {
-            return obj === pattern;
-          }
-        case 'regexp':
-          return pattern.test(obj);
-        case 'object':
-        case 'array':
-          if (obj == null) {
-            return false;
-          }
-          if (pattern instanceof Contains) {
-            for (k in obj) {
-              v = obj[k];
-              if (matches(pattern.item, v)) {
-                return true;
+          switch (obj_type) {
+            case 'array':
+            case 'bling':
+              for (_i = 0, _len = obj.length; _i < _len; _i++) {
+                v = obj[_i];
+                if (pattern === v) {
+                  return true;
+                }
               }
-            }
-            return false;
+              break;
+            case 'object':
+              for (k in obj) {
+                v = obj[k];
+                if (matches(pattern, v)) {
+                  return true;
+                }
+              }
           }
-          for (k in pattern) {
-            v = pattern[k];
-            if (!matches(v, obj[k])) {
+          return false;
+        case 'regexp':
+          switch (obj_type) {
+            case 'null':
+            case 'undefined':
               return false;
-            }
+            case 'string':
+              return pattern.test(obj);
+            case 'number':
+              return pattern.test(String(obj));
+            case 'array':
+            case 'bling':
+              for (_j = 0, _len1 = obj.length; _j < _len1; _j++) {
+                v = obj[_j];
+                if (pattern.test(v)) {
+                  return true;
+                }
+              }
           }
-          return true;
+          return false;
+        case 'object':
+          switch (obj_type) {
+            case 'null':
+            case 'undefined':
+            case 'string':
+            case 'number':
+              return false;
+            case 'array':
+            case 'bling':
+              for (_k = 0, _len2 = obj.length; _k < _len2; _k++) {
+                v = obj[_k];
+                if (matches(pattern, v)) {
+                  return true;
+                }
+              }
+              break;
+            case 'object':
+              for (k in pattern) {
+                v = pattern[k];
+                if (matches(v, obj[k])) {
+                  return true;
+                }
+              }
+          }
+          return false;
+        case 'array':
+          switch (obj_type) {
+            case 'null':
+            case 'undefined':
+            case 'string':
+            case 'number':
+            case 'object':
+              return false;
+            case 'array':
+            case 'bling':
+              for (k in pattern) {
+                v = pattern[k];
+                if (!(matches(v, obj[k]))) {
+                  return false;
+                }
+              }
+              return true;
+          }
+          return false;
+        case 'number':
+          switch (obj_type) {
+            case 'null':
+            case 'undefined':
+            case 'object':
+            case 'string':
+              return false;
+            case 'number':
+              return obj === pattern;
+            case 'array':
+            case 'bling':
+              for (_l = 0, _len3 = obj.length; _l < _len3; _l++) {
+                v = obj[_l];
+                if (matches(pattern, v)) {
+                  return true;
+                }
+              }
+          }
+          return false;
+        case 'string':
+          switch (obj_type) {
+            case 'null':
+            case 'undefined':
+            case 'object':
+              return false;
+            case 'string':
+              return obj === pattern;
+            case 'array':
+            case 'bling':
+              for (_m = 0, _len4 = obj.length; _m < _len4; _m++) {
+                v = obj[_m];
+                if (matches(pattern, v)) {
+                  return true;
+                }
+              }
+          }
+          return false;
         default:
           return obj === pattern;
       }
@@ -3694,17 +3792,6 @@
       return Any;
 
     })();
-    Contains = (function() {
-      function Contains(item) {
-        this.item = item;
-      }
-
-      return Contains;
-
-    })();
-    matches.Contains = function(item) {
-      return new Contains(item);
-    };
     return {
       $: {
         matches: matches

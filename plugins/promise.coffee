@@ -127,15 +127,17 @@ $.plugin
 				@emit 'progress', cur, max, item
 				@
 			resolve: (delta, item = delta) ->
-				delta = 1 unless isFinite(delta)
+				unless isFinite(delta) then delta = 1
 				@progress cur + delta, max, item
 			finish: (delta, item) -> @resolve delta, item
 
 			include: (promise) ->
-				@progress cur, max + 1
-				promise.wait (err) =>
-					if err then @reject err
-					else @resolve 1
+				if $.is 'promise', promise
+					@progress cur, max + 1
+					promise.wait (err) =>
+						if err then @reject err
+						else @resolve 1
+				return @
 
 			inspect: -> "{Progress[#{@promiseId}] #{cur}/#{max}}"
 		}, Promise()
@@ -160,7 +162,7 @@ $.plugin
 
 	$.depend 'type', ->
 		$.type.register 'promise', is: (o) ->
-			try return (typeof o is 'object')	and 'then' of o
+			try return (typeof o is 'object')	and 'promiseId' of o and 'then' of o
 			catch err then return false
 
 	return $: { Promise, Progress }

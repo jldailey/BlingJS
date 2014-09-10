@@ -183,39 +183,66 @@ describe "$.Progress", ->
 			a.resolve 1
 			a.resolve 1
 			assert.deepEqual data, [ [1,2], [2,2] ]
-		it "can 'include' other promises", ->
-			a = $.Progress(2)
-			b = $.Promise()
-			a.include(b)
-			a.resolve 1
-			a.resolve 1
-			assert.equal a.resolved, false
-			b.resolve()
-			assert.equal a.resolved, true
-		it "can 'include' other progress", ->
-			a = $.Progress(2)
-			b = $.Progress(2)
-			a.include(b)
-			a.resolve 1
-			a.resolve 1
-			assert.equal a.resolved, false
-			b.resolve 1
-			assert.equal a.resolved, false
-			b.resolve 1
-			assert.equal a.resolved, true
-		it "can 'include' recursively", (ok) ->
-			run = (level, cb) ->
-				unless level > 0
-					$.delay 10, cb
-					return $.Promise().resolve()
-				done = $.Progress(2)
-				done.include run level-1, ->
+		describe ".include()", ->
+			it "can include other promises", ->
+				a = $.Progress(2)
+				b = $.Promise()
+				a.include(b)
+				a.resolve 1
+				a.resolve 1
+				assert.equal a.resolved, false
+				b.resolve()
+				assert.equal a.resolved, true
+			it "can include other progress", ->
+				a = $.Progress(2)
+				b = $.Progress(2)
+				a.include(b)
+				a.resolve 1
+				a.resolve 1
+				assert.equal a.resolved, false
+				b.resolve 1
+				assert.equal a.resolved, false
+				b.resolve 1
+				assert.equal a.resolved, true
+			it "can include recursively", (ok) ->
+				run = (level, cb) ->
+					unless level > 0
+						$.delay 10, cb
+						return $.Promise().resolve()
+					done = $.Progress(2)
+					done.include run level-1, ->
+						done.resolve(1)
+						$.delay 10, ->
+							assert.equal done.resolved, true, "done should be true"
 					done.resolve(1)
-					$.delay 10, ->
-						assert.equal done.resolved, true, "done should be true"
-				done.resolve(1)
-				assert.equal done.resolved, false, "done should be false"
-				$.delay 10, cb
-				done
-			run 5, ok
+					assert.equal done.resolved, false, "done should be false"
+					$.delay 10, cb
+					done
+				run 5, ok
+			describe "ignores", ->
+				it "objects", (done) ->
+					a = $.Progress(1)
+					a.include({})
+					a.then -> done()
+					a.finish(1)
+				it "strings", (done) ->
+					a = $.Progress(1)
+					a.include("a")
+					a.then -> done()
+					a.finish(1)
+				it "undefined", (done) ->
+					a = $.Progress(1)
+					a.include(undefined)
+					a.then -> done()
+					a.finish(1)
+				it "null", (done) ->
+					a = $.Progress(1)
+					a.include(null)
+					a.then -> done()
+					a.finish(1)
+				it "arrays", (done) ->
+					a = $.Progress(1)
+					a.include([1,2,3])
+					a.then -> done()
+					a.finish(1)
 

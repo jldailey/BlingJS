@@ -4344,16 +4344,19 @@
           return this.resolve(delta, item);
         },
         include: function(promise) {
-          this.progress(cur, max + 1);
-          return promise.wait((function(_this) {
-            return function(err) {
-              if (err) {
-                return _this.reject(err);
-              } else {
-                return _this.resolve(1);
-              }
-            };
-          })(this));
+          if ($.is('promise', promise)) {
+            this.progress(cur, max + 1);
+            promise.wait((function(_this) {
+              return function(err) {
+                if (err) {
+                  return _this.reject(err);
+                } else {
+                  return _this.resolve(1);
+                }
+              };
+            })(this));
+          }
+          return this;
         },
         inspect: function() {
           return "{Progress[" + this.promiseId + "] " + cur + "/" + max + "}";
@@ -4399,7 +4402,7 @@
         is: function(o) {
           var err;
           try {
-            return (typeof o === 'object') && 'then' in o;
+            return (typeof o === 'object') && 'promiseId' in o && 'then' in o;
           } catch (_error) {
             err = _error;
             return false;

@@ -1782,7 +1782,7 @@ $.plugin
 					when 'null','undefined' then return false
 					when 'string' then return pattern.test obj
 					when 'number' then return pattern.test String(obj)
-					when 'array', 'bling' then for v in obj when pattern.test v then return true
+					when 'array','bling' then for v in obj when pattern.test v then return true
 				return false
 			when 'object'
 				switch obj_type
@@ -1901,7 +1901,7 @@ $.plugin
 , ->
 	class NoValue # a named totem
 	Promise = (obj = {}) ->
-		waiting = new Array()
+		waiting = []
 		err = result = NoValue
 		consume_all = (e, v) ->
 			while w = waiting.shift()
@@ -1913,7 +1913,7 @@ $.plugin
 			catch _e
 				try cb _e, null
 				catch __e
-					$.log "Fatal error in promise callback:", __e?.stack, "caused by:", _e?.stack
+					$.log "Fatal error in promise callback:", __e?.stack ? __e, "caused by:", _e?.stack ? _e
 			null
 		end = (error, value) =>
 			if err is result is NoValue
@@ -1981,9 +1981,9 @@ $.plugin
 		q = $.Progress(1 + promises.length)
 		for promise, i in promises then do (i) ->
 			promise.wait (err, result) ->
-				ret[i] = err ? result
-				q.resolve(1)
-		q.then -> p.resolve(ret)
+				if err then q.reject(err) # any sub-failure is actual failure
+				else q.resolve 1, ret[i] = result # put the results in the correct order
+		q.then (->p.resolve ret), p.reject
 		q.resolve(1)
 		p
 	Promise.wrapCall = (f, args...) ->
@@ -2004,8 +2004,7 @@ $.plugin
 				@emit 'progress', cur, max, item
 				@
 			resolve: (delta, item = delta) ->
-				unless isFinite(delta)
-					delta = 1
+				delta = 1 unless isFinite(delta)
 				@progress cur + delta, max, item
 			finish: (delta, item) -> @resolve delta, item
 			include: (promise) ->

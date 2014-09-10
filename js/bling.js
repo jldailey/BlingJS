@@ -4094,7 +4094,7 @@
       if (obj == null) {
         obj = {};
       }
-      waiting = new Array();
+      waiting = [];
       err = result = NoValue;
       consume_all = function(e, v) {
         var w;
@@ -4104,7 +4104,7 @@
         return null;
       };
       consume_one = function(cb, e, v) {
-        var __e, _e, _ref;
+        var __e, _e, _ref, _ref1, _ref2;
         if ((_ref = cb.timeout) != null) {
           _ref.cancel();
         }
@@ -4116,7 +4116,7 @@
             cb(_e, null);
           } catch (_error) {
             __e = _error;
-            $.log("Fatal error in promise callback:", __e != null ? __e.stack : void 0, "caused by:", _e != null ? _e.stack : void 0);
+            $.log("Fatal error in promise callback:", (_ref1 = __e != null ? __e.stack : void 0) != null ? _ref1 : __e, "caused by:", (_ref2 = _e != null ? _e.stack : void 0) != null ? _ref2 : _e);
           }
         }
         return null;
@@ -4272,17 +4272,20 @@
       q = $.Progress(1 + promises.length);
       _fn = function(i) {
         return promise.wait(function(err, result) {
-          ret[i] = err != null ? err : result;
-          return q.resolve(1);
+          if (err) {
+            return q.reject(err);
+          } else {
+            return q.resolve(1, ret[i] = result);
+          }
         });
       };
       for (i = _i = 0, _len = promises.length; _i < _len; i = ++_i) {
         promise = promises[i];
         _fn(i);
       }
-      q.then(function() {
+      q.then((function() {
         return p.resolve(ret);
-      });
+      }), p.reject);
       q.resolve(1);
       return p;
     };

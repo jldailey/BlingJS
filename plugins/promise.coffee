@@ -5,7 +5,7 @@ $.plugin
 , ->
 	class NoValue # a named totem
 	Promise = (obj = {}) ->
-		waiting = new Array()
+		waiting = []
 		err = result = NoValue
 		consume_all = (e, v) ->
 			while w = waiting.shift()
@@ -17,7 +17,7 @@ $.plugin
 			catch _e
 				try cb _e, null
 				catch __e
-					$.log "Fatal error in promise callback:", __e?.stack, "caused by:", _e?.stack
+					$.log "Fatal error in promise callback:", __e?.stack ? __e, "caused by:", _e?.stack ? _e
 			null
 
 		end = (error, value) =>
@@ -34,7 +34,6 @@ $.plugin
 					# every waiting callback gets consumed and called
 					when error isnt NoValue then consume_all error, null
 					when value isnt NoValue then consume_all null, value
-
 			return @
 
 		ret = $.inherit {
@@ -99,9 +98,9 @@ $.plugin
 		q = $.Progress(1 + promises.length)
 		for promise, i in promises then do (i) ->
 			promise.wait (err, result) ->
-				if err then q.reject(err) # any sub-failure is total failure
+				if err then q.reject(err) # any sub-failure is actual failure
 				else q.resolve 1, ret[i] = result # put the results in the correct order
-		q.then -> p.resolve(ret)
+		q.then (->p.resolve ret), p.reject
 		q.resolve(1)
 		p
 

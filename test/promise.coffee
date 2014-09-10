@@ -115,16 +115,17 @@ describe "$.Promise()", ->
 			b.resolve('b')
 			c.resolve('c')
 			a.resolve('a')
-		it "can mix errors and results, in order", (done) ->
+		it "fails when any sub-promise fails", (done) ->
 			a = $.Promise()
 			b = $.Promise()
 			c = $.Promise()
-			$.Promise.collect([a,b,c]).then (list) ->
-				assert.deepEqual list, ['a','err_b','c']
-				done()
-			b.reject("err_b")
+			d = $.Promise.collect([a,b,c])
 			c.resolve('c')
+			b.reject("err_b")
 			a.resolve('a')
+			d.wait (err) ->
+				assert.equal "err_b", err
+				done()
 
 	describe ".handler()", ->
 		it "is a function", ->

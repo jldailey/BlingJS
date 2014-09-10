@@ -99,8 +99,8 @@ $.plugin
 		q = $.Progress(1 + promises.length)
 		for promise, i in promises then do (i) ->
 			promise.wait (err, result) ->
-				ret[i] = err ? result
-				q.resolve(1)
+				if err then q.reject(err) # any sub-failure is total failure
+				else q.resolve 1, ret[i] = result # put the results in the correct order
 		q.then -> p.resolve(ret)
 		q.resolve(1)
 		p
@@ -128,8 +128,7 @@ $.plugin
 				@emit 'progress', cur, max, item
 				@
 			resolve: (delta, item = delta) ->
-				unless isFinite(delta)
-					delta = 1
+				delta = 1 unless isFinite(delta)
 				@progress cur + delta, max, item
 			finish: (delta, item) -> @resolve delta, item
 

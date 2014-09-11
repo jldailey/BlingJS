@@ -120,10 +120,10 @@ $.plugin
 			tx = forceType
 		else
 			tx = $.type x
-			if tx is "object" and x.constructor?.name isnt "Object"
+			if tx is "unknown" and not (x.constructor?.name in [undefined, "Object"])
 				tx = "class instance"
 		unless (t = Types[tx])?
-			throw new Error("TNET: dont know how to pack type '#{tx}'")
+			throw new Error("TNET: I don't know how to pack type '#{tx}' (#{x.constructor?.name})")
 		data = t.pack(x)
 		return (data.length) + ":" + data + t.symbol
 

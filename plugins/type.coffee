@@ -107,7 +107,7 @@ $.plugin
 		# This implies that the 'simplest' checks should be registered
 		# first, and conceptually more specialized checks would get added
 		# as time goes on (so specialized type matches are preferred).
-		register "object",    is: (o) -> typeof o is "object"
+		register "object",    is: (o) -> typeof o is "object" and (o.constructor?.name in [undefined, "Object"])
 		register "error",     is: (o) -> isType 'Error', o
 		register "regexp",    is: (o) -> isType 'RegExp', o
 		register "string",    is: (o) -> typeof o is "string" or isType String, o

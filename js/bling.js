@@ -5800,11 +5800,11 @@
           timeout = null;
           return function() {
             var a;
-            a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+            a = arguments;
             clearTimeout(timeout);
             return setTimeout(((function(_this) {
               return function() {
-                return f.apply(_this, arguments);
+                return f.apply(_this, a);
               };
             })(this)), ms);
           };
@@ -6855,8 +6855,46 @@
     depends: "type",
     provides: "url,URL"
   }, function() {
-    var clean, parse, stringify, url_re;
-    url_re = /\b(?:([a-z+]+):)(?:\/{1,2}([^?\/#]*?))(?::(\d+))*(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i;
+    var clean, host_port_re, parse, parse_host, stringify, url_re, user_pass_re, username_re;
+    url_re = /\b(?:([a-z+]+):)(?:\/{1,2}([^?\/#]*?))(\/[^?]*)*(?:\?([^#]+))*(?:#([^\s]+))*$/i;
+    user_pass_re = /^([^:]+):([^@]+)@/;
+    username_re = /^([^:@]+)@/;
+    host_port_re = /^([^:]+):(\d+)/;
+    parse_host = function(host) {
+      var m, ret;
+      if (!((host != null) && host.length > 0)) {
+        return {};
+      }
+      ret = {
+        host: host
+      };
+      if (ret.host.indexOf(",") > -1) {
+        $.extend(ret, {
+          hosts: ret.host.split(",").map(parse_host),
+          host: void 0
+        });
+      } else {
+        if ((m = ret.host.match(user_pass_re))) {
+          $.extend(ret, {
+            username: m[1],
+            password: m[2],
+            host: ret.host.replace(user_pass_re, '')
+          });
+        } else if ((m = ret.host.match(username_re))) {
+          $.extend(ret, {
+            username: m[1],
+            host: ret.host.replace(username_re, '')
+          });
+        }
+        if ((m = ret.host.match(host_port_re))) {
+          $.extend(ret, {
+            host: m[1],
+            port: m[2]
+          });
+        }
+      }
+      return ret;
+    };
     parse = function(str, parseQuery) {
       var i, m, pair, query, ret, _i, _len, _ref, _ref1, _ref2, _ref3;
       if (parseQuery == null) {
@@ -6865,24 +6903,39 @@
       ret = (m = str != null ? str.match(url_re) : void 0) ? {
         protocol: m[1],
         host: m[2],
-        port: m[3],
-        path: m[4],
-        query: (_ref = m[5]) != null ? _ref.replace(/^\?/, '') : void 0,
-        hash: (_ref1 = m[6]) != null ? _ref1.replace(/^#/, '') : void 0
+        path: m[3],
+        query: (_ref = m[4]) != null ? _ref.replace(/^\?/, '') : void 0,
+        hash: (_ref1 = m[5]) != null ? _ref1.replace(/^#/, '') : void 0
       } : null;
-      if ((ret != null) && parseQuery) {
-        query = (_ref2 = ret.query) != null ? _ref2 : "";
-        ret.query = Object.create(null);
-        _ref3 = query.split('&');
-        for (_i = 0, _len = _ref3.length; _i < _len; _i++) {
-          pair = _ref3[_i];
-          if ((i = pair.indexOf('=')) > -1) {
-            ret.query[pair.substring(0, i)] = unescape(pair.substring(i + 1));
-          } else if (pair.length > 0) {
-            ret.query[pair] = null;
+      if (ret != null) {
+        if (parseQuery) {
+          query = (_ref2 = ret.query) != null ? _ref2 : "";
+          ret.query = Object.create(null);
+          _ref3 = query.split('&');
+          for (_i = 0, _len = _ref3.length; _i < _len; _i++) {
+            pair = _ref3[_i];
+            if ((i = pair.indexOf('=')) > -1) {
+              ret.query[pair.substring(0, i)] = unescape(pair.substring(i + 1));
+            } else if (pair.length > 0) {
+              ret.query[pair] = null;
+            }
           }
+          delete ret.query[""];
         }
-        delete ret.query[""];
+        $.extend(ret, parse_host(ret.host));
+        $.keysOf(ret).each(function(key) {
+          switch ($.type(ret[key])) {
+            case "null":
+            case "undefined":
+              delete ret[key];
+              break;
+            case "string":
+              if (ret[key].length === 0) {
+                delete ret[key];
+              }
+          }
+          return null;
+        });
       }
       return ret;
     };

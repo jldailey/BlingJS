@@ -37,12 +37,12 @@ $.plugin
 	locker = (x) -> -> x
 
 	# Compute any conversions that we can figure out programmatically (identity, inverses, inference)
-	fillConversions = ->
+	fill = ->
 		# For now, this is just a stub, because we don't want the initial setup calls to do any of this
 		# Right after all the initial conversions are set, we put the real code back in
 
 
-	setConversion = (from, to, f) ->
+	set = (from, to, f) ->
 		conv[from] or= {}
 		conv[from][to] = f
 		if units.indexOf(from) is -1
@@ -50,61 +50,61 @@ $.plugin
 		if units.indexOf(to) is -1
 			units.push to
 		makeUnitRegex()
-		fillConversions()
+		fill()
 
-	initialize = ->
-		setConversion 'pc', 'pt', -> 12
-		setConversion 'in', 'pt', -> 72
-		setConversion 'in', 'px', -> 96
-		setConversion 'in', 'cm', -> 2.54
-		setConversion 'm', 'ft', -> 3.281
-		setConversion 'yd', 'ft', -> 3
-		setConversion 'cm', 'mm', -> 10
-		setConversion 'm', 'cm', -> 100
-		setConversion 'm', 'meter', -> 1
-		setConversion 'm', 'meters', -> 1
-		setConversion 'ft', 'feet', -> 1
-		setConversion 'km', 'm', -> 1000
-		setConversion 'em', 'px', ->
+	init = ->
+		set 'pc', 'pt', -> 12
+		set 'in', 'pt', -> 72
+		set 'in', 'px', -> 96
+		set 'in', 'cm', -> 2.54
+		set 'm', 'ft', -> 3.281
+		set 'yd', 'ft', -> 3
+		set 'cm', 'mm', -> 10
+		set 'm', 'cm', -> 100
+		set 'm', 'meter', -> 1
+		set 'm', 'meters', -> 1
+		set 'ft', 'feet', -> 1
+		set 'km', 'm', -> 1000
+		set 'em', 'px', ->
 			w = 0
 			try
 				x = $("<span style='font-size:1em;visibility:hidden'>x</span>").appendTo("body")
 				w = x.width().first()
 				x.remove()
 			w
-		setConversion 'ex', 'px', ->
+		set 'ex', 'px', ->
 			w = 0
 			try
 				x = $("<span style='font-size:1ex;visibility:hidden'>x</span>").appendTo("body")
 				w = x.width().first()
 				x.remove()
 			w
-		setConversion 'ex', 'em', -> 2
-		setConversion 'rad', 'deg', -> 57.3
-		setConversion 's', 'sec', -> 1
-		setConversion 's', 'ms', -> 1000
-		setConversion 'ms', 'ns', -> 1000000
-		setConversion 'min', 'sec', -> 60
-		setConversion 'hr', 'min', -> 60
-		setConversion 'hr', 'hour', -> 1
-		setConversion 'hr', 'hours', -> 1
-		setConversion 'day', 'hr', -> 24
-		setConversion 'day', 'days', -> 1
-		setConversion 'y', 'year', -> 1
-		setConversion 'y', 'years', -> 1
-		setConversion 'y', 'd', -> 365.25
-		setConversion 'g', 'gram', -> 1
-		setConversion 'g', 'grams', -> 1
-		setConversion 'kg', 'g', -> 1000
-		setConversion 'lb', 'g', -> 453.6
-		setConversion 'lb', 'oz', -> 16
-		setConversion 'f', 'frame', -> 1
-		setConversion 'f', 'frames', -> 1
-		setConversion 'sec', 'f', -> 60
+		set 'ex', 'em', -> 2
+		set 'rad', 'deg', -> 57.3
+		set 's', 'sec', -> 1
+		set 's', 'ms', -> 1000
+		set 'ms', 'ns', -> 1000000
+		set 'min', 'sec', -> 60
+		set 'hr', 'min', -> 60
+		set 'hr', 'hour', -> 1
+		set 'hr', 'hours', -> 1
+		set 'day', 'hr', -> 24
+		set 'day', 'days', -> 1
+		set 'y', 'year', -> 1
+		set 'y', 'years', -> 1
+		set 'y', 'd', -> 365.25
+		set 'g', 'gram', -> 1
+		set 'g', 'grams', -> 1
+		set 'kg', 'g', -> 1000
+		set 'lb', 'g', -> 453.6
+		set 'lb', 'oz', -> 16
+		set 'f', 'frame', -> 1
+		set 'f', 'frames', -> 1
+		set 'sec', 'f', -> 60
 
 		# Now fill in the conversions, and assign the reference back
-		# so further calls to setConversion will do the exhaustive fill.
-		do fillConversions = ->
+		# so further calls to set will do the exhaustive fill.
+		do fill = ->
 			# set up all the identity conversions (self to self, or to unitless)
 			conv[''] = {}
 			one = locker 1.0
@@ -130,14 +130,13 @@ $.plugin
 
 		$.units.enable = ->
 
-	convertNumber = (number, unit) ->
+	convert = (unit, number) ->
 		f = parseFloat(number)
 		u = parseUnits(number)
 		c = conv(u, unit)
 		unless isFinite(c) and isFinite(f)
 			return number
 		"#{f * c}#{unit}"
-
 
 	$.type.register "units",
 		is: (x) -> typeof x is "string" and UNIT_RE.test(x)
@@ -147,11 +146,11 @@ $.plugin
 	{
 		$:
 			units:
-				enable: initialize
-				set: setConversion
+				enable: init
+				set: set
 				get: conv
-				convertTo: (unit, obj) -> convertNumber(obj, unit)
-		convertTo: (unit) -> @map (x) -> convertNumber(x, unit)
+				convertTo: convert
+		convertTo: (unit) -> @map (x) -> convert unit, x
 		unitMap: (f) ->
 			@map (x) ->
 				f.call((n = parseFloat x), n) + parseUnits x

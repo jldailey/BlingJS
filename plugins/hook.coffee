@@ -26,7 +26,7 @@ $.plugin
 		}
 
 	# The hook used by the constructor
-	Bling.init = hook()
+	$.init = hook()
 
 	return $: { hook }
 

@@ -162,7 +162,7 @@ $.plugin
 		# Arrays just convert to themselves.
 		array:     { array: (o) -> o }
 		# Numbers create a new array of that capacity (but zero length).
-		number:    { array: (o) -> Bling.extend new Array(o), length: 0 }
+		number:    { array: (o) -> $.extend new Array(o), length: 0 }
 		# Arguments get sliced into to a real array.
 		arguments: { array: (o) -> Array::slice.apply o }
 
@@ -171,14 +171,14 @@ $.plugin
 	maxHash = Math.pow(2,32)
 	_type.register "bling",
 		# Add the type test so: `$.type($()) == "bling"`.
-		is:  (o) -> o and isType Bling, o
+		is:  (o) -> o and isType $, o
 		# Blings extend arrays so they convert to themselves.
 		array:  (o) -> o.toArray()
 		# Their hash is just the sum of member hashes (order matters).
-		hash:   (o) -> o.map(Bling.hash).reduce (a,x) -> ((a*a)+x) % maxHash
+		hash:   (o) -> o.map($.hash).reduce (a,x) -> ((a*a)+x) % maxHash
 		# They have a very literal string representation.
-		string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
-		repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
+		string: (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
+		repr: (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 
 	$:
 		# __$.inherit(parent, child)__ makes _parent_ become the

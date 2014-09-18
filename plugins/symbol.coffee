@@ -23,9 +23,9 @@ $.plugin
 	cache = {}
 	g = $.global
 	# Export the global 'Bling' symbol.
-	g.Bling = Bling
+	g['Bling'] = $
 	if module?
-		module.exports = Bling
+		module.exports = $
 	# Define $.symbol as a dynamic property.
 	$.defineProperty $, "symbol",
 		set: (v) ->
@@ -38,7 +38,7 @@ $.plugin
 	return $:
 		symbol: "$"
 		noConflict: ->
-			Bling.symbol = "Bling"
+			$.symbol = "Bling"
 			Bling
 	# Example:
 	# > `Bling.symbol = "_"; _("body").html("Hello World");`

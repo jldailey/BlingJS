@@ -43,7 +43,7 @@ if $.global.document?
 				df = document.createDocumentFragment()
 				df.appendChild(node.removeChild(childNodes[0])) for i in [0...n] by 1
 				df
-			array:  (o) -> $.type.lookup(h = Bling.HTML.parse o).array h
+			array:  (o) -> $.type.lookup(h = $.HTML.parse o).array h
 			string: (o) -> "'#{o}'"
 			repr:   (o) -> '"' + o + '"'
 		$.type.extend

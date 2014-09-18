@@ -111,7 +111,7 @@ $.plugin
 		register "error",     is: (o) -> isType 'Error', o
 		register "regexp",    is: (o) -> isType 'RegExp', o
 		register "string",    is: (o) -> typeof o is "string" or isType String, o
-		register "number",    is: (o) -> (isType Number, o) and o isnt NaN
+		register "number",    is: (o) -> (isType Number, o) and not isNaN(o)
 		register "bool",      is: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
 		register "array",     is: Array.isArray or (o) -> isType Array, o
 		register "function",  is: (o) -> typeof o is "function"

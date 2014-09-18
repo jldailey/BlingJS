@@ -132,10 +132,15 @@ describe "String plugin:", ->
 			assert.equal $.commaize(123456, '.'), "123.456"
 		it "can be given the seperator and decimal", ->
 			assert.equal $.commaize(-1234.56, '.', ','), "-1.234,56"
-		it "ignores non-numbers", ->
-			assert.equal $.commaize(NaN), "NaN"
-			assert.equal $.commaize(Infinity), "Infinity"
-			assert.equal $.commaize({ a: 1 }), undefined
+		describe "ignores non-numbers", ->
+			it "NaN", ->
+				assert.equal $.commaize(NaN), "NaN"
+			it "Infinity", ->
+				assert.equal $.commaize(Infinity), "Infinity"
+			it "-Infinity", ->
+				assert.equal $.commaize(-Infinity), "-Infinity"
+			it "objects", ->
+				assert.equal $.commaize({ a: 1 }), undefined
 		describe "currency", ->
 			it "is optional", ->
 				assert.equal $.commaize(1000, null, null, "$"), "$1,000"

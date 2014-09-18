@@ -127,15 +127,16 @@ $.plugin
 
 			# Add decorative commas to long numbers (or currencies)
 			commaize: (num, comma=',',dot='.',currency='') ->
-				if $.is 'number', num
+				if $.is('number', num) and isFinite(num)
 					s = String(num)
-					if not isFinite num
-						return s
 					sign = if (num < 0) then "-" else ""
 					[a, b] = s.split '.' # split the whole part from the decimal part
 					if a.length > 3 # if the whole part is long enough to need commas
 						a = $.stringReverse $.stringReverse(a).match(/\d{1,3}/g).join comma
 					return sign + currency + a + (if b? then dot+b else "")
+				else if (typeof(num) is 'number' and isNaN(num)) or num in [Infinity, -Infinity]
+					return String num
+				else return undefined
 
 			# Fill the left side of a string to make it a fixed width.
 			padLeft: (s, n, c = " ") ->

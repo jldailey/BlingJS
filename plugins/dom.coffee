@@ -204,7 +204,7 @@ if $.global.document?
 					when undefined
 						return @select("getAttribute").call(a, v)
 					when null
-						@select("removeAttribute").call(a, v); @
+						@select("removeAttribute").call(a, v)
 					else
 						@select("setAttribute").call(a, v)
 				@

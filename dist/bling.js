@@ -65,15 +65,17 @@
 
   })();
 
-  Bling.prototype = [];
+  $ = Bling;
 
-  Bling.prototype.constructor = Bling;
+  $.prototype = [];
 
-  Bling.global = (function() {
+  $.prototype.constructor = $;
+
+  $.global = (function() {
     return this;
   })();
 
-  Bling.plugin = function(opts, constructor) {
+  $.plugin = function(opts, constructor) {
     var error, key, plugin, _fn;
     if (!constructor) {
       constructor = opts;
@@ -98,7 +100,7 @@
             return _this[key] || (_this[key] = function() {
               var a;
               a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-              return _this.prototype[key].apply(Bling(a[0]), a.slice(1));
+              return _this.prototype[key].apply($(a[0]), a.slice(1));
             });
           };
         })(this);
@@ -116,7 +118,7 @@
     return this;
   };
 
-  extend(Bling, (function() {
+  extend($, (function() {
     var complete, depend, incomplete, waiting;
     waiting = [];
     complete = {};
@@ -171,8 +173,6 @@
       }
     };
   })());
-
-  $ = Bling;
 
   $.plugin({
     depends: "core",
@@ -356,6 +356,14 @@
               rePosition(i);
             }
             return ret.v;
+          },
+          clear: function() {
+            var k;
+            for (k in index) {
+              order[index[k]] = null;
+            }
+            index = Object.create(null);
+            return order = [];
           }
         });
       }
@@ -1642,140 +1650,6 @@
   });
 
   $.plugin({
-    depends: 'hook,synth,delay',
-    provides: 'dialog'
-  }, function() {
-    var createDialog, injectCSS, prefixes, transition;
-    prefixes = ["-webkit", "-moz"];
-    transition = function(props, duration) {
-      props = props.split(/, */);
-      return prefixes.map(function(prefix) {
-        return "";
-      }).join(' ');
-    };
-    injectCSS = function() {
-      $('head style.dialog').remove();
-      return $.synth("style.dialog ' .dialog, .modal { position: absolute; } .modal { background: rgba(0,0,0,.3); opacity: 0; } .dialog { box-shadow: 8px 8px 4px rgba(0,0,0,.4); border-radius: 8px; background: white; padding: 6px; } .dialog > .title { text-align: center; width: 100%; } .dialog > .content { width: 100%; } '".replace(/\t+|\n+/g, ' ')).prependTo("head");
-    };
-    createDialog = function(opts) {
-      var contentNode, dialog, dialogSynth, modal, titleNode;
-      opts = $.extend(createDialog.getDefaultOptions(), opts);
-      injectCSS();
-      dialogSynth = "";
-      modal = $.synth("div.modal div.dialog#" + opts.id + " div.title + div.content").appendTo("body").click(function(evt) {
-        if (evt.target === modal[0]) {
-          $.log('dialog: Cancelling because the modal was clicked.');
-          return opts.cancel(modal);
-        }
-      });
-      dialog = modal.find('.dialog', 1);
-      modal.delegate(".cancel", "click", function(evt) {
-        return opts.cancel(modal);
-      }).delegate(".ok", "click", function(evt) {
-        return opts.ok(modal);
-      });
-      contentNode = dialog.find('.content', 1);
-      contentNode.append(createDialog.getContent(opts.contentType, opts.content));
-      titleNode = dialog.find('.title', 1);
-      titleNode.append(createDialog.getContent(opts.titleType, opts.title));
-      $(opts.target).bind('resize', function(evt) {
-        modal.fitOver(opts.target).fadeIn(200);
-        return dialog.centerOn(modal).show();
-      }).trigger('resize');
-      return dialog;
-    };
-    createDialog.getDefaultOptions = function() {
-      return {
-        id: "dialog-" + $.random.string(4),
-        target: "body",
-        title: "Untitled Dialog",
-        titleType: "text",
-        content: "span 'Dialog Content'",
-        contentType: "synth",
-        ok: function(modal) {
-          $.log("dialog: Closing from default ok");
-          return modal.emit('ok').fadeOut(200, function() {
-            return modal.remove();
-          });
-        },
-        cancel: function(modal) {
-          $.log("dialog: Closing from default cancel");
-          return modal.emit('cancel').fadeOut(200, function() {
-            return modal.remove();
-          }).find(".dialog", 1).css({
-            left: 0
-          });
-        }
-      };
-    };
-    createDialog.getContent = function(type, stuff) {
-      switch (type) {
-        case "synth":
-          return $.synth(stuff);
-        case "html":
-          return $.HTML.parse(stuff);
-        case "text":
-          return document.createTextNode(stuff);
-      }
-    };
-    return {
-      $: {
-        dialog: createDialog
-      },
-      fitOver: function(elem) {
-        var rect;
-        if (elem == null) {
-          elem = window;
-        }
-        if (elem === window) {
-          rect = {
-            width: window.innerWidth,
-            height: window.innerHeight,
-            top: 0,
-            left: 0
-          };
-        } else {
-          rect = $(elem).rect().first();
-        }
-        return this.css({
-          position: 'absolute',
-          width: $.px(rect.width),
-          height: $.px(rect.height),
-          top: $.px(rect.top),
-          left: $.px(rect.left)
-        });
-      },
-      centerOn: function(elem) {
-        var left, target, top;
-        if (elem == null) {
-          elem = window;
-        }
-        if (elem === window) {
-          target = {
-            width: window.innerWidth,
-            height: window.innerHeight,
-            top: 0,
-            left: 0
-          };
-        } else {
-          target = $(elem).rect().first();
-        }
-        top = target.height / 2;
-        left = target.width / 2;
-        return this.each(function() {
-          var dialog, rect;
-          dialog = $(this);
-          rect = dialog.rect().first();
-          return dialog.css({
-            top: $.px(top - (rect.height / 2)),
-            left: $.px(left - (rect.width / 2))
-          });
-        });
-      }
-    };
-  });
-
-  $.plugin({
     depends: "core",
     provides: "diff"
   }, function() {
@@ -2013,7 +1887,7 @@
         },
         array: function(o) {
           var h;
-          return $.type.lookup(h = Bling.HTML.parse(o)).array(h);
+          return $.type.lookup(h = $.HTML.parse(o)).array(h);
         },
         string: function(o) {
           return "'" + o + "'";
@@ -2286,7 +2160,6 @@
                 return this.select("getAttribute").call(a, v);
               case null:
                 this.select("removeAttribute").call(a, v);
-                this;
                 break;
               default:
                 this.select("setAttribute").call(a, v);
@@ -2514,7 +2387,7 @@
   }, function() {
     return {
       $: {
-        EventEmitter: Bling.init.append(function(obj) {
+        EventEmitter: $.init.append(function(obj) {
           var add, list, listeners;
           if (obj == null) {
             obj = {};
@@ -3097,7 +2970,7 @@
         }
       });
     };
-    Bling.init = hook();
+    $.init = hook();
     return {
       $: {
         hook: hook
@@ -3224,7 +3097,7 @@
   });
 
   $.depends('hook', function() {
-    return Bling.init.append(function(obj) {
+    return $.init.append(function(obj) {
       var keyMakers, map;
       map = Object.create(null);
       keyMakers = [];
@@ -5241,17 +5114,18 @@
           if (currency == null) {
             currency = '';
           }
-          if ($.is('number', num)) {
+          if ($.is('number', num) && isFinite(num)) {
             s = String(num);
-            if (!isFinite(num)) {
-              return s;
-            }
             sign = num < 0 ? "-" : "";
             _ref = s.split('.'), a = _ref[0], b = _ref[1];
             if (a.length > 3) {
               a = $.stringReverse($.stringReverse(a).match(/\d{1,3}/g).join(comma));
             }
             return sign + currency + a + (b != null ? dot + b : "");
+          } else if ((typeof num === 'number' && isNaN(num)) || (num === Infinity || num === (-Infinity))) {
+            return String(num);
+          } else {
+            return void 0;
           }
         },
         padLeft: function(s, n, c) {
@@ -5425,9 +5299,9 @@
     symbol = null;
     cache = {};
     g = $.global;
-    g.Bling = Bling;
+    g['Bling'] = $;
     if (typeof module !== "undefined" && module !== null) {
-      module.exports = Bling;
+      module.exports = $;
     }
     $.defineProperty($, "symbol", {
       set: function(v) {
@@ -5443,7 +5317,7 @@
       $: {
         symbol: "$",
         noConflict: function() {
-          Bling.symbol = "Bling";
+          $.symbol = "Bling";
           return Bling;
         }
       }
@@ -6430,7 +6304,7 @@
       });
       register("number", {
         is: function(o) {
-          return (isType(Number, o)) && o !== NaN;
+          return (isType(Number, o)) && !isNaN(o);
         }
       });
       register("bool", {
@@ -6522,7 +6396,7 @@
       },
       number: {
         array: function(o) {
-          return Bling.extend(new Array(o), {
+          return $.extend(new Array(o), {
             length: 0
           });
         }
@@ -6536,23 +6410,23 @@
     maxHash = Math.pow(2, 32);
     _type.register("bling", {
       is: function(o) {
-        return o && isType(Bling, o);
+        return o && isType($, o);
       },
       array: function(o) {
         return o.toArray();
       },
       hash: function(o) {
-        return o.map(Bling.hash).reduce(function(a, x) {
+        return o.map($.hash).reduce(function(a, x) {
           return ((a * a) + x) % maxHash;
         });
       },
       string: function(o) {
-        return Bling.symbol + "([" + o.map(function(x) {
+        return $.symbol + "([" + o.map(function(x) {
           return $.type.lookup(x).string(x);
         }).join(", ") + "])";
       },
       repr: function(o) {
-        return Bling.symbol + "([" + o.map(function(x) {
+        return $.symbol + "([" + o.map(function(x) {
           return $.type.lookup(x).repr(x);
         }).join(", ") + "])";
       }
@@ -6595,7 +6469,7 @@
     depends: 'math',
     provides: 'units'
   }, function() {
-    var UNIT_RE, conv, convertNumber, fillConversions, initialize, locker, makeUnitRegex, parseUnits, setConversion, units;
+    var UNIT_RE, conv, convert, fill, init, locker, makeUnitRegex, parseUnits, set, units;
     units = $(["px", "pt", "pc", "em", "%", "in", "cm", "mm", "ex", "lb", "kg", "yd", "ft", "m", ""]);
     UNIT_RE = null;
     (makeUnitRegex = function() {
@@ -6626,8 +6500,8 @@
         return x;
       };
     };
-    fillConversions = function() {};
-    setConversion = function(from, to, f) {
+    fill = function() {};
+    set = function(from, to, f) {
       conv[from] || (conv[from] = {});
       conv[from][to] = f;
       if (units.indexOf(from) === -1) {
@@ -6637,46 +6511,46 @@
         units.push(to);
       }
       makeUnitRegex();
-      return fillConversions();
+      return fill();
     };
-    initialize = function() {
-      setConversion('pc', 'pt', function() {
+    init = function() {
+      set('pc', 'pt', function() {
         return 12;
       });
-      setConversion('in', 'pt', function() {
+      set('in', 'pt', function() {
         return 72;
       });
-      setConversion('in', 'px', function() {
+      set('in', 'px', function() {
         return 96;
       });
-      setConversion('in', 'cm', function() {
+      set('in', 'cm', function() {
         return 2.54;
       });
-      setConversion('m', 'ft', function() {
+      set('m', 'ft', function() {
         return 3.281;
       });
-      setConversion('yd', 'ft', function() {
+      set('yd', 'ft', function() {
         return 3;
       });
-      setConversion('cm', 'mm', function() {
+      set('cm', 'mm', function() {
         return 10;
       });
-      setConversion('m', 'cm', function() {
+      set('m', 'cm', function() {
         return 100;
       });
-      setConversion('m', 'meter', function() {
+      set('m', 'meter', function() {
         return 1;
       });
-      setConversion('m', 'meters', function() {
+      set('m', 'meters', function() {
         return 1;
       });
-      setConversion('ft', 'feet', function() {
+      set('ft', 'feet', function() {
         return 1;
       });
-      setConversion('km', 'm', function() {
+      set('km', 'm', function() {
         return 1000;
       });
-      setConversion('em', 'px', function() {
+      set('em', 'px', function() {
         var w, x;
         w = 0;
         try {
@@ -6686,7 +6560,7 @@
         } catch (_error) {}
         return w;
       });
-      setConversion('ex', 'px', function() {
+      set('ex', 'px', function() {
         var w, x;
         w = 0;
         try {
@@ -6696,73 +6570,73 @@
         } catch (_error) {}
         return w;
       });
-      setConversion('ex', 'em', function() {
+      set('ex', 'em', function() {
         return 2;
       });
-      setConversion('rad', 'deg', function() {
+      set('rad', 'deg', function() {
         return 57.3;
       });
-      setConversion('s', 'sec', function() {
+      set('s', 'sec', function() {
         return 1;
       });
-      setConversion('s', 'ms', function() {
+      set('s', 'ms', function() {
         return 1000;
       });
-      setConversion('ms', 'ns', function() {
+      set('ms', 'ns', function() {
         return 1000000;
       });
-      setConversion('min', 'sec', function() {
+      set('min', 'sec', function() {
         return 60;
       });
-      setConversion('hr', 'min', function() {
+      set('hr', 'min', function() {
         return 60;
       });
-      setConversion('hr', 'hour', function() {
+      set('hr', 'hour', function() {
         return 1;
       });
-      setConversion('hr', 'hours', function() {
+      set('hr', 'hours', function() {
         return 1;
       });
-      setConversion('day', 'hr', function() {
+      set('day', 'hr', function() {
         return 24;
       });
-      setConversion('day', 'days', function() {
+      set('day', 'days', function() {
         return 1;
       });
-      setConversion('y', 'year', function() {
+      set('y', 'year', function() {
         return 1;
       });
-      setConversion('y', 'years', function() {
+      set('y', 'years', function() {
         return 1;
       });
-      setConversion('y', 'd', function() {
+      set('y', 'd', function() {
         return 365.25;
       });
-      setConversion('g', 'gram', function() {
+      set('g', 'gram', function() {
         return 1;
       });
-      setConversion('g', 'grams', function() {
+      set('g', 'grams', function() {
         return 1;
       });
-      setConversion('kg', 'g', function() {
+      set('kg', 'g', function() {
         return 1000;
       });
-      setConversion('lb', 'g', function() {
+      set('lb', 'g', function() {
         return 453.6;
       });
-      setConversion('lb', 'oz', function() {
+      set('lb', 'oz', function() {
         return 16;
       });
-      setConversion('f', 'frame', function() {
+      set('f', 'frame', function() {
         return 1;
       });
-      setConversion('f', 'frames', function() {
+      set('f', 'frames', function() {
         return 1;
       });
-      setConversion('sec', 'f', function() {
+      set('sec', 'f', function() {
         return 60;
       });
-      (fillConversions = function() {
+      (fill = function() {
         var a, b, c, infered, one, _i, _j, _k, _l, _len, _len1, _len2, _len3;
         conv[''] = {};
         one = locker(1.0);
@@ -6805,7 +6679,7 @@
       })();
       return $.units.enable = function() {};
     };
-    convertNumber = function(number, unit) {
+    convert = function(unit, number) {
       var c, f, u;
       f = parseFloat(number);
       u = parseUnits(number);
@@ -6829,17 +6703,15 @@
     return {
       $: {
         units: {
-          enable: initialize,
-          set: setConversion,
+          enable: init,
+          set: set,
           get: conv,
-          convertTo: function(unit, obj) {
-            return convertNumber(obj, unit);
-          }
+          convertTo: convert
         }
       },
       convertTo: function(unit) {
         return this.map(function(x) {
-          return convertNumber(x, unit);
+          return convert(unit, x);
         });
       },
       unitMap: function(f) {
@@ -6975,76 +6847,6 @@
         URL: {
           parse: parse,
           stringify: stringify
-        }
-      }
-    };
-  });
-
-  $.plugin({
-    depends: 'dialog',
-    provides: 'wizard'
-  }, function() {
-    return {
-      $: {
-        wizard: function() {
-          var currentSlide, d, dialogs, modal, slide, slideChanger, slides, _i, _len, _ref, _ref1;
-          slides = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-          if (slides.length === 1 && ((_ref = $.type(slides[0])) === 'array' || _ref === 'bling')) {
-            slides = slides[0];
-          }
-          currentSlide = 0;
-          modal = $.dialog(slides[0]).select('parentNode');
-          dialogs = [];
-          slideChanger = function(delta) {
-            switch (slides.length) {
-              case 0:
-                return $.identity;
-              default:
-                return function() {
-                  var currentDialog, newDialog, newLeft, newSlide, width;
-                  newSlide = (currentSlide + delta) % slides.length;
-                  while (newSlide < 0) {
-                    newSlide += slides.length;
-                  }
-                  if (newSlide === currentSlide) {
-                    return;
-                  }
-                  $.log("slideChange: " + currentSlide + " -> " + newSlide);
-                  currentDialog = $(dialogs[currentSlide]);
-                  newDialog = $(dialogs[newSlide]);
-                  width = currentDialog.width()[0];
-                  newLeft = delta < 0 ? window.innerWidth - width : -(width + 10);
-                  $.log("newLeft: " + ($.px(newLeft)) + " (delta: " + delta + ")");
-                  currentDialog.removeClass('wiz-active').css({
-                    left: $.px(newLeft)
-                  }).fadeOut();
-                  newDialog.addClass('wiz-active').css({
-                    opacity: 0,
-                    display: 'block'
-                  }).centerOn(modal).fadeIn();
-                  return currentSlide = newSlide;
-                };
-            }
-          };
-          modal.delegate('.wiz-next', 'click', slideChanger(+1));
-          modal.delegate('.wiz-back', 'click', slideChanger(-1));
-          if ($("style.dialog").length === 0) {
-            $.synth("style").text;
-          }
-          _ref1 = slides.slice(1);
-          for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-            slide = _ref1[_i];
-            slide = $.extend($.dialog.getDefaultOptions(), slide);
-            d = $.synth('div.dialog#' + slide.id + ' div.title + div.content').css({
-              left: $.px(window.innerWidth)
-            });
-            d.find('.title').append($.dialog.getContent(slide.titleType, slide.title));
-            d.find('.content').append($.dialog.getContent(slide.contentType, slide.content));
-            d.appendTo(modal).fadeOut(0);
-          }
-          dialogs = modal.find('.dialog');
-          dialogs.take(1).show();
-          return modal;
         }
       }
     };

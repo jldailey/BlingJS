@@ -17,10 +17,11 @@ class Bling # extends (new Array)
 		if 'init' of Bling # See: plugins/hook.coffee
 			return Bling.init(b)
 		return b
-Bling:: = []
-Bling::constructor = Bling
-Bling.global = do -> @
-Bling.plugin = (opts, constructor) ->
+$ = Bling
+$:: = []
+$::constructor = $
+$.global = do -> @
+$.plugin = (opts, constructor) ->
 	if not constructor
 		constructor = opts
 		opts = {}
@@ -33,12 +34,12 @@ Bling.plugin = (opts, constructor) ->
 			delete plugin.$
 			extend @prototype, plugin
 			for key of plugin then do (key) =>
-				@[key] or= (a...) => (@::[key].apply Bling(a[0]), a[1...])
+				@[key] or= (a...) => (@::[key].apply $(a[0]), a[1...])
 			if opts.provides? then @provide opts.provides
 	catch error
 		console.log "failed to load plugin: #{@name} #{error.message}: #{error.stack}"
 	@
-extend Bling, do ->
+extend $, do ->
 	waiting = []
 	complete = {}
 	incomplete = (n) ->
@@ -66,7 +67,6 @@ extend Bling, do ->
 				else i++
 		if caught then throw caught
 		data
-$ = Bling
 $.plugin
 	depends: "core"
 	provides: "async"
@@ -166,6 +166,11 @@ $.plugin
 						ret.r += 1
 						rePosition i
 					ret.v
+				clear: ->
+					for k of index # just break all the links to allow GC to cleanup
+						order[index[k]] = null
+					index = Object.create(null)
+					order = []
 	return $: Cache: $.extend EffCache, new EffCache(10000)
 $.plugin
 	provides: "cartesian"
@@ -698,111 +703,6 @@ $.plugin
 		$.delay n, $.bind @, f
 		@
 $.plugin
-	depends: 'hook,synth,delay'
-	provides: 'dialog'
-, ->
-	prefixes = ["-webkit","-moz"]
-	transition = (props, duration) ->
-		props = props.split /, */
-		prefixes.map((prefix) ->
-			"
-			"
-		).join ' '
-	injectCSS = ->
-		$('head style.dialog').remove()
-		$.synth("style.dialog '
-			.dialog, .modal { position: absolute; }
-			.modal { background: rgba(0,0,0,.3); opacity: 0; }
-			.dialog {
-				box-shadow: 8px 8px 4px rgba(0,0,0,.4);
-				border-radius: 8px;
-				background: white;
-				padding: 6px;
-			}
-			.dialog > .title { text-align: center; width: 100%; }
-			.dialog > .content { width: 100%; }
-		'".replace(/\t+|\n+/g,' ')).prependTo("head")
-	createDialog = (opts) ->
-		opts = $.extend createDialog.getDefaultOptions(), opts
-		injectCSS()
-		dialogSynth = ""
-		modal = $.synth("div.modal div.dialog##{opts.id} div.title + div.content")
-			.appendTo("body")
-			.click (evt) ->
-				if evt.target is modal[0]
-					$.log 'dialog: Cancelling because the modal was clicked.'
-					opts.cancel(modal)
-		dialog = modal.find('.dialog', 1)
-		modal
-			.delegate(".cancel", "click", (evt) -> opts.cancel(modal))
-			.delegate(".ok", "click", (evt) -> opts.ok(modal))
-		contentNode = dialog.find('.content', 1)
-		contentNode.append createDialog.getContent opts.contentType, opts.content
-		titleNode = dialog.find('.title', 1)
-		titleNode.append createDialog.getContent opts.titleType, opts.title
-		$(opts.target).bind('resize', (evt) ->
-			modal.fitOver(opts.target).fadeIn(200)
-			dialog.centerOn(modal).show()
-		).trigger('resize')
-		dialog
-	createDialog.getDefaultOptions = ->
-		id: "dialog-" + $.random.string 4
-		target: "body"
-		title: "Untitled Dialog"
-		titleType: "text"
-		content: "span 'Dialog Content'"
-		contentType: "synth"
-		ok: (modal) ->
-			$.log "dialog: Closing from default ok"
-			modal.emit('ok')
-				.fadeOut(200, -> modal.remove())
-		cancel: (modal) ->
-			$.log "dialog: Closing from default cancel"
-			modal.emit('cancel')
-				.fadeOut(200, -> modal.remove())
-				.find(".dialog", 1).css left: 0
-	createDialog.getContent = (type, stuff) ->
-		switch type
-			when "synth" then $.synth(stuff)
-			when "html" then $.HTML.parse(stuff)
-			when "text" then document.createTextNode(stuff)
-	return {
-		$:
-			dialog: createDialog
-		fitOver: (elem = window) ->
-			if elem is window
-				rect =
-					width: window.innerWidth
-					height: window.innerHeight
-					top: 0
-					left: 0
-			else
-				rect = $(elem).rect().first()
-			@css
-				position: 'absolute'
-				width: $.px rect.width
-				height: $.px rect.height
-				top: $.px rect.top
-				left: $.px rect.left
-		centerOn: (elem = window) ->
-			if elem is window
-				target =
-					width: window.innerWidth
-					height: window.innerHeight
-					top: 0
-					left: 0
-			else
-				target = $(elem).rect().first()
-			top = target.height / 2
-			left = target.width / 2
-			@each ->
-				dialog = $ @
-				rect = dialog.rect().first()
-				dialog.css
-					top: $.px top - (rect.height / 2)
-					left: $.px left - (rect.width / 2)
-	}
-$.plugin
 	depends: "core"
 	provides: "diff"
 , ->
@@ -903,7 +803,7 @@ if $.global.document?
 				df = document.createDocumentFragment()
 				df.appendChild(node.removeChild(childNodes[0])) for i in [0...n] by 1
 				df
-			array:  (o) -> $.type.lookup(h = Bling.HTML.parse o).array h
+			array:  (o) -> $.type.lookup(h = $.HTML.parse o).array h
 			string: (o) -> "'#{o}'"
 			repr:   (o) -> '"' + o + '"'
 		$.type.extend
@@ -1027,7 +927,7 @@ if $.global.document?
 					when undefined
 						return @select("getAttribute").call(a, v)
 					when null
-						@select("removeAttribute").call(a, v); @
+						@select("removeAttribute").call(a, v)
 					else
 						@select("setAttribute").call(a, v)
 				@
@@ -1151,7 +1051,7 @@ $.plugin
 	provides: "EventEmitter"
 	depends: "type,hook"
 , ->
-	$: EventEmitter: Bling.init.append (obj = {}) ->
+	$: EventEmitter: $.init.append (obj = {}) ->
 		listeners = Object.create null
 		list = (e) -> (listeners[e] or= [])
 		$.inherit {
@@ -1443,7 +1343,7 @@ $.plugin
 			prepend: (o) -> chain.unshift o; o
 			append: (o) -> chain.push o; o
 		}
-	Bling.init = hook()
+	$.init = hook()
 	return $: { hook }
 $.plugin
 	depends: "dom"
@@ -1512,7 +1412,7 @@ $.plugin
 				$.http(url, opts)
 	}
 $.depends 'hook', ->
-	Bling.init.append (obj) ->
+	$.init.append (obj) ->
 		map = Object.create(null)
 		keyMakers = []
 		$.inherit {
@@ -2399,15 +2299,16 @@ $.plugin
 					name = $.stringSplice(name, i, i+2, name[i+1].toUpperCase())
 				name
 			commaize: (num, comma=',',dot='.',currency='') ->
-				if $.is 'number', num
+				if $.is('number', num) and isFinite(num)
 					s = String(num)
-					if not isFinite num
-						return s
 					sign = if (num < 0) then "-" else ""
 					[a, b] = s.split '.' # split the whole part from the decimal part
 					if a.length > 3 # if the whole part is long enough to need commas
 						a = $.stringReverse $.stringReverse(a).match(/\d{1,3}/g).join comma
 					return sign + currency + a + (if b? then dot+b else "")
+				else if (typeof(num) is 'number' and isNaN(num)) or num in [Infinity, -Infinity]
+					return String num
+				else return undefined
 			padLeft: (s, n, c = " ") ->
 				while s.length < n
 					s = c + s
@@ -2482,9 +2383,9 @@ $.plugin
 	symbol = null
 	cache = {}
 	g = $.global
-	g.Bling = Bling
+	g['Bling'] = $
 	if module?
-		module.exports = Bling
+		module.exports = $
 	$.defineProperty $, "symbol",
 		set: (v) ->
 			g[symbol] = cache[symbol]
@@ -2494,7 +2395,7 @@ $.plugin
 	return $:
 		symbol: "$"
 		noConflict: ->
-			Bling.symbol = "Bling"
+			$.symbol = "Bling"
 			Bling
 $.plugin
 	provides: "synth"
@@ -3081,7 +2982,7 @@ $.plugin
 		register "error",     is: (o) -> isType 'Error', o
 		register "regexp",    is: (o) -> isType 'RegExp', o
 		register "string",    is: (o) -> typeof o is "string" or isType String, o
-		register "number",    is: (o) -> (isType Number, o) and o isnt NaN
+		register "number",    is: (o) -> (isType Number, o) and not isNaN(o)
 		register "bool",      is: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
 		register "array",     is: Array.isArray or (o) -> isType Array, o
 		register "function",  is: (o) -> typeof o is "function"
@@ -3102,15 +3003,15 @@ $.plugin
 		null:      { array: (o) -> [] }
 		undefined: { array: (o) -> [] }
 		array:     { array: (o) -> o }
-		number:    { array: (o) -> Bling.extend new Array(o), length: 0 }
+		number:    { array: (o) -> $.extend new Array(o), length: 0 }
 		arguments: { array: (o) -> Array::slice.apply o }
 	maxHash = Math.pow(2,32)
 	_type.register "bling",
-		is:  (o) -> o and isType Bling, o
+		is:  (o) -> o and isType $, o
 		array:  (o) -> o.toArray()
-		hash:   (o) -> o.map(Bling.hash).reduce (a,x) -> ((a*a)+x) % maxHash
-		string: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
-		repr: (o) -> Bling.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
+		hash:   (o) -> o.map($.hash).reduce (a,x) -> ((a*a)+x) % maxHash
+		string: (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
+		repr: (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 	$:
 		inherit: inherit
 		extend: extend
@@ -3148,8 +3049,8 @@ $.plugin
 			return conv[a][b]()
 		0
 	locker = (x) -> -> x
-	fillConversions = ->
-	setConversion = (from, to, f) ->
+	fill = ->
+	set = (from, to, f) ->
 		conv[from] or= {}
 		conv[from][to] = f
 		if units.indexOf(from) is -1
@@ -3157,57 +3058,57 @@ $.plugin
 		if units.indexOf(to) is -1
 			units.push to
 		makeUnitRegex()
-		fillConversions()
-	initialize = ->
-		setConversion 'pc', 'pt', -> 12
-		setConversion 'in', 'pt', -> 72
-		setConversion 'in', 'px', -> 96
-		setConversion 'in', 'cm', -> 2.54
-		setConversion 'm', 'ft', -> 3.281
-		setConversion 'yd', 'ft', -> 3
-		setConversion 'cm', 'mm', -> 10
-		setConversion 'm', 'cm', -> 100
-		setConversion 'm', 'meter', -> 1
-		setConversion 'm', 'meters', -> 1
-		setConversion 'ft', 'feet', -> 1
-		setConversion 'km', 'm', -> 1000
-		setConversion 'em', 'px', ->
+		fill()
+	init = ->
+		set 'pc', 'pt', -> 12
+		set 'in', 'pt', -> 72
+		set 'in', 'px', -> 96
+		set 'in', 'cm', -> 2.54
+		set 'm', 'ft', -> 3.281
+		set 'yd', 'ft', -> 3
+		set 'cm', 'mm', -> 10
+		set 'm', 'cm', -> 100
+		set 'm', 'meter', -> 1
+		set 'm', 'meters', -> 1
+		set 'ft', 'feet', -> 1
+		set 'km', 'm', -> 1000
+		set 'em', 'px', ->
 			w = 0
 			try
 				x = $("<span style='font-size:1em;visibility:hidden'>x</span>").appendTo("body")
 				w = x.width().first()
 				x.remove()
 			w
-		setConversion 'ex', 'px', ->
+		set 'ex', 'px', ->
 			w = 0
 			try
 				x = $("<span style='font-size:1ex;visibility:hidden'>x</span>").appendTo("body")
 				w = x.width().first()
 				x.remove()
 			w
-		setConversion 'ex', 'em', -> 2
-		setConversion 'rad', 'deg', -> 57.3
-		setConversion 's', 'sec', -> 1
-		setConversion 's', 'ms', -> 1000
-		setConversion 'ms', 'ns', -> 1000000
-		setConversion 'min', 'sec', -> 60
-		setConversion 'hr', 'min', -> 60
-		setConversion 'hr', 'hour', -> 1
-		setConversion 'hr', 'hours', -> 1
-		setConversion 'day', 'hr', -> 24
-		setConversion 'day', 'days', -> 1
-		setConversion 'y', 'year', -> 1
-		setConversion 'y', 'years', -> 1
-		setConversion 'y', 'd', -> 365.25
-		setConversion 'g', 'gram', -> 1
-		setConversion 'g', 'grams', -> 1
-		setConversion 'kg', 'g', -> 1000
-		setConversion 'lb', 'g', -> 453.6
-		setConversion 'lb', 'oz', -> 16
-		setConversion 'f', 'frame', -> 1
-		setConversion 'f', 'frames', -> 1
-		setConversion 'sec', 'f', -> 60
-		do fillConversions = ->
+		set 'ex', 'em', -> 2
+		set 'rad', 'deg', -> 57.3
+		set 's', 'sec', -> 1
+		set 's', 'ms', -> 1000
+		set 'ms', 'ns', -> 1000000
+		set 'min', 'sec', -> 60
+		set 'hr', 'min', -> 60
+		set 'hr', 'hour', -> 1
+		set 'hr', 'hours', -> 1
+		set 'day', 'hr', -> 24
+		set 'day', 'days', -> 1
+		set 'y', 'year', -> 1
+		set 'y', 'years', -> 1
+		set 'y', 'd', -> 365.25
+		set 'g', 'gram', -> 1
+		set 'g', 'grams', -> 1
+		set 'kg', 'g', -> 1000
+		set 'lb', 'g', -> 453.6
+		set 'lb', 'oz', -> 16
+		set 'f', 'frame', -> 1
+		set 'f', 'frames', -> 1
+		set 'sec', 'f', -> 60
+		do fill = ->
 			conv[''] = {}
 			one = locker 1.0
 			for a in units
@@ -3228,7 +3129,7 @@ $.plugin
 								infered += 1
 			null
 		$.units.enable = ->
-	convertNumber = (number, unit) ->
+	convert = (unit, number) ->
 		f = parseFloat(number)
 		u = parseUnits(number)
 		c = conv(u, unit)
@@ -3242,11 +3143,11 @@ $.plugin
 	{
 		$:
 			units:
-				enable: initialize
-				set: setConversion
+				enable: init
+				set: set
 				get: conv
-				convertTo: (unit, obj) -> convertNumber(obj, unit)
-		convertTo: (unit) -> @map (x) -> convertNumber(x, unit)
+				convertTo: convert
+		convertTo: (unit) -> @map (x) -> convert unit, x
 		unitMap: (f) ->
 			@map (x) ->
 				f.call((n = parseFloat x), n) + parseUnits x
@@ -3319,48 +3220,3 @@ $.plugin
 			clean(url.hash, /^#/, '#')
 		].join ''
 	return $: URL: { parse, stringify }
-$.plugin
-	depends: 'dialog'
-	provides: 'wizard'
-, ->
-	$: wizard: (slides...) ->
-		if slides.length is 1 and $.type(slides[0]) in ['array','bling']
-			slides = slides[0]
-		currentSlide = 0
-		modal = $.dialog(slides[0]).select('parentNode')
-		dialogs = []
-		slideChanger = (delta) -> switch slides.length
-			when 0 then $.identity
-			else ->
-				newSlide = (currentSlide + delta) % slides.length
-				while newSlide < 0
-					newSlide += slides.length
-				return if newSlide is currentSlide
-				$.log "slideChange: #{currentSlide} -> #{newSlide}"
-				currentDialog = $ dialogs[currentSlide]
-				newDialog = $ dialogs[newSlide]
-				width = currentDialog.width()[0]
-				newLeft = if delta < 0 then window.innerWidth - width else -(width+10)
-				$.log "newLeft: #{$.px newLeft} (delta: #{delta})"
-				currentDialog.removeClass('wiz-active')
-					.css(left: $.px newLeft)
-					.fadeOut()
-				newDialog.addClass('wiz-active').css(
-					opacity: 0
-					display: 'block'
-				).centerOn(modal).fadeIn()
-				currentSlide = newSlide
-		modal.delegate '.wiz-next', 'click', slideChanger(+1)
-		modal.delegate '.wiz-back', 'click', slideChanger(-1)
-		if $("style.dialog").length is 0
-			$.synth("style").text
-		for slide in slides.slice(1)
-			slide = $.extend $.dialog.getDefaultOptions(), slide
-			d = $.synth('div.dialog#'+slide.id+' div.title + div.content').css
-				left: $.px window.innerWidth
-			d.find('.title').append $.dialog.getContent slide.titleType, slide.title
-			d.find('.content').append $.dialog.getContent slide.contentType,slide.content
-			d.appendTo(modal).fadeOut(0)
-		dialogs = modal.find('.dialog')
-		dialogs.take(1).show()
-		modal

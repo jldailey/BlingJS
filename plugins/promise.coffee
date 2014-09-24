@@ -62,7 +62,7 @@ $.plugin
 			resolve: (value) -> end NoValue, value; @
 			fail:    (error) -> end error, NoValue; @
 			reject:  (error) -> end error, NoValue; @
-			reset:           -> err = result = NoValue; @ # blasphemy!
+			reset:           -> waiting = []; err = result = NoValue; @ # blasphemy!
 			handler: (err, data) ->
 				# use 'ret' here instead of '@' to prevent binding issues later
 				if err then ret.reject(err) else ret.resolve(data)

@@ -3809,6 +3809,7 @@
           return this;
         },
         reset: function() {
+          waiting = [];
           err = result = NoValue;
           return this;
         },

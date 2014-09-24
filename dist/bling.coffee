@@ -1703,7 +1703,7 @@ $.plugin
 			resolve: (value) -> end NoValue, value; @
 			fail:    (error) -> end error, NoValue; @
 			reject:  (error) -> end error, NoValue; @
-			reset:           -> err = result = NoValue; @ # blasphemy!
+			reset:           -> waiting = []; err = result = NoValue; @ # blasphemy!
 			handler: (err, data) ->
 				if err then ret.reject(err) else ret.resolve(data)
 			inspect: -> "{Promise[#{@promiseId}] #{getState()}}"

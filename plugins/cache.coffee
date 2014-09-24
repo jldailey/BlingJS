@@ -18,7 +18,7 @@ $.plugin
 			index = Object.create null
 			order = []
 
-			# The effncy of a cache item (reversed for use in sortedIndex, we want the smallest items at the end)
+			# The efficiency of a cache item (reversed for use in sortedIndex, we want the smallest items at the end)
 			eff = (o) -> -o.r / o.w
 
 			autoEvict = =>
@@ -78,6 +78,12 @@ $.plugin
 						ret.r += 1
 						rePosition i
 					ret.v
+				clear: ->
+					for k of index # just break all the links to allow GC to cleanup
+						order[index[k]] = null
+					index = Object.create(null)
+					order = []
+
 
 	# $.Cache is both a class: new $.Cache(1200)
 	# and, a static instance: $.Cache.get(key), $.Cache.set(key,val), $.Cache.has(key)

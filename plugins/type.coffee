@@ -114,6 +114,7 @@ $.plugin
 		register "number",    is: (o) -> (isType Number, o) and not isNaN(o)
 		register "bool",      is: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
 		register "array",     is: Array.isArray or (o) -> isType Array, o
+		register "buffer",    is: Buffer.isBuffer or (o) -> false
 		register "function",  is: (o) -> typeof o is "function"
 		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of @
 		register "arguments", is: (o) -> try 'callee' of o and 'length' of o
@@ -171,14 +172,14 @@ $.plugin
 	maxHash = Math.pow(2,32)
 	_type.register "bling",
 		# Add the type test so: `$.type($()) == "bling"`.
-		is:  (o) -> o and isType $, o
-		# Blings extend arrays so they convert to themselves.
+		is:     (o) -> o and isType $, o
+		# Bling extends array so they can convert themselves.
 		array:  (o) -> o.toArray()
 		# Their hash is just the sum of member hashes (order matters).
 		hash:   (o) -> o.map($.hash).reduce (a,x) -> ((a*a)+x) % maxHash
 		# They have a very literal string representation.
 		string: (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
-		repr: (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
+		repr:   (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 
 	$:
 		# __$.inherit(parent, child)__ makes _parent_ become the

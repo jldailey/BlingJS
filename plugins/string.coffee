@@ -17,14 +17,19 @@ $.plugin
 			number: safer (o) -> parseFloat String o
 		# Now, for each basic type, provide a basic `string` function.
 		# Later, more complex types will be added by plugins.
-		null: { string: -> "null" }
-		undefined: { string: -> "undefined" }
+		null:
+			string: -> "null"
+		undefined:
+			string: -> "undefined"
+		buffer:
+			string: safer (o) -> String(o)
+			repr:   safer (o) -> "Buffer(#{JSON.stringify o.toJSON()})"
 		string:
 			number: safer parseFloat
 			repr: (s) -> "'#{escape_single_quotes s}'"
 		array:
 			string: safer (a) -> "[#{a.map($.toString).join(', ')}]"
-			repr: safer (a) -> "[#{a.map($.toRepr).join(', ')}]"
+			repr:   safer (a) -> "[#{a.map($.toRepr).join(', ')}]"
 		arguments:
 			string: safer (a) -> "[#{($.toString(x) for x in a).join(', ')}]"
 			repr: safer (a) -> "[#{($.toRepr(x) for x in a).join(', ')}]"

@@ -31,6 +31,7 @@ describe "Type plugin:", ->
 			it "'arguments'", -> assert $.is "arguments", arguments
 			it "'object'",    -> assert $.is "object", {}
 			it "'object'",    -> assert $.is "object", Object.create(null)
+			it "'buffer'",    -> assert $.is "buffer", new Buffer(10)
 		describe "should not mis-identify", ->
 			it "arrays",      -> assert.equal false, $.is "object", []
 			it "functions",   -> assert.equal false, $.is "object", ->

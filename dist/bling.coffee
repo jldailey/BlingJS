@@ -2218,14 +2218,19 @@ $.plugin
 			string: safer (o) -> o.toString?() ? String(o)
 			repr: safer (o) -> $.type.lookup(o).string(o)
 			number: safer (o) -> parseFloat String o
-		null: { string: -> "null" }
-		undefined: { string: -> "undefined" }
+		null:
+			string: -> "null"
+		undefined:
+			string: -> "undefined"
+		buffer:
+			string: safer (o) -> String(o)
+			repr:   safer (o) -> "Buffer(#{JSON.stringify o.toJSON()})"
 		string:
 			number: safer parseFloat
 			repr: (s) -> "'#{escape_single_quotes s}'"
 		array:
 			string: safer (a) -> "[#{a.map($.toString).join(', ')}]"
-			repr: safer (a) -> "[#{a.map($.toRepr).join(', ')}]"
+			repr:   safer (a) -> "[#{a.map($.toRepr).join(', ')}]"
 		arguments:
 			string: safer (a) -> "[#{($.toString(x) for x in a).join(', ')}]"
 			repr: safer (a) -> "[#{($.toRepr(x) for x in a).join(', ')}]"
@@ -2985,6 +2990,7 @@ $.plugin
 		register "number",    is: (o) -> (isType Number, o) and not isNaN(o)
 		register "bool",      is: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
 		register "array",     is: Array.isArray or (o) -> isType Array, o
+		register "buffer",    is: Buffer.isBuffer or (o) -> false
 		register "function",  is: (o) -> typeof o is "function"
 		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of @
 		register "arguments", is: (o) -> try 'callee' of o and 'length' of o
@@ -3007,11 +3013,11 @@ $.plugin
 		arguments: { array: (o) -> Array::slice.apply o }
 	maxHash = Math.pow(2,32)
 	_type.register "bling",
-		is:  (o) -> o and isType $, o
+		is:     (o) -> o and isType $, o
 		array:  (o) -> o.toArray()
 		hash:   (o) -> o.map($.hash).reduce (a,x) -> ((a*a)+x) % maxHash
 		string: (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
-		repr: (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
+		repr:   (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 	$:
 		inherit: inherit
 		extend: extend

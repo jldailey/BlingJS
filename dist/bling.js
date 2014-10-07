@@ -4927,6 +4927,14 @@
           return "undefined";
         }
       },
+      buffer: {
+        string: safer(function(o) {
+          return String(o);
+        }),
+        repr: safer(function(o) {
+          return "Buffer(" + (JSON.stringify(o.toJSON())) + ")";
+        })
+      },
       string: {
         number: safer(parseFloat),
         repr: function(s) {
@@ -6321,6 +6329,11 @@
       register("array", {
         is: Array.isArray || function(o) {
           return isType(Array, o);
+        }
+      });
+      register("buffer", {
+        is: Buffer.isBuffer || function(o) {
+          return false;
         }
       });
       register("function", {

@@ -3,6 +3,7 @@
 # Exposes the type system publicly.
 $.plugin
 	provides: "type"
+	depends: "compat"
 , ->
 	# The core is built around a _type classifier_. Initially, this
 	# will only know how to match types (and the order to check them in).
@@ -114,7 +115,7 @@ $.plugin
 		register "number",    is: (o) -> (isType Number, o) and not isNaN(o)
 		register "bool",      is: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
 		register "array",     is: Array.isArray or (o) -> isType Array, o
-		register "buffer",    is: Buffer.isBuffer or (o) -> false
+		register "buffer",    is: Buffer.isBuffer or -> false
 		register "function",  is: (o) -> typeof o is "function"
 		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of @
 		register "arguments", is: (o) -> try 'callee' of o and 'length' of o

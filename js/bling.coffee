@@ -1707,6 +1707,7 @@ $.plugin
 			handler: (err, data) ->
 				if err then ret.reject(err) else ret.resolve(data)
 			inspect: -> "{Promise[#{@promiseId}] #{getState()}}"
+			toString: -> "{Promise[#{@promiseId}] #{getState()}}"
 		}, $.EventEmitter(obj)
 		getState = -> switch
 			when result isnt NoValue then "resolved"

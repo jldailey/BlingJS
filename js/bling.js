@@ -3822,6 +3822,9 @@
         },
         inspect: function() {
           return "{Promise[" + this.promiseId + "] " + (getState()) + "}";
+        },
+        toString: function() {
+          return "{Promise[" + this.promiseId + "] " + (getState()) + "}";
         }
       }, $.EventEmitter(obj));
       getState = function() {

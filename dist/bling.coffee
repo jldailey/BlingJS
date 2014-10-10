@@ -1666,7 +1666,8 @@ $.plugin
 			catch _e
 				try cb _e, null
 				catch __e
-					$.log "Fatal error in promise callback:", __e?.stack ? __e, "caused by:", _e?.stack ? _e
+					$.log "Fatal error in promise callback:", \
+						__e?.stack ? __e, "caused by:", _e?.stack ? _e
 			null
 		end = (error, value) =>
 			if err is result is NoValue
@@ -1675,7 +1676,8 @@ $.plugin
 				else if value isnt NoValue
 					result = value
 				switch
-					when value is @ then return end new TypeError "cant resolve a promise with itself"
+					when value is @
+						return end new TypeError "cant resolve a promise with itself"
 					when $.is 'promise', value then (value.wait end; return @)
 					when error isnt NoValue then consume_all error, null
 					when value isnt NoValue then consume_all null, value
@@ -1706,7 +1708,8 @@ $.plugin
 			resolve: (value) -> end NoValue, value; @
 			fail:    (error) -> end error, NoValue; @
 			reject:  (error) -> end error, NoValue; @
-			reset:           -> waiting = []; err = result = NoValue; @ # blasphemy!
+			reset:  -> # blasphemy!
+				err = result = NoValue; @
 			handler: (err, data) ->
 				if err then ret.reject(err) else ret.resolve(data)
 			inspect: -> "{Promise[#{@promiseId}] #{getState()}}"

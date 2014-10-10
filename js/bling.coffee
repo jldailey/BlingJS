@@ -186,7 +186,10 @@ $.plugin
 				null
 			helper [], -1
 			return $(ret)
-$.plugin ->
+$.plugin
+	provides: "compat"
+, ->
+	$.global.Buffer or= { isBuffer: -> false }
 	String::trimLeft or= -> @replace(/^\s+/, "")
 	String::split or= (sep) ->
 		a = []; i = 0
@@ -2935,6 +2938,7 @@ $.plugin
 	}
 $.plugin
 	provides: "type"
+	depends: "compat"
 , ->
 	isType = (T, o) ->
 		if not o? then T in [o,"null","undefined"]
@@ -2991,7 +2995,7 @@ $.plugin
 		register "number",    is: (o) -> (isType Number, o) and not isNaN(o)
 		register "bool",      is: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
 		register "array",     is: Array.isArray or (o) -> isType Array, o
-		register "buffer",    is: Buffer.isBuffer or (o) -> false
+		register "buffer",    is: Buffer.isBuffer or -> false
 		register "function",  is: (o) -> typeof o is "function"
 		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of @
 		register "arguments", is: (o) -> try 'callee' of o and 'length' of o

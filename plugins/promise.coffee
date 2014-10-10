@@ -67,6 +67,7 @@ $.plugin
 				# use 'ret' here instead of '@' to prevent binding issues later
 				if err then ret.reject(err) else ret.resolve(data)
 			inspect: -> "{Promise[#{@promiseId}] #{getState()}}"
+			toString: -> "{Promise[#{@promiseId}] #{getState()}}"
 		}, $.EventEmitter(obj)
 
 		getState = -> switch

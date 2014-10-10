@@ -17,7 +17,8 @@ $.plugin
 			catch _e
 				try cb _e, null
 				catch __e
-					$.log "Fatal error in promise callback:", __e?.stack ? __e, "caused by:", _e?.stack ? _e
+					$.log "Fatal error in promise callback:", \
+						__e?.stack ? __e, "caused by:", _e?.stack ? _e
 			null
 
 		end = (error, value) =>
@@ -28,7 +29,8 @@ $.plugin
 					result = value
 				switch
 					# fatal error: passing a promise to it's own resolver
-					when value is @ then return end new TypeError "cant resolve a promise with itself"
+					when value is @
+						return end new TypeError "cant resolve a promise with itself"
 					# but, you can resolve one promise with another:
 					when $.is 'promise', value then (value.wait end; return @)
 					# every waiting callback gets consumed and called
@@ -62,7 +64,12 @@ $.plugin
 			resolve: (value) -> end NoValue, value; @
 			fail:    (error) -> end error, NoValue; @
 			reject:  (error) -> end error, NoValue; @
-			reset:           -> waiting = []; err = result = NoValue; @ # blasphemy!
+			reset:  -> # blasphemy!
+				# I am really sure now that we should not empty the waiting array here.
+				# If there are items in the waiting array, then reset() is a no-op.
+				# Because, if either err or result had a value,
+				# then everything in waiting would have been consumed already.
+				err = result = NoValue; @
 			handler: (err, data) ->
 				# use 'ret' here instead of '@' to prevent binding issues later
 				if err then ret.reject(err) else ret.resolve(data)

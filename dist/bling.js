@@ -407,12 +407,19 @@
     };
   });
 
-  $.plugin(function() {
-    var _base, _base1, _base2, _base3;
-    (_base = String.prototype).trimLeft || (_base.trimLeft = function() {
+  $.plugin({
+    provides: "compat"
+  }, function() {
+    var _base, _base1, _base2, _base3, _base4;
+    (_base = $.global).Buffer || (_base.Buffer = {
+      isBuffer: function() {
+        return false;
+      }
+    });
+    (_base1 = String.prototype).trimLeft || (_base1.trimLeft = function() {
       return this.replace(/^\s+/, "");
     });
-    (_base1 = String.prototype).split || (_base1.split = function(sep) {
+    (_base2 = String.prototype).split || (_base2.split = function(sep) {
       var a, i, j;
       a = [];
       i = 0;
@@ -422,7 +429,7 @@
       }
       return a;
     });
-    (_base2 = String.prototype).lastIndexOf || (_base2.lastIndexOf = function(s, c, i) {
+    (_base3 = String.prototype).lastIndexOf || (_base3.lastIndexOf = function(s, c, i) {
       var j;
       if (i == null) {
         i = -1;
@@ -433,7 +440,7 @@
       }
       return j;
     });
-    (_base3 = Array.prototype).join || (_base3.join = function(sep) {
+    (_base4 = Array.prototype).join || (_base4.join = function(sep) {
       var n, s;
       if (sep == null) {
         sep = '';
@@ -6199,7 +6206,8 @@
   });
 
   $.plugin({
-    provides: "type"
+    provides: "type",
+    depends: "compat"
   }, function() {
     var inherit, isType, maxHash, _type;
     isType = function(T, o) {
@@ -6335,7 +6343,7 @@
         }
       });
       register("buffer", {
-        is: Buffer.isBuffer || function(o) {
+        is: Buffer.isBuffer || function() {
           return false;
         }
       });

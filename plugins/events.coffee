@@ -8,7 +8,7 @@ $.plugin
 	EVENTSEP_RE = /,* +/
 	# This is a list of (almost) all the event types, each one of
 	# these will get a short-hand version like: `$("...").mouseup()`.
-	# "click" is handled specially.
+	# "click" is omitted on purpose, it is handled specially.
 	events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
 		'load','unload','reset','submit','keyup','keydown','keypress','change',
 		'abort','cut','copy','paste','selection','drag','drop','orientationchange',
@@ -17,53 +17,34 @@ $.plugin
 		'hashchange'
 	]
 
-	binder = (e) ->
-		(f) ->
-			if ($.is "function", f) then @bind(e, f)
-			else @trigger(e, f)
+	binder = (e) -> (f) ->
+		if $.is "function", f then @bind e, f
+		else @trigger e, f
 
-	register_live = (selector, context, evt, f, h) ->
-		$(context).bind(evt, h)
-			# set/create all of @__alive__[selector][evt][f]
-			.each -> (((@__alive__ or= {})[selector] or= {})[evt] or= {})[f] = h
-
-	unregister_live = (selector, context, e, f) ->
-		$c = $(context)
-		$c.each ->
-			a = (@__alive__ or= {})
-			b = (a[selector] or= {})
-			c = (b[e] or= {})
-			$c.unbind(e, c[f])
-			delete c[f]
+	_get = (self, keys...) ->
+		return if keys.length is 0 then self
+		else _get (self[keys[0]] or= Object.create null), keys.slice(1)...
 
 	# Detect and fire the document's `ready` event.
 	triggerReady = $.once ->
 		$(document).trigger("ready").unbind("ready")
 		document.removeEventListener?("DOMContentLoaded", triggerReady, false)
 		$.global.removeEventListener?("load", triggerReady, false)
-	bindReady = $.once ->
-		document.addEventListener?("DOMContentLoaded", triggerReady, false)
-		$.global.addEventListener?("load", triggerReady, false)
-	bindReady()
+	document.addEventListener?("DOMContentLoaded", triggerReady, false)
+	$.global.addEventListener?("load", triggerReady, false)
+
+	_b = (funcName) -> (e, f) ->
+		c = (e or "").split EVENTSEP_RE
+		@each -> (@[funcName] i, f, true) for i in c
 
 	ret = {
 		# __.bind(e, f)__ adds handler f for event type e.
 		# `$("...").bind('click', -> )`
-		bind: (e, f) ->
-			c = (e or "").split(EVENTSEP_RE)
-			h = (evt) ->
-				ret = f.apply @, arguments
-				if ret is false
-					evt.preventAll()
-				ret
-			@each ->
-				(@addEventListener i, h, true) for i in c
+		bind: _b "addEventListener"
 
 		# __.unbind(e, [f])__ remove handler[s] for event _e_. If _f_ is
 		# not passed, then remove all handlers.
-		unbind: (e, f) ->
-			c = (e or "").split EVENTSEP_RE
-			@each -> (@removeEventListener i, f, true) for i in c
+		unbind: _b "removeEventListener"
 
 		# __.trigger(e, [args])__ creates (and fires) a fake event on some DOM nodes.
 		trigger: (evt, args = {}) ->
@@ -169,28 +150,29 @@ $.plugin
 						e.initEvent evt_i, args.bubbles, args.cancelable
 						e = $.extend e, args
 
-				if not e
-					continue
-				else
-					@each ->
-						try
-							@dispatchEvent e
-						catch err
-							$.log "dispatchEvent error:", err
+				continue unless e
+				@each ->
+					try @dispatchEvent e
+					catch err then $.log "dispatchEvent error:", err
 			@
 
 		# __.delegate(selector, e, f)__ bind _f_ to handle event _e_ for child nodes that will exist in the future
 		delegate: (selector, e, f) ->
-			context = @
-			register_live selector, context, e, f, (evt) ->
-				# Re-execute the selector in the original context.
-				context.find(selector)
+			h = (evt) => # Create the delegate handler
+				t = $(evt.target)
+				@find(selector)
 					# See if the event would bubble up into a match.
-					.intersect($(evt.target).parents().first().union($(evt.target)))
+					.intersect(t.parents().first().union t)
 					# Then fire the real _f_ on the nodes that really matched.
-					.each -> f.call(evt.target = @, evt)
+					.each -> f.call evt.target = @, evt
+			@bind(e, h) # Bind the delegate handler
+				.each -> _get(@,'__alive__',selector,e)[f] = h # Save a reference for undelegate
 		undelegate: (selector, e, f) ->
-			@unbind e, unregister_live selector, @, e, f
+			context = @
+			context.each ->
+				c = _get(@,'__alive__',selector,e) # Find the saved reference to h
+				try context.unbind e, c[f] # Unbind h from everything in the context
+				finally delete c[f] # Remove the saved reference to f so we don't leak it.
 
 		# __.click([f])__ triggers the 'click' event but also sets a
 		# default clickable appearance.
@@ -210,6 +192,6 @@ $.plugin
 	}
 
 	# add event binding/triggering shortcuts for the generic events
-	events.forEach (x) -> ret[x] = binder(x)
+	events.forEach (x) -> ret[x] = binder x
 	return ret
 

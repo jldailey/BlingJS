@@ -32,7 +32,7 @@ $.plugin
 					when value is @
 						return end new TypeError "cant resolve a promise with itself"
 					# but, you can resolve one promise with another:
-					when $.is 'promise', value then (value.wait end; return @)
+					when $.is 'promise', value then value.wait end
 					# every waiting callback gets consumed and called
 					when error isnt NoValue then consume_all error, null
 					when value isnt NoValue then consume_all null, value

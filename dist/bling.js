@@ -2453,7 +2453,7 @@
     depends: "dom,function,core",
     provides: "event"
   }, function() {
-    var EVENTSEP_RE, bindReady, binder, events, register_live, ret, triggerReady, unregister_live;
+    var EVENTSEP_RE, binder, events, ret, triggerReady, _b, _base, _get;
     EVENTSEP_RE = /,* +/;
     events = ['mousemove', 'mousedown', 'mouseup', 'mouseover', 'mouseout', 'blur', 'focus', 'load', 'unload', 'reset', 'submit', 'keyup', 'keydown', 'keypress', 'change', 'abort', 'cut', 'copy', 'paste', 'selection', 'drag', 'drop', 'orientationchange', 'touchstart', 'touchmove', 'touchend', 'touchcancel', 'gesturestart', 'gestureend', 'gesturecancel', 'hashchange'];
     binder = function(e) {
@@ -2465,23 +2465,14 @@
         }
       };
     };
-    register_live = function(selector, context, evt, f, h) {
-      return $(context).bind(evt, h).each(function() {
-        var _base, _base1;
-        return ((_base = ((_base1 = (this.__alive__ || (this.__alive__ = {})))[selector] || (_base1[selector] = {})))[evt] || (_base[evt] = {}))[f] = h;
-      });
-    };
-    unregister_live = function(selector, context, e, f) {
-      var $c;
-      $c = $(context);
-      return $c.each(function() {
-        var a, b, c;
-        a = (this.__alive__ || (this.__alive__ = {}));
-        b = (a[selector] || (a[selector] = {}));
-        c = (b[e] || (b[e] = {}));
-        $c.unbind(e, c[f]);
-        return delete c[f];
-      });
+    _get = function() {
+      var keys, self, _name;
+      self = arguments[0], keys = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+      if (keys.length === 0) {
+        return self;
+      } else {
+        return _get.apply(null, [(self[_name = keys[0]] || (self[_name] = Object.create(null)))].concat(__slice.call(keys.slice(1))));
+      }
     };
     triggerReady = $.once(function() {
       var _base;
@@ -2491,36 +2482,14 @@
       }
       return typeof (_base = $.global).removeEventListener === "function" ? _base.removeEventListener("load", triggerReady, false) : void 0;
     });
-    bindReady = $.once(function() {
-      var _base;
-      if (typeof document.addEventListener === "function") {
-        document.addEventListener("DOMContentLoaded", triggerReady, false);
-      }
-      return typeof (_base = $.global).addEventListener === "function" ? _base.addEventListener("load", triggerReady, false) : void 0;
-    });
-    bindReady();
-    ret = {
-      bind: function(e, f) {
-        var c, h;
-        c = (e || "").split(EVENTSEP_RE);
-        h = function(evt) {
-          ret = f.apply(this, arguments);
-          if (ret === false) {
-            evt.preventAll();
-          }
-          return ret;
-        };
-        return this.each(function() {
-          var i, _i, _len, _results;
-          _results = [];
-          for (_i = 0, _len = c.length; _i < _len; _i++) {
-            i = c[_i];
-            _results.push(this.addEventListener(i, h, true));
-          }
-          return _results;
-        });
-      },
-      unbind: function(e, f) {
+    if (typeof document.addEventListener === "function") {
+      document.addEventListener("DOMContentLoaded", triggerReady, false);
+    }
+    if (typeof (_base = $.global).addEventListener === "function") {
+      _base.addEventListener("load", triggerReady, false);
+    }
+    _b = function(funcName) {
+      return function(e, f) {
         var c;
         c = (e || "").split(EVENTSEP_RE);
         return this.each(function() {
@@ -2528,11 +2497,15 @@
           _results = [];
           for (_i = 0, _len = c.length; _i < _len; _i++) {
             i = c[_i];
-            _results.push(this.removeEventListener(i, f, true));
+            _results.push(this[funcName](i, f, true));
           }
           return _results;
         });
-      },
+      };
+    };
+    ret = {
+      bind: _b("addEventListener"),
+      unbind: _b("removeEventListener"),
       trigger: function(evt, args) {
         var e, evt_i, _i, _len, _ref;
         if (args == null) {
@@ -2644,31 +2617,46 @@
           }
           if (!e) {
             continue;
-          } else {
-            this.each(function() {
-              var err;
-              try {
-                return this.dispatchEvent(e);
-              } catch (_error) {
-                err = _error;
-                return $.log("dispatchEvent error:", err);
-              }
-            });
           }
+          this.each(function() {
+            var err;
+            try {
+              return this.dispatchEvent(e);
+            } catch (_error) {
+              err = _error;
+              return $.log("dispatchEvent error:", err);
+            }
+          });
         }
         return this;
       },
       delegate: function(selector, e, f) {
-        var context;
-        context = this;
-        return register_live(selector, context, e, f, function(evt) {
-          return context.find(selector).intersect($(evt.target).parents().first().union($(evt.target))).each(function() {
-            return f.call(evt.target = this, evt);
-          });
+        var h;
+        h = (function(_this) {
+          return function(evt) {
+            var t;
+            t = $(evt.target);
+            return _this.find(selector).intersect(t.parents().first().union(t)).each(function() {
+              return f.call(evt.target = this, evt);
+            });
+          };
+        })(this);
+        return this.bind(e, h).each(function() {
+          return _get(this, '__alive__', selector, e)[f] = h;
         });
       },
       undelegate: function(selector, e, f) {
-        return this.unbind(e, unregister_live(selector, this, e, f));
+        var context;
+        context = this;
+        return context.each(function() {
+          var c;
+          c = _get(this, '__alive__', selector, e);
+          try {
+            return context.unbind(e, c[f]);
+          } finally {
+            delete c[f];
+          }
+        });
       },
       click: function(f) {
         var _ref;
@@ -3745,7 +3733,6 @@
                 return end(new TypeError("cant resolve a promise with itself"));
               case !$.is('promise', value):
                 value.wait(end);
-                return _this;
                 break;
               case error === NoValue:
                 consume_all(error, null);
@@ -4583,101 +4570,6 @@
     return {
       $: {
         render: render
-      }
-    };
-  });
-
-  $.plugin({
-    depends: "function",
-    provides: "request-queue"
-  }, function() {
-    var RequestQueue;
-    return {
-      $: {
-        RequestQueue: RequestQueue = (function() {
-          var stop;
-
-          function RequestQueue(requester) {
-            this.requester = (function() {
-              if (requester != null) {
-                return requester;
-              } else {
-                try {
-                  return require('request');
-                } catch (_error) {}
-              }
-            })();
-            this.interval = null;
-            this.queue = [];
-          }
-
-          RequestQueue.prototype.tick = function() {
-            var i, n, _i, _ref, _results;
-            _results = [];
-            for (i = _i = 0, _ref = n = Math.min(this.queue.length, this.perTick); _i < _ref; i = _i += 1) {
-              _results.push(this.requester.apply(this, this.queue.shift()));
-            }
-            return _results;
-          };
-
-          RequestQueue.prototype.start = function(perTick, interval) {
-            this.perTick = perTick != null ? perTick : 1;
-            if (interval == null) {
-              interval = 100;
-            }
-            if (this.interval != null) {
-              this.stop();
-            }
-            this.interval = setInterval(((function(_this) {
-              return function() {
-                return _this.tick();
-              };
-            })(this)), interval);
-            return this;
-          };
-
-          RequestQueue.prototype.stop = stop = function() {
-            clearInterval(this.interval);
-            this.interval = null;
-            return this;
-          };
-
-          RequestQueue.prototype.close = stop;
-
-          RequestQueue.prototype.request = function() {
-            var args;
-            args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-            this.queue.push(args);
-            return this;
-          };
-
-          RequestQueue.prototype.post = function(opts, callback) {
-            if (callback == null) {
-              callback = $.identity;
-            }
-            this.queue.push([
-              $.extend(opts, {
-                method: "POST"
-              }), callback
-            ]);
-            return this;
-          };
-
-          RequestQueue.prototype.get = function(opts, callback) {
-            if (callback == null) {
-              callback = $.identity;
-            }
-            this.queue.push([
-              $.extend(opts, {
-                method: "GET"
-              }), callback
-            ]);
-            return this;
-          };
-
-          return RequestQueue;
-
-        })()
       }
     };
   });

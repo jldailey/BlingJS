@@ -222,7 +222,9 @@ $.plugin
 	provides: 'config'
 	depends: 'type'
 , ->
-	get = (name, def) -> process.env[name] ? def
+	get = (name, def) -> switch arguments.length
+		when 0 then $.extend({}, process.env)
+		else process.env[name] ? def
 	set = (name, val) -> process.env[name] = val
 	parse = (data) ->
 		ret = {}
@@ -1084,42 +1086,24 @@ $.plugin
 		'gesturestart','gestureend','gesturecancel',
 		'hashchange'
 	]
-	binder = (e) ->
-		(f) ->
-			if ($.is "function", f) then @bind(e, f)
-			else @trigger(e, f)
-	register_live = (selector, context, evt, f, h) ->
-		$(context).bind(evt, h)
-			.each -> (((@__alive__ or= {})[selector] or= {})[evt] or= {})[f] = h
-	unregister_live = (selector, context, e, f) ->
-		$c = $(context)
-		$c.each ->
-			a = (@__alive__ or= {})
-			b = (a[selector] or= {})
-			c = (b[e] or= {})
-			$c.unbind(e, c[f])
-			delete c[f]
+	binder = (e) -> (f) ->
+		if $.is "function", f then @bind e, f
+		else @trigger e, f
+	_get = (self, keys...) ->
+		return if keys.length is 0 then self
+		else _get (self[keys[0]] or= Object.create null), keys.slice(1)...
 	triggerReady = $.once ->
 		$(document).trigger("ready").unbind("ready")
 		document.removeEventListener?("DOMContentLoaded", triggerReady, false)
 		$.global.removeEventListener?("load", triggerReady, false)
-	bindReady = $.once ->
-		document.addEventListener?("DOMContentLoaded", triggerReady, false)
-		$.global.addEventListener?("load", triggerReady, false)
-	bindReady()
+	document.addEventListener?("DOMContentLoaded", triggerReady, false)
+	$.global.addEventListener?("load", triggerReady, false)
+	_b = (funcName) -> (e, f) ->
+		c = (e or "").split EVENTSEP_RE
+		@each -> (@[funcName] i, f, true) for i in c
 	ret = {
-		bind: (e, f) ->
-			c = (e or "").split(EVENTSEP_RE)
-			h = (evt) ->
-				ret = f.apply @, arguments
-				if ret is false
-					evt.preventAll()
-				ret
-			@each ->
-				(@addEventListener i, h, true) for i in c
-		unbind: (e, f) ->
-			c = (e or "").split EVENTSEP_RE
-			@each -> (@removeEventListener i, f, true) for i in c
+		bind: _b "addEventListener"
+		unbind: _b "removeEventListener"
 		trigger: (evt, args = {}) ->
 			args = $.extend
 				bubbles: true
@@ -1209,23 +1193,25 @@ $.plugin
 						e = document.createEvent "Events"
 						e.initEvent evt_i, args.bubbles, args.cancelable
 						e = $.extend e, args
-				if not e
-					continue
-				else
-					@each ->
-						try
-							@dispatchEvent e
-						catch err
-							$.log "dispatchEvent error:", err
+				continue unless e
+				@each ->
+					try @dispatchEvent e
+					catch err then $.log "dispatchEvent error:", err
 			@
 		delegate: (selector, e, f) ->
-			context = @
-			register_live selector, context, e, f, (evt) ->
-				context.find(selector)
-					.intersect($(evt.target).parents().first().union($(evt.target)))
-					.each -> f.call(evt.target = @, evt)
+			h = (evt) => # Create the delegate handler
+				t = $(evt.target)
+				@find(selector)
+					.intersect(t.parents().first().union t)
+					.each -> f.call evt.target = @, evt
+			@bind(e, h) # Bind the delegate handler
+				.each -> _get(@,'__alive__',selector,e)[f] = h # Save a reference for undelegate
 		undelegate: (selector, e, f) ->
-			@unbind e, unregister_live selector, @, e, f
+			context = @
+			context.each ->
+				c = _get(@,'__alive__',selector,e) # Find the saved reference to h
+				try context.unbind e, c[f] # Unbind h from everything in the context
+				finally delete c[f] # Remove the saved reference to f so we don't leak it.
 		click: (f = {}) ->
 			if @css("cursor") in ["auto",""]
 				@css "cursor", "pointer"
@@ -1236,7 +1222,7 @@ $.plugin
 			return (f.call @) if triggerReady.exhausted
 			@bind "ready", f
 	}
-	events.forEach (x) -> ret[x] = binder(x)
+	events.forEach (x) -> ret[x] = binder x
 	return ret
 $.plugin
 	provides: "function"
@@ -1678,7 +1664,7 @@ $.plugin
 				switch
 					when value is @
 						return end new TypeError "cant resolve a promise with itself"
-					when $.is 'promise', value then (value.wait end; return @)
+					when $.is 'promise', value then value.wait end
 					when error isnt NoValue then consume_all error, null
 					when value isnt NoValue then consume_all null, value
 			return @
@@ -2074,37 +2060,6 @@ $.plugin
 			else opts[o.name] = save
 	register 'get', (o, opts) -> reduce opts[o.name], opts
 	return $: { render }
-$.plugin
-	depends: "function"
-	provides: "request-queue"
-, ->
-	$: # A Queue of HTTP Requests
-		RequestQueue: class RequestQueue
-			constructor: (requester) ->
-				@requester = requester ? try require 'request'
-				@interval = null
-				@queue = []
-			tick: ->
-				for i in [0...n = Math.min @queue.length, @perTick] by 1
-					@requester @queue.shift()...
-			start: (@perTick=1, interval=100) ->
-				@stop() if @interval?
-				@interval = setInterval (=> do @tick), interval
-				@
-			stop: stop = ->
-				clearInterval @interval
-				@interval = null
-				@
-			close: stop
-			request: (args...) ->
-				@queue.push args
-				@
-			post: (opts, callback = $.identity) ->
-				@queue.push [($.extend opts, method: "POST"), callback]
-				@
-			get: (opts, callback = $.identity) ->
-				@queue.push [($.extend opts, method: "GET"), callback]
-				@
 $.plugin
 	provides: "sendgrid"
 	depends: "config"

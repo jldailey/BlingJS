@@ -3,7 +3,7 @@ $.plugin
 	depends: "StateMachine, type"
 , ->
 	class SynthMachine extends $.StateMachine
-		basic =
+		basic = # a common template included in lots of the state machine rules
 			"#": @GO 2
 			".": @GO 3, true
 			"[": @GO 4

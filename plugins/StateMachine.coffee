@@ -2,7 +2,7 @@ $.plugin
 	provides: "StateMachine"
 	depends: "type"
 , ->
-	$: StateMachine: class StateMachine
+	$: StateMachine: class StateMachine # see plugins/synth for a complete usage example
 		constructor: (stateTable) ->
 			@debug = false
 			@reset()

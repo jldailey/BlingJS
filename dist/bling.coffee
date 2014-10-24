@@ -222,7 +222,9 @@ $.plugin
 	provides: 'config'
 	depends: 'type'
 , ->
-	get = (name, def) -> process.env[name] ? def
+	get = (name, def) -> switch arguments.length
+		when 0 then $.extend({}, process.env)
+		else process.env[name] ? def
 	set = (name, val) -> process.env[name] = val
 	parse = (data) ->
 		ret = {}

@@ -300,7 +300,7 @@ describe "Core plugin:", ->
 					80: ->
 						assert.equal count, 6
 						done()
-				
+
 		describe ".immediate(f)", ->
 			it "runs f on the next tick", (done) ->
 				pass = false
@@ -312,7 +312,7 @@ describe "Core plugin:", ->
 				count = 0
 				i = $.interval 20, -> count += 1
 				$.delay 200, ->
-					assert 9 <= count <= 11, "Count: #{count} is not between 9 and 11"
+					assert 8 <= count <= 11, "Count: #{count} is not between 8 and 11"
 					i.cancel()
 					done()
 			it "can be paused/resumed", (done) ->

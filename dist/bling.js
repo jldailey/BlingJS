@@ -475,7 +475,12 @@
     var get, parse, set;
     get = function(name, def) {
       var _ref;
-      return (_ref = process.env[name]) != null ? _ref : def;
+      switch (arguments.length) {
+        case 0:
+          return $.extend({}, process.env);
+        default:
+          return (_ref = process.env[name]) != null ? _ref : def;
+      }
     };
     set = function(name, val) {
       return process.env[name] = val;

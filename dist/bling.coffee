@@ -1042,7 +1042,11 @@ if $.global.document?
 				.reduce (a, i) ->
 					a.extend i.querySelectorAll expr
 				, $()
-			clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @
+			clone: (deep=true, count=1) -> switch
+				when count is 1 then @map ->
+					if $.is "node", @ then (@cloneNode deep) else undefined
+				when count > 1 then @map ->
+					$((if $.is "node", @ then (@cloneNode deep) else undefined) for _ in [0..count] by 1)
 			toFragment: ->
 				if @length > 1
 					df = document.createDocumentFragment()

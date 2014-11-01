@@ -2363,15 +2363,35 @@
             return a.extend(i.querySelectorAll(expr));
           }, $());
         },
-        clone: function(deep) {
+        clone: function(deep, count) {
           if (deep == null) {
             deep = true;
           }
-          return this.map(function() {
-            if ($.is("node", this)) {
-              return this.cloneNode(deep);
-            }
-          });
+          if (count == null) {
+            count = 1;
+          }
+          switch (false) {
+            case count !== 1:
+              return this.map(function() {
+                if ($.is("node", this)) {
+                  return this.cloneNode(deep);
+                } else {
+                  return void 0;
+                }
+              });
+            case !(count > 1):
+              return this.map(function() {
+                var _;
+                return $((function() {
+                  var _i, _results;
+                  _results = [];
+                  for (_ = _i = 0; _i <= count; _ = _i += 1) {
+                    _results.push($.is("node", this) ? this.cloneNode(deep) : void 0);
+                  }
+                  return _results;
+                }).call(this));
+              });
+          }
         },
         toFragment: function() {
           var df;

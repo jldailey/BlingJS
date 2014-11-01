@@ -155,12 +155,20 @@ describe "DOM", ->
 			.find(".x", 1)
 		assert.equal a.length, 1
 		assert.deepEqual a.select('nodeName'), ['B']
-	it "clone", ->
-		c = $("div.c").clone()[0]
-		d = $("div.c")[0]
-		c.a = "magic"
-		assert.equal( typeof d.a, "undefined")
-		assert.equal( typeof c.a, "string")
+	describe "clone", ->
+		it "creates a copy of nodes", ->
+			c = $("div.c").clone()[0]
+			d = $("div.c")[0]
+			c.a = "magic"
+			assert.equal( typeof d.a, "undefined")
+			assert.equal( typeof c.a, "string")
+		it "can create many copies", ->
+			c = $.synth("div.c").clone(32).first()
+			for node, i in c
+				c.i = i
+			# if any of the nodes were _not_ cloned, then the i assignments will be off
+			for node, i in c
+				assert.equal c.i, i
 	it "toFragment", ->
 		assert.equal($("td").clone().toFragment().childNodes.length, 8)
 

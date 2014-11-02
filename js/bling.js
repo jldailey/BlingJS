@@ -2369,34 +2369,32 @@
           }, $());
         },
         clone: function(deep, count) {
+          var c;
           if (deep == null) {
             deep = true;
           }
           if (count == null) {
             count = 1;
           }
-          switch (false) {
-            case count !== 1:
-              return this.map(function() {
-                if ($.is("node", this)) {
-                  return this.cloneNode(deep);
-                } else {
-                  return void 0;
+          c = function(n) {
+            if ($.is("node", n)) {
+              return n.cloneNode(deep);
+            }
+          };
+          return this.map(function() {
+            var _, _i, _results;
+            switch (count) {
+              case 1:
+                return c(this);
+              default:
+                $.log("duplicating", count, "times");
+                _results = [];
+                for (_ = _i = 0; _i < count; _ = _i += 1) {
+                  _results.push(c(this));
                 }
-              });
-            case !(count > 1):
-              return this.map(function() {
-                var _;
-                return $((function() {
-                  var _i, _results;
-                  _results = [];
-                  for (_ = _i = 0; _i <= count; _ = _i += 1) {
-                    _results.push($.is("node", this) ? this.cloneNode(deep) : void 0);
-                  }
-                  return _results;
-                }).call(this));
-              });
-          }
+                return _results;
+            }
+          });
         },
         toFragment: function() {
           var df;

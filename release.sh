@@ -15,6 +15,6 @@ echo Making new release: $2 from current release: $1... && \
 	echo "Pushing to github..." && \
 	git push && \
 	echo "Pushing site to blingjs.com" && \
-	ssh blingjs.com "cd /var/www/blingjs.com && git pull" && \
+	ssh blingjs.com "cd /var/www/blingjs.com; and git pull" && \
 	echo Publishing to npm && \
 	npm publish

@@ -1044,11 +1044,13 @@ if $.global.document?
 				.reduce (a, i) ->
 					a.extend i.querySelectorAll expr
 				, $()
-			clone: (deep=true, count=1) -> switch
-				when count is 1 then @map ->
-					if $.is "node", @ then (@cloneNode deep) else undefined
-				when count > 1 then @map ->
-					$((if $.is "node", @ then (@cloneNode deep) else undefined) for _ in [0..count] by 1)
+			clone: (deep=true, count=1) ->
+				c = (n) -> if $.is "node", n then (n.cloneNode deep)
+				@map -> switch count
+					when 1 then c @
+					else
+						$.log "duplicating", count, "times"
+						(c(@) for _ in [0...count] by 1)
 			toFragment: ->
 				if @length > 1
 					df = document.createDocumentFragment()

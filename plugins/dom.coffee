@@ -381,11 +381,13 @@ if $.global.document?
 			# Collect a new set, full of clones of the DOM Nodes in the input set.
 			# If count is given, return a set of sets, of multiple copies of each clone.
 			# e.g. $.synth("div.class").clone(true, 3) -> [ [ div, div, div ] ]
-			clone: (deep=true, count=1) -> switch
-				when count is 1 then @map ->
-					if $.is "node", @ then (@cloneNode deep) else undefined
-				when count > 1 then @map ->
-					$((if $.is "node", @ then (@cloneNode deep) else undefined) for _ in [0..count] by 1)
+			clone: (deep=true, count=1) ->
+				c = (n) -> if $.is "node", n then (n.cloneNode deep)
+				@map -> switch count
+					when 1 then c @
+					else
+						$.log "duplicating", count, "times"
+						(c(@) for _ in [0...count] by 1)
 
 			# Get a single DocumentFragment that contains all the nodes in _this_.
 			toFragment: ->

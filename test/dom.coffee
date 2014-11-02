@@ -163,12 +163,13 @@ describe "DOM", ->
 			assert.equal( typeof d.a, "undefined")
 			assert.equal( typeof c.a, "string")
 		it "can create many copies", ->
-			c = $.synth("div.c").clone(32).first()
+			c = $.synth("div.c").clone(true, 16).first()
+			assert.equal c.length, 16
 			for node, i in c
-				c.i = i
+				node.i = i
 			# if any of the nodes were _not_ cloned, then the i assignments will be off
 			for node, i in c
-				assert.equal c.i, i
+				assert.equal node.i, i
 	it "toFragment", ->
 		assert.equal($("td").clone().toFragment().childNodes.length, 8)
 

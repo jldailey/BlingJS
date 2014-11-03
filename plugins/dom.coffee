@@ -385,9 +385,7 @@ if $.global.document?
 				c = (n) -> if $.is "node", n then (n.cloneNode deep)
 				@map -> switch count
 					when 1 then c @
-					else
-						$.log "duplicating", count, "times"
-						(c(@) for _ in [0...count] by 1)
+					else (c(@) for _ in [0...count] by 1)
 
 			# Get a single DocumentFragment that contains all the nodes in _this_.
 			toFragment: ->

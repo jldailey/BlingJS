@@ -1048,9 +1048,7 @@ if $.global.document?
 				c = (n) -> if $.is "node", n then (n.cloneNode deep)
 				@map -> switch count
 					when 1 then c @
-					else
-						$.log "duplicating", count, "times"
-						(c(@) for _ in [0...count] by 1)
+					else (c(@) for _ in [0...count] by 1)
 			toFragment: ->
 				if @length > 1
 					df = document.createDocumentFragment()
@@ -1533,7 +1531,9 @@ $.plugin
 				switch obj_type
 					when 'null','undefined','string','number' then return false
 					when 'array','bling' then for v in obj when matches pattern, v then return true
-					when 'object' then for k, v of pattern when matches v, obj[k] then return true
+					when 'object' # dont match if any of the keys dont match
+						for k, v of pattern when not matches v, obj[k] then return false
+						return true # matches if all keys match
 				return false
 			when 'array'
 				switch obj_type
@@ -1556,6 +1556,8 @@ $.plugin
 				return false
 			else return obj is pattern
 	class matches.Any # magic token
+		toString: -> "{Any}"
+		inspect:  -> "{Any}"
 	return $: matches: matches
 $.plugin
 	provides: "math"

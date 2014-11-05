@@ -2387,7 +2387,6 @@
               case 1:
                 return c(this);
               default:
-                $.log("duplicating", count, "times");
                 _results = [];
                 for (_ = _i = 0; _i < count; _ = _i += 1) {
                   _results.push(c(this));
@@ -3342,10 +3341,11 @@
             case 'object':
               for (k in pattern) {
                 v = pattern[k];
-                if (matches(v, obj[k])) {
-                  return true;
+                if (!matches(v, obj[k])) {
+                  return false;
                 }
               }
+              return true;
           }
           return false;
         case 'array':
@@ -3410,6 +3410,14 @@
     };
     matches.Any = (function() {
       function Any() {}
+
+      Any.prototype.toString = function() {
+        return "{Any}";
+      };
+
+      Any.prototype.inspect = function() {
+        return "{Any}";
+      };
 
       return Any;
 

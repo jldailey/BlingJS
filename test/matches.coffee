@@ -5,6 +5,8 @@ describe ".matches()", ->
 		assert $.matches { a: 1 }, { a: 1 }
 	it "properly fails to match", ->
 		assert.equal false, $.matches { a: /oo$/ }, { a: "bar" }
+	it "compares mulitple fields within an object", ->
+		assert.equal false, $.matches { a: "b", c: "d" }, { a: "b", c: "e" }
 	describe "patterns can be", ->
 		it "strings", ->
 			assert $.matches { a: "foo" }, { a: "foo" }

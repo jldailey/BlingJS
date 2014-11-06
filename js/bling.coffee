@@ -1643,6 +1643,16 @@ $.plugin
 				if opts.cache.has key then opts.cache.get key
 				else opts.cache.set key, opts.f.apply @, arguments
 $.plugin
+	provides: 'middleware',
+	depends: 'type'
+, ->
+	$.type.register 'middleware', is: (o) ->
+		try $.are 'function', o.use, o.invoke catch err then return false
+	$: middleware: (s = []) ->
+		use: s.push.bind s
+		invoke: (a...) ->
+			i = -1; do next = (-> try s[++i] a..., next); null
+$.plugin
 	depends: "core,function"
 	provides: "promise"
 , ->
@@ -2998,6 +3008,10 @@ $.plugin
 		isType: isType
 		type: _type
 		is: _type.is
+		are: (type, args...) ->
+			for a in args
+				return false unless $.is type, a
+			return true
 		as: _type.as
 		isDefined: (o) -> o?
 		isSimple: (o) -> _type(o) in ["string", "number", "bool"]

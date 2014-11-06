@@ -3709,6 +3709,46 @@
   });
 
   $.plugin({
+    provides: 'middleware',
+    depends: 'type'
+  }, function() {
+    $.type.register('middleware', {
+      is: function(o) {
+        var err;
+        try {
+          return $.are('function', o.use, o.invoke);
+        } catch (_error) {
+          err = _error;
+          return false;
+        }
+      }
+    });
+    return {
+      $: {
+        middleware: function(s) {
+          if (s == null) {
+            s = [];
+          }
+          return {
+            use: s.push.bind(s),
+            invoke: function() {
+              var a, i, next;
+              a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+              i = -1;
+              (next = (function() {
+                try {
+                  return s[++i].apply(s, __slice.call(a).concat([next]));
+                } catch (_error) {}
+              }))();
+              return null;
+            }
+          };
+        }
+      }
+    };
+  });
+
+  $.plugin({
     depends: "core,function",
     provides: "promise"
   }, function() {
@@ -6392,6 +6432,17 @@
         isType: isType,
         type: _type,
         is: _type.is,
+        are: function() {
+          var a, args, type, _i, _len;
+          type = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+          for (_i = 0, _len = args.length; _i < _len; _i++) {
+            a = args[_i];
+            if (!$.is(type, a)) {
+              return false;
+            }
+          }
+          return true;
+        },
         as: _type.as,
         isDefined: function(o) {
           return o != null;

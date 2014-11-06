@@ -201,6 +201,11 @@ $.plugin
 		type: _type
 		# `$.is("function", ->)` equals true/false.
 		is: _type.is
+		# `$.are("function", (->), (->)) equals true/false.
+		are: (type, args...) ->
+			for a in args
+				return false unless $.is type, a
+			return true
 		# `$.as("number", "1234")` attempt to convert types.
 		as: _type.as
 		isDefined: (o) -> o?

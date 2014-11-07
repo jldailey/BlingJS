@@ -48,6 +48,6 @@ $.plugin
 				return false
 			else return obj is pattern
 	class matches.Any # magic token
-		toString: -> "{Any}"
-		inspect:  -> "{Any}"
+		@toString: -> "{Any}"
+		@inspect:  -> "{Any}"
 	return $: matches: matches

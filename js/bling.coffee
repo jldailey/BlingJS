@@ -236,7 +236,13 @@ $.plugin
 				if kv[0]?.length
 					ret[kv[0]] = kv[1].replace(/^["']/,'').replace(/['"]$/,'')
 		ret
-	$: config: $.extend(get, {get, set, parse})
+	watch = (name, func) ->
+		prev = process.env[name]
+		$.interval 1003, ->
+			if (cur = process.env[name]) isnt prev
+				func(prev, cur)
+				prev = cur
+	$: config: $.extend(get, {get, set, parse, watch})
 $.plugin
 	provides: "core"
 	depends: "string"
@@ -1556,8 +1562,8 @@ $.plugin
 				return false
 			else return obj is pattern
 	class matches.Any # magic token
-		toString: -> "{Any}"
-		inspect:  -> "{Any}"
+		@toString: -> "{Any}"
+		@inspect:  -> "{Any}"
 	return $: matches: matches
 $.plugin
 	provides: "math"

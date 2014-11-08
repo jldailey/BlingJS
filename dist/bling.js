@@ -472,7 +472,7 @@
     provides: 'config',
     depends: 'type'
   }, function() {
-    var get, parse, set;
+    var get, parse, set, watch;
     get = function(name, def) {
       var _ref;
       switch (arguments.length) {
@@ -498,12 +498,24 @@
       });
       return ret;
     };
+    watch = function(name, func) {
+      var prev;
+      prev = process.env[name];
+      return $.interval(1003, function() {
+        var cur;
+        if ((cur = process.env[name]) !== prev) {
+          func(prev, cur);
+          return prev = cur;
+        }
+      });
+    };
     return {
       $: {
         config: $.extend(get, {
           get: get,
           set: set,
-          parse: parse
+          parse: parse,
+          watch: watch
         })
       }
     };
@@ -3411,11 +3423,11 @@
     matches.Any = (function() {
       function Any() {}
 
-      Any.prototype.toString = function() {
+      Any.toString = function() {
         return "{Any}";
       };
 
-      Any.prototype.inspect = function() {
+      Any.inspect = function() {
         return "{Any}";
       };
 

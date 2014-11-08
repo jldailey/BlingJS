@@ -16,6 +16,12 @@ $.plugin
 				if kv[0]?.length
 					ret[kv[0]] = kv[1].replace(/^["']/,'').replace(/['"]$/,'')
 		ret
+	watch = (name, func) ->
+		prev = process.env[name]
+		$.interval 1003, ->
+			if (cur = process.env[name]) isnt prev
+				func(prev, cur)
+				prev = cur
 
-	$: config: $.extend(get, {get, set, parse})
+	$: config: $.extend(get, {get, set, parse, watch})
 

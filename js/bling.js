@@ -483,7 +483,12 @@
       }
     };
     set = function(name, val) {
-      return process.env[name] = val;
+      switch (arguments.length) {
+        case 1:
+          return $.extend(process.env, arguments[0]);
+        case 2:
+          return process.env[name] = val;
+      }
     };
     parse = function(data) {
       var ret;

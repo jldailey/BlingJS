@@ -115,19 +115,39 @@ describe "DOM", ->
 			}
 			assert.equal node.attr("lazy-href").first(), "/away"
 			assert.equal node.attr("color").first(), "yellow"
-	it "data", -> assert.equal($("<a data-lazy-href='#'></a>").data("lazyHref").first(), "#")
-	it "data2", -> assert.equal($("<a data-lazy-href='#'></a>").data("lazyHref","poop").data("lazyHref").first(), "poop")
-	it "removeClass", -> assert.equal($("<a class='test'></a>").removeClass('test').toRepr(), "$([<a/>])")
-	it "removeClass2", -> assert.equal($("<a></a>").removeClass('test').toRepr(), "$([<a/>])")
-	it "addClass", -> assert.equal($("<a></a>").addClass("test").toRepr(), '$([<a class="test"/>])')
-	it "addClass2", -> assert.equal($("<a class='test'></a>").addClass("test").toRepr(), '$([<a class="test"/>])')
-	it "addClass3", -> assert.equal($("<a class='test test'></a>").addClass("test").toRepr(), '$([<a class="test"/>])')
-	it "toggleClass", -> assert.equal($("<a class='on'></a>").toggleClass("on").toRepr(), "$([<a/>])")
-	it "toggleClass2", -> assert.equal($("<a class='off'></a>").toggleClass("on").toRepr(), '$([<a class="off on"/>])')
-	it "toggleClass3", -> assert.equal($("<a class=''></a>").toggleClass("on").toRepr(), '$([<a class="on"/>])')
-	it "toggleClass4", -> assert.equal($("<a></a>").toggleClass("on").toRepr(), '$([<a class="on"/>])')
-	it "hasClass", -> assert.equal($("<a class='foo'></a>").hasClass("foo").first(), true)
-	it "hasClass2", -> assert.equal($("<a class='bar'></a>").hasClass("foo").first(), false)
+	describe ".data()", ->
+		it "gets data-* attributes", ->
+			assert.equal($("<a data-lazy-href='#'></a>").data("lazyHref").first(), "#")
+		it "sets data-* attributes", ->
+			assert.equal($("<a data-lazy-href='#'></a>").data("lazyHref","poop").data("lazyHref").first(), "poop")
+	describe "removeClass", ->
+		it "removes a name from className", ->
+			assert.equal($("<a class='foo bar'></a>").removeClass('foo').toRepr(), '$([<a class="bar"/>])')
+		it "removes class if className is empty", ->
+			assert.equal($("<a class='test'></a>").removeClass('test').toRepr(), "$([<a/>])")
+		it "does not fail if removing nothing", ->
+			assert.equal($("<a></a>").removeClass('test').toRepr(), "$([<a/>])")
+	describe "addClass", ->
+		it "adds a class (when not present already)", ->
+			assert.equal($("<a></a>").addClass("test").toRepr(), '$([<a class="test"/>])')
+		it "adds a class (when others are present)", ->
+			assert.equal($("<a class='foo bar'></a>").addClass("baz").toRepr(), '$([<a class="foo bar baz"/>])')
+		it "does nothing (when already present)", ->
+			assert.equal($("<a class='foo bar'></a>").addClass("bar").toRepr(), '$([<a class="foo bar"/>])')
+	describe "toggleClass", ->
+		it "removes a class (when present)", ->
+			assert.equal($("<a class='on'></a>").toggleClass("on").toRepr(), "$([<a/>])")
+		it "adds a class (when not present)" ,->
+			assert.equal($("<a class='off'></a>").toggleClass("on").toRepr(), '$([<a class="off on"/>])')
+		it "adds a class (when class is empty)", ->
+			assert.equal($("<a class=''></a>").toggleClass("on").toRepr(), '$([<a class="on"/>])')
+		it "adds a class (where there is no class)", ->
+			assert.equal($("<a></a>").toggleClass("on").toRepr(), '$([<a class="on"/>])')
+	describe "hasClass", ->
+		it "matches true positives", ->
+			assert.equal($("<a class='foo'></a>").hasClass("foo").first(), true)
+		it "matches true negatives", ->
+			assert.equal($("<a class='bar'></a>").hasClass("foo").first(), false)
 	it "text1", -> assert.equal($("<a>Hello<b>World</b></a>").select('innerText').toRepr(), "$(['HelloWorld'])")
 	it "text3", -> assert.equal($("<a>Hello<b>World</b></a>").text().toRepr(), "$(['HelloWorld'])")
 	it "text2", -> assert.equal($("<a>Hello<b>World</b></a>").text("Goodbye").toRepr(), "$([<a>Goodbye</a>])")

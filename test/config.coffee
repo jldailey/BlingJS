@@ -15,9 +15,12 @@ describe ".config(name, def)", ->
 		assert.deepEqual $.config.parse("""NO_LEAD='no leading whitespace'
 			LEADING='ignores leading whitespace'
 			NOQUOTES=does not require any quotes
-		"""), {
+		"""), { \
 				NO_LEAD: "no leading whitespace"
 				LEADING: "ignores leading whitespace"
 				NOQUOTES: "does not require any quotes"
 			}
-	
+	it "can $.config.set($.config.parse(data))", ->
+		$.config.set $.config.parse "AMQP_URL=amqp://test:test@127.0.0.1:5672"
+		assert.equal $.config.get("AMQP_URL"), "amqp://test:test@127.0.0.1:5672"
+

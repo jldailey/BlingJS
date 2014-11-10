@@ -952,24 +952,23 @@ if $.global.document?
 					c.push x
 					@className = c.join " "
 			removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
-				notx = (y) -> y != x
+				notx = (y) -> y isnt x
 				@each ->
-					c = @className.split(" ").filter(notx).join(" ")
-					if c.length is 0
+					@className = @className.split(" ").filter(notx).join(" ")
+					if @className.length is 0
 						@removeAttribute('class')
 			toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
 				notx = (y) -> y isnt x
 				@each ->
 					cls = @className.split(" ")
 					filter = $.not $.isEmpty
-					if( cls.indexOf(x) > -1 )
+					if (cls.indexOf x) > -1
 						filter = $.and notx, filter
 					else
 						cls.push x
-					c = cls.filter(filter).join(" ")
-					@className = c
-					if c.length is 0
-						@removeAttribute('class')
+					@className = cls.filter(filter).join(" ")
+					if @className.length is 0
+						@removeAttribute 'class'
 			hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x
 				@select('className.split').call(" ").select('indexOf').call(x).map (x) -> x > -1
 			text: (t) -> # .text([t]) - get [or set] each node's .textContent

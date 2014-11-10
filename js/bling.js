@@ -2217,9 +2217,8 @@
             return y !== x;
           };
           return this.each(function() {
-            var c;
-            c = this.className.split(" ").filter(notx).join(" ");
-            if (c.length === 0) {
+            this.className = this.className.split(" ").filter(notx).join(" ");
+            if (this.className.length === 0) {
               return this.removeAttribute('class');
             }
           });
@@ -2230,17 +2229,16 @@
             return y !== x;
           };
           return this.each(function() {
-            var c, cls, filter;
+            var cls, filter;
             cls = this.className.split(" ");
             filter = $.not($.isEmpty);
-            if (cls.indexOf(x) > -1) {
+            if ((cls.indexOf(x)) > -1) {
               filter = $.and(notx, filter);
             } else {
               cls.push(x);
             }
-            c = cls.filter(filter).join(" ");
-            this.className = c;
-            if (c.length === 0) {
+            this.className = cls.filter(filter).join(" ");
+            if (this.className.length === 0) {
               return this.removeAttribute('class');
             }
           });

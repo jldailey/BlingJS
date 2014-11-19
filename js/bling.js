@@ -1340,6 +1340,9 @@
     format_keys = Object.keys(formats).sort().reverse();
     parsers = {
       yyyy: Date.prototype.setUTCFullYear,
+      yy: function(x) {
+        return this.setUTCFullYear((x > 50 ? 1900 : 2000) + x);
+      },
       mm: function(x) {
         return this.setUTCMonth(x - 1);
       },
@@ -1366,19 +1369,19 @@
       }
     });
     $.type.extend('string', {
-      date: function(o, fmt) {
+      date: function(s, fmt) {
         if (fmt == null) {
           fmt = $.date.defaultFormat;
         }
-        return new Date($.date.parse(o, fmt, "ms"));
+        return new Date($.date.parse(s, fmt, "ms"));
       }
     });
     $.type.extend('number', {
-      date: function(o, unit) {
+      date: function(n, unit) {
         if (unit == null) {
           unit = $.date.defaultUnit;
         }
-        return $.date.unstamp(o, unit);
+        return $.date.unstamp(n, unit);
       }
     });
     adder = function(key) {
@@ -1448,18 +1451,22 @@
             }
             return fmt;
           },
-          parse: function(dateString, fmt, to) {
-            var date, err, i, k, _i, _j, _len, _ref1;
+          parse: function(dateString, fmt, to, debug) {
+            var date, err, i, k, _i, _len;
             if (fmt == null) {
               fmt = $.date.defaultFormat;
             }
             if (to == null) {
               to = $.date.defaultUnit;
             }
+            if (debug == null) {
+              debug = false;
+            }
             date = new Date(0);
-            for (i = _i = 0, _ref1 = fmt.length; _i < _ref1; i = _i += 1) {
-              for (_j = 0, _len = parser_keys.length; _j < _len; _j++) {
-                k = parser_keys[_j];
+            i = 0;
+            while (i < fmt.length) {
+              for (_i = 0, _len = parser_keys.length; _i < _len; _i++) {
+                k = parser_keys[_i];
                 if (fmt.indexOf(k, i) === i) {
                   try {
                     parsers[k].call(date, parseInt(dateString.slice(i, i + k.length), 10));
@@ -1467,8 +1474,11 @@
                     err = _error;
                     throw new Error("Invalid date ('" + dateString + "') given format mask: " + fmt + " (failed at position " + i + ")");
                   }
+                  i += k.length - 1;
+                  break;
                 }
               }
+              i += 1;
             }
             return $.date.stamp(date, to);
           },

@@ -41,6 +41,7 @@ $.plugin
 
 	parsers =
 		yyyy: Date::setUTCFullYear
+		yy: (x) -> @setUTCFullYear (if x > 50 then 1900 else 2000) + x
 		mm: (x) -> @setUTCMonth(x - 1)
 		dd: Date::setUTCDate
 		HH: Date::setUTCHours
@@ -48,6 +49,7 @@ $.plugin
 		SS: Date::setUTCSeconds
 		MS: Date::setUTCMilliseconds
 	parser_keys = Object.keys(parsers).sort().reverse()
+
 
 	floor = Math.floor
 
@@ -57,8 +59,8 @@ $.plugin
 		string: (o, fmt, unit) -> $.date.format o, fmt, unit
 		number: (o, unit) -> $.date.stamp o, unit
 
-	$.type.extend 'string', date: (o, fmt = $.date.defaultFormat) -> new Date $.date.parse o, fmt, "ms"
-	$.type.extend 'number', date: (o, unit = $.date.defaultUnit) -> $.date.unstamp o, unit
+	$.type.extend 'string', date: (s, fmt = $.date.defaultFormat) -> new Date $.date.parse s, fmt, "ms"
+	$.type.extend 'number', date: (n, unit = $.date.defaultUnit) -> $.date.unstamp n, unit
 
 	adder = (key) ->
 		(stamp, delta, stamp_unit = $.date.defaultUnit) ->
@@ -85,9 +87,10 @@ $.plugin
 				for k in format_keys
 					fmt = fmt.replace k, ($.padLeft ""+formats[k].call(date), k.length, "0")
 				fmt
-			parse: (dateString, fmt = $.date.defaultFormat, to = $.date.defaultUnit) ->
+			parse: (dateString, fmt = $.date.defaultFormat, to = $.date.defaultUnit, debug = false) ->
 				date = new Date(0)
-				for i in [0...fmt.length] by 1
+				i = 0
+				while i < fmt.length
 					for k in parser_keys
 						if fmt.indexOf(k, i) is i
 							try
@@ -95,6 +98,9 @@ $.plugin
 									parseInt dateString[i...i+k.length], 10
 							catch err
 								throw new Error("Invalid date ('#{dateString}') given format mask: #{fmt} (failed at position #{i})")
+							i += k.length - 1
+							break
+					i += 1
 				$.date.stamp date, to
 			addMilliseconds: adder("MS")
 			addSeconds: adder("SS")

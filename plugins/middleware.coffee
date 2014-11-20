@@ -7,10 +7,10 @@ $.plugin
 , ->
 
 	$.type.register 'middleware', is: (o) ->
-		try $.are 'function', o.use, o.invoke catch err then return false
+		try return $.are 'function', o.use, o.use, o.invoke
+		catch err then return false
 
 	$: middleware: (s = []) ->
-		use:    (f) -> s.push f
-		unuse:  (f) -> s.splice i, 1 while (i = s.indexOf f) > -1; null
-		invoke: (a...) ->
-			i = -1; do next = (-> try s[++i] a..., next); null
+		use:    (f)    -> s.push f                                  ; @
+		unuse:  (f)    -> s.splice i, 1 while (i = s.indexOf f) > -1; @
+		invoke: (a...) -> i = -1; do n = (-> try s[++i] a..., n)    ; @

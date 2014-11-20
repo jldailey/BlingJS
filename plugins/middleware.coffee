@@ -10,6 +10,7 @@ $.plugin
 		try $.are 'function', o.use, o.invoke catch err then return false
 
 	$: middleware: (s = []) ->
-		use: s.push.bind s
+		use:    (f) -> s.push f
+		unuse:  (f) -> s.splice i, 1 while (i = s.indexOf f) > -1; null
 		invoke: (a...) ->
 			i = -1; do next = (-> try s[++i] a..., next); null

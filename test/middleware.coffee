@@ -39,3 +39,13 @@ describe "Middleware plugin:", ->
 					next()
 				m.invoke true, true
 				assert.equal true, pass
+		describe "::unuse(f)", ->
+			it "removes a middleware from the chain", ->
+				m = $.middleware()
+				pass = true
+				m.use f = (arg, next) ->
+					pass = arg
+					next()
+				m.unuse f
+				m.invoke false
+				assert.equal true, pass

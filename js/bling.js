@@ -3755,7 +3755,16 @@
             s = [];
           }
           return {
-            use: s.push.bind(s),
+            use: function(f) {
+              return s.push(f);
+            },
+            unuse: function(f) {
+              var i;
+              while ((i = s.indexOf(f)) > -1) {
+                s.splice(i, 1);
+              }
+              return null;
+            },
             invoke: function() {
               var a, i, next;
               a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];

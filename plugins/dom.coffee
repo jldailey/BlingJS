@@ -3,15 +3,19 @@
 # Only works if there is a global document.
 if $.global.document?
 	$.plugin
+		provides: "dom,HTML,html,append,appendText,appendTo,prepend,prependTo," +
+			"before,after,wrap,unwrap,replace,attr,data,addClass,removeClass,toggleClass," +
+			"hasClass,text,val,css,defaultCss,rect,width,height,top,left,bottom,right," +
+			"position,scrollToCenter,child,parents,next,prev,remove,find,querySelectorAll," +
+			"clone,toFragment"
 		depends: "function,type,string"
-		provides: "dom"
 	, ->
 		bNodelistsAreSpecial = false
 		$.type.register "nodelist",
 			is:  (o) -> o? and $.isType "NodeList", o
 			hash:   (o) -> $($.hash(i) for i in x).sum()
 			array:  do ->
-				try # probe to see if this browsers allows direct modification of a nodelist's prototype
+				try # probe to see if this browsers allows modification of a NodeList's prototype
 					document.querySelectorAll("xxx").__proto__ = {}
 					return $.identity
 				catch err # if we can't patch directly, we have to copy into a real array :(
@@ -126,7 +130,7 @@ if $.global.document?
 
 			appendText: (text) ->
 				node = document.createTextNode(text)
-				@each -> @appendChild node.cloneNode true
+				@each (n) -> n?.appendChild? node.cloneNode true
 
 			appendTo: (x) -> # .appendTo(/n/) - each node [or fragment] will become the last child of x
 				clones = @map( -> @cloneNode true)

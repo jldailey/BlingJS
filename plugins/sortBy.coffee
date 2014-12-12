@@ -1,5 +1,5 @@
 $.plugin
-	provides: "sortBy,sortedIndex"
+	provides: "sortBy,sortedIndex,sortedInsert"
 , ->
 	$:
 		sortedIndex: (array, item, iterator, lo = 0, hi = array.length) ->
@@ -9,7 +9,7 @@ $.plugin
 				else (a,b) -> a < b
 			while lo < hi
 				mid = (hi + lo)>>>1
-				if cmp(array[mid], item)
+				if cmp array[mid], item
 					lo = mid + 1
 				else
 					hi = mid

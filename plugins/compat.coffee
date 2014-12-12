@@ -4,7 +4,7 @@
 # 'shim-like' stuff here; adding or replacing basic ES5 stuff that
 # we need to use.
 $.plugin
-	provides: "compat"
+	provides: "compat, trimLeft, split, lastIndexOf, join, preventAll, matchesSelector, isBuffer"
 , ->
 	# if Buffer isn't defined globally, then isBuffer is always false
 	$.global.Buffer or= { isBuffer: -> false }

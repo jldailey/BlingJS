@@ -2,7 +2,7 @@
 # ------------
 # Exposes the type system publicly.
 $.plugin
-	provides: "type"
+	provides: "type,is,inherit,extend,defineProperty,isType,are,as,isSimple,isDefined,isEmpty"
 	depends: "compat"
 , ->
 	# The core is built around a _type classifier_. Initially, this

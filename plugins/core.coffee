@@ -1,5 +1,7 @@
 $.plugin
-	provides: "core"
+	provides: "core,eq,each,map,filterMap,tap,replaceWith,reduce,union,intersect,distinct," +
+		"contains,count,coalesce,swap,shuffle,select,or,zap,clean,take,skip,first,last,slice," +
+		"push,filter,matches,weave,fold,flatten,call,apply,log,toArray,clear,indexWhere"
 	depends: "string"
 , ->
 	# Core Plugin
@@ -49,7 +51,7 @@ $.plugin
 
 		# Get a new set with the results of calling a function of every
 		# item in _this_.
-		map: (f) -> # CS comprehensions generate too much extra code for such a critical bottle-neck
+		map: (f) ->
 			b = $()
 			i = 0
 			(b[i++] = f.call t,t) for t in @

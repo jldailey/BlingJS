@@ -2,8 +2,8 @@
 # ---------------
 # These are little function factories, for making new functions out of other functions.
 $.plugin
-	provides: "function"
-	depends: "hash"
+	provides: "function,identity,compose,once,cycle,bound,partial"
+	depends: "extend,is,defineProperty,map"
 , ->
 	$:
 		# __$.identity(x)__ returns x.

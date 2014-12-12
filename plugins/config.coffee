@@ -1,9 +1,9 @@
 $.plugin
 	provides: 'config'
-	depends: 'type'
+	depends: 'core'
 , ->
 	get = (name, def) -> switch arguments.length
-		when 0 then $.extend({}, process.env)
+		when 0 then $.extend {}, process.env
 		else process.env[name] ? def
 	set = (name, val) -> switch arguments.length
 		when 1 then $.extend process.env, arguments[0]
@@ -22,8 +22,8 @@ $.plugin
 		prev = process.env[name]
 		$.interval 1003, ->
 			if (cur = process.env[name]) isnt prev
-				func(prev, cur)
+				func prev, cur
 				prev = cur
 
-	$: config: $.extend(get, {get, set, parse, watch})
+	$: config: $.extend get, {get, set, parse, watch}
 

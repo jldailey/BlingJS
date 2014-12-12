@@ -1,5 +1,5 @@
 $.plugin
-	provides: 'date'
+	provides: 'date,midnight,stamp,unstamp,dateFormat,dateParse'
 	depends: 'type'
 , ->
 	# the basic units of time, and their relation to milliseconds
@@ -26,8 +26,8 @@ $.plugin
 
 	formats =
 		yyyy: Date::getUTCFullYear
-		YY: YY = -> String(@getUTCFullYear()).substr(2)
-		yy: YY
+		YY: fYY = -> String(@getUTCFullYear()).substr(2)
+		yy: fYY
 		mm: -> @getUTCMonth() + 1
 		dd: Date::getUTCDate
 		dw: Date::getUTCDay # day of the week, 1=monday
@@ -40,8 +40,10 @@ $.plugin
 	format_keys = Object.keys(formats).sort().reverse()
 
 	parsers =
-		yyyy: Date::setUTCFullYear
-		yy: (x) -> @setUTCFullYear (if x > 50 then 1900 else 2000) + x
+		YYYY: pYYYY =Date::setUTCFullYear
+		yyyy: pYYYY
+		YY: pYY = (x) -> @setUTCFullYear (if x > 50 then 1900 else 2000) + x
+		yy: pYY
 		mm: (x) -> @setUTCMonth(x - 1)
 		dd: Date::setUTCDate
 		HH: Date::setUTCHours
@@ -49,7 +51,6 @@ $.plugin
 		SS: Date::setUTCSeconds
 		MS: Date::setUTCMilliseconds
 	parser_keys = Object.keys(parsers).sort().reverse()
-
 
 	floor = Math.floor
 
@@ -87,7 +88,7 @@ $.plugin
 				for k in format_keys
 					fmt = fmt.replace k, ($.padLeft ""+formats[k].call(date), k.length, "0")
 				fmt
-			parse: (dateString, fmt = $.date.defaultFormat, to = $.date.defaultUnit, debug = false) ->
+			parse: (dateString, fmt = $.date.defaultFormat, to = $.date.defaultUnit) ->
 				date = new Date(0)
 				i = 0
 				while i < fmt.length

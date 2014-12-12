@@ -3,7 +3,7 @@
 # Filling out the standard library of string functions.
 $.plugin
 	provides: "string"
-	depends: "function"
+	depends: "type"
 , ->
 	safer = (f) -> (a...) ->
 		try return f(a...)
@@ -37,8 +37,7 @@ $.plugin
 			string: safer (o) ->
 				ret = []
 				for k of o
-					try
-						v = o[k]
+					try v = o[k]
 					catch err
 						v = "[Error: #{err.message}]"
 					ret.push "#{k}:#{$.toString v}"
@@ -46,8 +45,7 @@ $.plugin
 			repr: safer (o) ->
 				ret = []
 				for k of o
-					try
-						v = o[k]
+					try v = o[k]
 					catch err
 						v = "[Error: #{err.message}]"
 					ret.push "\"#{k}\": #{$.toRepr v}"

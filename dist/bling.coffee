@@ -2954,8 +2954,8 @@ $.plugin
 		if parent.__proto__ in [Object.prototype, null, undefined]
 			parent.__proto__ = obj.__proto__
 		obj.__proto__ = parent
-		return if objs.length > 0
-			inherit obj, objs...
+		if objs.length > 0
+			return inherit obj, objs...
 		else obj
 	_type = do ->
 		cache = {}
@@ -2963,7 +2963,7 @@ $.plugin
 			name: 'unknown'
 			is: (o) -> true
 		order = []
-		_with_cache = {} # for fast lookups of every type with a certain method { method: [ types ] }
+		_with_cache = {} # for finding types that have a certain method { method: [ types ] }
 		_with_insert = (method, type) ->
 			a = (_with_cache[method] or= [])
 			if (i = a.indexOf type) is -1

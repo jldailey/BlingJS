@@ -37,8 +37,8 @@ $.plugin
 			# splice the new parent such that the original chain is preserved
 			parent.__proto__ = obj.__proto__
 		obj.__proto__ = parent
-		return if objs.length > 0
-			inherit obj, objs...
+		if objs.length > 0
+			return inherit obj, objs...
 		else obj
 
 	# Now, let's begin to build the classifier for `$.type(obj)`.
@@ -48,16 +48,16 @@ $.plugin
 		cache = {}
 
 		# Each type in the registry is an instance that inherits from a
-		# _base_ object.  Later, when we want to do more than `match` with
+		# _base_ object.  Later, when we want to do more than `is` with
 		# each type, we will extend this base with default implementations.
 		base =
 			name: 'unknown'
 			is: (o) -> true
 
 		# When classifying an object, this array of names will control
-		# the order of the calls to `match` (and thus, the _type precedence_).
+		# the _order_ of the calls to `is` (and thus, the _type precedence_).
 		order = []
-		_with_cache = {} # for fast lookups of every type with a certain method { method: [ types ] }
+		_with_cache = {} # for finding types that have a certain method { method: [ types ] }
 		_with_insert = (method, type) ->
 			a = (_with_cache[method] or= [])
 			if (i = a.indexOf type) is -1
@@ -134,7 +134,7 @@ $.plugin
 			is: (t, o) -> cache[t]?.is.call o, o
 			as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
 			# Find all types with a certain function available:
-			# e.g. $.type.with('compact') == a list of all compactable types
+			# e.g. $.type.with('compact') == a list of all `compact`-able types
 			with: (f) -> _with_cache[f] ? []
 
 		# Example: Calling $.type directly will get you the simple name of the
@@ -147,6 +147,7 @@ $.plugin
 
 		# Later, once other systems have extended the base type, the
 		# type-instance returned from type.lookup will do more.
+
 	# Extending the type system
 	# First, we give the basic types the ability to turn into something
 	# array-like, for use by the constructor hook.

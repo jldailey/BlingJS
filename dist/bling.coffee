@@ -42,9 +42,11 @@ $.plugin = (opts, constructor) ->
 extend $, do ->
 	waiting = []
 	complete = {}
+	commasep = /, */
+	not_complete = (x) -> not (x of complete)
 	incomplete = (n) ->
-		(if (typeof n) is "string" then n.split /, */ else n)
-		.filter (x) -> not (x of complete)
+		(if (typeof n) is "string" then n.split commasep else n)
+		.filter not_complete
 	depend = (needs, func) ->
 		if (needs = incomplete needs).length is 0 then func()
 		else
@@ -69,41 +71,43 @@ extend $, do ->
 		data
 $.plugin
 	depends: "core"
-	provides: "async"
+	provides: "async,series,parallel"
 , ->
 	return {
 		series: (fin = $.identity) ->
-			ret = $()
-			todo = @length
-			unless todo > 0
-				fin.apply ret
-				return @
-			done = 0
-			finish_one = (index) ->
-				->
-					ret[index] = arguments # this typically captures [err, result]; but by convention only
-					if ++done >= todo then fin.apply ret
-					else next(done)
-					null
-			do next = (i=0) => $.immediate => @[i](finish_one(i))
-			return @
+			try return @
+			finally
+				ret = $()
+				todo = @length
+				unless todo > 0
+					fin.apply ret, ret
+				else
+					done = 0
+					finish_one = (index) -> -> # create a callback to finish an ordered element
+						ret[index] = arguments # typically capture [err, result]; but by convention only
+						if ++done >= todo then fin.apply ret, ret # if we are done, call the final callback
+						else next done
+						null
+					do next = (i=0) => $.immediate => @[i] finish_one i
 		parallel: (fin = $.identity) ->
-			ret = $()
-			todo = @length
-			unless todo > 0
-				fin.apply ret
-				return @
-			done = 0
-			finish_one = (index) -> -> # see the comments in .series, same approach used here for collating the output
-				ret[index] = arguments
-				if ++done >= todo
-					fin.apply ret
-				null
-			for i in [0...todo] by 1
-				@[i](finish_one(i))
+			try return @
+			finally
+				ret = $()
+				todo = @length
+				unless todo > 0
+					fin.apply ret, ret
+				else
+					done = 0
+					finish_one = (index) -> -> # see the comments in .series: collate the output
+						ret[index] = arguments
+						if ++done >= todo
+							fin.apply ret, ret
+						null
+					for i in [0...todo] by 1
+						@[i] finish_one i
 	}
 $.plugin
-	provides: "cache"
+	provides: "cache, Cache"
 	depends: "core, sortBy"
 , ->
 	class EffCache
@@ -187,7 +191,7 @@ $.plugin
 			helper [], -1
 			return $(ret)
 $.plugin
-	provides: "compat"
+	provides: "compat, trimLeft, split, lastIndexOf, join, preventAll, matchesSelector, isBuffer"
 , ->
 	$.global.Buffer or= { isBuffer: -> false }
 	String::trimLeft or= -> @replace(/^\s+/, "")
@@ -220,10 +224,10 @@ $.plugin
 	return { }
 $.plugin
 	provides: 'config'
-	depends: 'type'
+	depends: 'core'
 , ->
 	get = (name, def) -> switch arguments.length
-		when 0 then $.extend({}, process.env)
+		when 0 then $.extend {}, process.env
 		else process.env[name] ? def
 	set = (name, val) -> switch arguments.length
 		when 1 then $.extend process.env, arguments[0]
@@ -242,11 +246,13 @@ $.plugin
 		prev = process.env[name]
 		$.interval 1003, ->
 			if (cur = process.env[name]) isnt prev
-				func(prev, cur)
+				func prev, cur
 				prev = cur
-	$: config: $.extend(get, {get, set, parse, watch})
+	$: config: $.extend get, {get, set, parse, watch}
 $.plugin
-	provides: "core"
+	provides: "core,eq,each,map,filterMap,tap,replaceWith,reduce,union,intersect,distinct," +
+		"contains,count,coalesce,swap,shuffle,select,or,zap,clean,take,skip,first,last,slice," +
+		"push,filter,matches,weave,fold,flatten,call,apply,log,toArray,clear,indexWhere"
 	depends: "string"
 , ->
 	$.defineProperty $, "now",
@@ -279,7 +285,7 @@ $.plugin
 				return try o[k] catch err then err
 		eq: (i) -> $([@[index i, @]])
 		each: (f) -> (f.call(t,t) for t in @); @
-		map: (f) -> # CS comprehensions generate too much extra code for such a critical bottle-neck
+		map: (f) ->
 			b = $()
 			i = 0
 			(b[i++] = f.call t,t) for t in @
@@ -476,6 +482,7 @@ $.plugin
 	}
 $.plugin
 	provides: "css,CSS"
+	depends: "type"
 , ->
 	flatten = (o, prefix, into) ->
 		unless prefix of into
@@ -558,7 +565,7 @@ $.plugin
 					return ("#{x} { #{y.join ' '} }" for x,y of flatten(obj, "", {}) when y.length > 0).join ' '
 	}
 $.plugin
-	provides: 'date'
+	provides: 'date,midnight,stamp,unstamp,dateFormat,dateParse'
 	depends: 'type'
 , ->
 	[ms,s,m,h,d] = [1,1000,1000*60,1000*60*60,1000*60*60*24]
@@ -580,8 +587,8 @@ $.plugin
 	longDays = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
 	formats =
 		yyyy: Date::getUTCFullYear
-		YY: YY = -> String(@getUTCFullYear()).substr(2)
-		yy: YY
+		YY: fYY = -> String(@getUTCFullYear()).substr(2)
+		yy: fYY
 		mm: -> @getUTCMonth() + 1
 		dd: Date::getUTCDate
 		dw: Date::getUTCDay # day of the week, 1=monday
@@ -593,8 +600,10 @@ $.plugin
 		MS: Date::getUTCMilliseconds
 	format_keys = Object.keys(formats).sort().reverse()
 	parsers =
-		yyyy: Date::setUTCFullYear
-		yy: (x) -> @setUTCFullYear (if x > 50 then 1900 else 2000) + x
+		YYYY: pYYYY =Date::setUTCFullYear
+		yyyy: pYYYY
+		YY: pYY = (x) -> @setUTCFullYear (if x > 50 then 1900 else 2000) + x
+		yy: pYY
 		mm: (x) -> @setUTCMonth(x - 1)
 		dd: Date::setUTCDate
 		HH: Date::setUTCHours
@@ -634,7 +643,7 @@ $.plugin
 				for k in format_keys
 					fmt = fmt.replace k, ($.padLeft ""+formats[k].call(date), k.length, "0")
 				fmt
-			parse: (dateString, fmt = $.date.defaultFormat, to = $.date.defaultUnit, debug = false) ->
+			parse: (dateString, fmt = $.date.defaultFormat, to = $.date.defaultUnit) ->
 				date = new Date(0)
 				i = 0
 				while i < fmt.length
@@ -668,13 +677,13 @@ $.plugin
 	dateFormat: (fmt = $.date.defaultFormat, unit = $.date.defaultUnit) -> @map(-> $.date.format @, fmt, unit)
 	dateParse: (fmt = $.date.defaultFormat, unit = $.date.defaultUnit) -> @map(-> $.date.parse @, fmt, unit)
 $.plugin
-	provides: "delay"
-	depends: "function"
+	provides: "delay,immediate,interval"
+	depends: "is,select,extend,bound"
 , ->
 	$:
 		delay: do ->
 			timeoutQueue = $.extend [], do ->
-				next = (a) -> -> a.shift()() if a.length
+				next = (a) -> -> (do a.shift()) if a.length; null
 				add: (f, n) ->
 					$.extend f,
 						order: n + $.now
@@ -718,18 +727,19 @@ $.plugin
 				pause: (p=true) -> paused = p
 				resume: (p=true) -> paused = not p
 	delay: (n, f) ->
-		$.delay n, $.bind @, f
+		$.delay n, $.bound @, f
 		@
 $.plugin
-	depends: "core"
-	provides: "diff"
+	depends: "inherit,reduce"
+	provides: "diff,stringDistance,stringDiff"
 , ->
 	lev_memo = Object.create null
+	min = Math.min
 	lev = (s,i,n,t,j,m,dw,iw,sw) ->
 		return lev_memo[[s,i,n,t,j,m,dw,iw,sw]] ?= lev_memo[[t,j,m,s,i,n,dw,iw,sw]] ?= do -> switch
 			when m <= 0 then n
 			when n <= 0 then m
-			else Math.min(
+			else min(
 				dw + lev(s,i+1,n-1, t,j,m,dw,iw,sw),
 				iw + lev(s,i,n, t,j+1,m-1,dw,iw,sw),
 				(sw * (s[i] isnt t[j])) + lev(s,i+1,n-1, t,j+1,m-1,dw,iw,sw)
@@ -777,7 +787,7 @@ $.plugin
 					del: dw + lev args.del...
 					ins: iw + lev args.ins...
 					sub: sw + lev args.sub...
-				switch Math.min costs.del, costs.ins, costs.sub
+				switch min costs.del, costs.ins, costs.sub
 					when costs.del then $(del s[i]).concat diff args.del...
 					when costs.ins then $(ins t[j]).concat diff args.ins...
 					when costs.sub then $(sub s[i],t[j]).concat diff args.sub...
@@ -786,15 +796,19 @@ $.plugin
 		stringDiff: (s, t) -> diff s,0,s.length, t,0,t.length,1,1,1.5
 if $.global.document?
 	$.plugin
+		provides: "dom,HTML,html,append,appendText,appendTo,prepend,prependTo," +
+			"before,after,wrap,unwrap,replace,attr,data,addClass,removeClass,toggleClass," +
+			"hasClass,text,val,css,defaultCss,rect,width,height,top,left,bottom,right," +
+			"position,scrollToCenter,child,parents,next,prev,remove,find,querySelectorAll," +
+			"clone,toFragment"
 		depends: "function,type,string"
-		provides: "dom"
 	, ->
 		bNodelistsAreSpecial = false
 		$.type.register "nodelist",
 			is:  (o) -> o? and $.isType "NodeList", o
 			hash:   (o) -> $($.hash(i) for i in x).sum()
 			array:  do ->
-				try # probe to see if this browsers allows direct modification of a nodelist's prototype
+				try # probe to see if this browsers allows modification of a NodeList's prototype
 					document.querySelectorAll("xxx").__proto__ = {}
 					return $.identity
 				catch err # if we can't patch directly, we have to copy into a real array :(
@@ -880,7 +894,7 @@ if $.global.document?
 				@each (n) -> n?.appendChild? x.cloneNode true
 			appendText: (text) ->
 				node = document.createTextNode(text)
-				@each -> @appendChild node.cloneNode true
+				@each (n) -> n?.appendChild? node.cloneNode true
 			appendTo: (x) -> # .appendTo(/n/) - each node [or fragment] will become the last child of x
 				clones = @map( -> @cloneNode true)
 				i = 0
@@ -1092,7 +1106,7 @@ $.plugin
 		}, obj
 $.plugin
 	depends: "dom,function,core"
-	provides: "event"
+	provides: "event,bind,unbind,trigger,delegate,undelegate,click,ready"
 , ->
 	EVENTSEP_RE = /,* +/
 	events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
@@ -1241,8 +1255,8 @@ $.plugin
 	events.forEach (x) -> ret[x] = binder x
 	return ret
 $.plugin
-	provides: "function"
-	depends: "hash"
+	provides: "function,identity,compose,once,cycle,bound,partial"
+	depends: "extend,is,defineProperty,map"
 , ->
 	$:
 		identity: (o) -> o
@@ -1659,12 +1673,12 @@ $.plugin
 	depends: 'type'
 , ->
 	$.type.register 'middleware', is: (o) ->
-		try $.are 'function', o.use, o.invoke catch err then return false
+		try return $.are 'function', o.use, o.use, o.invoke
+		catch err then return false
 	$: middleware: (s = []) ->
-		use:    (f) -> s.push f
-		unuse:  (f) -> s.splice i, 1 while (i = s.indexOf f) > -1; null
-		invoke: (a...) ->
-			i = -1; do next = (-> try s[++i] a..., next); null
+		use:    (f)    -> s.push f                                  ; @
+		unuse:  (f)    -> s.splice i, 1 while (i = s.indexOf f) > -1; @
+		invoke: (a...) -> i = -1; do n = (-> try s[++i] a..., n)    ; @
 $.plugin
 	depends: "core,function"
 	provides: "promise"
@@ -2124,7 +2138,7 @@ $.plugin
 					closeTransport()
 				callback(false) # Reply as if an email was sent
 $.plugin
-	provides: "sortBy,sortedIndex"
+	provides: "sortBy,sortedIndex,sortedInsert"
 , ->
 	$:
 		sortedIndex: (array, item, iterator, lo = 0, hi = array.length) ->
@@ -2134,7 +2148,7 @@ $.plugin
 				else (a,b) -> a < b
 			while lo < hi
 				mid = (hi + lo)>>>1
-				if cmp(array[mid], item)
+				if cmp array[mid], item
 					lo = mid + 1
 				else
 					hi = mid
@@ -2200,7 +2214,7 @@ $.plugin
 			return @
 $.plugin
 	provides: "string"
-	depends: "function"
+	depends: "type"
 , ->
 	safer = (f) -> (a...) ->
 		try return f(a...)
@@ -2231,8 +2245,7 @@ $.plugin
 			string: safer (o) ->
 				ret = []
 				for k of o
-					try
-						v = o[k]
+					try v = o[k]
 					catch err
 						v = "[Error: #{err.message}]"
 					ret.push "#{k}:#{$.toString v}"
@@ -2240,8 +2253,7 @@ $.plugin
 			repr: safer (o) ->
 				ret = []
 				for k of o
-					try
-						v = o[k]
+					try v = o[k]
 					catch err
 						v = "[Error: #{err.message}]"
 					ret.push "\"#{k}\": #{$.toRepr v}"
@@ -2628,8 +2640,8 @@ $.plugin
 					f.apply @, a
 				), ms
 $.plugin
-	depends: 'type'
 	provides: 'TNET'
+	depends: 'type, string, function'
 , -> # TnetStrings plugin
 	Types =
 		"number":
@@ -2926,7 +2938,7 @@ $.plugin
 		fadeDown: (speed, callback)  -> @fadeOut speed, callback, 0.0, @height().first()
 	}
 $.plugin
-	provides: "type"
+	provides: "type,is,inherit,extend,defineProperty,isType,are,as,isSimple,isDefined,isEmpty"
 	depends: "compat"
 , ->
 	isType = (T, o) ->

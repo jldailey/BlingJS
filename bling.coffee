@@ -128,9 +128,11 @@ $.plugin = (opts, constructor) ->
 extend $, do ->
 	waiting = []
 	complete = {}
+	commasep = /, */
+	not_complete = (x) -> not (x of complete)
 	incomplete = (n) ->
-		(if (typeof n) is "string" then n.split /, */ else n)
-		.filter (x) -> not (x of complete)
+		(if (typeof n) is "string" then n.split commasep else n)
+		.filter not_complete
 
 	depend = (needs, func) ->
 		if (needs = incomplete needs).length is 0 then func()

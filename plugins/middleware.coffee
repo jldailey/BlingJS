@@ -7,7 +7,7 @@ $.plugin
 , ->
 
 	$.type.register 'middleware', is: (o) ->
-		try return $.are 'function', o.use, o.use, o.invoke
+		try return $.are 'function', o.use, o.unuse, o.invoke
 		catch err then return false
 
 	$: middleware: (s = []) ->

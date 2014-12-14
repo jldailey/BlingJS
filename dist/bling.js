@@ -2,8 +2,8 @@
 (function() {
   var $, Bling, extend,
     __slice = [].slice,
-    __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; },
     __hasProp = {}.hasOwnProperty,
+    __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; },
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
   Object.keys || (Object.keys = function(o) {
@@ -595,16 +595,31 @@
           a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
           return $(a).coalesce();
         },
-        keysOf: function(o) {
+        keysOf: function(o, own) {
           var k;
-          return $((function() {
-            var _results;
-            _results = [];
-            for (k in o) {
-              _results.push(k);
-            }
-            return _results;
-          })());
+          if (own == null) {
+            own = false;
+          }
+          if (own) {
+            return $((function() {
+              var _results;
+              _results = [];
+              for (k in o) {
+                if (!__hasProp.call(o, k)) continue;
+                _results.push(k);
+              }
+              return _results;
+            })());
+          } else {
+            return $((function() {
+              var _results;
+              _results = [];
+              for (k in o) {
+                _results.push(k);
+              }
+              return _results;
+            })());
+          }
         },
         valuesOf: function(o) {
           return $.keysOf(o).map(function(k) {
@@ -3750,7 +3765,7 @@
       is: function(o) {
         var err;
         try {
-          return $.are('function', o.use, o.use, o.invoke);
+          return $.are('function', o.use, o.unuse, o.invoke);
         } catch (_error) {
           err = _error;
           return false;

@@ -20,6 +20,7 @@ $.plugin
 		else
 			current_engine = v
 	template.__defineGetter__ 'engine', -> current_engine
+	template.__defineGetter__ 'engines', -> $.keysOf(engines)
 
 	template.register_engine 'null', do ->
 		return (text, values) ->
@@ -71,7 +72,7 @@ $.plugin
 			return ret
 		compile.cache = {}
 
-		render = (text, values) -> # $.render(/t/, /v/) - replace markers in string /t/ with values from /v/
+		render = (text, values) -> # replace markers in /text/ with /values/
 			cache = compile.cache[text] # get the cached version
 			if not cache?
 				cache = compile.cache[text] = compile(text) # or compile and cache it

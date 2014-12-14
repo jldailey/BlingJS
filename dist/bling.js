@@ -621,8 +621,11 @@
             })());
           }
         },
-        valuesOf: function(o) {
-          return $.keysOf(o).map(function(k) {
+        valuesOf: function(o, own) {
+          if (own == null) {
+            own = false;
+          }
+          return $.keysOf(o, own).map(function(k) {
             var err;
             try {
               return o[k];
@@ -5561,6 +5564,9 @@
     });
     template.__defineGetter__('engine', function() {
       return current_engine;
+    });
+    template.__defineGetter__('engines', function() {
+      return $.keysOf(engines);
     });
     template.register_engine('null', (function() {
       return function(text, values) {

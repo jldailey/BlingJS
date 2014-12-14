@@ -283,7 +283,7 @@ $.plugin
 			keysOf: (o, own=false) ->
 				if own then $(k for own k of o)
 				else $(k for k of o)
-			valuesOf: (o) -> $.keysOf(o).map (k)->
+			valuesOf: (o, own=false) -> $.keysOf(o, own).map (k)->
 				return try o[k] catch err then err
 		eq: (i) -> $([@[index i, @]])
 		each: (f) -> (f.call(t,t) for t in @); @
@@ -2539,6 +2539,7 @@ $.plugin
 		else
 			current_engine = v
 	template.__defineGetter__ 'engine', -> current_engine
+	template.__defineGetter__ 'engines', -> $.keysOf(engines)
 	template.register_engine 'null', do ->
 		return (text, values) ->
 			text
@@ -2580,7 +2581,7 @@ $.plugin
 				ret[j++] = rest
 			return ret
 		compile.cache = {}
-		render = (text, values) -> # $.render(/t/, /v/) - replace markers in string /t/ with values from /v/
+		render = (text, values) -> # replace markers in /text/ with /values/
 			cache = compile.cache[text] # get the cached version
 			if not cache?
 				cache = compile.cache[text] = compile(text) # or compile and cache it

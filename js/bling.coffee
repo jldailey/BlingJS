@@ -807,8 +807,8 @@ if $.global.document?
 	, ->
 		bNodelistsAreSpecial = false
 		$.type.register "nodelist",
-			is:  (o) -> o? and $.isType "NodeList", o
-			hash:   (o) -> $($.hash(i) for i in x).sum()
+			is:     (o) -> o? and $.isType "NodeList", o
+			hash:   (o) -> $($.hash(i) for i in o).sum()
 			array:  do ->
 				try # probe to see if this browsers allows modification of a NodeList's prototype
 					document.querySelectorAll("xxx").__proto__ = {}
@@ -1103,7 +1103,7 @@ $.plugin
 			addListener: add
 			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
 			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
+			setMaxListeners:        -> # who really needs this in the core API?
 			listeners:          (e) -> list(e).slice 0
 		}, obj
 $.plugin
@@ -1761,7 +1761,7 @@ $.plugin
 		return ret
 	Promise.compose = Promise.parallel = (promises...) ->
 		p = $.Progress(1 + promises.length)
-		$(promises).select('wait').call (err, data) ->
+		$(promises).select('wait').call (err) ->
 			if err then p.reject(err) else p.resolve 1
 		p.resolve 1
 	Promise.collect = (promises) ->
@@ -2059,7 +2059,7 @@ $.plugin
 			when "array", "bling"
 				p = $.Progress m = 1 # always start with one step (creation)
 				q = $.Promise() # use a summary promise for public view
-				p.wait (err, result) ->
+				p.wait (err) ->
 					if err then q.reject(err) else q.resolve(finalize n, opts)
 				n = []
 				has_promises = false
@@ -2090,7 +2090,7 @@ $.plugin
 		return switch t = $.type o
 			when "string","html" then o
 			when "number" then String(o)
-			when "array","bling" then (finalize(x) for x in o).join ''
+			when "array","bling" then (finalize(x, opts) for x in o).join ''
 			when "null","undefined" then t
 			else "[ cant finalize type: #{t} ]"
 	register 'link', (o, opts) -> [
@@ -2519,7 +2519,7 @@ $.plugin
 					$(s.fragment)
 	}
 $.plugin
-	depends: "StateMachine"
+	depends: "StateMachine, function"
 	provides: "template"
 , -> # Template plugin, pythonic style: %(value).2f
 	current_engine = null
@@ -2541,8 +2541,7 @@ $.plugin
 	template.__defineGetter__ 'engine', -> current_engine
 	template.__defineGetter__ 'engines', -> $.keysOf(engines)
 	template.register_engine 'null', do ->
-		return (text, values) ->
-			text
+		return $.identity
 	match_forward = (text, find, against, start, stop = -1) ->
 		count = 1
 		if stop < 0
@@ -2618,8 +2617,7 @@ $.plugin
 				{ # 1: read anything
 				}
 			]
-		return (text, values) ->
-			text
+		return $.identity
 	return $: { template }
 $.plugin
 	provides: "throttle"
@@ -2964,7 +2962,7 @@ $.plugin
 		cache = {}
 		base =
 			name: 'unknown'
-			is: (o) -> true
+			is: -> true
 		order = []
 		_with_cache = {} # for finding types that have a certain method { method: [ types ] }
 		_with_insert = (method, type) ->
@@ -3015,8 +3013,8 @@ $.plugin
 			with: (f) -> _with_cache[f] ? []
 	_type.extend
 		unknown:   { array: (o) -> [o] }
-		null:      { array: (o) -> [] }
-		undefined: { array: (o) -> [] }
+		null:      { array:     -> [] }
+		undefined: { array:     -> [] }
 		array:     { array: (o) -> o }
 		number:    { array: (o) -> $.extend new Array(o), length: 0 }
 		arguments: { array: (o) -> Array::slice.apply o }

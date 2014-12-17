@@ -60,9 +60,12 @@ describe "Date plugin:", ->
 					.ints().sum(), 35
 		describe ".parse()", ->
 			it "supports the same formats as .format()", ->
-				assert $.date.parse("1970-01-12 13:46:40", "yyyy-mm-dd HH:MM:SS", "ms") is 1000000000
+				assert $.date.parse("1970-01-12 13:46:40", "yyyy-mm-dd HH:MM:SS", "ms"), 1000000000
 			it "supports chaining as .dateParse()", ->
-				assert $(["1970-01-12 13:46:40"]).dateParse("yyyy-mm-dd HH:MM:SS", "ms").first() is 1000000000
+				assert.equal $(["1970-01-12 13:46:40"]).dateParse("yyyy-mm-dd HH:MM:SS", "ms").first(), 1000000000
+			it "follow the +50/-50 rule for 2-digit years", ->
+				assert.equal $.date.parse("16/09/14", "dd/mm/yy", "s"), 1410825600
+				assert.equal $.date.parse("16/09/94", "dd/mm/yy", "s"), 779673600
 		describe ".range()", ->
 			it "generates a range of date stamps", ->
 				assert.equal $($.date.range(1000, 1000000, 3)) \

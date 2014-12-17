@@ -1,14 +1,15 @@
 $.plugin
-	depends: "core"
-	provides: "diff"
+	depends: "inherit,reduce"
+	provides: "diff,stringDistance,stringDiff"
 , ->
 	lev_memo = Object.create null
+	min = Math.min
 	lev = (s,i,n,t,j,m,dw,iw,sw) ->
 		# distance is symmetric so we cache under two keys at once
 		return lev_memo[[s,i,n,t,j,m,dw,iw,sw]] ?= lev_memo[[t,j,m,s,i,n,dw,iw,sw]] ?= do -> switch
 			when m <= 0 then n
 			when n <= 0 then m
-			else Math.min(
+			else min(
 				dw + lev(s,i+1,n-1, t,j,m,dw,iw,sw),
 				iw + lev(s,i,n, t,j+1,m-1,dw,iw,sw),
 				(sw * (s[i] isnt t[j])) + lev(s,i+1,n-1, t,j+1,m-1,dw,iw,sw)
@@ -60,7 +61,7 @@ $.plugin
 					del: dw + lev args.del...
 					ins: iw + lev args.ins...
 					sub: sw + lev args.sub...
-				switch Math.min costs.del, costs.ins, costs.sub
+				switch min costs.del, costs.ins, costs.sub
 					when costs.del then $(del s[i]).concat diff args.del...
 					when costs.ins then $(ins t[j]).concat diff args.ins...
 					when costs.sub then $(sub s[i],t[j]).concat diff args.sub...

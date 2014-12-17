@@ -3,7 +3,7 @@
 # Filling out the standard library of string functions.
 $.plugin
 	provides: "string"
-	depends: "function"
+	depends: "type"
 , ->
 	safer = (f) -> (a...) ->
 		try return f(a...)
@@ -17,14 +17,19 @@ $.plugin
 			number: safer (o) -> parseFloat String o
 		# Now, for each basic type, provide a basic `string` function.
 		# Later, more complex types will be added by plugins.
-		null: { string: -> "null" }
-		undefined: { string: -> "undefined" }
+		null:
+			string: -> "null"
+		undefined:
+			string: -> "undefined"
+		buffer:
+			string: safer (o) -> String(o)
+			repr:   safer (o) -> "Buffer(#{JSON.stringify o.toJSON()})"
 		string:
 			number: safer parseFloat
 			repr: (s) -> "'#{escape_single_quotes s}'"
 		array:
 			string: safer (a) -> "[#{a.map($.toString).join(', ')}]"
-			repr: safer (a) -> "[#{a.map($.toRepr).join(', ')}]"
+			repr:   safer (a) -> "[#{a.map($.toRepr).join(', ')}]"
 		arguments:
 			string: safer (a) -> "[#{($.toString(x) for x in a).join(', ')}]"
 			repr: safer (a) -> "[#{($.toRepr(x) for x in a).join(', ')}]"
@@ -32,8 +37,7 @@ $.plugin
 			string: safer (o) ->
 				ret = []
 				for k of o
-					try
-						v = o[k]
+					try v = o[k]
 					catch err
 						v = "[Error: #{err.message}]"
 					ret.push "#{k}:#{$.toString v}"
@@ -41,8 +45,7 @@ $.plugin
 			repr: safer (o) ->
 				ret = []
 				for k of o
-					try
-						v = o[k]
+					try v = o[k]
 					catch err
 						v = "[Error: #{err.message}]"
 					ret.push "\"#{k}\": #{$.toRepr v}"
@@ -127,15 +130,16 @@ $.plugin
 
 			# Add decorative commas to long numbers (or currencies)
 			commaize: (num, comma=',',dot='.',currency='') ->
-				if $.is 'number', num
+				if $.is('number', num) and isFinite(num)
 					s = String(num)
-					if not isFinite num
-						return s
 					sign = if (num < 0) then "-" else ""
 					[a, b] = s.split '.' # split the whole part from the decimal part
 					if a.length > 3 # if the whole part is long enough to need commas
 						a = $.stringReverse $.stringReverse(a).match(/\d{1,3}/g).join comma
 					return sign + currency + a + (if b? then dot+b else "")
+				else if (typeof(num) is 'number' and isNaN(num)) or num in [Infinity, -Infinity]
+					return String num
+				else return undefined
 
 			# Fill the left side of a string to make it a fixed width.
 			padLeft: (s, n, c = " ") ->

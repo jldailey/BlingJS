@@ -3,15 +3,19 @@
 # Only works if there is a global document.
 if $.global.document?
 	$.plugin
+		provides: "dom,HTML,html,append,appendText,appendTo,prepend,prependTo," +
+			"before,after,wrap,unwrap,replace,attr,data,addClass,removeClass,toggleClass," +
+			"hasClass,text,val,css,defaultCss,rect,width,height,top,left,bottom,right," +
+			"position,scrollToCenter,child,parents,next,prev,remove,find,querySelectorAll," +
+			"clone,toFragment"
 		depends: "function,type,string"
-		provides: "dom"
 	, ->
 		bNodelistsAreSpecial = false
 		$.type.register "nodelist",
 			is:  (o) -> o? and $.isType "NodeList", o
 			hash:   (o) -> $($.hash(i) for i in x).sum()
 			array:  do ->
-				try # probe to see if this browsers allows direct modification of a nodelist's prototype
+				try # probe to see if this browsers allows modification of a NodeList's prototype
 					document.querySelectorAll("xxx").__proto__ = {}
 					return $.identity
 				catch err # if we can't patch directly, we have to copy into a real array :(
@@ -43,7 +47,7 @@ if $.global.document?
 				df = document.createDocumentFragment()
 				df.appendChild(node.removeChild(childNodes[0])) for i in [0...n] by 1
 				df
-			array:  (o) -> $.type.lookup(h = Bling.HTML.parse o).array h
+			array:  (o) -> $.type.lookup(h = $.HTML.parse o).array h
 			string: (o) -> "'#{o}'"
 			repr:   (o) -> '"' + o + '"'
 		$.type.extend
@@ -126,7 +130,7 @@ if $.global.document?
 
 			appendText: (text) ->
 				node = document.createTextNode(text)
-				@each -> @appendChild node.cloneNode true
+				@each (n) -> n?.appendChild? node.cloneNode true
 
 			appendTo: (x) -> # .appendTo(/n/) - each node [or fragment] will become the last child of x
 				clones = @map( -> @cloneNode true)
@@ -137,10 +141,13 @@ if $.global.document?
 			prepend: (x) -> # .prepend(/n/) - insert n [or a clone] as the first child of each node
 				if x?
 					x = toNode x
-					@take(1).each ->
-						before @childNodes[0], x
-					@skip(1).each ->
-						before @childNodes[0], x.cloneNode true
+					@take(1).each -> switch
+						when @childNodes.length > 0 then before @childNodes[0], x
+						else @appendChild x
+					# if we are inserting into multiple places, we insert clones into the latter slots
+					@skip(1).each -> switch
+						when @childNodes.length then before @childNodes[0], x.cloneNode true
+						else @appendChild x.cloneNode true
 				@
 
 			prependTo: (x) -> # .prependTo(/n/) - each node [or a fragment] will become the first child of x
@@ -201,7 +208,7 @@ if $.global.document?
 					when undefined
 						return @select("getAttribute").call(a, v)
 					when null
-						@select("removeAttribute").call(a, v); @
+						@select("removeAttribute").call(a, v)
 					else
 						@select("setAttribute").call(a, v)
 				@
@@ -216,10 +223,10 @@ if $.global.document?
 					@className = c.join " "
 
 			removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
-				notx = (y) -> y != x
+				notx = (y) -> y isnt x
 				@each ->
-					c = @className.split(" ").filter(notx).join(" ")
-					if c.length is 0
+					@className = @className.split(" ").filter(notx).join(" ")
+					if @className.length is 0
 						@removeAttribute('class')
 
 			toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
@@ -227,14 +234,13 @@ if $.global.document?
 				@each ->
 					cls = @className.split(" ")
 					filter = $.not $.isEmpty
-					if( cls.indexOf(x) > -1 )
+					if (cls.indexOf x) > -1
 						filter = $.and notx, filter
 					else
 						cls.push x
-					c = cls.filter(filter).join(" ")
-					@className = c
-					if c.length is 0
-						@removeAttribute('class')
+					@className = cls.filter(filter).join(" ")
+					if @className.length is 0
+						@removeAttribute 'class'
 
 			hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x
 				@select('className.split').call(" ").select('indexOf').call(x).map (x) -> x > -1
@@ -376,7 +382,13 @@ if $.global.document?
 				, $()
 
 			# Collect a new set, full of clones of the DOM Nodes in the input set.
-			clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @
+			# If count is given, return a set of sets, of multiple copies of each clone.
+			# e.g. $.synth("div.class").clone(true, 3) -> [ [ div, div, div ] ]
+			clone: (deep=true, count=1) ->
+				c = (n) -> if $.is "node", n then (n.cloneNode deep)
+				@map -> switch count
+					when 1 then c @
+					else (c(@) for _ in [0...count] by 1)
 
 			# Get a single DocumentFragment that contains all the nodes in _this_.
 			toFragment: ->

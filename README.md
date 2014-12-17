@@ -1,7 +1,8 @@
 # About
 -------
 
-BlingJS is a kitchen sink, inspired by jQuery, but more consistent.
+BlingJS is a kitchen sink, inspired by jQuery, but more consistent, and useful in the browser and on the server.
+
 In particular, it is more consistent about doing set-based operations.
 
 * All operations return sets wherever possible.

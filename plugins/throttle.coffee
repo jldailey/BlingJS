@@ -18,9 +18,10 @@ $.plugin
 				null
 		debounce: (ms, f) ->
 			timeout = null
-			(a...) ->
+			->
+				a = arguments
 				clearTimeout timeout
 				setTimeout (=>
-					f.apply @, arguments
+					f.apply @, a
 				), ms
 

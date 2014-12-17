@@ -33,8 +33,8 @@ $.plugin
 		modal.delegate '.wiz-next', 'click', slideChanger(+1)
 		modal.delegate '.wiz-back', 'click', slideChanger(-1)
 
-		if $("style.dialog").length is 0
-			$.synth("style").text
+		# if $("style.dialog").length is 0
+			# $.synth("style").text
 		for slide in slides.slice(1)
 			slide = $.extend $.dialog.getDefaultOptions(), slide
 			d = $.synth('div.dialog#'+slide.id+' div.title + div.content').css

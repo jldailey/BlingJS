@@ -3,29 +3,49 @@
 describe "Type plugin:", ->
 	describe "$.type()", ->
 		describe "should classify", ->
-			it "'string'", -> assert.equal $.type(''), 'string'
-			it "'number'", -> assert.equal $.type(42), 'number'
+			it "'string'",    -> assert.equal $.type(''), 'string'
+			it "'number'",    -> assert.equal $.type(42), 'number'
 			it "'undefined'", -> assert.equal $.type(), "undefined"
-			it "'null'", -> assert.equal $.type(null), "null"
-			it "'array'", -> assert.equal $.type([]), "array"
-			it "'function'", -> assert.equal $.type(->), "function"
-			it "'bool'", -> assert.equal $.type(true), "bool"
-			it "'regexp'", -> assert.equal $.type(/./), "regexp"
-			it "'window'", -> assert.equal $.type(window), "global"
+			it "'null'",      -> assert.equal $.type(null), "null"
+			it "'array'",     -> assert.equal $.type([]), "array"
+			it "'function'",  -> assert.equal $.type(->), "function"
+			it "'bool'",      -> assert.equal $.type(true), "bool"
+			it "'regexp'",    -> assert.equal $.type(/./), "regexp"
+			it "'window'",    -> assert.equal $.type(window), "global"
 			it "'arguments'", -> assert.equal $.type(arguments), "arguments"
+			it "'object'",    -> assert.equal $.type({}), "object"
+			it "'object'",    -> assert.equal $.type(Object.create(null)), "object"
+			it "'error'",     -> assert.equal $.type(new Error()), "error"
 
 	describe "$.is()", ->
 		describe "should identify", ->
-			it "'string'", -> assert $.is 'string', ''
-			it "'number'", -> assert $.is 'number', 42
+			it "'string'",    -> assert $.is 'string', ''
+			it "'number'",    -> assert $.is 'number', 42
 			it "'undefined'", -> assert.equal $.type(), "undefined"
-			it "'null'", -> assert $.is "null", null
-			it "'array'", -> assert $.is "array", []
-			it "'function'", -> assert $.is "function", ->
-			it "'bool'", -> assert $.is "bool", true
-			it "'regexp'", -> assert $.is "regexp", /^$/
-			it "'window'", -> assert $.is "global", window
+			it "'null'",      -> assert $.is "null", null
+			it "'array'",     -> assert $.is "array", []
+			it "'function'",  -> assert $.is "function", ->
+			it "'bool'",      -> assert $.is "bool", true
+			it "'regexp'",    -> assert $.is "regexp", /^$/
+			it "'window'",    -> assert $.is "global", window
 			it "'arguments'", -> assert $.is "arguments", arguments
+			it "'object'",    -> assert $.is "object", {}
+			it "'object'",    -> assert $.is "object", Object.create(null)
+			it "'buffer'",    -> assert $.is "buffer", new Buffer(10)
+		describe "should not mis-identify", ->
+			it "arrays",      -> assert.equal false, $.is "object", []
+			it "functions",   -> assert.equal false, $.is "object", ->
+			it "errors",      -> assert.equal false, $.is "object", new Error()
+
+	describe "$.are()", ->
+		describe "should identify", ->
+			it "'string'", ->
+				assert.equal true, $.are('string', 'a', 'b', 'c')
+			it "'function'", ->
+				assert.equal true, $.are('function', (->), (->))
+		describe "should not mis-identify", ->
+			describe "'array'", ->
+				assert.equal false, $.are('array', [], {})
 
 	describe "$.with()", ->
 		$.type.extend 'object', blerg: -> "blerg"

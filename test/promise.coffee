@@ -115,16 +115,17 @@ describe "$.Promise()", ->
 			b.resolve('b')
 			c.resolve('c')
 			a.resolve('a')
-		it "can mix errors and results, in order", (done) ->
+		it "fails when any sub-promise fails", (done) ->
 			a = $.Promise()
 			b = $.Promise()
 			c = $.Promise()
-			$.Promise.collect([a,b,c]).then (list) ->
-				assert.deepEqual list, ['a','err_b','c']
-				done()
-			b.reject("err_b")
+			d = $.Promise.collect([a,b,c])
 			c.resolve('c')
+			b.reject("err_b")
 			a.resolve('a')
+			d.wait (err) ->
+				assert.equal "err_b", err
+				done()
 
 	describe ".handler()", ->
 		it "is a function", ->
@@ -165,12 +166,16 @@ describe "$.Progress", ->
 			p.progress(9)
 			assert.equal p.progress(), 9
 			assert.equal _done, 0
-		it "completing progress resolvees the Promise", ->
+		it "completing progress resolves the Promise", ->
 			p.progress(10)
 			assert.equal _done, 10
-		it "result of resolved Progress is the final progress value", ->
-			p.progress(11.1)
-			assert.equal _done, 10 # the value at the time it was completed
+		it "result of resolved Progress is the final progress value", (done) ->
+			q = $.Progress(2)
+			q.then (item) ->
+				assert item is 'b'
+				done()
+			q.finish 1, 'a'
+			q.finish 1, 'b'
 		it "emits 'progress' events", ->
 			a = $.Progress(2)
 			data = []
@@ -178,39 +183,66 @@ describe "$.Progress", ->
 			a.resolve 1
 			a.resolve 1
 			assert.deepEqual data, [ [1,2], [2,2] ]
-		it "can 'include' other promises", ->
-			a = $.Progress(2)
-			b = $.Promise()
-			a.include(b)
-			a.resolve 1
-			a.resolve 1
-			assert.equal a.resolved, false
-			b.resolve()
-			assert.equal a.resolved, true
-		it "can 'include' other progress", ->
-			a = $.Progress(2)
-			b = $.Progress(2)
-			a.include(b)
-			a.resolve 1
-			a.resolve 1
-			assert.equal a.resolved, false
-			b.resolve 1
-			assert.equal a.resolved, false
-			b.resolve 1
-			assert.equal a.resolved, true
-		it "can 'include' recursively", (ok) ->
-			run = (level, cb) ->
-				unless level > 0
-					$.delay 10, cb
-					return $.Promise().resolve()
-				done = $.Progress(2)
-				done.include run level-1, ->
+		describe ".include()", ->
+			it "can include other promises", ->
+				a = $.Progress(2)
+				b = $.Promise()
+				a.include(b)
+				a.resolve 1
+				a.resolve 1
+				assert.equal a.resolved, false
+				b.resolve()
+				assert.equal a.resolved, true
+			it "can include other progress", ->
+				a = $.Progress(2)
+				b = $.Progress(2)
+				a.include(b)
+				a.resolve 1
+				a.resolve 1
+				assert.equal a.resolved, false
+				b.resolve 1
+				assert.equal a.resolved, false
+				b.resolve 1
+				assert.equal a.resolved, true
+			it "can include recursively", (ok) ->
+				run = (level, cb) ->
+					unless level > 0
+						$.delay 10, cb
+						return $.Promise().resolve()
+					done = $.Progress(2)
+					done.include run level-1, ->
+						done.resolve(1)
+						$.delay 10, ->
+							assert.equal done.resolved, true, "done should be true"
 					done.resolve(1)
-					$.delay 10, ->
-						assert.equal done.resolved, true, "done should be true"
-				done.resolve(1)
-				assert.equal done.resolved, false, "done should be false"
-				$.delay 10, cb
-				done
-			run 5, ok
+					assert.equal done.resolved, false, "done should be false"
+					$.delay 10, cb
+					done
+				run 5, ok
+			describe "ignores", ->
+				it "objects", (done) ->
+					a = $.Progress(1)
+					a.include({})
+					a.then -> done()
+					a.finish(1)
+				it "strings", (done) ->
+					a = $.Progress(1)
+					a.include("a")
+					a.then -> done()
+					a.finish(1)
+				it "undefined", (done) ->
+					a = $.Progress(1)
+					a.include(undefined)
+					a.then -> done()
+					a.finish(1)
+				it "null", (done) ->
+					a = $.Progress(1)
+					a.include(null)
+					a.then -> done()
+					a.finish(1)
+				it "arrays", (done) ->
+					a = $.Progress(1)
+					a.include([1,2,3])
+					a.then -> done()
+					a.finish(1)
 

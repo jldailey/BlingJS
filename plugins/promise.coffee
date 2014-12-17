@@ -5,7 +5,7 @@ $.plugin
 , ->
 	class NoValue # a named totem
 	Promise = (obj = {}) ->
-		waiting = new Array()
+		waiting = []
 		err = result = NoValue
 		consume_all = (e, v) ->
 			while w = waiting.shift()
@@ -17,7 +17,8 @@ $.plugin
 			catch _e
 				try cb _e, null
 				catch __e
-					$.log "Fatal error in promise callback:", __e?.stack, "caused by:", _e?.stack
+					$.log "Fatal error in promise callback:", \
+						__e?.stack ? __e, "caused by:", _e?.stack ? _e
 			null
 
 		end = (error, value) =>
@@ -28,13 +29,13 @@ $.plugin
 					result = value
 				switch
 					# fatal error: passing a promise to it's own resolver
-					when value is @ then return end new TypeError "cant resolve a promise with itself"
+					when value is @
+						return end new TypeError "cant resolve a promise with itself"
 					# but, you can resolve one promise with another:
-					when $.is 'promise', value then (value.wait end; return @)
+					when $.is 'promise', value then value.wait end
 					# every waiting callback gets consumed and called
 					when error isnt NoValue then consume_all error, null
 					when value isnt NoValue then consume_all null, value
-
 			return @
 
 		ret = $.inherit {
@@ -55,17 +56,25 @@ $.plugin
 								consume_one cb, err = 'timeout', undefined
 				@
 			then: (f, e) -> @wait (err, x) ->
-				if err then e?(err)
+				if err
+					if e? then e(err)
+					else throw err
 				else f(x)
 			finish:  (value) -> end NoValue, value; @
 			resolve: (value) -> end NoValue, value; @
 			fail:    (error) -> end error, NoValue; @
 			reject:  (error) -> end error, NoValue; @
-			reset:           -> err = result = NoValue; @ # blasphemy!
+			reset:  -> # blasphemy!
+				# I am really sure now that we should not empty the waiting array here.
+				# If there are items in the waiting array, then reset() is a no-op.
+				# Because, if either err or result had a value,
+				# then everything in waiting would have been consumed already.
+				err = result = NoValue; @
 			handler: (err, data) ->
 				# use 'ret' here instead of '@' to prevent binding issues later
 				if err then ret.reject(err) else ret.resolve(data)
 			inspect: -> "{Promise[#{@promiseId}] #{getState()}}"
+			toString: -> "{Promise[#{@promiseId}] #{getState()}}"
 		}, $.EventEmitter(obj)
 
 		getState = -> switch
@@ -97,9 +106,9 @@ $.plugin
 		q = $.Progress(1 + promises.length)
 		for promise, i in promises then do (i) ->
 			promise.wait (err, result) ->
-				ret[i] = err ? result
-				q.resolve(1)
-		q.then -> p.resolve(ret)
+				if err then q.reject(err) # any sub-failure is actual failure
+				else q.resolve 1, ret[i] = result # put the results in the correct order
+		q.then (->p.resolve ret), p.reject
 		q.resolve(1)
 		p
 
@@ -120,23 +129,23 @@ $.plugin
 				return cur unless args.length
 				cur = args[0] ? cur
 				max = (args[1] ? max) if args.length > 1
-				item = if args.length > 2 then args[2] else max
+				item = if args.length > 2 then args[2] else cur
 				if cur >= max
 					@__proto__.__proto__.resolve(item)
 				@emit 'progress', cur, max, item
 				@
-			resolve: (delta) ->
-				item = delta
-				unless isFinite(delta)
-					delta = 1
+			resolve: (delta, item = delta) ->
+				unless isFinite(delta) then delta = 1
 				@progress cur + delta, max, item
-			finish: (delta) -> @resolve delta
+			finish: (delta, item) -> @resolve delta, item
 
 			include: (promise) ->
-				@progress cur, max + 1
-				promise.wait (err) =>
-					if err then @reject err
-					else @resolve 1
+				if $.is 'promise', promise
+					@progress cur, max + 1
+					promise.wait (err) =>
+						if err then @reject err
+						else @resolve 1
+				return @
 
 			inspect: -> "{Progress[#{@promiseId}] #{cur}/#{max}}"
 		}, Promise()
@@ -161,7 +170,7 @@ $.plugin
 
 	$.depend 'type', ->
 		$.type.register 'promise', is: (o) ->
-			try return (typeof o is 'object')	and 'then' of o
+			try return (typeof o is 'object')	and 'promiseId' of o and 'then' of o
 			catch err then return false
 
 	return $: { Promise, Progress }

@@ -15,6 +15,7 @@ document.body.innerHTML = """
 	</table>
 	<div class='c'>C</div>
 	<p><span>foobar</span></p>
+	<div id='empty'></div>
 """
 
 

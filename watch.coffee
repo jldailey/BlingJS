@@ -1,9 +1,8 @@
 #!/usr/bin/env coffee
 
-[ Bling, Fs, Path, Proc, Extra, Optimist ] = [
+[ $, Fs, Path, Extra, Optimist ] = [
 	'./dist/bling.js','fs',
-	'path','child_process',
-	'extra', 'optimist'
+	'path', 'extra', 'optimist'
 ].map require
 
 opts = Optimist.options('t', {
@@ -55,14 +54,28 @@ pattern = opts._[0]
 
 pattern = (try new RegExp pattern) or $.log 'bad pattern, using', /^[^.]/
 
-launch = $.throttle +opts.throttle * 1000, (file) ->
-	if opts.v then log "Spawning (reason: #{file})"
-	p = Extra.spawn( stdio: 'inherit' )
-	p.on 'close', (code) ->
-		log "Exit Code:", code
-		if code is +opts.r
-			log "Respawning..."
-			$.immediate -> launch "respawn option -r"
+process = null
+force_restart = false
+
+relaunch = (reason) ->
+	if opts.v then log "Spawning (reason: #{reason})"
+	if process?
+		if opts.v then log "Killing..."
+		force_restart = true
+		process.kill()
+	else do launch
+
+on_exit = (code) ->
+	log "Exit Code:", code
+	process = null
+	if code is +opts.r or force_restart
+		force_restart = false
+		if opts.v then log "Respawning..."
+		$.immediate -> relaunch( if code is +opts.r then "respawn option -r" else "forced" )
+
+launch = $.throttle +opts.throttle * 1000, ->
+	process = Extra.spawn( stdio: 'inherit', stderr: 'inherit' )
+	process.on 'close', on_exit
 
 if opts.immediate then $.immediate -> launch "immediate option -i"
 
@@ -71,7 +84,6 @@ recurseDir = (path, cb) ->
 	Fs.readdir path, (err, files) ->
 		cb(path)
 		$(files)
-			.filter(/^[^.]/)
 			# Set the maximum progress to the number of files we will stat
 			.tap(-> done.progress 0, @length; @ )
 			.each (file) ->
@@ -88,7 +100,7 @@ recurseDir('.', (dir) ->
 	dirsWatched += 1
 	if opts.verbose then log "Watching", dir, "(#{dirsWatched})"
 	Fs.watch dir, (op, file) ->
-		if pattern.test(file) then launch file
+		if pattern.test(file) then relaunch file
 ).wait (err) ->
 	log "Watching #{dirsWatched} folders for changes."
 	if err then log "Error:", err

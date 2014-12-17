@@ -1,5 +1,7 @@
 $.plugin
-	provides: "core"
+	provides: "core,eq,each,map,filterMap,tap,replaceWith,reduce,union,intersect,distinct," +
+		"contains,count,coalesce,swap,shuffle,select,or,zap,clean,take,skip,first,last,slice," +
+		"push,filter,matches,weave,fold,flatten,call,apply,log,toArray,clear,indexWhere"
 	depends: "string"
 , ->
 	# Core Plugin
@@ -37,8 +39,10 @@ $.plugin
 			logger: (prefix) -> (m...) -> m.unshift(prefix); $.log m...
 			assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 			coalesce: (a...) -> $(a).coalesce()
-			keysOf: (o) -> $(k for k of o)
-			valuesOf: (o) -> $.keysOf(o).map (k)->
+			keysOf: (o, own=false) ->
+				if own then $(k for own k of o)
+				else $(k for k of o)
+			valuesOf: (o, own=false) -> $.keysOf(o, own).map (k)->
 				return try o[k] catch err then err
 
 		# Get a new set containing only the i-th element of _this_.
@@ -49,7 +53,7 @@ $.plugin
 
 		# Get a new set with the results of calling a function of every
 		# item in _this_.
-		map: (f) -> # CS comprehensions generate too much extra code for such a critical bottle-neck
+		map: (f) ->
 			b = $()
 			i = 0
 			(b[i++] = f.call t,t) for t in @

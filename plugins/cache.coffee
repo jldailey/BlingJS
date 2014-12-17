@@ -1,5 +1,5 @@
 $.plugin
-	provides: "cache"
+	provides: "cache, Cache"
 	depends: "core, sortBy"
 , ->
 
@@ -12,17 +12,17 @@ $.plugin
 		log = $.logger "[LRU]"
 
 		constructor: (@capacity = 1000, @defaultTtl = Infinity) ->
-			# at least 1 capacity
-			@capacity = Math.max 1, @capacity
+			@capacity = Math.max 0, @capacity
 			# evict at least 3, as much as 10%
 			@evictCount = Math.max 3, Math.floor @capacity * .1
 			index = Object.create null
 			order = []
 
-			# The effncy of a cache item (reversed for use in sortedIndex, we want the smallest items at the end)
+			# The inverse efficiency of a cache item (for use in sortedIndex)
 			eff = (o) -> -o.r / o.w
 
 			autoEvict = =>
+				return unless @capacity > 0
 				if order.length >= @capacity
 					while order.length + @evictCount - 1 >= @capacity
 						delete index[k = order.pop().k]
@@ -53,6 +53,7 @@ $.plugin
 						delete index[k]
 						reIndex i, order.length - 1
 				set: (k, v, ttl = @defaultTtl) =>
+					return v unless @capacity > 0
 					if k of index
 						d = order[i = index[k]]
 						d.v = v
@@ -77,6 +78,12 @@ $.plugin
 						ret.r += 1
 						rePosition i
 					ret.v
+				clear: ->
+					for k of index # just break all the links to allow GC to cleanup
+						order[index[k]] = null
+					index = Object.create(null)
+					order = []
+
 
 	# $.Cache is both a class: new $.Cache(1200)
 	# and, a static instance: $.Cache.get(key), $.Cache.set(key,val), $.Cache.has(key)

@@ -67,12 +67,12 @@ class Bling # extends (new Array)
 			# This allows plugins to modify the constructor behavior
 			return Bling.init(b)
 		return b
-
+$ = Bling
 # We specify an inheritance similar to `class Bling extends (new Array)`,
 # if such a thing were supported by the syntax directly.
-Bling:: = []
-Bling::constructor = Bling
-Bling.global = do -> @
+$:: = []
+$::constructor = $
+$.global = do -> @
 
 # $.plugin( [ opts ], func )
 # -----------------
@@ -90,7 +90,7 @@ Bling.global = do -> @
 
 # This would only define $.hello()
 
-Bling.plugin = (opts, constructor) ->
+$.plugin = (opts, constructor) ->
 	if not constructor
 		constructor = opts
 		opts = {}
@@ -111,7 +111,7 @@ Bling.plugin = (opts, constructor) ->
 			extend @prototype, plugin
 			# Add static wrappers for anything that doesn't have one.
 			for key of plugin then do (key) =>
-				@[key] or= (a...) => (@::[key].apply Bling(a[0]), a[1...])
+				@[key] or= (a...) => (@::[key].apply $(a[0]), a[1...])
 			# Honor the { provides: } option.
 			if opts.provides? then @provide opts.provides
 	catch error
@@ -125,12 +125,14 @@ Bling.plugin = (opts, constructor) ->
 # Example: `$.depends "tag", -> $.log "hello"`
 # This example will not log "hello" until `provide("tag")` is
 # called.
-extend Bling, do ->
+extend $, do ->
 	waiting = []
 	complete = {}
+	commasep = /, */
+	not_complete = (x) -> not (x of complete)
 	incomplete = (n) ->
-		(if (typeof n) is "string" then n.split /, */ else n)
-		.filter (x) -> not (x of complete)
+		(if (typeof n) is "string" then n.split commasep else n)
+		.filter not_complete
 
 	depend = (needs, func) ->
 		if (needs = incomplete needs).length is 0 then func()
@@ -155,5 +157,3 @@ extend Bling, do ->
 				else i++
 		if caught then throw caught
 		data
-
-$ = Bling

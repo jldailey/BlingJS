@@ -1,5 +1,6 @@
 $.plugin
 	provides: "groupBy"
+	depends: "type"
 , ->
 	groupBy: (key) ->
 		groups = {}

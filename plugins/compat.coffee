@@ -3,7 +3,11 @@
 # This keeps getting smaller over time, but we just try to bundle
 # 'shim-like' stuff here; adding or replacing basic ES5 stuff that
 # we need to use.
-$.plugin ->
+$.plugin
+	provides: "compat, trimLeft, split, lastIndexOf, join, preventAll, matchesSelector, isBuffer"
+, ->
+	# if Buffer isn't defined globally, then isBuffer is always false
+	$.global.Buffer or= { isBuffer: -> false }
 	# Make sure we have String functions: `trimLeft`, and `split`.
 	String::trimLeft or= -> @replace(/^\s+/, "")
 	String::split or= (sep) ->

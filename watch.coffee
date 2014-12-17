@@ -23,7 +23,7 @@ opts = Optimist.options('t', {
 .boolean('i')
 .options('x', {
 	alias: 'exclude'
-	default: 'node_modules'
+	default: '(?:node_modules|.git)'
 	describe: "Pattern for directories to avoid watching"
 })
 .options('v', {

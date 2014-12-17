@@ -1867,8 +1867,8 @@
           return $((function() {
             var _i, _len, _results;
             _results = [];
-            for (_i = 0, _len = x.length; _i < _len; _i++) {
-              i = x[_i];
+            for (_i = 0, _len = o.length; _i < _len; _i++) {
+              i = o[_i];
               _results.push($.hash(i));
             }
             return _results;
@@ -2513,7 +2513,7 @@
             removeAllListeners: function(e) {
               return listeners[e] = [];
             },
-            setMaxListeners: function(n) {},
+            setMaxListeners: function() {},
             listeners: function(e) {
               return list(e).slice(0);
             }
@@ -3987,7 +3987,7 @@
       var p, promises;
       promises = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
       p = $.Progress(1 + promises.length);
-      $(promises).select('wait').call(function(err, data) {
+      $(promises).select('wait').call(function(err) {
         if (err) {
           return p.reject(err);
         } else {
@@ -4580,7 +4580,7 @@
         case "bling":
           p = $.Progress(m = 1);
           q = $.Promise();
-          p.wait(function(err, result) {
+          p.wait(function(err) {
             if (err) {
               return q.reject(err);
             } else {
@@ -4655,7 +4655,7 @@
             _results = [];
             for (_i = 0, _len = o.length; _i < _len; _i++) {
               x = o[_i];
-              _results.push(finalize(x));
+              _results.push(finalize(x, opts));
             }
             return _results;
           })()).join('');
@@ -5536,7 +5536,7 @@
   });
 
   $.plugin({
-    depends: "StateMachine",
+    depends: "StateMachine, function",
     provides: "template"
   }, function() {
     var current_engine, engines, match_forward, template;
@@ -5569,9 +5569,7 @@
       return $.keysOf(engines);
     });
     template.register_engine('null', (function() {
-      return function(text, values) {
-        return text;
-      };
+      return $.identity;
     })());
     match_forward = function(text, find, against, start, stop) {
       var count, i, t, _i;
@@ -5684,9 +5682,7 @@
         return TemplateMachine;
 
       })($.StateMachine);
-      return function(text, values) {
-        return text;
-      };
+      return $.identity;
     })());
     return {
       $: {
@@ -6269,7 +6265,7 @@
       cache = {};
       base = {
         name: 'unknown',
-        is: function(o) {
+        is: function() {
           return true;
         }
       };
@@ -6432,12 +6428,12 @@
         }
       },
       "null": {
-        array: function(o) {
+        array: function() {
           return [];
         }
       },
       undefined: {
-        array: function(o) {
+        array: function() {
           return [];
         }
       },

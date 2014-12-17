@@ -52,7 +52,7 @@ $.plugin
 		# each type, we will extend this base with default implementations.
 		base =
 			name: 'unknown'
-			is: (o) -> true
+			is: -> true
 
 		# When classifying an object, this array of names will control
 		# the _order_ of the calls to `is` (and thus, the _type precedence_).
@@ -160,8 +160,8 @@ $.plugin
 		# this further to know how to convert "html", "node", etc.
 
 		# Null and undefined values convert to an empty array.
-		null:      { array: (o) -> [] }
-		undefined: { array: (o) -> [] }
+		null:      { array:     -> [] }
+		undefined: { array:     -> [] }
 		# Arrays just convert to themselves.
 		array:     { array: (o) -> o }
 		# Numbers create a new array of that capacity (but zero length).

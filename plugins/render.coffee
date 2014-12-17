@@ -42,7 +42,7 @@ $.plugin
 				p = $.Progress m = 1 # always start with one step (creation)
 				# more steps will be added later during the recursion
 				q = $.Promise() # use a summary promise for public view
-				p.wait (err, result) ->
+				p.wait (err) ->
 					if err then q.reject(err) else q.resolve(finalize n, opts)
 				n = []
 				has_promises = false
@@ -75,7 +75,7 @@ $.plugin
 		return switch t = $.type o
 			when "string","html" then o
 			when "number" then String(o)
-			when "array","bling" then (finalize(x) for x in o).join ''
+			when "array","bling" then (finalize(x, opts) for x in o).join ''
 			when "null","undefined" then t
 			else "[ cant finalize type: #{t} ]"
 

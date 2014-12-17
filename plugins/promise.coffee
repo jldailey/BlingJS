@@ -95,7 +95,7 @@ $.plugin
 	Promise.compose = Promise.parallel = (promises...) ->
 		# always an extra one for setup, so an empty list is finished immediately
 		p = $.Progress(1 + promises.length)
-		$(promises).select('wait').call (err, data) ->
+		$(promises).select('wait').call (err) ->
 			if err then p.reject(err) else p.resolve 1
 		p.resolve 1
 

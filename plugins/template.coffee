@@ -1,5 +1,5 @@
 $.plugin
-	depends: "StateMachine"
+	depends: "StateMachine, function"
 	provides: "template"
 , -> # Template plugin, pythonic style: %(value).2f
 	current_engine = null
@@ -23,8 +23,7 @@ $.plugin
 	template.__defineGetter__ 'engines', -> $.keysOf(engines)
 
 	template.register_engine 'null', do ->
-		return (text, values) ->
-			text
+		return $.identity
 
 	# a bracket-matcher, useful in most template parsing steps
 	match_forward = (text, find, against, start, stop = -1) ->
@@ -120,7 +119,6 @@ $.plugin
 				}
 			]
 
-		return (text, values) ->
-			text
+		return $.identity
 
 	return $: { template }

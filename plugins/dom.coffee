@@ -12,8 +12,8 @@ if $.global.document?
 	, ->
 		bNodelistsAreSpecial = false
 		$.type.register "nodelist",
-			is:  (o) -> o? and $.isType "NodeList", o
-			hash:   (o) -> $($.hash(i) for i in x).sum()
+			is:     (o) -> o? and $.isType "NodeList", o
+			hash:   (o) -> $($.hash(i) for i in o).sum()
 			array:  do ->
 				try # probe to see if this browsers allows modification of a NodeList's prototype
 					document.querySelectorAll("xxx").__proto__ = {}

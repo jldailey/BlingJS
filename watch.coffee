@@ -73,7 +73,7 @@ on_exit = (code) ->
 		if opts.v then log "Respawning..."
 		$.immediate -> relaunch( if code is +opts.r then "respawn option -r" else "forced" )
 
-launch = $.throttle +opts.throttle * 1000, ->
+launch = $.debounce +opts.throttle * 1000, ->
 	process = Extra.spawn( stdio: 'inherit', stderr: 'inherit' )
 	process.on 'close', on_exit
 

@@ -2991,15 +2991,15 @@ $.plugin
 					return cache[name]
 		register "unknown",   base
 		register "object",    is: (o) -> typeof o is "object" and (o.constructor?.name in [undefined, "Object"])
-		register "error",     is: (o) -> isType 'Error', o
-		register "regexp",    is: (o) -> isType 'RegExp', o
-		register "string",    is: (o) -> typeof o is "string" or isType String, o
-		register "number",    is: (o) -> (isType Number, o) and not isNaN(o)
-		register "bool",      is: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
 		register "array",     is: Array.isArray or (o) -> isType Array, o
 		register "buffer",    is: Buffer.isBuffer or -> false
+		register "error",     is: (o) -> isType 'Error', o
+		register "regexp",    is: (o) -> isType 'RegExp', o
+		register "string",    is: (o) -> typeof o is "string" # or isType String, o
+		register "number",    is: (o) -> typeof o is "number" and not isNaN(o)
+		register "bool",      is: (o) -> typeof o is "boolean" # or try String(o) in ["true","false"]
 		register "function",  is: (o) -> typeof o is "function"
-		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of @
+		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of o
 		register "arguments", is: (o) -> try 'callee' of o and 'length' of o
 		register "undefined", is: (x) -> x is undefined
 		register "null",      is: (x) -> x is null

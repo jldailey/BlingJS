@@ -6330,6 +6330,16 @@
           return typeof o === "object" && ((_ref = (_ref1 = o.constructor) != null ? _ref1.name : void 0) === (void 0) || _ref === "Object");
         }
       });
+      register("array", {
+        is: Array.isArray || function(o) {
+          return isType(Array, o);
+        }
+      });
+      register("buffer", {
+        is: Buffer.isBuffer || function() {
+          return false;
+        }
+      });
       register("error", {
         is: function(o) {
           return isType('Error', o);
@@ -6342,32 +6352,17 @@
       });
       register("string", {
         is: function(o) {
-          return typeof o === "string" || isType(String, o);
+          return typeof o === "string";
         }
       });
       register("number", {
         is: function(o) {
-          return (isType(Number, o)) && !isNaN(o);
+          return typeof o === "number" && !isNaN(o);
         }
       });
       register("bool", {
         is: function(o) {
-          return typeof o === "boolean" || (function() {
-            var _ref;
-            try {
-              return (_ref = String(o)) === "true" || _ref === "false";
-            } catch (_error) {}
-          })();
-        }
-      });
-      register("array", {
-        is: Array.isArray || function(o) {
-          return isType(Array, o);
-        }
-      });
-      register("buffer", {
-        is: Buffer.isBuffer || function() {
-          return false;
+          return typeof o === "boolean";
         }
       });
       register("function", {
@@ -6377,7 +6372,7 @@
       });
       register("global", {
         is: function(o) {
-          return typeof o === "object" && 'setInterval' in this;
+          return typeof o === "object" && 'setInterval' in o;
         }
       });
       register("arguments", {

@@ -71,16 +71,15 @@ if $.global.document?
 						(o) -> document.querySelectorAll o
 			function: { node: (o) -> $(o.toString()).toFragment() }
 
-		toFrag = (a) ->
-			if not a.parentNode?
-				df = document.createDocumentFragment()
-				df.appendChild a
+		toFrag  = (a) ->
+			unless a.parentNode
+				document.createDocumentFragment().appendChild a
 			a
-		before = (a,b) -> toFrag(a).parentNode.insertBefore b, a
-		after = (a,b) -> toFrag(a).parentNode.insertBefore b, a.nextSibling
-		toNode = (x) -> $.type.lookup(x).node x
+		before  = (a,b) -> toFrag(a).parentNode.insertBefore b, a
+		after   = (a,b) -> toFrag(a).parentNode.insertBefore b, a.nextSibling
+		toNode  = (x) -> $.type.lookup(x).node x
 		escaper = false
-		parser = false
+		parser  = false
 
 		# window.getComputedStyle is not a normal function
 		# (it doesnt support .call() so we can't use it with .map())
@@ -93,23 +92,29 @@ if $.global.document?
 
 		jsonStyles = $.once -> $("head").append $.synth("style#json").text """
 			table.json                { border: 1px solid black; }
-			table.json tr.h           { background-color: blue; color: white; }
-			table.json tr.h th:before { content: "[+] "; }
+			table.json tr.h           { background-color: blue; color: white; cursor: pointer; }
+			table.json tr.h th        { padding: 0px 4px; }
 			table.json tr.h.array     { background-color: purple; }
+			table.json td             { padding: 2px; }
 			table.json td.k           { background-color: lightblue; }
 			table.json td.v.string    { background-color: #cfc; }
 			table.json td.v.number    { background-color: #ffc; }
 			table.json td.v.bool      { background-color: #fcf; }
 		"""
+		jsonScript = $.once -> $("head").append $.synth("script#json").text """
+			$('body').delegate('table.json tr.h', 'click', function() {
+				$(this.parentNode).find("tr.kv").toggle()
+			})
+		"""
 
 		$.extend JSON, {
 			toHTML: (obj) ->
 				do jsonStyles
+				do jsonScript
 				return switch t = $.type obj
 					when "string","number","bool" then obj
-					else
+					when "object","array"
 						table = $.synth "table.json tr.h.#{t} th[colspan=2] '#{t}'"
-						table.find("tr.h").click -> $(@parentNode).find("tr.kv").toggle()
 						for k,v of obj
 							row = $.synth "tr.kv td.k '#{k}' + td.v"
 							td = row.find "td.v"
@@ -120,6 +125,7 @@ if $.global.document?
 							td.addClass _t
 							table.append row
 						table[0]
+					else ""
 		}
 
 		return {

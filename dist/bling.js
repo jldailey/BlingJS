@@ -4526,6 +4526,9 @@
       }
       promise.wait(function(err, result) {
         var r;
+        if (err) {
+          return p.reject(err);
+        }
         r = reduce(result, opts);
         if ($.is('promise', r)) {
           return consume_forever(r, opts, p);
@@ -4675,12 +4678,12 @@
           _results = [];
           for (_i = 0, _len = _ref.length; _i < _len; _i++) {
             k = _ref[_i];
-            if (k in this) {
-              _results.push([" ", k, "='", this[k], "'"]);
+            if (k in o) {
+              _results.push([" " + k + "='", o[k], "'"]);
             }
           }
           return _results;
-        }).call(this), ">", reduce(this.content, opts), "</a>"
+        })(), ">", reduce(o.content, opts), "</a>"
       ];
     });
     register('let', function(o, opts) {

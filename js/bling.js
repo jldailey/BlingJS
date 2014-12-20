@@ -1856,7 +1856,7 @@
       provides: "dom,HTML,html,append,appendText,appendTo,prepend,prependTo," + "before,after,wrap,unwrap,replace,attr,data,addClass,removeClass,toggleClass," + "hasClass,text,val,css,defaultCss,rect,width,height,top,left,bottom,right," + "position,scrollToCenter,child,parents,next,prev,remove,find,querySelectorAll," + "clone,toFragment",
       depends: "function,type,string"
     }, function() {
-      var after, bNodelistsAreSpecial, before, computeCSSProperty, escaper, getOrSetRect, parser, selectChain, toFrag, toNode;
+      var after, bNodelistsAreSpecial, before, escaper, getOrSetRect, jsonStyles, parser, selectChain, toFrag, toNode;
       bNodelistsAreSpecial = false;
       $.type.register("nodelist", {
         is: function(o) {
@@ -2025,7 +2025,7 @@
       };
       escaper = false;
       parser = false;
-      $.computeCSSProperty = computeCSSProperty = function(k) {
+      $.computeCSSProperty = function(k) {
         return function() {
           return $.global.getComputedStyle(this, null).getPropertyValue(k);
         };
@@ -2053,6 +2053,47 @@
           });
         };
       };
+      jsonStyles = $.once(function() {
+        return $("head").append($.synth("style#json").text("table.json                { border: 1px solid black; }\ntable.json tr.h           { background-color: blue; color: white; }\ntable.json tr.h th:before { content: \"[+] \"; }\ntable.json tr.h.array     { background-color: purple; }\ntable.json td.k           { background-color: lightblue; }\ntable.json td.v.string    { background-color: #cfc; }\ntable.json td.v.number    { background-color: #ffc; }\ntable.json td.v.bool      { background-color: #fcf; }"));
+      });
+      $.extend(JSON, {
+        toHTML: function(obj) {
+          var k, row, t, table, td, v, _t;
+          jsonStyles();
+          switch (t = $.type(obj)) {
+            case "string":
+            case "number":
+            case "bool":
+              return obj;
+            default:
+              table = $.synth("table.json tr.h." + t + " th[colspan=2] '" + t + "'");
+              table.find("tr.h").click(function() {
+                return $(this.parentNode).find("tr.kv").toggle();
+              });
+              for (k in obj) {
+                v = obj[k];
+                row = $.synth("tr.kv td.k '" + k + "' + td.v");
+                td = row.find("td.v");
+                switch (_t = $.type(v = JSON.toHTML(v))) {
+                  case "string":
+                  case "number":
+                  case "bool":
+                    td.appendText(String(v));
+                    break;
+                  case "null":
+                  case "undefined":
+                    td.appendText(_t);
+                    break;
+                  default:
+                    td.append(v);
+                }
+                td.addClass(_t);
+                table.append(row);
+              }
+              return table[0];
+          }
+        }
+      });
       return {
         $: {
           HTML: {
@@ -2095,15 +2136,21 @@
         },
         append: function(x) {
           x = toNode(x);
+          if (x == null) {
+            return;
+          }
           return this.each(function(n) {
             return n != null ? typeof n.appendChild === "function" ? n.appendChild(x.cloneNode(true)) : void 0 : void 0;
           });
         },
         appendText: function(text) {
-          var node;
-          node = document.createTextNode(text);
+          var x;
+          x = document.createTextNode(text);
+          if (x == null) {
+            return;
+          }
           return this.each(function(n) {
-            return n != null ? typeof n.appendChild === "function" ? n.appendChild(node.cloneNode(true)) : void 0 : void 0;
+            return n != null ? typeof n.appendChild === "function" ? n.appendChild(x.cloneNode(true)) : void 0 : void 0;
           });
         },
         appendTo: function(x) {
@@ -2311,7 +2358,7 @@
                 setters[i % nn](key, v[i % n], "");
               }
             } else if ($.is('function', v)) {
-              values = this.select("style." + key).weave(this.map(computeCSSProperty(key))).fold($.coalesce).weave(setters).fold(function(setter, value) {
+              values = this.select("style." + key).weave(this.map($.computeCSSProperty(key))).fold($.coalesce).weave(setters).fold(function(setter, value) {
                 return setter(key, v.call(value, value));
               });
             } else {
@@ -2319,7 +2366,7 @@
             }
             return this;
           } else {
-            return this.select("style." + key).weave(this.map(computeCSSProperty(key))).fold($.coalesce);
+            return this.select("style." + key).weave(this.map($.computeCSSProperty(key))).fold($.coalesce);
           }
         },
         defaultCss: function(k, v) {
@@ -4526,6 +4573,9 @@
       }
       promise.wait(function(err, result) {
         var r;
+        if (err) {
+          return p.reject(err);
+        }
         r = reduce(result, opts);
         if ($.is('promise', r)) {
           return consume_forever(r, opts, p);
@@ -4675,12 +4725,12 @@
           _results = [];
           for (_i = 0, _len = _ref.length; _i < _len; _i++) {
             k = _ref[_i];
-            if (k in this) {
-              _results.push([" ", k, "='", this[k], "'"]);
+            if (k in o) {
+              _results.push([" " + k + "='", o[k], "'"]);
             }
           }
           return _results;
-        }).call(this), ">", reduce(this.content, opts), "</a>"
+        })(), ">", reduce(o.content, opts), "</a>"
       ];
     });
     register('let', function(o, opts) {

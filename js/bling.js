@@ -1856,7 +1856,7 @@
       provides: "dom,HTML,html,append,appendText,appendTo,prepend,prependTo," + "before,after,wrap,unwrap,replace,attr,data,addClass,removeClass,toggleClass," + "hasClass,text,val,css,defaultCss,rect,width,height,top,left,bottom,right," + "position,scrollToCenter,child,parents,next,prev,remove,find,querySelectorAll," + "clone,toFragment",
       depends: "function,type,string"
     }, function() {
-      var after, bNodelistsAreSpecial, before, escaper, getOrSetRect, jsonStyles, parser, selectChain, toFrag, toNode;
+      var after, bNodelistsAreSpecial, before, escaper, getOrSetRect, jsonScript, jsonStyles, parser, selectChain, toFrag, toNode;
       bNodelistsAreSpecial = false;
       $.type.register("nodelist", {
         is: function(o) {
@@ -2007,10 +2007,8 @@
         }
       });
       toFrag = function(a) {
-        var df;
-        if (a.parentNode == null) {
-          df = document.createDocumentFragment();
-          df.appendChild(a);
+        if (!a.parentNode) {
+          document.createDocumentFragment().appendChild(a);
         }
         return a;
       };
@@ -2054,22 +2052,24 @@
         };
       };
       jsonStyles = $.once(function() {
-        return $("head").append($.synth("style#json").text("table.json                { border: 1px solid black; }\ntable.json tr.h           { background-color: blue; color: white; }\ntable.json tr.h th:before { content: \"[+] \"; }\ntable.json tr.h.array     { background-color: purple; }\ntable.json td.k           { background-color: lightblue; }\ntable.json td.v.string    { background-color: #cfc; }\ntable.json td.v.number    { background-color: #ffc; }\ntable.json td.v.bool      { background-color: #fcf; }"));
+        return $("head").append($.synth("style#json").text("table.json                { border: 1px solid black; }\ntable.json tr.h           { background-color: blue; color: white; cursor: pointer; }\ntable.json tr.h th        { padding: 0px 4px; }\ntable.json tr.h.array     { background-color: purple; }\ntable.json td             { padding: 2px; }\ntable.json td.k           { background-color: lightblue; }\ntable.json td.v.string    { background-color: #cfc; }\ntable.json td.v.number    { background-color: #ffc; }\ntable.json td.v.bool      { background-color: #fcf; }"));
+      });
+      jsonScript = $.once(function() {
+        return $("head").append($.synth("script#json").text("$('body').delegate('table.json tr.h', 'click', function() {\n	$(this.parentNode).find(\"tr.kv\").toggle()\n})"));
       });
       $.extend(JSON, {
         toHTML: function(obj) {
           var k, row, t, table, td, v, _t;
           jsonStyles();
+          jsonScript();
           switch (t = $.type(obj)) {
             case "string":
             case "number":
             case "bool":
               return obj;
-            default:
+            case "object":
+            case "array":
               table = $.synth("table.json tr.h." + t + " th[colspan=2] '" + t + "'");
-              table.find("tr.h").click(function() {
-                return $(this.parentNode).find("tr.kv").toggle();
-              });
               for (k in obj) {
                 v = obj[k];
                 row = $.synth("tr.kv td.k '" + k + "' + td.v");
@@ -2091,6 +2091,8 @@
                 table.append(row);
               }
               return table[0];
+            default:
+              return "";
           }
         }
       });

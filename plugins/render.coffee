@@ -9,6 +9,7 @@ $.plugin
 		unless $.is "promise", promise
 			return $.Promise().resolve(reduce promise, opts)
 		promise.wait (err, result) ->
+			if err then return p.reject err
 			r = reduce result, opts
 			if $.is 'promise', r
 				consume_forever r, opts, p
@@ -81,8 +82,8 @@ $.plugin
 
 	register 'link', (o, opts) -> [
 		"<a"
-			[" ",k,"='",@[k],"'"] for k in ["href","name","target"] when k of @
-		">",reduce(@content,opts),"</a>"
+			[" #{k}='",o[k],"'"] for k in ["href","name","target"] when k of o
+		">",reduce(o.content,opts),"</a>"
 	]
 
 	register 'let', (o, opts) ->

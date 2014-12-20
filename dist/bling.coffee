@@ -807,9 +807,9 @@ if $.global.document?
 	, ->
 		bNodelistsAreSpecial = false
 		$.type.register "nodelist",
-			is:     (o) -> o? and $.isType "NodeList", o
-			hash:   (o) -> $($.hash(i) for i in o).sum()
-			array:  do ->
+			is:			(o) -> o? and $.isType "NodeList", o
+			hash:		(o) -> $($.hash(i) for i in o).sum()
+			array:	do ->
 				try # probe to see if this browsers allows modification of a NodeList's prototype
 					document.querySelectorAll("xxx").__proto__ = {}
 					return $.identity
@@ -817,33 +817,33 @@ if $.global.document?
 					bNodelistsAreSpecial = true
 					return (o) -> (node for node in o)
 			string: (o) -> "{Nodelist:["+$(o).select('nodeName').join(",")+"]}"
-			node:   (o) -> $(o).toFragment()
+			node:		(o) -> $(o).toFragment()
 		$.type.register "node",
 			is:  (o) -> o?.nodeType > 0
-			hash:   (o) -> $.checksum(o.nodeName) + $.hash(o.attributes) + $.checksum(o.innerHTML)
+			hash:		(o) -> $.checksum(o.nodeName) + $.hash(o.attributes) + $.checksum(o.innerHTML)
 			string: (o) -> o.toString()
-			node:   $.identity
+			node:		$.identity
 		$.type.register "fragment",
 			is:  (o) -> o?.nodeType is 11
-			hash:   (o) -> $($.hash(x) for x in o.childNodes).sum()
+			hash:		(o) -> $($.hash(x) for x in o.childNodes).sum()
 			string: (o) -> o.toString()
-			node:   $.identity
+			node:		$.identity
 		$.type.register "html",
 			is:  (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
-			node:   (h) ->
+			node:		(h) ->
 				(node = document.createElement('div')).innerHTML = h
 				if (n = (childNodes = node.childNodes).length) is 1
 					return node.removeChild(childNodes[0])
 				df = document.createDocumentFragment()
 				df.appendChild(node.removeChild(childNodes[0])) for i in [0...n] by 1
 				df
-			array:  (o) -> $.type.lookup(h = $.HTML.parse o).array h
+			array:	(o) -> $.type.lookup(h = $.HTML.parse o).array h
 			string: (o) -> "'#{o}'"
-			repr:   (o) -> '"' + o + '"'
+			repr:		(o) -> '"' + o + '"'
 		$.type.extend
-			unknown:  { node: -> null }
-			bling:    { node: (o) -> o.toFragment() }
-			node:     { html: (n) ->
+			unknown:	{ node: -> null }
+			bling:		{ node: (o) -> o.toFragment() }
+			node:			{ html: (n) ->
 				d = document.createElement "div"
 				d.appendChild (n = n.cloneNode true)
 				ret = d.innerHTML
@@ -868,9 +868,38 @@ if $.global.document?
 		toNode = (x) -> $.type.lookup(x).node x
 		escaper = false
 		parser = false
-		$.computeCSSProperty = computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
+		$.computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
 		getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select p
 		selectChain = (prop) -> -> @map (p) -> $( p while p = p[prop] )
+		jsonStyles = $.once -> $("head").append $.synth("style#json").text """
+			table.json                { border: 1px solid black; }
+			table.json tr.h           { background-color: blue; color: white; }
+			table.json tr.h th:before { content: "[+] "; }
+			table.json tr.h.array     { background-color: purple; }
+			table.json td.k           { background-color: lightblue; }
+			table.json td.v.string    { background-color: #cfc; }
+			table.json td.v.number    { background-color: #ffc; }
+			table.json td.v.bool      { background-color: #fcf; }
+		"""
+		$.extend JSON, {
+			toHTML: (obj) ->
+				do jsonStyles
+				return switch t = $.type obj
+					when "string","number","bool" then obj
+					else
+						table = $.synth "table.json tr.h.#{t} th[colspan=2] '#{t}'"
+						table.find("tr.h").click -> $(@parentNode).find("tr.kv").toggle()
+						for k,v of obj
+							row = $.synth "tr.kv td.k '#{k}' + td.v"
+							td = row.find "td.v"
+							switch _t = $.type v = JSON.toHTML v
+								when "string","number","bool" then td.appendText String v
+								when "null","undefined" then td.appendText _t
+								else td.append v
+							td.addClass _t
+							table.append row
+						table[0]
+		}
 		return {
 			$:
 				HTML:
@@ -893,10 +922,12 @@ if $.global.document?
 								@removeChild @childNodes[1]
 			append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
 				x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
+				return unless x?
 				@each (n) -> n?.appendChild? x.cloneNode true
 			appendText: (text) ->
-				node = document.createTextNode(text)
-				@each (n) -> n?.appendChild? node.cloneNode true
+				x = document.createTextNode(text)
+				return unless x?
+				@each (n) -> n?.appendChild? x.cloneNode true
 			appendTo: (x) -> # .appendTo(/n/) - each node [or fragment] will become the last child of x
 				clones = @map( -> @cloneNode true)
 				i = 0
@@ -1007,14 +1038,14 @@ if $.global.document?
 							setters[i%nn](key, v[i%n], "")
 					else if $.is 'function', v
 						values = @select("style.#{key}") \
-							.weave(@map computeCSSProperty key) \
+							.weave(@map $.computeCSSProperty key) \
 							.fold($.coalesce) \
 							.weave(setters) \
 							.fold (setter, value) -> setter(key, v.call value, value)
 					else setters.call key, v, ""
 					return @
 				else @select("style.#{key}") \
-					.weave(@map computeCSSProperty key) \
+					.weave(@map $.computeCSSProperty key) \
 					.fold($.coalesce)
 			defaultCss: (k, v) ->
 				sel = @selector

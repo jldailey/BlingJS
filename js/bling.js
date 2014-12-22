@@ -1856,7 +1856,7 @@
       provides: "dom,HTML,html,append,appendText,appendTo,prepend,prependTo," + "before,after,wrap,unwrap,replace,attr,data,addClass,removeClass,toggleClass," + "hasClass,text,val,css,defaultCss,rect,width,height,top,left,bottom,right," + "position,scrollToCenter,child,parents,next,prev,remove,find,querySelectorAll," + "clone,toFragment",
       depends: "function,type,string"
     }, function() {
-      var after, bNodelistsAreSpecial, before, escaper, getOrSetRect, jsonScript, jsonStyles, parser, selectChain, toFrag, toNode;
+      var after, bNodelistsAreSpecial, before, escaper, getOrSetRect, parser, selectChain, toFrag, toNode;
       bNodelistsAreSpecial = false;
       $.type.register("nodelist", {
         is: function(o) {
@@ -2051,51 +2051,6 @@
           });
         };
       };
-      jsonStyles = $.once(function() {
-        return $("head").append($.synth("style#json").text("table.json                { border: 1px solid black; }\ntable.json tr.h           { background-color: blue; color: white; cursor: pointer; }\ntable.json tr.h th        { padding: 0px 4px; }\ntable.json tr.h.array     { background-color: purple; }\ntable.json td             { padding: 2px; }\ntable.json td.k           { background-color: lightblue; }\ntable.json td.v.string    { background-color: #cfc; }\ntable.json td.v.number    { background-color: #ffc; }\ntable.json td.v.bool      { background-color: #fcf; }"));
-      });
-      jsonScript = $.once(function() {
-        return $("head").append($.synth("script#json").text("$('body').delegate('table.json tr.h', 'click', function() {\n	$(this.parentNode).find(\"tr.kv\").toggle()\n})"));
-      });
-      $.extend(JSON, {
-        toHTML: function(obj) {
-          var k, row, t, table, td, v, _t;
-          jsonStyles();
-          jsonScript();
-          switch (t = $.type(obj)) {
-            case "string":
-            case "number":
-            case "bool":
-              return obj;
-            case "object":
-            case "array":
-              table = $.synth("table.json tr.h." + t + " th[colspan=2] '" + t + "'");
-              for (k in obj) {
-                v = obj[k];
-                row = $.synth("tr.kv td.k '" + k + "' + td.v");
-                td = row.find("td.v");
-                switch (_t = $.type(v = JSON.toHTML(v))) {
-                  case "string":
-                  case "number":
-                  case "bool":
-                    td.appendText(String(v));
-                    break;
-                  case "null":
-                  case "undefined":
-                    td.appendText(_t);
-                    break;
-                  default:
-                    td.append(v);
-                }
-                td.addClass(_t);
-                table.append(row);
-              }
-              return table[0];
-            default:
-              return "";
-          }
-        }
-      });
       return {
         $: {
           HTML: {
@@ -3242,6 +3197,99 @@
         }
       }, obj);
     });
+  });
+
+  $.plugin({
+    provides: "toHTML",
+    depends: "type,synth,once"
+  }, function() {
+    var dumpScript, dumpStyles, table, tableRow;
+    dumpStyles = $.once(function() {
+      try {
+        return $("head").append($.synth("style#dump").text("table.dump                { border: 1px solid black; }\ntable.dump tr.h           { background-color: blue; color: white; cursor: pointer; }\ntable.dump tr.h th        { padding: 0px 4px; }\ntable.dump tr.h.array     { background-color: purple; }\ntable.dump td             { padding: 2px; }\ntable.dump td.k           { background-color: lightblue; }\ntable.dump td.v.string    { background-color: #cfc; }\ntable.dump td.v.number    { background-color: #ffc; }\ntable.dump td.v.bool      { background-color: #fcf; }"));
+      } catch (_error) {}
+    });
+    dumpScript = $.once(function() {
+      try {
+        return $("head").append($.synth("script#dump").text("$('body').delegate('table.dump tr.h', 'click', function() {\n	$(this.parentNode).find(\"tr.kv\").toggle()\n})"));
+      } catch (_error) {}
+    });
+    table = function(t, rows) {
+      var row, tab, _i, _len;
+      tab = $.synth("table.dump tr.h." + t + " th[colspan=2] '" + t + "'");
+      for (_i = 0, _len = rows.length; _i < _len; _i++) {
+        row = rows[_i];
+        tab.append(row);
+      }
+      return tab[0];
+    };
+    tableRow = function(k, v) {
+      var row, td, _t;
+      row = $.synth("tr.kv td.k '" + k + "' + td.v");
+      td = row.find("td.v");
+      switch (_t = $.type(v = $.toHTML(v))) {
+        case "string":
+        case "number":
+        case "bool":
+        case "html":
+          td.appendText(String(v));
+          break;
+        case "null":
+        case "undefined":
+          td.appendText(_t);
+          break;
+        default:
+          td.append(v);
+      }
+      td.addClass(_t);
+      return row;
+    };
+    return {
+      $: {
+        toHTML: function(obj) {
+          var k, s, t, v;
+          dumpStyles();
+          dumpScript();
+          switch (t = $.type(obj)) {
+            case "string":
+            case "number":
+            case "bool":
+            case "null":
+            case "undefined":
+            case "html":
+              return obj;
+            case "bling":
+            case "array":
+            case "nodelist":
+              return table(t, (function() {
+                var _i, _len, _results;
+                _results = [];
+                for (k = _i = 0, _len = obj.length; _i < _len; k = ++_i) {
+                  v = obj[k];
+                  _results.push(tableRow(k, v));
+                }
+                return _results;
+              })());
+            case "object":
+            case "array":
+              return table(t, (function() {
+                var _results;
+                _results = [];
+                for (k in obj) {
+                  v = obj[k];
+                  _results.push(tableRow(k, v));
+                }
+                return _results;
+              })());
+            case "node":
+              s = $.HTML.stringify(obj);
+              return s.substr(0, s.indexOf('>') + 1) + '...';
+            default:
+              return String(obj);
+          }
+        }
+      }
+    };
   });
 
   $.plugin({

@@ -21,6 +21,8 @@ $.plugin
 
 	table = (t, rows) ->
 		tab = $.synth "table.dump tr.h.#{t} th[colspan=2] '#{t}'"
+		if t in ["array","bling","nodelist"]
+			tab.find("th").appendText " [#{rows.length}]"
 		tab.append(row) for row in rows
 		tab[0]
 	tableRow = (k, v) ->

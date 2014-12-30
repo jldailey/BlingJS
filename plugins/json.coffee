@@ -26,7 +26,7 @@ $.plugin
 		tab.append(row) for row in rows
 		tab[0]
 	tableRow = (k, v) ->
-		row = $.synth "tr.kv td.k '#{k}' + td.v"
+		row = $.synth "tr.kv td.k[align=right][valign=top] '#{k}' + td.v"
 		td = row.find "td.v"
 		switch _t = $.type v = $.toHTML v
 			when "string","number","bool","html" then td.appendText String v

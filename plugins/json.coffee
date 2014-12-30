@@ -29,8 +29,7 @@ $.plugin
 		row = $.synth "tr.kv td.k[align=right][valign=top] '#{k}' + td.v"
 		td = row.find "td.v"
 		switch _t = $.type v = $.toHTML v
-			when "string","number","bool","html" then td.appendText String v
-			when "null","undefined" then td.appendText _t
+			when "string","number","bool","html","null","undefined" then td.appendText String v
 			else td.append v
 		td.addClass _t
 		return row

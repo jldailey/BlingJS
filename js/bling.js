@@ -3206,48 +3206,55 @@
     var dumpScript, dumpStyles, table, tableRow;
     dumpStyles = $.once(function() {
       try {
-        return $("head").append($.synth("style#dump").text("table.dump                { border: 1px solid black; }\ntable.dump tr.h           { background-color: blue; color: white; cursor: pointer; }\ntable.dump tr.h th        { padding: 0px 4px; }\ntable.dump tr.h.array     { background-color: purple; }\ntable.dump td             { padding: 2px; }\ntable.dump td.k           { background-color: lightblue; }\ntable.dump td.v.string    { background-color: #cfc; }\ntable.dump td.v.number    { background-color: #ffc; }\ntable.dump td.v.bool      { background-color: #fcf; }"));
+        return $("head").append($.synth("style#dump").text("table.dump                { border: 1px solid black; }\ntable.dump tr.h           { background-color: blue; color: white; cursor: pointer; }\ntable.dump tr.h th        { padding: 0px 4px; }\ntable.dump tr.h.array     { background-color: purple; }\ntable.dump tr.h.bling     { background-color: gold; }\ntable.dump td             { padding: 2px; }\ntable.dump td.k           { background-color: lightblue; }\ntable.dump td.v.string    { background-color: #cfc; }\ntable.dump td.v.number    { background-color: #ffc; }\ntable.dump td.v.bool      { background-color: #fcf; }"));
       } catch (_error) {}
     });
     dumpScript = $.once(function() {
       try {
-        return $("head").append($.synth("script#dump").text("$('body').delegate('table.dump tr.h', 'click', function() {\n	$(this.parentNode).find(\"tr.kv\").toggle()\n})"));
+        return $("head").append($.synth("script#dump").text("$(document.body).delegate('table.dump tr.h', 'click', function() {\n	$(this.parentNode).find(\"tr.kv\").toggle()\n})"));
       } catch (_error) {}
     });
     table = function(t, rows) {
       var row, tab, _i, _len;
       tab = $.synth("table.dump tr.h." + t + " th[colspan=2] '" + t + "'");
+      if (t === "array" || t === "bling" || t === "nodelist") {
+        tab.find("th").appendText(" [" + rows.length + "]");
+      }
       for (_i = 0, _len = rows.length; _i < _len; _i++) {
         row = rows[_i];
         tab.append(row);
       }
       return tab[0];
     };
-    tableRow = function(k, v) {
+    tableRow = function(k, v, open) {
       var row, td, _t;
-      row = $.synth("tr.kv td.k '" + k + "' + td.v");
+      row = $.synth("tr.kv td.k[align=right][valign=top] '" + k + "' + td.v");
       td = row.find("td.v");
       switch (_t = $.type(v = $.toHTML(v))) {
         case "string":
         case "number":
         case "bool":
         case "html":
-          td.appendText(String(v));
-          break;
         case "null":
         case "undefined":
-          td.appendText(_t);
+          td.appendText(String(v));
           break;
         default:
           td.append(v);
       }
       td.addClass(_t);
+      if (!open) {
+        row.toggle();
+      }
       return row;
     };
     return {
       $: {
-        toHTML: function(obj) {
+        toHTML: function(obj, open) {
           var k, s, t, v;
+          if (open == null) {
+            open = true;
+          }
           dumpStyles();
           dumpScript();
           switch (t = $.type(obj)) {
@@ -3266,7 +3273,7 @@
                 _results = [];
                 for (k = _i = 0, _len = obj.length; _i < _len; k = ++_i) {
                   v = obj[k];
-                  _results.push(tableRow(k, v));
+                  _results.push(tableRow(k, v, open));
                 }
                 return _results;
               })());
@@ -3277,7 +3284,7 @@
                 _results = [];
                 for (k in obj) {
                   v = obj[k];
-                  _results.push(tableRow(k, v));
+                  _results.push(tableRow(k, v, open));
                 }
                 return _results;
               })());
@@ -5289,15 +5296,21 @@
           }
           return s;
         },
-        stringTruncate: function(s, n, c) {
+        stringTruncate: function(s, n, c, sep) {
           var r, x;
           if (c == null) {
             c = '...';
           }
+          if (sep == null) {
+            sep = ' ';
+          }
           if (s.length <= n) {
             return s;
           }
-          s = s.split(' ');
+          if (c.length >= n) {
+            return c;
+          }
+          s = s.split(sep);
           r = [];
           while (n > 0) {
             x = s.shift();
@@ -5306,7 +5319,7 @@
               r.push(x);
             }
           }
-          return r.join(' ') + c;
+          return r.join(sep) + c;
         },
         stringCount: function(s, x, i, n) {
           var j;

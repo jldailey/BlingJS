@@ -3230,7 +3230,7 @@
       var row, td, _t;
       row = $.synth("tr.kv td.k[align=right][valign=top] '" + k + "' + td.v");
       td = row.find("td.v");
-      switch (_t = $.type(v = $.toHTML(v))) {
+      switch (_t = $.type(v = $.toHTML(v, open))) {
         case "string":
         case "number":
         case "bool":

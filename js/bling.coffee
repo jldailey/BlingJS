@@ -1480,7 +1480,7 @@ $.plugin
 	tableRow = (k, v, open) ->
 		row = $.synth "tr.kv td.k[align=right][valign=top] '#{k}' + td.v"
 		td = row.find "td.v"
-		switch _t = $.type v = $.toHTML v
+		switch _t = $.type v = $.toHTML v, open
 			when "string","number","bool","html","null","undefined" then td.appendText String v
 			else td.append v
 		td.addClass _t

@@ -71,7 +71,7 @@ $.plugin
 			return ret
 		compile.cache = {}
 
-		render = (text, values) -> # replace markers in /text/ with /values/
+		return render = (text, values) -> # replace markers in /text/ with /values/
 			cache = compile.cache[text] # get the cached version
 			if not cache?
 				cache = compile.cache[text] = compile(text) # or compile and cache it
@@ -105,20 +105,5 @@ $.plugin
 				output[j++] = rest
 			output.join ""
 
-		return render
-
-	template.register_engine 'js-eval', do -> # work in progress...
-		class TemplateMachine extends $.StateMachine
-			@STATE_TABLE = [
-				{ # 0: START
-					enter: () ->
-						@data = []
-						@GO(1)
-				},
-				{ # 1: read anything
-				}
-			]
-
-		return $.identity
 
 	return $: { template }

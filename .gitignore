@@ -14,3 +14,4 @@ web.config
 node_modules
 test/*.pass
 bench/*.time
+plugins/experimental/iliad.txt

@@ -36,5 +36,5 @@ $.plugin
 			explodeStack switch true
 				when $.is 'error', error then String(error.stack)
 				when $.is 'string', error then error
-				else new Error('unsupported error type: ' + $.type error)
+				else String(error)
 	}

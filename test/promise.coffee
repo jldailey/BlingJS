@@ -29,7 +29,7 @@ describe "$.Promise()", ->
 		describe "optional timeout", ->
 			it "sets error to 'timeout'", (done) ->
 				$.Promise().wait 100, (err, data) ->
-					assert.equal err, 'timeout'
+					assert.equal String(err), 'Error: timeout'
 					done()
 			it "does not fire an error if the promise is resolved in time", (done) ->
 				pass = false

@@ -56,7 +56,7 @@ $.plugin
 						cb.timeout = $.delay timeout, ->
 							if (i = waiting.indexOf cb) > -1
 								waiting.splice i, 1
-								consume_one cb, err = 'timeout', undefined
+								consume_one cb, err = new Error('timeout'), undefined
 				@
 			then: (f, e) -> @wait (err, x) ->
 				if err then e?(err)

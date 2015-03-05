@@ -1749,9 +1749,10 @@ $.plugin
 			cb.timeout?.cancel()
 			try cb e, v
 			catch _e
+				$.log "Promise(#{ret.promiseId}) first-chance exception:", _e
 				try cb _e, null
 				catch __e
-					$.log "Fatal error in promise callback:", \
+					$.log "Promise(#{ret.promiseId}) second-chance exception:", \
 						__e?.stack ? __e, "caused by:", _e?.stack ? _e
 			null
 		end = (error, value) =>
@@ -1785,9 +1786,7 @@ $.plugin
 								consume_one cb, err = 'timeout', undefined
 				@
 			then: (f, e) -> @wait (err, x) ->
-				if err
-					if e? then e(err)
-					else throw err
+				if err then e?(err)
 				else f(x)
 			finish:  (value) -> end NoValue, value; @
 			resolve: (value) -> end NoValue, value; @
@@ -2633,7 +2632,7 @@ $.plugin
 				ret[j++] = rest
 			return ret
 		compile.cache = {}
-		render = (text, values) -> # replace markers in /text/ with /values/
+		return render = (text, values) -> # replace markers in /text/ with /values/
 			cache = compile.cache[text] # get the cached version
 			if not cache?
 				cache = compile.cache[text] = compile(text) # or compile and cache it
@@ -2658,19 +2657,6 @@ $.plugin
 					output[j] = String.PadLeft output[j], pad
 				output[j++] = rest
 			output.join ""
-		return render
-	template.register_engine 'js-eval', do -> # work in progress...
-		class TemplateMachine extends $.StateMachine
-			@STATE_TABLE = [
-				{ # 0: START
-					enter: () ->
-						@data = []
-						@GO(1)
-				},
-				{ # 1: read anything
-				}
-			]
-		return $.identity
 	return $: { template }
 $.plugin
 	provides: "throttle"

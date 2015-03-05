@@ -1046,6 +1046,12 @@
               };
             case "function":
               return f;
+            case "number":
+            case "null":
+            case "undefined":
+              return function(x) {
+                return f === x;
+              };
             default:
               throw new Error("unsupported argument to filter: " + ($.type(f)));
           }
@@ -1608,15 +1614,19 @@
           data = String(fs.readFileSync(f));
           f_lines = data.split(/(?:\r\n|\r|\n)/);
           line = f_lines[ln_num - 1];
+          if (line.length > 80) {
+            line = "... " + line.substr(col - 35, 70) + " ...";
+            col = 39;
+          }
           tabs = line.replace(/[^\t]/g, '').length;
           spacer = $.repeat('\t', tabs) + $.repeat(' ', (col - 1) - tabs);
           return "  " + ln_num + " " + line + "\n  " + ln_num + " " + spacer + "^";
         } catch (_error) {
           err = _error;
-          return "  " + String(err).replace(/\n/, '');
+          return null;
         }
       });
-      return message + "\n" + $.weave(files, lines).join("\n");
+      return message + "\n" + $.weave(files, lines).filter(null, false).join("\n");
     };
     return {
       $: {

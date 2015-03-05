@@ -4007,7 +4007,7 @@
                 var i;
                 if ((i = waiting.indexOf(cb)) > -1) {
                   waiting.splice(i, 1);
-                  return consume_one(cb, err = 'timeout', void 0);
+                  return consume_one(cb, err = new Error('timeout'), void 0);
                 }
               });
             }

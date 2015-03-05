@@ -1628,7 +1628,7 @@
               case $.is('string', error):
                 return error;
               default:
-                return new Error('unsupported error type: ' + $.type(error));
+                return String(error);
             }
           })());
         }
@@ -3993,7 +3993,7 @@
         return null;
       };
       consume_one = function(cb, e, v) {
-        var __e, _e, _ref, _ref1, _ref2;
+        var __e, __stack, _e, _ref, _stack;
         if ((_ref = cb.timeout) != null) {
           _ref.cancel();
         }
@@ -4001,12 +4001,14 @@
           cb(e, v);
         } catch (_error) {
           _e = _error;
-          $.log("Promise(" + ret.promiseId + ") first-chance exception:", _e);
+          _stack = $.debugStack(_e);
+          $.log("Promise(" + ret.promiseId + ") first-chance exception:", _stack);
           try {
             cb(_e, null);
           } catch (_error) {
             __e = _error;
-            $.log("Promise(" + ret.promiseId + ") second-chance exception:", (_ref1 = __e != null ? __e.stack : void 0) != null ? _ref1 : __e, "caused by:", (_ref2 = _e != null ? _e.stack : void 0) != null ? _ref2 : _e);
+            __stack = $.debugStack(__e);
+            $.log("Promise(" + ret.promiseId + ") last-chance exception:", __stack);
           }
         }
         return null;

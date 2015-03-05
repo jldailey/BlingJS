@@ -57,9 +57,7 @@ $.plugin
 								consume_one cb, err = 'timeout', undefined
 				@
 			then: (f, e) -> @wait (err, x) ->
-				if err
-					if e? then e(err)
-					else throw err
+				if err then e?(err)
 				else f(x)
 			finish:  (value) -> end NoValue, value; @
 			resolve: (value) -> end NoValue, value; @

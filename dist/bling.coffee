@@ -1759,14 +1759,16 @@ $.plugin
 			if err is result is NoValue
 				if error isnt NoValue
 					err = error
+					unless error?.stack
+						err = new Error error
 				else if value isnt NoValue
 					result = value
-				switch
+				switch true
 					when value is @
 						return end new TypeError "cant resolve a promise with itself"
 					when $.is 'promise', value then value.wait end
-					when error isnt NoValue then consume_all error, null
-					when value isnt NoValue then consume_all null, value
+					when error isnt NoValue then consume_all err, null
+					when value isnt NoValue then consume_all null, result
 			return @
 		ret = $.inherit {
 			promiseId: $.random.string 6

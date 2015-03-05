@@ -3963,20 +3963,23 @@
           if ((err === result && result === NoValue)) {
             if (error !== NoValue) {
               err = error;
+              if (!(error != null ? error.stack : void 0)) {
+                err = new Error(error);
+              }
             } else if (value !== NoValue) {
               result = value;
             }
-            switch (false) {
-              case value !== _this:
+            switch (true) {
+              case value === _this:
                 return end(new TypeError("cant resolve a promise with itself"));
-              case !$.is('promise', value):
+              case $.is('promise', value):
                 value.wait(end);
                 break;
-              case error === NoValue:
-                consume_all(error, null);
+              case error !== NoValue:
+                consume_all(err, null);
                 break;
-              case value === NoValue:
-                consume_all(null, value);
+              case value !== NoValue:
+                consume_all(null, result);
             }
           }
           return _this;

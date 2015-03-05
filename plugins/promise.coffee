@@ -15,18 +15,19 @@ $.plugin
 			cb.timeout?.cancel()
 			try cb e, v
 			catch _e
-				$.log "Promise(#{ret.promiseId}) first-chance exception:", _e
+				_stack = $.debugStack _e
+				$.log "Promise(#{ret.promiseId}) first-chance exception:", _stack
 				try cb _e, null
 				catch __e
-					$.log "Promise(#{ret.promiseId}) second-chance exception:", \
-						__e?.stack ? __e, "caused by:", _e?.stack ? _e
+					__stack = $.debugStack __e
+					$.log "Promise(#{ret.promiseId}) last-chance exception:", __stack
 			null
 
 		end = (error, value) =>
 			if err is result is NoValue
 				if error isnt NoValue
 					err = error
-					unless error?.stack
+					unless error?.stack # force all errors to capture the current stack
 						err = new Error error
 				else if value isnt NoValue
 					result = value

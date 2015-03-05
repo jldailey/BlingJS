@@ -1584,6 +1584,59 @@
   });
 
   $.plugin({
+    provides: "debug, debugStack",
+    depends: "core"
+  }, function() {
+    var explodeStack;
+    explodeStack = function(stack) {
+      var err, files, fs, lines, message;
+      fs = null;
+      try {
+        fs = require('fs');
+      } catch (_error) {
+        err = _error;
+        return stack;
+      }
+      lines = $(String(stack).split(/(?:\r\n|\r|\n)/)).filter(/^$/, false);
+      message = lines.first();
+      lines = lines.skip(1);
+      files = lines.map(function(s) {
+        var col, data, f, f_lines, line, ln_num, spacer, tabs, _ref;
+        f = s.replace(/^\s*at\s+/, '').replace(/^[^(]*\(/, '(').replace(/^\(/, '').replace(/\)$/, '');
+        try {
+          _ref = f.split(/:/), f = _ref[0], ln_num = _ref[1], col = _ref[2];
+          data = String(fs.readFileSync(f));
+          f_lines = data.split(/(?:\r\n|\r|\n)/);
+          line = f_lines[ln_num - 1];
+          tabs = line.replace(/[^\t]/g, '').length;
+          spacer = $.repeat('\t', tabs) + $.repeat(' ', (col - 1) - tabs);
+          return "  " + ln_num + " " + line + "\n  " + ln_num + " " + spacer + "^";
+        } catch (_error) {
+          err = _error;
+          return "  " + String(err).replace(/\n/, '');
+        }
+      });
+      return message + "\n" + $.weave(files, lines).join("\n");
+    };
+    return {
+      $: {
+        debugStack: function(error) {
+          return explodeStack((function() {
+            switch (true) {
+              case $.is('error', error):
+                return String(error.stack);
+              case $.is('string', error):
+                return error;
+              default:
+                return new Error('unsupported error type: ' + $.type(error));
+            }
+          })());
+        }
+      }
+    };
+  });
+
+  $.plugin({
     provides: "delay,immediate,interval",
     depends: "is,select,extend,bound"
   }, function() {

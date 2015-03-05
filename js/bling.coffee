@@ -679,6 +679,40 @@ $.plugin
 	dateFormat: (fmt = $.date.defaultFormat, unit = $.date.defaultUnit) -> @map(-> $.date.format @, fmt, unit)
 	dateParse: (fmt = $.date.defaultFormat, unit = $.date.defaultUnit) -> @map(-> $.date.parse @, fmt, unit)
 $.plugin
+	provides: "debug, debugStack",
+	depends: "core"
+, ->
+	explodeStack = (stack) ->
+		fs = null
+		try fs = require 'fs'
+		catch err then return stack # if we aren't in node, reading files is meaningless
+		lines = $(String(stack).split(/(?:\r\n|\r|\n)/)).filter(/^$/, false)
+		message = lines.first()
+		lines = lines.skip 1
+		files = lines.map (s) ->
+			f = s.replace(/^\s*at\s+/,'')
+				.replace(/^[^(]*\(/,'(')
+				.replace(/^\(/,'')
+				.replace(/\)$/,'')
+			try
+				[f,ln_num,col] = f.split(/:/)
+				data = String(fs.readFileSync f)
+				f_lines = data.split(/(?:\r\n|\r|\n)/)
+				line = f_lines[ln_num-1]
+				tabs = line.replace(/[^\t]/g,'').length
+				spacer = $.repeat('\t', tabs) + $.repeat(' ', (col-1)-tabs)
+				return """  #{ln_num} #{line}\n  #{ln_num} #{spacer}^"""
+			catch err
+				return "  " + String(err).replace(/\n/,'')
+		return message + "\n" + $.weave(files, lines).join "\n"
+	return $: {
+		debugStack: (error) ->
+			explodeStack switch true
+				when $.is 'error', error then String(error.stack)
+				when $.is 'string', error then error
+				else new Error('unsupported error type: ' + $.type error)
+	}
+$.plugin
 	provides: "delay,immediate,interval"
 	depends: "is,select,extend,bound"
 , ->

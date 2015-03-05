@@ -15,9 +15,10 @@ $.plugin
 			cb.timeout?.cancel()
 			try cb e, v
 			catch _e
+				$.log "Promise(#{ret.promiseId}) first-chance exception:", _e
 				try cb _e, null
 				catch __e
-					$.log "Fatal error in promise callback:", \
+					$.log "Promise(#{ret.promiseId}) second-chance exception:", \
 						__e?.stack ? __e, "caused by:", _e?.stack ? _e
 			null
 

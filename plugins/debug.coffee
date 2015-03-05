@@ -19,6 +19,9 @@ $.plugin
 				data = String(fs.readFileSync f)
 				f_lines = data.split(/(?:\r\n|\r|\n)/)
 				line = f_lines[ln_num-1]
+				if line.length > 80
+					line = "... " + line.substr(col-35,70) + " ..."
+					col = 39
 				# count the tabs
 				tabs = line.replace(/[^\t]/g,'').length
 				# setup the spacer in a way that is terminal independent
@@ -28,8 +31,8 @@ $.plugin
 				# it could attempt to really read the characters in order
 				return """  #{ln_num} #{line}\n  #{ln_num} #{spacer}^"""
 			catch err
-				return "  " + String(err).replace(/\n/,'')
-		return message + "\n" + $.weave(files, lines).join "\n"
+				return null
+		return message + "\n" + $.weave(files, lines).filter(null, false).join "\n"
 
 	return $: {
 		debugStack: (error) ->

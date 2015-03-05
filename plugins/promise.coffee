@@ -26,17 +26,19 @@ $.plugin
 			if err is result is NoValue
 				if error isnt NoValue
 					err = error
+					unless error?.stack
+						err = new Error error
 				else if value isnt NoValue
 					result = value
-				switch
+				switch true
 					# fatal error: passing a promise to it's own resolver
 					when value is @
 						return end new TypeError "cant resolve a promise with itself"
 					# but, you can resolve one promise with another:
 					when $.is 'promise', value then value.wait end
 					# every waiting callback gets consumed and called
-					when error isnt NoValue then consume_all error, null
-					when value isnt NoValue then consume_all null, value
+					when error isnt NoValue then consume_all err, null
+					when value isnt NoValue then consume_all null, result
 			return @
 
 		ret = $.inherit {

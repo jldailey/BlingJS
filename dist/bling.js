@@ -3948,11 +3948,12 @@
           cb(e, v);
         } catch (_error) {
           _e = _error;
+          $.log("Promise(" + ret.promiseId + ") first-chance exception:", _e);
           try {
             cb(_e, null);
           } catch (_error) {
             __e = _error;
-            $.log("Fatal error in promise callback:", (_ref1 = __e != null ? __e.stack : void 0) != null ? _ref1 : __e, "caused by:", (_ref2 = _e != null ? _e.stack : void 0) != null ? _ref2 : _e);
+            $.log("Promise(" + ret.promiseId + ") second-chance exception:", (_ref1 = __e != null ? __e.stack : void 0) != null ? _ref1 : __e, "caused by:", (_ref2 = _e != null ? _e.stack : void 0) != null ? _ref2 : _e);
           }
         }
         return null;
@@ -4013,11 +4014,7 @@
         then: function(f, e) {
           return this.wait(function(err, x) {
             if (err) {
-              if (e != null) {
-                return e(err);
-              } else {
-                throw err;
-              }
+              return typeof e === "function" ? e(err) : void 0;
             } else {
               return f(x);
             }
@@ -5737,7 +5734,7 @@
         return ret;
       };
       compile.cache = {};
-      render = function(text, values) {
+      return render = function(text, values) {
         var cache, fixed, i, j, key, n, output, pad, rest, type, value, _i, _ref, _ref1;
         cache = compile.cache[text];
         if (cache == null) {
@@ -5772,30 +5769,6 @@
         }
         return output.join("");
       };
-      return render;
-    })());
-    template.register_engine('js-eval', (function() {
-      var TemplateMachine;
-      TemplateMachine = (function(_super) {
-        __extends(TemplateMachine, _super);
-
-        function TemplateMachine() {
-          return TemplateMachine.__super__.constructor.apply(this, arguments);
-        }
-
-        TemplateMachine.STATE_TABLE = [
-          {
-            enter: function() {
-              this.data = [];
-              return this.GO(1);
-            }
-          }, {}
-        ];
-
-        return TemplateMachine;
-
-      })($.StateMachine);
-      return $.identity;
     })());
     return {
       $: {

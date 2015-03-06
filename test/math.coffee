@@ -15,7 +15,9 @@ describe "Math plugin:", ->
 		it "should compute the sum", ->
 			assert.equal $([1,2,3,4,5]).sum(), 15
 		it "should ignore non-numbers", ->
-			assert.equal($([1,2,NaN,3]).sum(), 6)
+			assert.equal $([1,2,NaN,3]).sum(), 6
+		it "should ignore nulls", ->
+			assert.equal $([1,2,null,4]).sum(), 7
 
 	describe ".range(start,end)", ->
 		it "should produce a sequence of ints from start to end", ->
@@ -56,18 +58,18 @@ describe "Math plugin:", ->
 		it "should return the largest item", -> assert.equal( $([12.1, 29.9]).max(), 29.9)
 		it "should ignore non-numbers", -> assert.equal( $([12.1, NaN, 29.9]).max(), 29.9)
 		it "should return Infinity for an empty set?"
-	
+
 	describe ".dot()", ->
 		it "computes the dot-product", ->
 			assert.equal( $([1,2,3]).dot([4,5,6]), 4 + 10 + 18)
-	
+
 	describe ".angle()", ->
 		it "computes the angle between vectors (in radians)", ->
 			assert.equal( $(0,1,0).angle($ 1,0,0), $.deg2rad 90 )
 			assert.equal( $(1,0,0).angle($ 1,0,0), $.deg2rad 0 )
 		it "does not convert NaN to zero", ->
 			assert not isFinite $(0,0,0).angle($ 0,0,0)
-	
+
 	describe ".cross()", ->
 		it "computes the cross product of two vectors", ->
 			assert.deepEqual( $(0,1,0).cross($ 1,0,0), [0,0,-1] )
@@ -79,29 +81,29 @@ describe "Math plugin:", ->
 			assert.deepEqual $( {a:1}, {a:3}, {a:2} ).maxBy('a'), a:3
 		it "accepts a value function", ->
 			assert.deepEqual $( {a:1}, {a:3}, {a:2} ).maxBy((o) -> Math.pow(o.a,2)), a:3
-	
+
 	describe ".minBy()", ->
 		it "should return the smallest item", ->
 			assert.deepEqual $( {a:3}, {a:1}, {a:2} ).minBy('a'), a:1
 		it "accepts a value function", ->
 			assert.deepEqual $( {a:1}, {a:3}, {a:2} ).minBy((o) -> Math.pow(o.a,2)), a:1
-	
+
 	describe ".product()", ->
 		it "computes the product of everything (like .sum() with *)", ->
 			assert.equal $(2,4,6).product(), 48
-	
+
 	describe ".squares()", ->
 		it "squares everything", -> assert.deepEqual $(2,4,6).squares(), [4, 16, 36]
-	
+
 	describe ".pow(n)", ->
 		it "maps Math.pow", -> assert.deepEqual $(2,4,6).pow(3), [8,64,6*6*6]
-	
+
 	describe ".magnitude()", ->
 		it "computes the vector length", -> assert.equal $(2,4,6).magnitude(), 7.483314773547883
-	
+
 	describe ".scale(r)", ->
 		it "mulitiplies everything by a constant factor", -> assert.deepEqual $(2,4,6).scale(3), [6,12,18]
-	
+
 	describe ".add(n)", ->
 		it "does vector addition (with a scalar)", ->
 			assert.deepEqual $(2,4,6).add(2), [4,6,8]
@@ -120,10 +122,10 @@ describe "Math plugin:", ->
 			assert.deepEqual $(2,4,6,8).sub([3,5,9]), [-1,-1,-3]
 		it "is also known as .minus()", ->
 			assert.deepEqual $(2,4,6).minus(2), [0,2,4]
-	
+
 	describe ".normalize()", ->
 		it "scales so that .magnitude() is 1", -> assert.equal $(2,4,6).normalize().magnitude(), 1
-	
+
 	describe ".deg2rad()", ->
 		it "works as a global", -> assert.equal $.deg2rad(180), Math.PI
 		it "works on a set", -> assert.deepEqual $(0,180).deg2rad(), [0, Math.PI]

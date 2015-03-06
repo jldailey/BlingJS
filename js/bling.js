@@ -3782,7 +3782,7 @@
       },
       avg: mean,
       sum: function() {
-        return this.filter(isFinite).reduce((function(a) {
+        return this.filter(isFinite).filter(null, false).reduce((function(a) {
           return a + this;
         }), 0);
       },

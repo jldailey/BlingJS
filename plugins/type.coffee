@@ -131,7 +131,7 @@ $.plugin
 			lookup: lookup
 			extend: _extend
 			get: (t) -> cache[t]
-			is: (t, o) -> cache[t]?.is.call o, o
+			is: (t, o) -> cache[t]?.is.call(o, o) ? false
 			as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
 			# Find all types with a certain function available:
 			# e.g. $.type.with('compact') == a list of all `compact`-able types
@@ -176,7 +176,7 @@ $.plugin
 		# Add the type test so: `$.type($()) == "bling"`.
 		is:     (o) -> o and isType $, o
 		# Bling extends array so they can convert themselves.
-		array:  (o) -> o.toArray()
+		array:  (o) -> (o and o.toArray()) or []
 		# Their hash is just the sum of member hashes (order matters).
 		hash:   (o) -> o.map($.hash).reduce (a,x) -> ((a*a)+x) % maxHash
 		# They have a very literal string representation.

@@ -288,7 +288,7 @@ $.plugin
 				# * function: `.filter (x) -> (x%2) is 1`
 				when "function" then f
 				# * primitives
-				when "number","null","undefined" then (x) -> f is x
+				when "bool","number","null","undefined" then (x) -> f is x
 				else throw new Error "unsupported argument to filter: #{$.type f}"
 			a = $()
 			for it in @

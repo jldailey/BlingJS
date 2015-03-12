@@ -1046,6 +1046,7 @@
               };
             case "function":
               return f;
+            case "bool":
             case "number":
             case "null":
             case "undefined":
@@ -6556,8 +6557,8 @@
           return cache[t];
         },
         is: function(t, o) {
-          var _ref;
-          return (_ref = cache[t]) != null ? _ref.is.call(o, o) : void 0;
+          var _ref, _ref1;
+          return (_ref = (_ref1 = cache[t]) != null ? _ref1.is.call(o, o) : void 0) != null ? _ref : false;
         },
         as: function() {
           var o, rest, t, _base;
@@ -6610,7 +6611,7 @@
         return o && isType($, o);
       },
       array: function(o) {
-        return o.toArray();
+        return (o && o.toArray()) || [];
       },
       hash: function(o) {
         return o.map($.hash).reduce(function(a, x) {

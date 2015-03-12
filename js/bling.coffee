@@ -429,7 +429,7 @@ $.plugin
 				when "string" then (x) -> x?.matchesSelector?(f) ? false
 				when "regexp" then (x) -> f.test(x)
 				when "function" then f
-				when "number","null","undefined" then (x) -> f is x
+				when "bool","number","null","undefined" then (x) -> f is x
 				else throw new Error "unsupported argument to filter: #{$.type f}"
 			a = $()
 			for it in @
@@ -3088,7 +3088,7 @@ $.plugin
 			lookup: lookup
 			extend: _extend
 			get: (t) -> cache[t]
-			is: (t, o) -> cache[t]?.is.call o, o
+			is: (t, o) -> cache[t]?.is.call(o, o) ? false
 			as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
 			with: (f) -> _with_cache[f] ? []
 	_type.extend
@@ -3101,7 +3101,7 @@ $.plugin
 	maxHash = Math.pow(2,32)
 	_type.register "bling",
 		is:     (o) -> o and isType $, o
-		array:  (o) -> o.toArray()
+		array:  (o) -> (o and o.toArray()) or []
 		hash:   (o) -> o.map($.hash).reduce (a,x) -> ((a*a)+x) % maxHash
 		string: (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
 		repr:   (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"

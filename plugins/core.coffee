@@ -134,7 +134,9 @@ $.plugin
 			# First, a private helper that will read property `prop` from some object later.
 			getter = (prop) ->
 				->
-					if $.is("function",v = @[prop]) then $.bound(@,v) else v
+					if $.is("function",v = @[prop]) and prop isnt "constructor"
+						return $.bound(@,v)
+					else v
 			# Recursively split `p` on `.` and map the getter helper
 			# to read a set of complex `p` values from an object.
 			# > `$([x]).select("name") == [ x.name ]`

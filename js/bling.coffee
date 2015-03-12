@@ -346,7 +346,9 @@ $.plugin
 		select: do ->
 			getter = (prop) ->
 				->
-					if $.is("function",v = @[prop]) then $.bound(@,v) else v
+					if $.is("function",v = @[prop]) and prop isnt "constructor"
+						return $.bound(@,v)
+					else v
 			selectOne = (p) ->
 				switch type = $.type p
 					when 'regexp' then selectMany.call @, p

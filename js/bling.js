@@ -801,7 +801,7 @@
         getter = function(prop) {
           return function() {
             var v;
-            if ($.is("function", v = this[prop])) {
+            if ($.is("function", v = this[prop]) && prop !== "constructor") {
               return $.bound(this, v);
             } else {
               return v;

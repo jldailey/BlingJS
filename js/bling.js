@@ -4881,63 +4881,6 @@
   });
 
   $.plugin({
-    provides: "sendgrid",
-    depends: "config"
-  }, function() {
-    var closeTransport, err, nodemailer, openTransport, transport;
-    try {
-      nodemailer = require('nodemailer');
-    } catch (_error) {
-      err = _error;
-      return;
-    }
-    transport = null;
-    openTransport = function() {
-      return transport || (transport = nodemailer.createTransport('SMTP', {
-        service: 'SendGrid',
-        auth: {
-          user: $.config.get('SENDGRID_USERNAME'),
-          pass: $.config.get('SENDGRID_PASSWORD')
-        }
-      }));
-    };
-    closeTransport = function() {
-      if (transport != null) {
-        transport.close();
-      }
-      return transport = null;
-    };
-    return {
-      $: {
-        sendMail: function(mail, callback) {
-          if (mail.transport == null) {
-            mail.transport = openTransport();
-          }
-          if (mail.from == null) {
-            mail.from = $.config.get('EMAILS_FROM');
-          }
-          if (mail.bcc == null) {
-            mail.bcc = $.config.get('EMAILS_BCC');
-          }
-          if ($.config.get('SENDGRID_ENABLED', 'true') === 'true') {
-            return nodemailer.sendMail(mail, function(err) {
-              if (mail.close) {
-                closeTransport();
-              }
-              return callback(err);
-            });
-          } else {
-            if (mail.close) {
-              closeTransport();
-            }
-            return callback(false);
-          }
-        }
-      }
-    };
-  });
-
-  $.plugin({
     provides: "sortBy,sortedIndex,sortedInsert"
   }, function() {
     return {

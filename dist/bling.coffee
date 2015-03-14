@@ -2203,38 +2203,6 @@ $.plugin
 	register 'get', (o, opts) -> reduce opts[o.name], opts
 	return $: { render }
 $.plugin
-	provides: "sendgrid"
-	depends: "config"
-, ->
-	try
-		nodemailer = require 'nodemailer'
-	catch err
-		return
-	transport = null
-	openTransport = ->
-		transport or= nodemailer.createTransport 'SMTP',
-			service: 'SendGrid'
-			auth:
-				user: $.config.get 'SENDGRID_USERNAME'
-				pass: $.config.get 'SENDGRID_PASSWORD'
-	closeTransport = ->
-		transport?.close()
-		transport = null
-	$:
-		sendMail: (mail, callback) ->
-			mail.transport ?= openTransport()
-			mail.from ?= $.config.get 'EMAILS_FROM'
-			mail.bcc ?= $.config.get 'EMAILS_BCC'
-			if $.config.get('SENDGRID_ENABLED', 'true') is 'true'
-				nodemailer.sendMail mail, (err) ->
-					if mail.close
-						closeTransport()
-					callback(err)
-			else
-				if mail.close
-					closeTransport()
-				callback(false) # Reply as if an email was sent
-$.plugin
 	provides: "sortBy,sortedIndex,sortedInsert"
 , ->
 	$:

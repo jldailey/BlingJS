@@ -16,4 +16,3 @@ bench
 plugins
 release.sh
 test
-watch.coffee

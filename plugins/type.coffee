@@ -2,7 +2,7 @@
 # ------------
 # Exposes the type system publicly.
 $.plugin
-	provides: "type"
+	provides: "type,is,inherit,extend,defineProperty,isType,are,as,isSimple,isDefined,isEmpty"
 	depends: "compat"
 , ->
 	# The core is built around a _type classifier_. Initially, this
@@ -37,8 +37,8 @@ $.plugin
 			# splice the new parent such that the original chain is preserved
 			parent.__proto__ = obj.__proto__
 		obj.__proto__ = parent
-		return if objs.length > 0
-			inherit obj, objs...
+		if objs.length > 0
+			return inherit obj, objs...
 		else obj
 
 	# Now, let's begin to build the classifier for `$.type(obj)`.
@@ -48,16 +48,16 @@ $.plugin
 		cache = {}
 
 		# Each type in the registry is an instance that inherits from a
-		# _base_ object.  Later, when we want to do more than `match` with
+		# _base_ object.  Later, when we want to do more than `is` with
 		# each type, we will extend this base with default implementations.
 		base =
 			name: 'unknown'
-			is: (o) -> true
+			is: -> true
 
 		# When classifying an object, this array of names will control
-		# the order of the calls to `match` (and thus, the _type precedence_).
+		# the _order_ of the calls to `is` (and thus, the _type precedence_).
 		order = []
-		_with_cache = {} # for fast lookups of every type with a certain method { method: [ types ] }
+		_with_cache = {} # for finding types that have a certain method { method: [ types ] }
 		_with_insert = (method, type) ->
 			a = (_with_cache[method] or= [])
 			if (i = a.indexOf type) is -1
@@ -109,15 +109,15 @@ $.plugin
 		# first, and conceptually more specialized checks would get added
 		# as time goes on (so specialized type matches are preferred).
 		register "object",    is: (o) -> typeof o is "object" and (o.constructor?.name in [undefined, "Object"])
-		register "error",     is: (o) -> isType 'Error', o
-		register "regexp",    is: (o) -> isType 'RegExp', o
-		register "string",    is: (o) -> typeof o is "string" or isType String, o
-		register "number",    is: (o) -> (isType Number, o) and not isNaN(o)
-		register "bool",      is: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
 		register "array",     is: Array.isArray or (o) -> isType Array, o
 		register "buffer",    is: Buffer.isBuffer or -> false
+		register "error",     is: (o) -> isType 'Error', o
+		register "regexp",    is: (o) -> isType 'RegExp', o
+		register "string",    is: (o) -> typeof o is "string" # or isType String, o
+		register "number",    is: (o) -> typeof o is "number" and not isNaN(o)
+		register "bool",      is: (o) -> typeof o is "boolean" # or try String(o) in ["true","false"]
 		register "function",  is: (o) -> typeof o is "function"
-		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of @
+		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of o
 		register "arguments", is: (o) -> try 'callee' of o and 'length' of o
 		# These checks for null and undefined are small exceptions to the
 		# simple-first idea, since they are precise and getting them out
@@ -131,10 +131,10 @@ $.plugin
 			lookup: lookup
 			extend: _extend
 			get: (t) -> cache[t]
-			is: (t, o) -> cache[t]?.is.call o, o
+			is: (t, o) -> cache[t]?.is.call(o, o) ? false
 			as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
 			# Find all types with a certain function available:
-			# e.g. $.type.with('compact') == a list of all compactable types
+			# e.g. $.type.with('compact') == a list of all `compact`-able types
 			with: (f) -> _with_cache[f] ? []
 
 		# Example: Calling $.type directly will get you the simple name of the
@@ -147,6 +147,7 @@ $.plugin
 
 		# Later, once other systems have extended the base type, the
 		# type-instance returned from type.lookup will do more.
+
 	# Extending the type system
 	# First, we give the basic types the ability to turn into something
 	# array-like, for use by the constructor hook.
@@ -159,8 +160,8 @@ $.plugin
 		# this further to know how to convert "html", "node", etc.
 
 		# Null and undefined values convert to an empty array.
-		null:      { array: (o) -> [] }
-		undefined: { array: (o) -> [] }
+		null:      { array:     -> [] }
+		undefined: { array:     -> [] }
 		# Arrays just convert to themselves.
 		array:     { array: (o) -> o }
 		# Numbers create a new array of that capacity (but zero length).
@@ -175,7 +176,7 @@ $.plugin
 		# Add the type test so: `$.type($()) == "bling"`.
 		is:     (o) -> o and isType $, o
 		# Bling extends array so they can convert themselves.
-		array:  (o) -> o.toArray()
+		array:  (o) -> (o and o.toArray()) or []
 		# Their hash is just the sum of member hashes (order matters).
 		hash:   (o) -> o.map($.hash).reduce (a,x) -> ((a*a)+x) % maxHash
 		# They have a very literal string representation.
@@ -201,6 +202,11 @@ $.plugin
 		type: _type
 		# `$.is("function", ->)` equals true/false.
 		is: _type.is
+		# `$.are("function", (->), (->)) equals true/false.
+		are: (type, args...) ->
+			for a in args
+				return false unless $.is type, a
+			return true
 		# `$.as("number", "1234")` attempt to convert types.
 		as: _type.as
 		isDefined: (o) -> o?

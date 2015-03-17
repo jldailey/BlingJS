@@ -3,7 +3,7 @@
 # Filling out the standard library of string functions.
 $.plugin
 	provides: "string"
-	depends: "function"
+	depends: "type"
 , ->
 	safer = (f) -> (a...) ->
 		try return f(a...)
@@ -37,8 +37,7 @@ $.plugin
 			string: safer (o) ->
 				ret = []
 				for k of o
-					try
-						v = o[k]
+					try v = o[k]
 					catch err
 						v = "[Error: #{err.message}]"
 					ret.push "#{k}:#{$.toString v}"
@@ -46,8 +45,7 @@ $.plugin
 			repr: safer (o) ->
 				ret = []
 				for k of o
-					try
-						v = o[k]
+					try v = o[k]
 					catch err
 						v = "[Error: #{err.message}]"
 					ret.push "\"#{k}\": #{$.toRepr v}"
@@ -155,17 +153,17 @@ $.plugin
 					s = s + c
 				s
 
-			stringTruncate: (s, n, c='...') ->
-				if s.length <= n
-					return s
-				s = s.split(' ') # split into words.
+			stringTruncate: (s, n, c='...',sep=' ') ->
+				return s if s.length <= n
+				return c if c.length >= n
+				s = s.split(sep) # split into words.
 				r = []
 				while n > 0
 					x = s.shift()
 					n -= x.length
 					if n >= 0
 						r.push x
-				r.join(' ') + c
+				r.join(sep) + c
 
 
 			# __$.stringCount(s,x)__ counts the number of occurences of `x` in `s`.

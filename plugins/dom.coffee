@@ -3,36 +3,40 @@
 # Only works if there is a global document.
 if $.global.document?
 	$.plugin
+		provides: "dom,HTML,html,append,appendText,appendTo,prepend,prependTo," +
+			"before,after,wrap,unwrap,replace,attr,data,addClass,removeClass,toggleClass," +
+			"hasClass,text,val,css,defaultCss,rect,width,height,top,left,bottom,right," +
+			"position,scrollToCenter,child,parents,next,prev,remove,find,querySelectorAll," +
+			"clone,toFragment"
 		depends: "function,type,string"
-		provides: "dom"
 	, ->
 		bNodelistsAreSpecial = false
 		$.type.register "nodelist",
-			is:  (o) -> o? and $.isType "NodeList", o
-			hash:   (o) -> $($.hash(i) for i in x).sum()
-			array:  do ->
-				try # probe to see if this browsers allows direct modification of a nodelist's prototype
+			is:			(o) -> o? and $.isType "NodeList", o
+			hash:		(o) -> $($.hash(i) for i in o).sum()
+			array:	do ->
+				try # probe to see if this browsers allows modification of a NodeList's prototype
 					document.querySelectorAll("xxx").__proto__ = {}
 					return $.identity
 				catch err # if we can't patch directly, we have to copy into a real array :(
 					bNodelistsAreSpecial = true
 					return (o) -> (node for node in o)
 			string: (o) -> "{Nodelist:["+$(o).select('nodeName').join(",")+"]}"
-			node:   (o) -> $(o).toFragment()
+			node:		(o) -> $(o).toFragment()
 		$.type.register "node",
 			is:  (o) -> o?.nodeType > 0
-			hash:   (o) -> $.checksum(o.nodeName) + $.hash(o.attributes) + $.checksum(o.innerHTML)
+			hash:		(o) -> $.checksum(o.nodeName) + $.hash(o.attributes) + $.checksum(o.innerHTML)
 			string: (o) -> o.toString()
-			node:   $.identity
+			node:		$.identity
 		$.type.register "fragment",
 			is:  (o) -> o?.nodeType is 11
-			hash:   (o) -> $($.hash(x) for x in o.childNodes).sum()
+			hash:		(o) -> $($.hash(x) for x in o.childNodes).sum()
 			string: (o) -> o.toString()
-			node:   $.identity
+			node:		$.identity
 		$.type.register "html",
 			is:  (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
 			# Convert html to node.
-			node:   (h) ->
+			node:		(h) ->
 				# Put the html into a new div.
 				(node = document.createElement('div')).innerHTML = h
 				# If there's only one resulting child, return that Node.
@@ -43,14 +47,14 @@ if $.global.document?
 				df = document.createDocumentFragment()
 				df.appendChild(node.removeChild(childNodes[0])) for i in [0...n] by 1
 				df
-			array:  (o) -> $.type.lookup(h = $.HTML.parse o).array h
+			array:	(o) -> $.type.lookup(h = $.HTML.parse o).array h
 			string: (o) -> "'#{o}'"
-			repr:   (o) -> '"' + o + '"'
+			repr:		(o) -> '"' + o + '"'
 		$.type.extend
-			unknown:  { node: -> null }
-			bling:    { node: (o) -> o.toFragment() }
+			unknown:	{ node: -> null }
+			bling:		{ node: (o) -> o.toFragment() }
 			# Convert a node to an html string.
-			node:     { html: (n) ->
+			node:			{ html: (n) ->
 				d = document.createElement "div"
 				d.appendChild (n = n.cloneNode true)
 				# Uses .innerHTML to render the HTML.
@@ -67,21 +71,20 @@ if $.global.document?
 						(o) -> document.querySelectorAll o
 			function: { node: (o) -> $(o.toString()).toFragment() }
 
-		toFrag = (a) ->
-			if not a.parentNode?
-				df = document.createDocumentFragment()
-				df.appendChild a
+		toFrag  = (a) ->
+			unless a.parentNode
+				document.createDocumentFragment().appendChild a
 			a
-		before = (a,b) -> toFrag(a).parentNode.insertBefore b, a
-		after = (a,b) -> toFrag(a).parentNode.insertBefore b, a.nextSibling
-		toNode = (x) -> $.type.lookup(x).node x
+		before  = (a,b) -> toFrag(a).parentNode.insertBefore b, a
+		after   = (a,b) -> toFrag(a).parentNode.insertBefore b, a.nextSibling
+		toNode  = (x) -> $.type.lookup(x).node x
 		escaper = false
-		parser = false
+		parser  = false
 
 		# window.getComputedStyle is not a normal function
 		# (it doesnt support .call() so we can't use it with .map())
 		# so define something that does work properly for use in .css
-		$.computeCSSProperty = computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
+		$.computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
 
 		getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select p
 
@@ -122,11 +125,13 @@ if $.global.document?
 
 			append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
 				x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
+				return unless x?
 				@each (n) -> n?.appendChild? x.cloneNode true
 
 			appendText: (text) ->
-				node = document.createTextNode(text)
-				@each -> @appendChild node.cloneNode true
+				x = document.createTextNode(text)
+				return unless x?
+				@each (n) -> n?.appendChild? x.cloneNode true
 
 			appendTo: (x) -> # .appendTo(/n/) - each node [or fragment] will become the last child of x
 				clones = @map( -> @cloneNode true)
@@ -219,10 +224,10 @@ if $.global.document?
 					@className = c.join " "
 
 			removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
-				notx = (y) -> y != x
+				notx = (y) -> y isnt x
 				@each ->
-					c = @className.split(" ").filter(notx).join(" ")
-					if c.length is 0
+					@className = @className.split(" ").filter(notx).join(" ")
+					if @className.length is 0
 						@removeAttribute('class')
 
 			toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
@@ -230,14 +235,13 @@ if $.global.document?
 				@each ->
 					cls = @className.split(" ")
 					filter = $.not $.isEmpty
-					if( cls.indexOf(x) > -1 )
+					if (cls.indexOf x) > -1
 						filter = $.and notx, filter
 					else
 						cls.push x
-					c = cls.filter(filter).join(" ")
-					@className = c
-					if c.length is 0
-						@removeAttribute('class')
+					@className = cls.filter(filter).join(" ")
+					if @className.length is 0
+						@removeAttribute 'class'
 
 			hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x
 				@select('className.split').call(" ").select('indexOf').call(x).map (x) -> x > -1
@@ -265,7 +269,7 @@ if $.global.document?
 							setters[i%nn](key, v[i%n], "")
 					else if $.is 'function', v
 						values = @select("style.#{key}") \
-							.weave(@map computeCSSProperty key) \
+							.weave(@map $.computeCSSProperty key) \
 							.fold($.coalesce) \
 							.weave(setters) \
 							.fold (setter, value) -> setter(key, v.call value, value)
@@ -275,7 +279,7 @@ if $.global.document?
 					return @
 				# Else, we are reading CSS properties.
 				else @select("style.#{key}") \
-					.weave(@map computeCSSProperty key) \
+					.weave(@map $.computeCSSProperty key) \
 					.fold($.coalesce)
 
 			# Set css properties by injecting a style element in the the
@@ -379,7 +383,13 @@ if $.global.document?
 				, $()
 
 			# Collect a new set, full of clones of the DOM Nodes in the input set.
-			clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @
+			# If count is given, return a set of sets, of multiple copies of each clone.
+			# e.g. $.synth("div.class").clone(true, 3) -> [ [ div, div, div ] ]
+			clone: (deep=true, count=1) ->
+				c = (n) -> if $.is "node", n then (n.cloneNode deep)
+				@map -> switch count
+					when 1 then c @
+					else (c(@) for _ in [0...count] by 1)
 
 			# Get a single DocumentFragment that contains all the nodes in _this_.
 			toFragment: ->

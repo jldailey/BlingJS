@@ -10,14 +10,14 @@
 # necessarily about timer (in)accuracy, it's about how it
 # stores and dequeues handlers.
 $.plugin
-	provides: "delay"
-	depends: "function"
+	provides: "delay,immediate,interval"
+	depends: "is,select,extend,bound"
 , ->
 	$:
 		delay: do ->
 			# timeoutQueue is a private array that controls the order.
 			timeoutQueue = $.extend [], do ->
-				next = (a) -> -> a.shift()() if a.length
+				next = (a) -> -> (do a.shift()) if a.length; null
 				add: (f, n) ->
 					$.extend f,
 						order: n + $.now
@@ -69,6 +69,5 @@ $.plugin
 
 	# Continue with _f_ after _n_ milliseconds.
 	delay: (n, f) ->
-		$.delay n, $.bind @, f
+		$.delay n, $.bound @, f
 		@
-

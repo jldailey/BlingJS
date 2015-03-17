@@ -2,8 +2,8 @@
 (function() {
   var $, Bling, extend,
     __slice = [].slice,
-    __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; },
     __hasProp = {}.hasOwnProperty,
+    __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; },
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
   Object.keys || (Object.keys = function(o) {
@@ -119,13 +119,15 @@
   };
 
   extend($, (function() {
-    var complete, depend, incomplete, waiting;
+    var commasep, complete, depend, incomplete, not_complete, waiting;
     waiting = [];
     complete = {};
+    commasep = /, */;
+    not_complete = function(x) {
+      return !(x in complete);
+    };
     incomplete = function(n) {
-      return ((typeof n) === "string" ? n.split(/, */) : n).filter(function(x) {
-        return !(x in complete);
-      });
+      return ((typeof n) === "string" ? n.split(commasep) : n).filter(not_complete);
     };
     depend = function(needs, func) {
       if ((needs = incomplete(needs)).length === 0) {
@@ -176,7 +178,7 @@
 
   $.plugin({
     depends: "core",
-    provides: "async"
+    provides: "async,series,parallel"
   }, function() {
     return {
       series: function(fin) {
@@ -184,65 +186,70 @@
         if (fin == null) {
           fin = $.identity;
         }
-        ret = $();
-        todo = this.length;
-        if (!(todo > 0)) {
-          fin.apply(ret);
+        try {
           return this;
+        } finally {
+          ret = $();
+          todo = this.length;
+          if (!(todo > 0)) {
+            fin.apply(ret, ret);
+          } else {
+            done = 0;
+            finish_one = function(index) {
+              return function() {
+                ret[index] = arguments;
+                if (++done >= todo) {
+                  fin.apply(ret, ret);
+                } else {
+                  next(done);
+                }
+                return null;
+              };
+            };
+            (next = (function(_this) {
+              return function(i) {
+                return $.immediate(function() {
+                  return _this[i](finish_one(i));
+                });
+              };
+            })(this))(0);
+          }
         }
-        done = 0;
-        finish_one = function(index) {
-          return function() {
-            ret[index] = arguments;
-            if (++done >= todo) {
-              fin.apply(ret);
-            } else {
-              next(done);
-            }
-            return null;
-          };
-        };
-        (next = (function(_this) {
-          return function(i) {
-            return $.immediate(function() {
-              return _this[i](finish_one(i));
-            });
-          };
-        })(this))(0);
-        return this;
       },
       parallel: function(fin) {
-        var done, finish_one, i, ret, todo, _i, _results;
+        var done, finish_one, i, ret, todo, _i;
         if (fin == null) {
           fin = $.identity;
         }
-        ret = $();
-        todo = this.length;
-        if (!(todo > 0)) {
-          fin.apply(ret);
+        try {
           return this;
-        }
-        done = 0;
-        finish_one = function(index) {
-          return function() {
-            ret[index] = arguments;
-            if (++done >= todo) {
-              fin.apply(ret);
+        } finally {
+          ret = $();
+          todo = this.length;
+          if (!(todo > 0)) {
+            fin.apply(ret, ret);
+          } else {
+            done = 0;
+            finish_one = function(index) {
+              return function() {
+                ret[index] = arguments;
+                if (++done >= todo) {
+                  fin.apply(ret, ret);
+                }
+                return null;
+              };
+            };
+            for (i = _i = 0; _i < todo; i = _i += 1) {
+              this[i](finish_one(i));
             }
-            return null;
-          };
-        };
-        _results = [];
-        for (i = _i = 0; _i < todo; i = _i += 1) {
-          _results.push(this[i](finish_one(i)));
+          }
         }
-        return _results;
       }
     };
   });
 
   $.plugin({
-    provides: "cache",
+    provides: "cache, Cache",
     depends: "core, sortBy"
   }, function() {
     var EffCache;
@@ -408,7 +415,7 @@
   });
 
   $.plugin({
-    provides: "compat"
+    provides: "compat, trimLeft, split, lastIndexOf, join, preventAll, matchesSelector, isBuffer"
   }, function() {
     var _base, _base1, _base2, _base3, _base4;
     (_base = $.global).Buffer || (_base.Buffer = {
@@ -470,9 +477,9 @@
 
   $.plugin({
     provides: 'config',
-    depends: 'type'
+    depends: 'core'
   }, function() {
-    var get, parse, set;
+    var get, parse, set, watch;
     get = function(name, def) {
       var _ref;
       switch (arguments.length) {
@@ -483,7 +490,12 @@
       }
     };
     set = function(name, val) {
-      return process.env[name] = val;
+      switch (arguments.length) {
+        case 1:
+          return $.extend(process.env, arguments[0]);
+        case 2:
+          return process.env[name] = val;
+      }
     };
     parse = function(data) {
       var ret;
@@ -498,19 +510,31 @@
       });
       return ret;
     };
+    watch = function(name, func) {
+      var prev;
+      prev = process.env[name];
+      return $.interval(1003, function() {
+        var cur;
+        if ((cur = process.env[name]) !== prev) {
+          func(prev, cur);
+          return prev = cur;
+        }
+      });
+    };
     return {
       $: {
         config: $.extend(get, {
           get: get,
           set: set,
-          parse: parse
+          parse: parse,
+          watch: watch
         })
       }
     };
   });
 
   $.plugin({
-    provides: "core",
+    provides: "core,eq,each,map,filterMap,tap,replaceWith,reduce,union,intersect,distinct," + "contains,count,coalesce,swap,shuffle,select,or,zap,clean,take,skip,first,last,slice," + "push,filter,matches,weave,fold,flatten,call,apply,log,toArray,clear,indexWhere",
     depends: "string"
   }, function() {
     var baseTime, index;
@@ -571,19 +595,37 @@
           a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
           return $(a).coalesce();
         },
-        keysOf: function(o) {
+        keysOf: function(o, own) {
           var k;
-          return $((function() {
-            var _results;
-            _results = [];
-            for (k in o) {
-              _results.push(k);
-            }
-            return _results;
-          })());
+          if (own == null) {
+            own = false;
+          }
+          if (own) {
+            return $((function() {
+              var _results;
+              _results = [];
+              for (k in o) {
+                if (!__hasProp.call(o, k)) continue;
+                _results.push(k);
+              }
+              return _results;
+            })());
+          } else {
+            return $((function() {
+              var _results;
+              _results = [];
+              for (k in o) {
+                _results.push(k);
+              }
+              return _results;
+            })());
+          }
         },
-        valuesOf: function(o) {
-          return $.keysOf(o).map(function(k) {
+        valuesOf: function(o, own) {
+          if (own == null) {
+            own = false;
+          }
+          return $.keysOf(o, own).map(function(k) {
             var err;
             try {
               return o[k];
@@ -759,7 +801,7 @@
         getter = function(prop) {
           return function() {
             var v;
-            if ($.is("function", v = this[prop])) {
+            if ($.is("function", v = this[prop]) && prop !== "constructor") {
               return $.bound(this, v);
             } else {
               return v;
@@ -1004,6 +1046,13 @@
               };
             case "function":
               return f;
+            case "bool":
+            case "number":
+            case "null":
+            case "undefined":
+              return function(x) {
+                return f === x;
+              };
             default:
               throw new Error("unsupported argument to filter: " + ($.type(f)));
           }
@@ -1116,7 +1165,8 @@
   });
 
   $.plugin({
-    provides: "css,CSS"
+    provides: "css,CSS",
+    depends: "type"
   }, function() {
     var compact, flatten, parse, specialOps, stripComments, trim;
     flatten = function(o, prefix, into) {
@@ -1273,10 +1323,10 @@
   });
 
   $.plugin({
-    provides: 'date',
+    provides: 'date,midnight,stamp,unstamp,dateFormat,dateParse',
     depends: 'type'
   }, function() {
-    var YY, adder, d, floor, format_keys, formats, h, longDays, m, ms, parser_keys, parsers, s, shortDays, units, _ref;
+    var adder, d, fYY, floor, format_keys, formats, h, longDays, m, ms, pYY, pYYYY, parser_keys, parsers, s, shortDays, units, _ref;
     _ref = [1, 1000, 1000 * 60, 1000 * 60 * 60, 1000 * 60 * 60 * 24], ms = _ref[0], s = _ref[1], m = _ref[2], h = _ref[3], d = _ref[4];
     units = {
       ms: ms,
@@ -1300,10 +1350,10 @@
     longDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     formats = {
       yyyy: Date.prototype.getUTCFullYear,
-      YY: YY = function() {
+      YY: fYY = function() {
         return String(this.getUTCFullYear()).substr(2);
       },
-      yy: YY,
+      yy: fYY,
       mm: function() {
         return this.getUTCMonth() + 1;
       },
@@ -1322,7 +1372,12 @@
     };
     format_keys = Object.keys(formats).sort().reverse();
     parsers = {
-      yyyy: Date.prototype.setUTCFullYear,
+      YYYY: pYYYY = Date.prototype.setUTCFullYear,
+      yyyy: pYYYY,
+      YY: pYY = function(x) {
+        return this.setUTCFullYear((x > 50 ? 1900 : 2000) + x);
+      },
+      yy: pYY,
       mm: function(x) {
         return this.setUTCMonth(x - 1);
       },
@@ -1349,19 +1404,19 @@
       }
     });
     $.type.extend('string', {
-      date: function(o, fmt) {
+      date: function(s, fmt) {
         if (fmt == null) {
           fmt = $.date.defaultFormat;
         }
-        return new Date($.date.parse(o, fmt, "ms"));
+        return new Date($.date.parse(s, fmt, "ms"));
       }
     });
     $.type.extend('number', {
-      date: function(o, unit) {
+      date: function(n, unit) {
         if (unit == null) {
           unit = $.date.defaultUnit;
         }
-        return $.date.unstamp(o, unit);
+        return $.date.unstamp(n, unit);
       }
     });
     adder = function(key) {
@@ -1432,7 +1487,7 @@
             return fmt;
           },
           parse: function(dateString, fmt, to) {
-            var date, err, i, k, _i, _j, _len, _ref1;
+            var date, err, i, k, _i, _len;
             if (fmt == null) {
               fmt = $.date.defaultFormat;
             }
@@ -1440,9 +1495,10 @@
               to = $.date.defaultUnit;
             }
             date = new Date(0);
-            for (i = _i = 0, _ref1 = fmt.length; _i < _ref1; i = _i += 1) {
-              for (_j = 0, _len = parser_keys.length; _j < _len; _j++) {
-                k = parser_keys[_j];
+            i = 0;
+            while (i < fmt.length) {
+              for (_i = 0, _len = parser_keys.length; _i < _len; _i++) {
+                k = parser_keys[_i];
                 if (fmt.indexOf(k, i) === i) {
                   try {
                     parsers[k].call(date, parseInt(dateString.slice(i, i + k.length), 10));
@@ -1450,8 +1506,11 @@
                     err = _error;
                     throw new Error("Invalid date ('" + dateString + "') given format mask: " + fmt + " (failed at position " + i + ")");
                   }
+                  i += k.length - 1;
+                  break;
                 }
               }
+              i += 1;
             }
             return $.date.stamp(date, to);
           },
@@ -1532,8 +1591,65 @@
   });
 
   $.plugin({
-    provides: "delay",
-    depends: "function"
+    provides: "debug, debugStack",
+    depends: "core"
+  }, function() {
+    var explodeStack;
+    explodeStack = function(stack) {
+      var err, files, fs, lines, message;
+      fs = null;
+      try {
+        fs = require('fs');
+      } catch (_error) {
+        err = _error;
+        return stack;
+      }
+      lines = $(String(stack).split(/(?:\r\n|\r|\n)/)).filter(/^$/, false);
+      message = lines.first();
+      lines = lines.skip(1);
+      files = lines.map(function(s) {
+        var col, data, f, f_lines, line, ln_num, spacer, tabs, _ref;
+        f = s.replace(/^\s*at\s+/, '').replace(/^[^(]*\(/, '(').replace(/^\(/, '').replace(/\)$/, '');
+        try {
+          _ref = f.split(/:/), f = _ref[0], ln_num = _ref[1], col = _ref[2];
+          data = String(fs.readFileSync(f));
+          f_lines = data.split(/(?:\r\n|\r|\n)/);
+          line = f_lines[ln_num - 1];
+          if (line.length > 80) {
+            line = "... " + line.substr(col - 35, 70) + " ...";
+            col = 39;
+          }
+          tabs = line.replace(/[^\t]/g, '').length;
+          spacer = $.repeat('\t', tabs) + $.repeat(' ', (col - 1) - tabs);
+          return "  " + ln_num + " " + line + "\n  " + ln_num + " " + spacer + "^";
+        } catch (_error) {
+          err = _error;
+          return null;
+        }
+      });
+      return message + "\n" + $.weave(files, lines).filter(null, false).join("\n");
+    };
+    return {
+      $: {
+        debugStack: function(error) {
+          return explodeStack((function() {
+            switch (true) {
+              case $.is('error', error):
+                return String(error.stack);
+              case $.is('string', error):
+                return error;
+              default:
+                return String(error);
+            }
+          })());
+        }
+      }
+    };
+  });
+
+  $.plugin({
+    provides: "delay,immediate,interval",
+    depends: "is,select,extend,bound"
   }, function() {
     return {
       $: {
@@ -1544,8 +1660,9 @@
             next = function(a) {
               return function() {
                 if (a.length) {
-                  return a.shift()();
+                  a.shift()();
                 }
+                return null;
               };
             };
             return {
@@ -1655,18 +1772,19 @@
         }
       },
       delay: function(n, f) {
-        $.delay(n, $.bind(this, f));
+        $.delay(n, $.bound(this, f));
         return this;
       }
     };
   });
 
   $.plugin({
-    depends: "core",
-    provides: "diff"
+    depends: "inherit,reduce",
+    provides: "diff,stringDistance,stringDiff"
   }, function() {
-    var collapse, del, diff, diff_memo, ins, lev, lev_memo, sub;
+    var collapse, del, diff, diff_memo, ins, lev, lev_memo, min, sub;
     lev_memo = Object.create(null);
+    min = Math.min;
     lev = function(s, i, n, t, j, m, dw, iw, sw) {
       var _name, _name1;
       return lev_memo[_name = [s, i, n, t, j, m, dw, iw, sw]] != null ? lev_memo[_name] : lev_memo[_name] = lev_memo[_name1 = [t, j, m, s, i, n, dw, iw, sw]] != null ? lev_memo[_name1] : lev_memo[_name1] = (function() {
@@ -1676,7 +1794,7 @@
           case !(n <= 0):
             return m;
           default:
-            return Math.min(dw + lev(s, i + 1, n - 1, t, j, m, dw, iw, sw), iw + lev(s, i, n, t, j + 1, m - 1, dw, iw, sw), (sw * (s[i] !== t[j])) + lev(s, i + 1, n - 1, t, j + 1, m - 1, dw, iw, sw));
+            return min(dw + lev(s, i + 1, n - 1, t, j, m, dw, iw, sw), iw + lev(s, i, n, t, j + 1, m - 1, dw, iw, sw), (sw * (s[i] !== t[j])) + lev(s, i + 1, n - 1, t, j + 1, m - 1, dw, iw, sw));
         }
       })();
     };
@@ -1774,7 +1892,7 @@
               ins: iw + lev.apply(null, args.ins),
               sub: sw + lev.apply(null, args.sub)
             };
-            switch (Math.min(costs.del, costs.ins, costs.sub)) {
+            switch (min(costs.del, costs.ins, costs.sub)) {
               case costs.del:
                 return $(del(s[i])).concat(diff.apply(null, args.del));
               case costs.ins:
@@ -1799,10 +1917,10 @@
 
   if ($.global.document != null) {
     $.plugin({
-      depends: "function,type,string",
-      provides: "dom"
+      provides: "dom,HTML,html,append,appendText,appendTo,prepend,prependTo," + "before,after,wrap,unwrap,replace,attr,data,addClass,removeClass,toggleClass," + "hasClass,text,val,css,defaultCss,rect,width,height,top,left,bottom,right," + "position,scrollToCenter,child,parents,next,prev,remove,find,querySelectorAll," + "clone,toFragment",
+      depends: "function,type,string"
     }, function() {
-      var after, bNodelistsAreSpecial, before, computeCSSProperty, escaper, getOrSetRect, parser, selectChain, toFrag, toNode;
+      var after, bNodelistsAreSpecial, before, escaper, getOrSetRect, parser, selectChain, toFrag, toNode;
       bNodelistsAreSpecial = false;
       $.type.register("nodelist", {
         is: function(o) {
@@ -1813,8 +1931,8 @@
           return $((function() {
             var _i, _len, _results;
             _results = [];
-            for (_i = 0, _len = x.length; _i < _len; _i++) {
-              i = x[_i];
+            for (_i = 0, _len = o.length; _i < _len; _i++) {
+              i = o[_i];
               _results.push($.hash(i));
             }
             return _results;
@@ -1953,10 +2071,8 @@
         }
       });
       toFrag = function(a) {
-        var df;
-        if (a.parentNode == null) {
-          df = document.createDocumentFragment();
-          df.appendChild(a);
+        if (!a.parentNode) {
+          document.createDocumentFragment().appendChild(a);
         }
         return a;
       };
@@ -1971,7 +2087,7 @@
       };
       escaper = false;
       parser = false;
-      $.computeCSSProperty = computeCSSProperty = function(k) {
+      $.computeCSSProperty = function(k) {
         return function() {
           return $.global.getComputedStyle(this, null).getPropertyValue(k);
         };
@@ -2041,15 +2157,21 @@
         },
         append: function(x) {
           x = toNode(x);
+          if (x == null) {
+            return;
+          }
           return this.each(function(n) {
             return n != null ? typeof n.appendChild === "function" ? n.appendChild(x.cloneNode(true)) : void 0 : void 0;
           });
         },
         appendText: function(text) {
-          var node;
-          node = document.createTextNode(text);
-          return this.each(function() {
-            return this.appendChild(node.cloneNode(true));
+          var x;
+          x = document.createTextNode(text);
+          if (x == null) {
+            return;
+          }
+          return this.each(function(n) {
+            return n != null ? typeof n.appendChild === "function" ? n.appendChild(x.cloneNode(true)) : void 0 : void 0;
           });
         },
         appendTo: function(x) {
@@ -2200,9 +2322,8 @@
             return y !== x;
           };
           return this.each(function() {
-            var c;
-            c = this.className.split(" ").filter(notx).join(" ");
-            if (c.length === 0) {
+            this.className = this.className.split(" ").filter(notx).join(" ");
+            if (this.className.length === 0) {
               return this.removeAttribute('class');
             }
           });
@@ -2213,17 +2334,16 @@
             return y !== x;
           };
           return this.each(function() {
-            var c, cls, filter;
+            var cls, filter;
             cls = this.className.split(" ");
             filter = $.not($.isEmpty);
-            if (cls.indexOf(x) > -1) {
+            if ((cls.indexOf(x)) > -1) {
               filter = $.and(notx, filter);
             } else {
               cls.push(x);
             }
-            c = cls.filter(filter).join(" ");
-            this.className = c;
-            if (c.length === 0) {
+            this.className = cls.filter(filter).join(" ");
+            if (this.className.length === 0) {
               return this.removeAttribute('class');
             }
           });
@@ -2259,7 +2379,7 @@
                 setters[i % nn](key, v[i % n], "");
               }
             } else if ($.is('function', v)) {
-              values = this.select("style." + key).weave(this.map(computeCSSProperty(key))).fold($.coalesce).weave(setters).fold(function(setter, value) {
+              values = this.select("style." + key).weave(this.map($.computeCSSProperty(key))).fold($.coalesce).weave(setters).fold(function(setter, value) {
                 return setter(key, v.call(value, value));
               });
             } else {
@@ -2267,7 +2387,7 @@
             }
             return this;
           } else {
-            return this.select("style." + key).weave(this.map(computeCSSProperty(key))).fold($.coalesce);
+            return this.select("style." + key).weave(this.map($.computeCSSProperty(key))).fold($.coalesce);
           }
         },
         defaultCss: function(k, v) {
@@ -2368,13 +2488,30 @@
             return a.extend(i.querySelectorAll(expr));
           }, $());
         },
-        clone: function(deep) {
+        clone: function(deep, count) {
+          var c;
           if (deep == null) {
             deep = true;
           }
+          if (count == null) {
+            count = 1;
+          }
+          c = function(n) {
+            if ($.is("node", n)) {
+              return n.cloneNode(deep);
+            }
+          };
           return this.map(function() {
-            if ($.is("node", this)) {
-              return this.cloneNode(deep);
+            var _, _i, _results;
+            switch (count) {
+              case 1:
+                return c(this);
+              default:
+                _results = [];
+                for (_ = _i = 0; _i < count; _ = _i += 1) {
+                  _results.push(c(this));
+                }
+                return _results;
             }
           });
         },
@@ -2444,7 +2581,7 @@
             removeAllListeners: function(e) {
               return listeners[e] = [];
             },
-            setMaxListeners: function(n) {},
+            setMaxListeners: function() {},
             listeners: function(e) {
               return list(e).slice(0);
             }
@@ -2456,7 +2593,7 @@
 
   $.plugin({
     depends: "dom,function,core",
-    provides: "event"
+    provides: "event,bind,unbind,trigger,delegate,undelegate,click,ready"
   }, function() {
     var EVENTSEP_RE, binder, events, ret, triggerReady, _b, _base, _get;
     EVENTSEP_RE = /,* +/;
@@ -2692,8 +2829,8 @@
   });
 
   $.plugin({
-    provides: "function",
-    depends: "hash"
+    provides: "function,identity,compose,once,cycle,bound,partial",
+    depends: "extend,is,defineProperty,map"
   }, function() {
     return {
       $: {
@@ -3127,6 +3264,106 @@
   });
 
   $.plugin({
+    provides: "toHTML",
+    depends: "type,synth,once"
+  }, function() {
+    var dumpScript, dumpStyles, table, tableRow;
+    dumpStyles = $.once(function() {
+      try {
+        return $("head").append($.synth("style#dump").text("table.dump                { border: 1px solid black; }\ntable.dump tr.h           { background-color: blue; color: white; cursor: pointer; }\ntable.dump tr.h th        { padding: 0px 4px; }\ntable.dump tr.h.array     { background-color: purple; }\ntable.dump tr.h.bling     { background-color: gold; }\ntable.dump td             { padding: 2px; }\ntable.dump td.k           { background-color: lightblue; }\ntable.dump td.v.string    { background-color: #cfc; }\ntable.dump td.v.number    { background-color: #ffc; }\ntable.dump td.v.bool      { background-color: #fcf; }"));
+      } catch (_error) {}
+    });
+    dumpScript = $.once(function() {
+      try {
+        return $("head").append($.synth("script#dump").text("$(document.body).delegate('table.dump tr.h', 'click', function() {\n	$(this.parentNode).find(\"tr.kv\").toggle()\n})"));
+      } catch (_error) {}
+    });
+    table = function(t, rows) {
+      var row, tab, _i, _len;
+      tab = $.synth("table.dump tr.h." + t + " th[colspan=2] '" + t + "'");
+      if (t === "array" || t === "bling" || t === "nodelist") {
+        tab.find("th").appendText(" [" + rows.length + "]");
+      }
+      for (_i = 0, _len = rows.length; _i < _len; _i++) {
+        row = rows[_i];
+        tab.append(row);
+      }
+      return tab[0];
+    };
+    tableRow = function(k, v, open) {
+      var row, td, _t;
+      row = $.synth("tr.kv td.k[align=right][valign=top] '" + k + "' + td.v");
+      td = row.find("td.v");
+      switch (_t = $.type(v = $.toHTML(v, open))) {
+        case "string":
+        case "number":
+        case "bool":
+        case "html":
+        case "null":
+        case "undefined":
+          td.appendText(String(v));
+          break;
+        default:
+          td.append(v);
+      }
+      td.addClass(_t);
+      if (!open) {
+        row.toggle();
+      }
+      return row;
+    };
+    return {
+      $: {
+        toHTML: function(obj, open) {
+          var k, s, t, v;
+          if (open == null) {
+            open = true;
+          }
+          dumpStyles();
+          dumpScript();
+          switch (t = $.type(obj)) {
+            case "string":
+            case "number":
+            case "bool":
+            case "null":
+            case "undefined":
+            case "html":
+              return obj;
+            case "bling":
+            case "array":
+            case "nodelist":
+              return table(t, (function() {
+                var _i, _len, _results;
+                _results = [];
+                for (k = _i = 0, _len = obj.length; _i < _len; k = ++_i) {
+                  v = obj[k];
+                  _results.push(tableRow(k, v, open));
+                }
+                return _results;
+              })());
+            case "object":
+            case "array":
+              return table(t, (function() {
+                var _results;
+                _results = [];
+                for (k in obj) {
+                  v = obj[k];
+                  _results.push(tableRow(k, v, open));
+                }
+                return _results;
+              })());
+            case "node":
+              s = $.HTML.stringify(obj);
+              return s.substr(0, s.indexOf('>') + 1) + '...';
+            default:
+              return String(obj);
+          }
+        }
+      }
+    };
+  });
+
+  $.plugin({
     provides: 'keyName,keyNames',
     depends: "math"
   }, function() {
@@ -3324,10 +3561,11 @@
             case 'object':
               for (k in pattern) {
                 v = pattern[k];
-                if (matches(v, obj[k])) {
-                  return true;
+                if (!matches(v, obj[k])) {
+                  return false;
                 }
               }
+              return true;
           }
           return false;
         case 'array':
@@ -3392,6 +3630,14 @@
     };
     matches.Any = (function() {
       function Any() {}
+
+      Any.toString = function() {
+        return "{Any}";
+      };
+
+      Any.inspect = function() {
+        return "{Any}";
+      };
 
       return Any;
 
@@ -3537,7 +3783,7 @@
       },
       avg: mean,
       sum: function() {
-        return this.filter(isFinite).reduce((function(a) {
+        return this.filter(isFinite).filter(null, false).reduce((function(a) {
           return a + this;
         }), 0);
       },
@@ -3683,6 +3929,56 @@
   });
 
   $.plugin({
+    provides: 'middleware',
+    depends: 'type'
+  }, function() {
+    $.type.register('middleware', {
+      is: function(o) {
+        var err;
+        try {
+          return $.are('function', o.use, o.unuse, o.invoke);
+        } catch (_error) {
+          err = _error;
+          return false;
+        }
+      }
+    });
+    return {
+      $: {
+        middleware: function(s) {
+          if (s == null) {
+            s = [];
+          }
+          return {
+            use: function(f) {
+              s.push(f);
+              return this;
+            },
+            unuse: function(f) {
+              var i;
+              while ((i = s.indexOf(f)) > -1) {
+                s.splice(i, 1);
+              }
+              return this;
+            },
+            invoke: function() {
+              var a, i, n;
+              a = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+              i = -1;
+              (n = (function() {
+                try {
+                  return s[++i].apply(s, __slice.call(a).concat([n]));
+                } catch (_error) {}
+              }))();
+              return this;
+            }
+          };
+        }
+      }
+    };
+  });
+
+  $.plugin({
     depends: "core,function",
     provides: "promise"
   }, function() {
@@ -3708,7 +4004,7 @@
         return null;
       };
       consume_one = function(cb, e, v) {
-        var __e, _e, _ref, _ref1, _ref2;
+        var __e, __stack, _e, _ref, _stack;
         if ((_ref = cb.timeout) != null) {
           _ref.cancel();
         }
@@ -3716,11 +4012,14 @@
           cb(e, v);
         } catch (_error) {
           _e = _error;
+          _stack = $.debugStack(_e);
+          $.log("Promise(" + ret.promiseId + ") first-chance exception:", _stack);
           try {
             cb(_e, null);
           } catch (_error) {
             __e = _error;
-            $.log("Fatal error in promise callback:", (_ref1 = __e != null ? __e.stack : void 0) != null ? _ref1 : __e, "caused by:", (_ref2 = _e != null ? _e.stack : void 0) != null ? _ref2 : _e);
+            __stack = $.debugStack(__e);
+            $.log("Promise(" + ret.promiseId + ") last-chance exception:", __stack);
           }
         }
         return null;
@@ -3730,20 +4029,23 @@
           if ((err === result && result === NoValue)) {
             if (error !== NoValue) {
               err = error;
+              if (!(error != null ? error.stack : void 0)) {
+                err = new Error(error);
+              }
             } else if (value !== NoValue) {
               result = value;
             }
-            switch (false) {
-              case value !== _this:
+            switch (true) {
+              case value === _this:
                 return end(new TypeError("cant resolve a promise with itself"));
-              case !$.is('promise', value):
+              case $.is('promise', value):
                 value.wait(end);
                 break;
-              case error === NoValue:
-                consume_all(error, null);
+              case error !== NoValue:
+                consume_all(err, null);
                 break;
-              case value === NoValue:
-                consume_all(null, value);
+              case value !== NoValue:
+                consume_all(null, result);
             }
           }
           return _this;
@@ -3771,7 +4073,7 @@
                 var i;
                 if ((i = waiting.indexOf(cb)) > -1) {
                   waiting.splice(i, 1);
-                  return consume_one(cb, err = 'timeout', void 0);
+                  return consume_one(cb, err = new Error('timeout'), void 0);
                 }
               });
             }
@@ -3781,11 +4083,7 @@
         then: function(f, e) {
           return this.wait(function(err, x) {
             if (err) {
-              if (e != null) {
-                return e(err);
-              } else {
-                throw err;
-              }
+              return typeof e === "function" ? e(err) : void 0;
             } else {
               return f(x);
             }
@@ -3859,7 +4157,7 @@
       var p, promises;
       promises = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
       p = $.Progress(1 + promises.length);
-      $(promises).select('wait').call(function(err, data) {
+      $(promises).select('wait').call(function(err) {
         if (err) {
           return p.reject(err);
         } else {
@@ -4398,6 +4696,9 @@
       }
       promise.wait(function(err, result) {
         var r;
+        if (err) {
+          return p.reject(err);
+        }
         r = reduce(result, opts);
         if ($.is('promise', r)) {
           return consume_forever(r, opts, p);
@@ -4452,7 +4753,7 @@
         case "bling":
           p = $.Progress(m = 1);
           q = $.Promise();
-          p.wait(function(err, result) {
+          p.wait(function(err) {
             if (err) {
               return q.reject(err);
             } else {
@@ -4527,7 +4828,7 @@
             _results = [];
             for (_i = 0, _len = o.length; _i < _len; _i++) {
               x = o[_i];
-              _results.push(finalize(x));
+              _results.push(finalize(x, opts));
             }
             return _results;
           })()).join('');
@@ -4547,12 +4848,12 @@
           _results = [];
           for (_i = 0, _len = _ref.length; _i < _len; _i++) {
             k = _ref[_i];
-            if (k in this) {
-              _results.push([" ", k, "='", this[k], "'"]);
+            if (k in o) {
+              _results.push([" " + k + "='", o[k], "'"]);
             }
           }
           return _results;
-        }).call(this), ">", reduce(this.content, opts), "</a>"
+        })(), ">", reduce(o.content, opts), "</a>"
       ];
     });
     register('let', function(o, opts) {
@@ -4580,64 +4881,7 @@
   });
 
   $.plugin({
-    provides: "sendgrid",
-    depends: "config"
-  }, function() {
-    var closeTransport, err, nodemailer, openTransport, transport;
-    try {
-      nodemailer = require('nodemailer');
-    } catch (_error) {
-      err = _error;
-      return;
-    }
-    transport = null;
-    openTransport = function() {
-      return transport || (transport = nodemailer.createTransport('SMTP', {
-        service: 'SendGrid',
-        auth: {
-          user: $.config.get('SENDGRID_USERNAME'),
-          pass: $.config.get('SENDGRID_PASSWORD')
-        }
-      }));
-    };
-    closeTransport = function() {
-      if (transport != null) {
-        transport.close();
-      }
-      return transport = null;
-    };
-    return {
-      $: {
-        sendMail: function(mail, callback) {
-          if (mail.transport == null) {
-            mail.transport = openTransport();
-          }
-          if (mail.from == null) {
-            mail.from = $.config.get('EMAILS_FROM');
-          }
-          if (mail.bcc == null) {
-            mail.bcc = $.config.get('EMAILS_BCC');
-          }
-          if ($.config.get('SENDGRID_ENABLED', 'true') === 'true') {
-            return nodemailer.sendMail(mail, function(err) {
-              if (mail.close) {
-                closeTransport();
-              }
-              return callback(err);
-            });
-          } else {
-            if (mail.close) {
-              closeTransport();
-            }
-            return callback(false);
-          }
-        }
-      }
-    };
-  });
-
-  $.plugin({
-    provides: "sortBy,sortedIndex"
+    provides: "sortBy,sortedIndex,sortedInsert"
   }, function() {
     return {
       $: {
@@ -4792,7 +5036,7 @@
 
   $.plugin({
     provides: "string",
-    depends: "function"
+    depends: "type"
   }, function() {
     var escape_single_quotes, safer, slugize;
     safer = function(f) {
@@ -5061,15 +5305,21 @@
           }
           return s;
         },
-        stringTruncate: function(s, n, c) {
+        stringTruncate: function(s, n, c, sep) {
           var r, x;
           if (c == null) {
             c = '...';
           }
+          if (sep == null) {
+            sep = ' ';
+          }
           if (s.length <= n) {
             return s;
           }
-          s = s.split(' ');
+          if (c.length >= n) {
+            return c;
+          }
+          s = s.split(sep);
           r = [];
           while (n > 0) {
             x = s.shift();
@@ -5078,7 +5328,7 @@
               r.push(x);
             }
           }
-          return r.join(' ') + c;
+          return r.join(sep) + c;
         },
         stringCount: function(s, x, i, n) {
           var j;
@@ -5408,7 +5658,7 @@
   });
 
   $.plugin({
-    depends: "StateMachine",
+    depends: "StateMachine, function",
     provides: "template"
   }, function() {
     var current_engine, engines, match_forward, template;
@@ -5437,10 +5687,11 @@
     template.__defineGetter__('engine', function() {
       return current_engine;
     });
+    template.__defineGetter__('engines', function() {
+      return $.keysOf(engines);
+    });
     template.register_engine('null', (function() {
-      return function(text, values) {
-        return text;
-      };
+      return $.identity;
     })());
     match_forward = function(text, find, against, start, stop) {
       var count, i, t, _i;
@@ -5495,7 +5746,7 @@
         return ret;
       };
       compile.cache = {};
-      render = function(text, values) {
+      return render = function(text, values) {
         var cache, fixed, i, j, key, n, output, pad, rest, type, value, _i, _ref, _ref1;
         cache = compile.cache[text];
         if (cache == null) {
@@ -5529,32 +5780,6 @@
           output[j++] = rest;
         }
         return output.join("");
-      };
-      return render;
-    })());
-    template.register_engine('js-eval', (function() {
-      var TemplateMachine;
-      TemplateMachine = (function(_super) {
-        __extends(TemplateMachine, _super);
-
-        function TemplateMachine() {
-          return TemplateMachine.__super__.constructor.apply(this, arguments);
-        }
-
-        TemplateMachine.STATE_TABLE = [
-          {
-            enter: function() {
-              this.data = [];
-              return this.GO(1);
-            }
-          }, {}
-        ];
-
-        return TemplateMachine;
-
-      })($.StateMachine);
-      return function(text, values) {
-        return text;
       };
     })());
     return {
@@ -5603,8 +5828,8 @@
   });
 
   $.plugin({
-    depends: 'type',
-    provides: 'TNET'
+    provides: 'TNET',
+    depends: 'type, string, function'
   }, function() {
     var Symbols, Types, class_index, classes, makeFunction, packOne, register, unpackOne;
     Types = {
@@ -6102,7 +6327,7 @@
   });
 
   $.plugin({
-    provides: "type",
+    provides: "type,is,inherit,extend,defineProperty,isType,are,as,isSimple,isDefined,isEmpty",
     depends: "compat"
   }, function() {
     var inherit, isType, maxHash, _type;
@@ -6138,7 +6363,7 @@
       cache = {};
       base = {
         name: 'unknown',
-        is: function(o) {
+        is: function() {
           return true;
         }
       };
@@ -6203,6 +6428,16 @@
           return typeof o === "object" && ((_ref = (_ref1 = o.constructor) != null ? _ref1.name : void 0) === (void 0) || _ref === "Object");
         }
       });
+      register("array", {
+        is: Array.isArray || function(o) {
+          return isType(Array, o);
+        }
+      });
+      register("buffer", {
+        is: Buffer.isBuffer || function() {
+          return false;
+        }
+      });
       register("error", {
         is: function(o) {
           return isType('Error', o);
@@ -6215,32 +6450,17 @@
       });
       register("string", {
         is: function(o) {
-          return typeof o === "string" || isType(String, o);
+          return typeof o === "string";
         }
       });
       register("number", {
         is: function(o) {
-          return (isType(Number, o)) && !isNaN(o);
+          return typeof o === "number" && !isNaN(o);
         }
       });
       register("bool", {
         is: function(o) {
-          return typeof o === "boolean" || (function() {
-            var _ref;
-            try {
-              return (_ref = String(o)) === "true" || _ref === "false";
-            } catch (_error) {}
-          })();
-        }
-      });
-      register("array", {
-        is: Array.isArray || function(o) {
-          return isType(Array, o);
-        }
-      });
-      register("buffer", {
-        is: Buffer.isBuffer || function() {
-          return false;
+          return typeof o === "boolean";
         }
       });
       register("function", {
@@ -6250,7 +6470,7 @@
       });
       register("global", {
         is: function(o) {
-          return typeof o === "object" && 'setInterval' in this;
+          return typeof o === "object" && 'setInterval' in o;
         }
       });
       register("arguments", {
@@ -6280,8 +6500,8 @@
           return cache[t];
         },
         is: function(t, o) {
-          var _ref;
-          return (_ref = cache[t]) != null ? _ref.is.call(o, o) : void 0;
+          var _ref, _ref1;
+          return (_ref = (_ref1 = cache[t]) != null ? _ref1.is.call(o, o) : void 0) != null ? _ref : false;
         },
         as: function() {
           var o, rest, t, _base;
@@ -6301,12 +6521,12 @@
         }
       },
       "null": {
-        array: function(o) {
+        array: function() {
           return [];
         }
       },
       undefined: {
-        array: function(o) {
+        array: function() {
           return [];
         }
       },
@@ -6334,7 +6554,7 @@
         return o && isType($, o);
       },
       array: function(o) {
-        return o.toArray();
+        return (o && o.toArray()) || [];
       },
       hash: function(o) {
         return o.map($.hash).reduce(function(a, x) {
@@ -6366,6 +6586,17 @@
         isType: isType,
         type: _type,
         is: _type.is,
+        are: function() {
+          var a, args, type, _i, _len;
+          type = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+          for (_i = 0, _len = args.length; _i < _len; _i++) {
+            a = args[_i];
+            if (!$.is(type, a)) {
+              return false;
+            }
+          }
+          return true;
+        },
         as: _type.as,
         isDefined: function(o) {
           return o != null;

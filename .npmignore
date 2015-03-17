@@ -11,3 +11,8 @@ yuicompressor*
 js/*
 web.config
 node_modules
+Makefile
+bench
+plugins
+release.sh
+test

@@ -1,9 +1,8 @@
 # JAVA=/usr/lib/jvm/java-6-sun/bin/java
-JAVA=$(shell which java)
 DIST=dist
 PLUGINS=plugins
-YUI_VERSION=2.4.7
 COFFEE=node_modules/.bin/coffee
+UGLIFY=node_modules/.bin/uglifyjs
 JLDOM=node_modules/jldom
 MOCHA=node_modules/.bin/mocha
 MOCHA_FMT=spec
@@ -49,18 +48,17 @@ site: test
 	@cp $(DIST)/*.js.gz js
 	@git show master:$(DIST)/bling.coffee > js/bling.coffee
 	@git show master:$(DIST)/bling.js > js/bling.js
-	@git show master:$(DIST)/bling.map > js/bling.map
+	@git show master:$(DIST)/bling.js.map > js/bling.js.map
 	@git show master:package.json > js/package.json
-	@git show master:test/html/dialog.html | sed 's@../../dist/bling@/js/bling@' > test/dialog.html
 	@git commit -am "make site" || true
 	@sleep 1
 	@git checkout master
 	@sleep 1
 	@git stash pop || true
 
-$(DIST)/min.%.js: $(DIST)/%.js yuicompressor.jar
+$(DIST)/min.%.js: $(DIST)/%.js $(UGLIFY)
 	@echo Minifying $< to $@...
-	@$(JAVA) -jar yuicompressor.jar $< -o $@
+	$(UGLIFY) $< -c --source-map $@.map --source-map-url $(subst dist/,,$@).map -m -r '$,Bling,window,document' -o $@
 
 $(DIST)/%.js: $(DIST)/%.coffee $(COFFEE)
 	@echo Compiling $< to $@...
@@ -69,14 +67,6 @@ $(DIST)/%.js: $(DIST)/%.coffee $(COFFEE)
 $(DIST)/bling.coffee: bling.coffee $(shell ls $(PLUGINS)/*.coffee | sort -f)
 	@echo Packing plugins into $@...
 	@cat $^ | sed -E 's/^	*#.*$$//g' | grep -v '^ *$$' > $@
-
-yuicompressor.jar:
-	@echo Downloading $@...
-	@curl http://yui.zenfs.com/releases/yuicompressor/yuicompressor-$(YUI_VERSION).zip > yuicompressor.zip
-	@unzip yuicompressor.zip
-	@rm yuicompressor.zip
-	@cp yuicompressor-$(YUI_VERSION)/build/yuicompressor-$(YUI_VERSION).jar ./yuicompressor.jar
-	@rm -rf yuicompressor-$(YUI_VERSION)
 
 %.gz: %
 	@echo Compressing $< to $@...
@@ -100,5 +90,8 @@ $(COFFEE):
 
 $(JLDOM):
 	npm install jldom
+
+$(UGLIFY):
+	npm install uglifyjs
 
 .PHONY: all bling clean dist site test

@@ -1,5 +1,5 @@
 $.plugin
-	provides: "cache"
+	provides: "cache, Cache"
 	depends: "core, sortBy"
 , ->
 
@@ -18,7 +18,7 @@ $.plugin
 			index = Object.create null
 			order = []
 
-			# The efficiency of a cache item (reversed for use in sortedIndex, we want the smallest items at the end)
+			# The inverse efficiency of a cache item (for use in sortedIndex)
 			eff = (o) -> -o.r / o.w
 
 			autoEvict = =>

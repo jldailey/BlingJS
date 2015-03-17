@@ -15,27 +15,31 @@ $.plugin
 			cb.timeout?.cancel()
 			try cb e, v
 			catch _e
+				_stack = $.debugStack _e
+				$.log "Promise(#{ret.promiseId}) first-chance exception:", _stack
 				try cb _e, null
 				catch __e
-					$.log "Fatal error in promise callback:", \
-						__e?.stack ? __e, "caused by:", _e?.stack ? _e
+					__stack = $.debugStack __e
+					$.log "Promise(#{ret.promiseId}) last-chance exception:", __stack
 			null
 
 		end = (error, value) =>
 			if err is result is NoValue
 				if error isnt NoValue
 					err = error
+					unless error?.stack # force all errors to capture the current stack
+						err = new Error error
 				else if value isnt NoValue
 					result = value
-				switch
+				switch true
 					# fatal error: passing a promise to it's own resolver
 					when value is @
 						return end new TypeError "cant resolve a promise with itself"
 					# but, you can resolve one promise with another:
 					when $.is 'promise', value then value.wait end
 					# every waiting callback gets consumed and called
-					when error isnt NoValue then consume_all error, null
-					when value isnt NoValue then consume_all null, value
+					when error isnt NoValue then consume_all err, null
+					when value isnt NoValue then consume_all null, result
 			return @
 
 		ret = $.inherit {
@@ -53,12 +57,10 @@ $.plugin
 						cb.timeout = $.delay timeout, ->
 							if (i = waiting.indexOf cb) > -1
 								waiting.splice i, 1
-								consume_one cb, err = 'timeout', undefined
+								consume_one cb, err = new Error('timeout'), undefined
 				@
 			then: (f, e) -> @wait (err, x) ->
-				if err
-					if e? then e(err)
-					else throw err
+				if err then e?(err)
 				else f(x)
 			finish:  (value) -> end NoValue, value; @
 			resolve: (value) -> end NoValue, value; @
@@ -95,7 +97,7 @@ $.plugin
 	Promise.compose = Promise.parallel = (promises...) ->
 		# always an extra one for setup, so an empty list is finished immediately
 		p = $.Progress(1 + promises.length)
-		$(promises).select('wait').call (err, data) ->
+		$(promises).select('wait').call (err) ->
 			if err then p.reject(err) else p.resolve 1
 		p.resolve 1
 

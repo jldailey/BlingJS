@@ -29,7 +29,7 @@ describe "$.Promise()", ->
 		describe "optional timeout", ->
 			it "sets error to 'timeout'", (done) ->
 				$.Promise().wait 100, (err, data) ->
-					assert.equal err, 'timeout'
+					assert.equal String(err), 'Error: timeout'
 					done()
 			it "does not fire an error if the promise is resolved in time", (done) ->
 				pass = false
@@ -43,16 +43,16 @@ describe "$.Promise()", ->
 	describe "reject", ->
 		it "passes errors to queued callbacks", (done) ->
 			$.Promise().wait((err, data) ->
-				if err isnt "fizzle"
-					done "rejected: no fizzle!"
+				if String(err) isnt "Error: fizzle"
+					done "expected: 'Error: fizzle' got: '#{String err}'"
 				else done()
 				).reject "fizzle"
 		it "ignores repeated calls", ->
-			pass = 1
-			a = $.Promise().wait (err, data) -> pass += err
-			a.reject pass
-			a.reject pass
-			assert.equal pass, 2 # not 4, if it had run twice
+			pass = ""
+			a = $.Promise().wait (err, data) -> pass += String(err)
+			a.reject "error"
+			a.reject "error"
+			assert.equal pass, "Error: error" # not 4, if it had run twice
 	describe "reset", ->
 		it "resets", ->
 			rp = $.Promise()
@@ -124,7 +124,7 @@ describe "$.Promise()", ->
 			b.reject("err_b")
 			a.resolve('a')
 			d.wait (err) ->
-				assert.equal "err_b", err
+				assert.equal "Error: err_b", String(err)
 				done()
 
 	describe ".handler()", ->

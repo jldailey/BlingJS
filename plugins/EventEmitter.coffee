@@ -24,6 +24,6 @@ $.plugin
 			addListener: add
 			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
 			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
+			setMaxListeners:        -> # who really needs this in the core API?
 			listeners:          (e) -> list(e).slice 0
 		}, obj

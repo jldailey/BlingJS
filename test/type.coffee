@@ -37,6 +37,16 @@ describe "Type plugin:", ->
 			it "functions",   -> assert.equal false, $.is "object", ->
 			it "errors",      -> assert.equal false, $.is "object", new Error()
 
+	describe "$.are()", ->
+		describe "should identify", ->
+			it "'string'", ->
+				assert.equal true, $.are('string', 'a', 'b', 'c')
+			it "'function'", ->
+				assert.equal true, $.are('function', (->), (->))
+		describe "should not mis-identify", ->
+			describe "'array'", ->
+				assert.equal false, $.are('array', [], {})
+
 	describe "$.with()", ->
 		$.type.extend 'object', blerg: -> "blerg"
 		$.type.extend 'array', blerg: -> "blurg"

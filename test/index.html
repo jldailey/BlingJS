@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width" />
+		<title>Test</title>
+		<script type="text/javascript" src="../dist/bling.js"></script>
+		<script type="text/javascript" charset="utf-8">
+			$(document).ready(function() {
+				$("body").append($.toHTML({ foo: "bar", a: [1,2,3], b: $("body"), c:[], d: $(1,2,3) }, false))
+			})
+		</script>
+	</head>
+	<body>
+	</body>
+</html>

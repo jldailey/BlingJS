@@ -1,6 +1,7 @@
 
 $.plugin
 	provides: "css,CSS"
+	depends: "type"
 , ->
 
 	# Recursive helper that does the real work in $.CSS.stringify

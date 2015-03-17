@@ -1,9 +1,10 @@
 # Events plugin
 # -------------
-# Things like `.bind('click')`, `.trigger('keyup')`, etc.
+# DOM-related events like `.bind('click')`, `.trigger('keyup')`, etc.
+# Not to be confused with EventEmitter, the more generic event system common in Node.
 $.plugin
 	depends: "dom,function,core"
-	provides: "event"
+	provides: "event,bind,unbind,trigger,delegate,undelegate,click,ready"
 , ->
 	EVENTSEP_RE = /,* +/
 	# This is a list of (almost) all the event types, each one of

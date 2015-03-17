@@ -42,9 +42,11 @@ $.plugin = (opts, constructor) ->
 extend $, do ->
 	waiting = []
 	complete = {}
+	commasep = /, */
+	not_complete = (x) -> not (x of complete)
 	incomplete = (n) ->
-		(if (typeof n) is "string" then n.split /, */ else n)
-		.filter (x) -> not (x of complete)
+		(if (typeof n) is "string" then n.split commasep else n)
+		.filter not_complete
 	depend = (needs, func) ->
 		if (needs = incomplete needs).length is 0 then func()
 		else
@@ -69,41 +71,43 @@ extend $, do ->
 		data
 $.plugin
 	depends: "core"
-	provides: "async"
+	provides: "async,series,parallel"
 , ->
 	return {
 		series: (fin = $.identity) ->
-			ret = $()
-			todo = @length
-			unless todo > 0
-				fin.apply ret
-				return @
-			done = 0
-			finish_one = (index) ->
-				->
-					ret[index] = arguments # this typically captures [err, result]; but by convention only
-					if ++done >= todo then fin.apply ret
-					else next(done)
-					null
-			do next = (i=0) => $.immediate => @[i](finish_one(i))
-			return @
+			try return @
+			finally
+				ret = $()
+				todo = @length
+				unless todo > 0
+					fin.apply ret, ret
+				else
+					done = 0
+					finish_one = (index) -> -> # create a callback to finish an ordered element
+						ret[index] = arguments # typically capture [err, result]; but by convention only
+						if ++done >= todo then fin.apply ret, ret # if we are done, call the final callback
+						else next done
+						null
+					do next = (i=0) => $.immediate => @[i] finish_one i
 		parallel: (fin = $.identity) ->
-			ret = $()
-			todo = @length
-			unless todo > 0
-				fin.apply ret
-				return @
-			done = 0
-			finish_one = (index) -> -> # see the comments in .series, same approach used here for collating the output
-				ret[index] = arguments
-				if ++done >= todo
-					fin.apply ret
-				null
-			for i in [0...todo] by 1
-				@[i](finish_one(i))
+			try return @
+			finally
+				ret = $()
+				todo = @length
+				unless todo > 0
+					fin.apply ret, ret
+				else
+					done = 0
+					finish_one = (index) -> -> # see the comments in .series: collate the output
+						ret[index] = arguments
+						if ++done >= todo
+							fin.apply ret, ret
+						null
+					for i in [0...todo] by 1
+						@[i] finish_one i
 	}
 $.plugin
-	provides: "cache"
+	provides: "cache, Cache"
 	depends: "core, sortBy"
 , ->
 	class EffCache
@@ -187,7 +191,7 @@ $.plugin
 			helper [], -1
 			return $(ret)
 $.plugin
-	provides: "compat"
+	provides: "compat, trimLeft, split, lastIndexOf, join, preventAll, matchesSelector, isBuffer"
 , ->
 	$.global.Buffer or= { isBuffer: -> false }
 	String::trimLeft or= -> @replace(/^\s+/, "")
@@ -220,25 +224,35 @@ $.plugin
 	return { }
 $.plugin
 	provides: 'config'
-	depends: 'type'
+	depends: 'core'
 , ->
 	get = (name, def) -> switch arguments.length
-		when 0 then $.extend({}, process.env)
+		when 0 then $.extend {}, process.env
 		else process.env[name] ? def
-	set = (name, val) -> process.env[name] = val
+	set = (name, val) -> switch arguments.length
+		when 1 then $.extend process.env, arguments[0]
+		when 2 then process.env[name] = val
 	parse = (data) ->
 		ret = {}
-		$(data.toString("utf8").split "\n")
-			.filter($.isEmpty, false)
-			.filter(/^#/, false)
-			.map(-> @replace(/^\s+/,'').split '=')
-			.each (kv) ->
-				if kv[0]?.length
-					ret[kv[0]] = kv[1].replace(/^["']/,'').replace(/['"]$/,'')
+		$(data.toString("utf8").split "\n") \
+			.filter($.isEmpty, false) \
+			.filter(/^#/, false) \
+			.map(-> @replace(/^\s+/,'').split '=') \
+			.each (kv) -> if kv[0]?.length then ret[kv[0]] = kv[1] \
+				.replace(/^["']/,'') \
+				.replace(/['"]$/,'')
 		ret
-	$: config: $.extend(get, {get, set, parse})
+	watch = (name, func) ->
+		prev = process.env[name]
+		$.interval 1003, ->
+			if (cur = process.env[name]) isnt prev
+				func prev, cur
+				prev = cur
+	$: config: $.extend get, {get, set, parse, watch}
 $.plugin
-	provides: "core"
+	provides: "core,eq,each,map,filterMap,tap,replaceWith,reduce,union,intersect,distinct," +
+		"contains,count,coalesce,swap,shuffle,select,or,zap,clean,take,skip,first,last,slice," +
+		"push,filter,matches,weave,fold,flatten,call,apply,log,toArray,clear,indexWhere"
 	depends: "string"
 , ->
 	$.defineProperty $, "now",
@@ -266,12 +280,14 @@ $.plugin
 			logger: (prefix) -> (m...) -> m.unshift(prefix); $.log m...
 			assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 			coalesce: (a...) -> $(a).coalesce()
-			keysOf: (o) -> $(k for k of o)
-			valuesOf: (o) -> $.keysOf(o).map (k)->
+			keysOf: (o, own=false) ->
+				if own then $(k for own k of o)
+				else $(k for k of o)
+			valuesOf: (o, own=false) -> $.keysOf(o, own).map (k)->
 				return try o[k] catch err then err
 		eq: (i) -> $([@[index i, @]])
 		each: (f) -> (f.call(t,t) for t in @); @
-		map: (f) -> # CS comprehensions generate too much extra code for such a critical bottle-neck
+		map: (f) ->
 			b = $()
 			i = 0
 			(b[i++] = f.call t,t) for t in @
@@ -330,7 +346,9 @@ $.plugin
 		select: do ->
 			getter = (prop) ->
 				->
-					if $.is("function",v = @[prop]) then $.bound(@,v) else v
+					if $.is("function",v = @[prop]) and prop isnt "constructor"
+						return $.bound(@,v)
+					else v
 			selectOne = (p) ->
 				switch type = $.type p
 					when 'regexp' then selectMany.call @, p
@@ -413,6 +431,7 @@ $.plugin
 				when "string" then (x) -> x?.matchesSelector?(f) ? false
 				when "regexp" then (x) -> f.test(x)
 				when "function" then f
+				when "bool","number","null","undefined" then (x) -> f is x
 				else throw new Error "unsupported argument to filter: #{$.type f}"
 			a = $()
 			for it in @
@@ -468,6 +487,7 @@ $.plugin
 	}
 $.plugin
 	provides: "css,CSS"
+	depends: "type"
 , ->
 	flatten = (o, prefix, into) ->
 		unless prefix of into
@@ -550,7 +570,7 @@ $.plugin
 					return ("#{x} { #{y.join ' '} }" for x,y of flatten(obj, "", {}) when y.length > 0).join ' '
 	}
 $.plugin
-	provides: 'date'
+	provides: 'date,midnight,stamp,unstamp,dateFormat,dateParse'
 	depends: 'type'
 , ->
 	[ms,s,m,h,d] = [1,1000,1000*60,1000*60*60,1000*60*60*24]
@@ -572,8 +592,8 @@ $.plugin
 	longDays = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
 	formats =
 		yyyy: Date::getUTCFullYear
-		YY: YY = -> String(@getUTCFullYear()).substr(2)
-		yy: YY
+		YY: fYY = -> String(@getUTCFullYear()).substr(2)
+		yy: fYY
 		mm: -> @getUTCMonth() + 1
 		dd: Date::getUTCDate
 		dw: Date::getUTCDay # day of the week, 1=monday
@@ -585,7 +605,10 @@ $.plugin
 		MS: Date::getUTCMilliseconds
 	format_keys = Object.keys(formats).sort().reverse()
 	parsers =
-		yyyy: Date::setUTCFullYear
+		YYYY: pYYYY =Date::setUTCFullYear
+		yyyy: pYYYY
+		YY: pYY = (x) -> @setUTCFullYear (if x > 50 then 1900 else 2000) + x
+		yy: pYY
 		mm: (x) -> @setUTCMonth(x - 1)
 		dd: Date::setUTCDate
 		HH: Date::setUTCHours
@@ -599,8 +622,8 @@ $.plugin
 		array: (o) -> [o]
 		string: (o, fmt, unit) -> $.date.format o, fmt, unit
 		number: (o, unit) -> $.date.stamp o, unit
-	$.type.extend 'string', date: (o, fmt = $.date.defaultFormat) -> new Date $.date.parse o, fmt, "ms"
-	$.type.extend 'number', date: (o, unit = $.date.defaultUnit) -> $.date.unstamp o, unit
+	$.type.extend 'string', date: (s, fmt = $.date.defaultFormat) -> new Date $.date.parse s, fmt, "ms"
+	$.type.extend 'number', date: (n, unit = $.date.defaultUnit) -> $.date.unstamp n, unit
 	adder = (key) ->
 		(stamp, delta, stamp_unit = $.date.defaultUnit) ->
 			date = $.date.unstamp(stamp, stamp_unit)
@@ -627,7 +650,8 @@ $.plugin
 				fmt
 			parse: (dateString, fmt = $.date.defaultFormat, to = $.date.defaultUnit) ->
 				date = new Date(0)
-				for i in [0...fmt.length] by 1
+				i = 0
+				while i < fmt.length
 					for k in parser_keys
 						if fmt.indexOf(k, i) is i
 							try
@@ -635,6 +659,9 @@ $.plugin
 									parseInt dateString[i...i+k.length], 10
 							catch err
 								throw new Error("Invalid date ('#{dateString}') given format mask: #{fmt} (failed at position #{i})")
+							i += k.length - 1
+							break
+					i += 1
 				$.date.stamp date, to
 			addMilliseconds: adder("MS")
 			addSeconds: adder("SS")
@@ -655,13 +682,50 @@ $.plugin
 	dateFormat: (fmt = $.date.defaultFormat, unit = $.date.defaultUnit) -> @map(-> $.date.format @, fmt, unit)
 	dateParse: (fmt = $.date.defaultFormat, unit = $.date.defaultUnit) -> @map(-> $.date.parse @, fmt, unit)
 $.plugin
-	provides: "delay"
-	depends: "function"
+	provides: "debug, debugStack",
+	depends: "core"
+, ->
+	explodeStack = (stack) ->
+		fs = null
+		try fs = require 'fs'
+		catch err then return stack # if we aren't in node, reading files is meaningless
+		lines = $(String(stack).split(/(?:\r\n|\r|\n)/)).filter(/^$/, false)
+		message = lines.first()
+		lines = lines.skip 1
+		files = lines.map (s) ->
+			f = s.replace(/^\s*at\s+/,'')
+				.replace(/^[^(]*\(/,'(')
+				.replace(/^\(/,'')
+				.replace(/\)$/,'')
+			try
+				[f,ln_num,col] = f.split(/:/)
+				data = String(fs.readFileSync f)
+				f_lines = data.split(/(?:\r\n|\r|\n)/)
+				line = f_lines[ln_num-1]
+				if line.length > 80
+					line = "... " + line.substr(col-35,70) + " ..."
+					col = 39
+				tabs = line.replace(/[^\t]/g,'').length
+				spacer = $.repeat('\t', tabs) + $.repeat(' ', (col-1)-tabs)
+				return """  #{ln_num} #{line}\n  #{ln_num} #{spacer}^"""
+			catch err
+				return null
+		return message + "\n" + $.weave(files, lines).filter(null, false).join "\n"
+	return $: {
+		debugStack: (error) ->
+			explodeStack switch true
+				when $.is 'error', error then String(error.stack)
+				when $.is 'string', error then error
+				else String(error)
+	}
+$.plugin
+	provides: "delay,immediate,interval"
+	depends: "is,select,extend,bound"
 , ->
 	$:
 		delay: do ->
 			timeoutQueue = $.extend [], do ->
-				next = (a) -> -> a.shift()() if a.length
+				next = (a) -> -> (do a.shift()) if a.length; null
 				add: (f, n) ->
 					$.extend f,
 						order: n + $.now
@@ -705,18 +769,19 @@ $.plugin
 				pause: (p=true) -> paused = p
 				resume: (p=true) -> paused = not p
 	delay: (n, f) ->
-		$.delay n, $.bind @, f
+		$.delay n, $.bound @, f
 		@
 $.plugin
-	depends: "core"
-	provides: "diff"
+	depends: "inherit,reduce"
+	provides: "diff,stringDistance,stringDiff"
 , ->
 	lev_memo = Object.create null
+	min = Math.min
 	lev = (s,i,n,t,j,m,dw,iw,sw) ->
 		return lev_memo[[s,i,n,t,j,m,dw,iw,sw]] ?= lev_memo[[t,j,m,s,i,n,dw,iw,sw]] ?= do -> switch
 			when m <= 0 then n
 			when n <= 0 then m
-			else Math.min(
+			else min(
 				dw + lev(s,i+1,n-1, t,j,m,dw,iw,sw),
 				iw + lev(s,i,n, t,j+1,m-1,dw,iw,sw),
 				(sw * (s[i] isnt t[j])) + lev(s,i+1,n-1, t,j+1,m-1,dw,iw,sw)
@@ -764,7 +829,7 @@ $.plugin
 					del: dw + lev args.del...
 					ins: iw + lev args.ins...
 					sub: sw + lev args.sub...
-				switch Math.min costs.del, costs.ins, costs.sub
+				switch min costs.del, costs.ins, costs.sub
 					when costs.del then $(del s[i]).concat diff args.del...
 					when costs.ins then $(ins t[j]).concat diff args.ins...
 					when costs.sub then $(sub s[i],t[j]).concat diff args.sub...
@@ -773,48 +838,52 @@ $.plugin
 		stringDiff: (s, t) -> diff s,0,s.length, t,0,t.length,1,1,1.5
 if $.global.document?
 	$.plugin
+		provides: "dom,HTML,html,append,appendText,appendTo,prepend,prependTo," +
+			"before,after,wrap,unwrap,replace,attr,data,addClass,removeClass,toggleClass," +
+			"hasClass,text,val,css,defaultCss,rect,width,height,top,left,bottom,right," +
+			"position,scrollToCenter,child,parents,next,prev,remove,find,querySelectorAll," +
+			"clone,toFragment"
 		depends: "function,type,string"
-		provides: "dom"
 	, ->
 		bNodelistsAreSpecial = false
 		$.type.register "nodelist",
-			is:  (o) -> o? and $.isType "NodeList", o
-			hash:   (o) -> $($.hash(i) for i in x).sum()
-			array:  do ->
-				try # probe to see if this browsers allows direct modification of a nodelist's prototype
+			is:			(o) -> o? and $.isType "NodeList", o
+			hash:		(o) -> $($.hash(i) for i in o).sum()
+			array:	do ->
+				try # probe to see if this browsers allows modification of a NodeList's prototype
 					document.querySelectorAll("xxx").__proto__ = {}
 					return $.identity
 				catch err # if we can't patch directly, we have to copy into a real array :(
 					bNodelistsAreSpecial = true
 					return (o) -> (node for node in o)
 			string: (o) -> "{Nodelist:["+$(o).select('nodeName').join(",")+"]}"
-			node:   (o) -> $(o).toFragment()
+			node:		(o) -> $(o).toFragment()
 		$.type.register "node",
 			is:  (o) -> o?.nodeType > 0
-			hash:   (o) -> $.checksum(o.nodeName) + $.hash(o.attributes) + $.checksum(o.innerHTML)
+			hash:		(o) -> $.checksum(o.nodeName) + $.hash(o.attributes) + $.checksum(o.innerHTML)
 			string: (o) -> o.toString()
-			node:   $.identity
+			node:		$.identity
 		$.type.register "fragment",
 			is:  (o) -> o?.nodeType is 11
-			hash:   (o) -> $($.hash(x) for x in o.childNodes).sum()
+			hash:		(o) -> $($.hash(x) for x in o.childNodes).sum()
 			string: (o) -> o.toString()
-			node:   $.identity
+			node:		$.identity
 		$.type.register "html",
 			is:  (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
-			node:   (h) ->
+			node:		(h) ->
 				(node = document.createElement('div')).innerHTML = h
 				if (n = (childNodes = node.childNodes).length) is 1
 					return node.removeChild(childNodes[0])
 				df = document.createDocumentFragment()
 				df.appendChild(node.removeChild(childNodes[0])) for i in [0...n] by 1
 				df
-			array:  (o) -> $.type.lookup(h = $.HTML.parse o).array h
+			array:	(o) -> $.type.lookup(h = $.HTML.parse o).array h
 			string: (o) -> "'#{o}'"
-			repr:   (o) -> '"' + o + '"'
+			repr:		(o) -> '"' + o + '"'
 		$.type.extend
-			unknown:  { node: -> null }
-			bling:    { node: (o) -> o.toFragment() }
-			node:     { html: (n) ->
+			unknown:	{ node: -> null }
+			bling:		{ node: (o) -> o.toFragment() }
+			node:			{ html: (n) ->
 				d = document.createElement "div"
 				d.appendChild (n = n.cloneNode true)
 				ret = d.innerHTML
@@ -829,17 +898,16 @@ if $.global.document?
 					else
 						(o) -> document.querySelectorAll o
 			function: { node: (o) -> $(o.toString()).toFragment() }
-		toFrag = (a) ->
-			if not a.parentNode?
-				df = document.createDocumentFragment()
-				df.appendChild a
+		toFrag  = (a) ->
+			unless a.parentNode
+				document.createDocumentFragment().appendChild a
 			a
-		before = (a,b) -> toFrag(a).parentNode.insertBefore b, a
-		after = (a,b) -> toFrag(a).parentNode.insertBefore b, a.nextSibling
-		toNode = (x) -> $.type.lookup(x).node x
+		before  = (a,b) -> toFrag(a).parentNode.insertBefore b, a
+		after   = (a,b) -> toFrag(a).parentNode.insertBefore b, a.nextSibling
+		toNode  = (x) -> $.type.lookup(x).node x
 		escaper = false
-		parser = false
-		$.computeCSSProperty = computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
+		parser  = false
+		$.computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
 		getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select p
 		selectChain = (prop) -> -> @map (p) -> $( p while p = p[prop] )
 		return {
@@ -864,10 +932,12 @@ if $.global.document?
 								@removeChild @childNodes[1]
 			append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
 				x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
+				return unless x?
 				@each (n) -> n?.appendChild? x.cloneNode true
 			appendText: (text) ->
-				node = document.createTextNode(text)
-				@each -> @appendChild node.cloneNode true
+				x = document.createTextNode(text)
+				return unless x?
+				@each (n) -> n?.appendChild? x.cloneNode true
 			appendTo: (x) -> # .appendTo(/n/) - each node [or fragment] will become the last child of x
 				clones = @map( -> @cloneNode true)
 				i = 0
@@ -944,24 +1014,23 @@ if $.global.document?
 					c.push x
 					@className = c.join " "
 			removeClass: (x) -> # .removeClass(/x/) - remove class x from each node's .className
-				notx = (y) -> y != x
+				notx = (y) -> y isnt x
 				@each ->
-					c = @className.split(" ").filter(notx).join(" ")
-					if c.length is 0
+					@className = @className.split(" ").filter(notx).join(" ")
+					if @className.length is 0
 						@removeAttribute('class')
 			toggleClass: (x) -> # .toggleClass(/x/) - add, or remove if present, class x from each node
 				notx = (y) -> y isnt x
 				@each ->
 					cls = @className.split(" ")
 					filter = $.not $.isEmpty
-					if( cls.indexOf(x) > -1 )
+					if (cls.indexOf x) > -1
 						filter = $.and notx, filter
 					else
 						cls.push x
-					c = cls.filter(filter).join(" ")
-					@className = c
-					if c.length is 0
-						@removeAttribute('class')
+					@className = cls.filter(filter).join(" ")
+					if @className.length is 0
+						@removeAttribute 'class'
 			hasClass: (x) -> # .hasClass(/x/) - true/false for each node: whether .className contains x
 				@select('className.split').call(" ").select('indexOf').call(x).map (x) -> x > -1
 			text: (t) -> # .text([t]) - get [or set] each node's .textContent
@@ -979,14 +1048,14 @@ if $.global.document?
 							setters[i%nn](key, v[i%n], "")
 					else if $.is 'function', v
 						values = @select("style.#{key}") \
-							.weave(@map computeCSSProperty key) \
+							.weave(@map $.computeCSSProperty key) \
 							.fold($.coalesce) \
 							.weave(setters) \
 							.fold (setter, value) -> setter(key, v.call value, value)
 					else setters.call key, v, ""
 					return @
 				else @select("style.#{key}") \
-					.weave(@map computeCSSProperty key) \
+					.weave(@map $.computeCSSProperty key) \
 					.fold($.coalesce)
 			defaultCss: (k, v) ->
 				sel = @selector
@@ -1044,7 +1113,11 @@ if $.global.document?
 				.reduce (a, i) ->
 					a.extend i.querySelectorAll expr
 				, $()
-			clone: (deep=true) -> @map -> (@cloneNode deep) if $.is "node", @
+			clone: (deep=true, count=1) ->
+				c = (n) -> if $.is "node", n then (n.cloneNode deep)
+				@map -> switch count
+					when 1 then c @
+					else (c(@) for _ in [0...count] by 1)
 			toFragment: ->
 				if @length > 1
 					df = document.createDocumentFragment()
@@ -1071,12 +1144,12 @@ $.plugin
 			addListener: add
 			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
 			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
+			setMaxListeners:        -> # who really needs this in the core API?
 			listeners:          (e) -> list(e).slice 0
 		}, obj
 $.plugin
 	depends: "dom,function,core"
-	provides: "event"
+	provides: "event,bind,unbind,trigger,delegate,undelegate,click,ready"
 , ->
 	EVENTSEP_RE = /,* +/
 	events = ['mousemove','mousedown','mouseup','mouseover','mouseout','blur','focus',
@@ -1225,8 +1298,8 @@ $.plugin
 	events.forEach (x) -> ret[x] = binder x
 	return ret
 $.plugin
-	provides: "function"
-	depends: "hash"
+	provides: "function,identity,compose,once,cycle,bound,partial"
+	depends: "extend,is,defineProperty,map"
 , ->
 	$:
 		identity: (o) -> o
@@ -1418,6 +1491,57 @@ $.depends 'hook', ->
 				null
 		}, obj
 $.plugin
+	provides: "toHTML"
+	depends: "type,synth,once"
+, ->
+	dumpStyles = $.once -> try $("head").append $.synth("style#dump").text """
+		table.dump                { border: 1px solid black; }
+		table.dump tr.h           { background-color: blue; color: white; cursor: pointer; }
+		table.dump tr.h th        { padding: 0px 4px; }
+		table.dump tr.h.array     { background-color: purple; }
+		table.dump tr.h.bling     { background-color: gold; }
+		table.dump td             { padding: 2px; }
+		table.dump td.k           { background-color: lightblue; }
+		table.dump td.v.string    { background-color: #cfc; }
+		table.dump td.v.number    { background-color: #ffc; }
+		table.dump td.v.bool      { background-color: #fcf; }
+	"""
+	dumpScript = $.once -> try $("head").append $.synth("script#dump").text """
+		$(document.body).delegate('table.dump tr.h', 'click', function() {
+			$(this.parentNode).find("tr.kv").toggle()
+		})
+	"""
+	table = (t, rows) ->
+		tab = $.synth "table.dump tr.h.#{t} th[colspan=2] '#{t}'"
+		if t in ["array","bling","nodelist"]
+			tab.find("th").appendText " [#{rows.length}]"
+		tab.append(row) for row in rows
+		tab[0]
+	tableRow = (k, v, open) ->
+		row = $.synth "tr.kv td.k[align=right][valign=top] '#{k}' + td.v"
+		td = row.find "td.v"
+		switch _t = $.type v = $.toHTML v, open
+			when "string","number","bool","html","null","undefined" then td.appendText String v
+			else td.append v
+		td.addClass _t
+		row.toggle() unless open
+		return row
+	return { $: {
+		toHTML: (obj, open=true) ->
+			do dumpStyles
+			do dumpScript
+			return switch t = $.type obj
+				when "string","number","bool","null","undefined","html" then obj
+				when "bling","array","nodelist"
+					table(t, tableRow(k, v, open) for v,k in obj)
+				when "object","array"
+					table(t, tableRow(k, v, open) for k,v of obj)
+				when "node"
+					s = $.HTML.stringify obj
+					s.substr(0, s.indexOf('>') + 1) + '...'
+				else String(obj)
+	} }
+$.plugin
 	provides: 'keyName,keyNames'
 	depends: "math"
 , ->
@@ -1527,7 +1651,9 @@ $.plugin
 				switch obj_type
 					when 'null','undefined','string','number' then return false
 					when 'array','bling' then for v in obj when matches pattern, v then return true
-					when 'object' then for k, v of pattern when matches v, obj[k] then return true
+					when 'object' # dont match if any of the keys dont match
+						for k, v of pattern when not matches v, obj[k] then return false
+						return true # matches if all keys match
 				return false
 			when 'array'
 				switch obj_type
@@ -1550,6 +1676,8 @@ $.plugin
 				return false
 			else return obj is pattern
 	class matches.Any # magic token
+		@toString: -> "{Any}"
+		@inspect:  -> "{Any}"
 	return $: matches: matches
 $.plugin
 	provides: "math"
@@ -1587,7 +1715,7 @@ $.plugin
 	minBy: _By (a,b) -> a < b
 	mean: mean = -> if not @length then 0 else @sum() / @length
 	avg: mean
-	sum: -> @filter( isFinite ).reduce(((a) -> a + @), 0)
+	sum: -> @filter( isFinite ).filter(null, false).reduce(((a) -> a + @), 0)
 	product: -> @filter( isFinite ).reduce (a) -> a * @
 	squares: -> @pow(2)
 	pow: (n) -> @map -> Math.pow @, n
@@ -1635,6 +1763,17 @@ $.plugin
 				if opts.cache.has key then opts.cache.get key
 				else opts.cache.set key, opts.f.apply @, arguments
 $.plugin
+	provides: 'middleware',
+	depends: 'type'
+, ->
+	$.type.register 'middleware', is: (o) ->
+		try return $.are 'function', o.use, o.unuse, o.invoke
+		catch err then return false
+	$: middleware: (s = []) ->
+		use:    (f)    -> s.push f                                  ; @
+		unuse:  (f)    -> s.splice i, 1 while (i = s.indexOf f) > -1; @
+		invoke: (a...) -> i = -1; do n = (-> try s[++i] a..., n)    ; @
+$.plugin
 	depends: "core,function"
 	provides: "promise"
 , ->
@@ -1650,23 +1789,27 @@ $.plugin
 			cb.timeout?.cancel()
 			try cb e, v
 			catch _e
+				_stack = $.debugStack _e
+				$.log "Promise(#{ret.promiseId}) first-chance exception:", _stack
 				try cb _e, null
 				catch __e
-					$.log "Fatal error in promise callback:", \
-						__e?.stack ? __e, "caused by:", _e?.stack ? _e
+					__stack = $.debugStack __e
+					$.log "Promise(#{ret.promiseId}) last-chance exception:", __stack
 			null
 		end = (error, value) =>
 			if err is result is NoValue
 				if error isnt NoValue
 					err = error
+					unless error?.stack # force all errors to capture the current stack
+						err = new Error error
 				else if value isnt NoValue
 					result = value
-				switch
+				switch true
 					when value is @
 						return end new TypeError "cant resolve a promise with itself"
 					when $.is 'promise', value then value.wait end
-					when error isnt NoValue then consume_all error, null
-					when value isnt NoValue then consume_all null, value
+					when error isnt NoValue then consume_all err, null
+					when value isnt NoValue then consume_all null, result
 			return @
 		ret = $.inherit {
 			promiseId: $.random.string 6
@@ -1683,12 +1826,10 @@ $.plugin
 						cb.timeout = $.delay timeout, ->
 							if (i = waiting.indexOf cb) > -1
 								waiting.splice i, 1
-								consume_one cb, err = 'timeout', undefined
+								consume_one cb, err = new Error('timeout'), undefined
 				@
 			then: (f, e) -> @wait (err, x) ->
-				if err
-					if e? then e(err)
-					else throw err
+				if err then e?(err)
 				else f(x)
 			finish:  (value) -> end NoValue, value; @
 			resolve: (value) -> end NoValue, value; @
@@ -1714,7 +1855,7 @@ $.plugin
 		return ret
 	Promise.compose = Promise.parallel = (promises...) ->
 		p = $.Progress(1 + promises.length)
-		$(promises).select('wait').call (err, data) ->
+		$(promises).select('wait').call (err) ->
 			if err then p.reject(err) else p.resolve 1
 		p.resolve 1
 	Promise.collect = (promises) ->
@@ -1984,6 +2125,7 @@ $.plugin
 		unless $.is "promise", promise
 			return $.Promise().resolve(reduce promise, opts)
 		promise.wait (err, result) ->
+			if err then return p.reject err
 			r = reduce result, opts
 			if $.is 'promise', r
 				consume_forever r, opts, p
@@ -2012,7 +2154,7 @@ $.plugin
 			when "array", "bling"
 				p = $.Progress m = 1 # always start with one step (creation)
 				q = $.Promise() # use a summary promise for public view
-				p.wait (err, result) ->
+				p.wait (err) ->
 					if err then q.reject(err) else q.resolve(finalize n, opts)
 				n = []
 				has_promises = false
@@ -2043,13 +2185,13 @@ $.plugin
 		return switch t = $.type o
 			when "string","html" then o
 			when "number" then String(o)
-			when "array","bling" then (finalize(x) for x in o).join ''
+			when "array","bling" then (finalize(x, opts) for x in o).join ''
 			when "null","undefined" then t
 			else "[ cant finalize type: #{t} ]"
 	register 'link', (o, opts) -> [
 		"<a"
-			[" ",k,"='",@[k],"'"] for k in ["href","name","target"] when k of @
-		">",reduce(@content,opts),"</a>"
+			[" #{k}='",o[k],"'"] for k in ["href","name","target"] when k of o
+		">",reduce(o.content,opts),"</a>"
 	]
 	register 'let', (o, opts) ->
 		save = opts[o.name]
@@ -2061,39 +2203,7 @@ $.plugin
 	register 'get', (o, opts) -> reduce opts[o.name], opts
 	return $: { render }
 $.plugin
-	provides: "sendgrid"
-	depends: "config"
-, ->
-	try
-		nodemailer = require 'nodemailer'
-	catch err
-		return
-	transport = null
-	openTransport = ->
-		transport or= nodemailer.createTransport 'SMTP',
-			service: 'SendGrid'
-			auth:
-				user: $.config.get 'SENDGRID_USERNAME'
-				pass: $.config.get 'SENDGRID_PASSWORD'
-	closeTransport = ->
-		transport?.close()
-		transport = null
-	$:
-		sendMail: (mail, callback) ->
-			mail.transport ?= openTransport()
-			mail.from ?= $.config.get 'EMAILS_FROM'
-			mail.bcc ?= $.config.get 'EMAILS_BCC'
-			if $.config.get('SENDGRID_ENABLED', 'true') is 'true'
-				nodemailer.sendMail mail, (err) ->
-					if mail.close
-						closeTransport()
-					callback(err)
-			else
-				if mail.close
-					closeTransport()
-				callback(false) # Reply as if an email was sent
-$.plugin
-	provides: "sortBy,sortedIndex"
+	provides: "sortBy,sortedIndex,sortedInsert"
 , ->
 	$:
 		sortedIndex: (array, item, iterator, lo = 0, hi = array.length) ->
@@ -2103,7 +2213,7 @@ $.plugin
 				else (a,b) -> a < b
 			while lo < hi
 				mid = (hi + lo)>>>1
-				if cmp(array[mid], item)
+				if cmp array[mid], item
 					lo = mid + 1
 				else
 					hi = mid
@@ -2169,7 +2279,7 @@ $.plugin
 			return @
 $.plugin
 	provides: "string"
-	depends: "function"
+	depends: "type"
 , ->
 	safer = (f) -> (a...) ->
 		try return f(a...)
@@ -2200,8 +2310,7 @@ $.plugin
 			string: safer (o) ->
 				ret = []
 				for k of o
-					try
-						v = o[k]
+					try v = o[k]
 					catch err
 						v = "[Error: #{err.message}]"
 					ret.push "#{k}:#{$.toString v}"
@@ -2209,8 +2318,7 @@ $.plugin
 			repr: safer (o) ->
 				ret = []
 				for k of o
-					try
-						v = o[k]
+					try v = o[k]
 					catch err
 						v = "[Error: #{err.message}]"
 					ret.push "\"#{k}\": #{$.toRepr v}"
@@ -2284,17 +2392,17 @@ $.plugin
 				while s.length < n
 					s = s + c
 				s
-			stringTruncate: (s, n, c='...') ->
-				if s.length <= n
-					return s
-				s = s.split(' ') # split into words.
+			stringTruncate: (s, n, c='...',sep=' ') ->
+				return s if s.length <= n
+				return c if c.length >= n
+				s = s.split(sep) # split into words.
 				r = []
 				while n > 0
 					x = s.shift()
 					n -= x.length
 					if n >= 0
 						r.push x
-				r.join(' ') + c
+				r.join(sep) + c
 			stringCount: (s, x, i = 0, n = 0) ->
 				if (j = s.indexOf x,i) > i-1
 					$.stringCount s, x, j+1, n+1
@@ -2474,7 +2582,7 @@ $.plugin
 					$(s.fragment)
 	}
 $.plugin
-	depends: "StateMachine"
+	depends: "StateMachine, function"
 	provides: "template"
 , -> # Template plugin, pythonic style: %(value).2f
 	current_engine = null
@@ -2494,9 +2602,9 @@ $.plugin
 		else
 			current_engine = v
 	template.__defineGetter__ 'engine', -> current_engine
+	template.__defineGetter__ 'engines', -> $.keysOf(engines)
 	template.register_engine 'null', do ->
-		return (text, values) ->
-			text
+		return $.identity
 	match_forward = (text, find, against, start, stop = -1) ->
 		count = 1
 		if stop < 0
@@ -2535,7 +2643,7 @@ $.plugin
 				ret[j++] = rest
 			return ret
 		compile.cache = {}
-		render = (text, values) -> # $.render(/t/, /v/) - replace markers in string /t/ with values from /v/
+		return render = (text, values) -> # replace markers in /text/ with /values/
 			cache = compile.cache[text] # get the cached version
 			if not cache?
 				cache = compile.cache[text] = compile(text) # or compile and cache it
@@ -2560,20 +2668,6 @@ $.plugin
 					output[j] = String.PadLeft output[j], pad
 				output[j++] = rest
 			output.join ""
-		return render
-	template.register_engine 'js-eval', do -> # work in progress...
-		class TemplateMachine extends $.StateMachine
-			@STATE_TABLE = [
-				{ # 0: START
-					enter: () ->
-						@data = []
-						@GO(1)
-				},
-				{ # 1: read anything
-				}
-			]
-		return (text, values) ->
-			text
 	return $: { template }
 $.plugin
 	provides: "throttle"
@@ -2597,8 +2691,8 @@ $.plugin
 					f.apply @, a
 				), ms
 $.plugin
-	depends: 'type'
 	provides: 'TNET'
+	depends: 'type, string, function'
 , -> # TnetStrings plugin
 	Types =
 		"number":
@@ -2895,7 +2989,7 @@ $.plugin
 		fadeDown: (speed, callback)  -> @fadeOut speed, callback, 0.0, @height().first()
 	}
 $.plugin
-	provides: "type"
+	provides: "type,is,inherit,extend,defineProperty,isType,are,as,isSimple,isDefined,isEmpty"
 	depends: "compat"
 , ->
 	isType = (T, o) ->
@@ -2911,16 +3005,16 @@ $.plugin
 		if parent.__proto__ in [Object.prototype, null, undefined]
 			parent.__proto__ = obj.__proto__
 		obj.__proto__ = parent
-		return if objs.length > 0
-			inherit obj, objs...
+		if objs.length > 0
+			return inherit obj, objs...
 		else obj
 	_type = do ->
 		cache = {}
 		base =
 			name: 'unknown'
-			is: (o) -> true
+			is: -> true
 		order = []
-		_with_cache = {} # for fast lookups of every type with a certain method { method: [ types ] }
+		_with_cache = {} # for finding types that have a certain method { method: [ types ] }
 		_with_insert = (method, type) ->
 			a = (_with_cache[method] or= [])
 			if (i = a.indexOf type) is -1
@@ -2947,15 +3041,15 @@ $.plugin
 					return cache[name]
 		register "unknown",   base
 		register "object",    is: (o) -> typeof o is "object" and (o.constructor?.name in [undefined, "Object"])
-		register "error",     is: (o) -> isType 'Error', o
-		register "regexp",    is: (o) -> isType 'RegExp', o
-		register "string",    is: (o) -> typeof o is "string" or isType String, o
-		register "number",    is: (o) -> (isType Number, o) and not isNaN(o)
-		register "bool",      is: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
 		register "array",     is: Array.isArray or (o) -> isType Array, o
 		register "buffer",    is: Buffer.isBuffer or -> false
+		register "error",     is: (o) -> isType 'Error', o
+		register "regexp",    is: (o) -> isType 'RegExp', o
+		register "string",    is: (o) -> typeof o is "string" # or isType String, o
+		register "number",    is: (o) -> typeof o is "number" and not isNaN(o)
+		register "bool",      is: (o) -> typeof o is "boolean" # or try String(o) in ["true","false"]
 		register "function",  is: (o) -> typeof o is "function"
-		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of @
+		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of o
 		register "arguments", is: (o) -> try 'callee' of o and 'length' of o
 		register "undefined", is: (x) -> x is undefined
 		register "null",      is: (x) -> x is null
@@ -2964,20 +3058,20 @@ $.plugin
 			lookup: lookup
 			extend: _extend
 			get: (t) -> cache[t]
-			is: (t, o) -> cache[t]?.is.call o, o
+			is: (t, o) -> cache[t]?.is.call(o, o) ? false
 			as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
 			with: (f) -> _with_cache[f] ? []
 	_type.extend
 		unknown:   { array: (o) -> [o] }
-		null:      { array: (o) -> [] }
-		undefined: { array: (o) -> [] }
+		null:      { array:     -> [] }
+		undefined: { array:     -> [] }
 		array:     { array: (o) -> o }
 		number:    { array: (o) -> $.extend new Array(o), length: 0 }
 		arguments: { array: (o) -> Array::slice.apply o }
 	maxHash = Math.pow(2,32)
 	_type.register "bling",
 		is:     (o) -> o and isType $, o
-		array:  (o) -> o.toArray()
+		array:  (o) -> (o and o.toArray()) or []
 		hash:   (o) -> o.map($.hash).reduce (a,x) -> ((a*a)+x) % maxHash
 		string: (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
 		repr:   (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
@@ -2990,6 +3084,10 @@ $.plugin
 		isType: isType
 		type: _type
 		is: _type.is
+		are: (type, args...) ->
+			for a in args
+				return false unless $.is type, a
+			return true
 		as: _type.as
 		isDefined: (o) -> o?
 		isSimple: (o) -> _type(o) in ["string", "number", "bool"]

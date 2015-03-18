@@ -7,7 +7,6 @@ JLDOM=node_modules/jldom
 MOCHA=node_modules/.bin/mocha
 MOCHA_FMT=spec
 MOCHA_OPTS=--compilers coffee:coffee-script/register --globals document,window,Bling,$$,_ -R ${MOCHA_FMT} -s 500 --bail
-WATCH="coffee watch.coffee"
 
 TEST_FILES=$(shell ls test/*.coffee | grep -v setup.coffee | sort -f )
 PASS_FILES=$(subst .coffee,.coffee.pass,$(shell ls test/*.coffee | grep -v setup.coffee | sort -f ))
@@ -15,9 +14,6 @@ TIME_FILES=$(subst .coffee,.coffee.time,$(shell ls bench/*.coffee | grep -v setu
 
 
 all: dist report
-
-watch: dist
-	coffee watch.coffee -v -i -- '.coffee$$' -- make test
 
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 

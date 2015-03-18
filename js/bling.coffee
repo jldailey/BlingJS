@@ -3042,7 +3042,7 @@ $.plugin
 		register "unknown",   base
 		register "object",    is: (o) -> typeof o is "object" and (o.constructor?.name in [undefined, "Object"])
 		register "array",     is: Array.isArray or (o) -> isType Array, o
-		register "buffer",    is: Buffer.isBuffer or -> false
+		register "buffer",    is: $.global.Buffer.isBuffer or -> false
 		register "error",     is: (o) -> isType 'Error', o
 		register "regexp",    is: (o) -> isType 'RegExp', o
 		register "string",    is: (o) -> typeof o is "string" # or isType String, o

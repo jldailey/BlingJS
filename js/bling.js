@@ -6434,7 +6434,7 @@
         }
       });
       register("buffer", {
-        is: Buffer.isBuffer || function() {
+        is: $.global.Buffer.isBuffer || function() {
           return false;
         }
       });

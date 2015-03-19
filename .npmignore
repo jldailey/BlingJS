@@ -16,3 +16,6 @@ bench
 plugins
 release.sh
 test
+dist/bling.*
+dist/*.gz
+dist/*.map

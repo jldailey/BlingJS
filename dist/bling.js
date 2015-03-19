@@ -3674,21 +3674,21 @@
       return function(field) {
         var valueOf, x;
         valueOf = (function() {
-          switch ($.type(field)) {
-            case "string":
+          switch (false) {
+            case !$.is("string", field):
               return function(o) {
                 return o[field];
               };
-            case "function":
+            case !$.is("function", field):
               return field;
             default:
               throw new Error(".maxBy first argument should be a string or function");
           }
         })();
         x = this.first();
-        this.skip(1).each(function() {
-          if (cmp(valueOf(this), valueOf(x))) {
-            return x = this;
+        this.skip(1).each(function(n) {
+          if (cmp(valueOf(n), valueOf(x))) {
+            return x = n;
           }
         });
         return x;

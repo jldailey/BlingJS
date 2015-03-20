@@ -1595,8 +1595,9 @@
     depends: "core"
   }, function() {
     var explodeStack;
-    explodeStack = function(stack) {
-      var err, files, fs, lines, message;
+    explodeStack = function(stack, node_modules) {
+      var err, files, fs, lines, message, nl;
+      nl = /(?:\r\n|\r|\n)/;
       fs = null;
       try {
         fs = require('fs');
@@ -1604,7 +1605,10 @@
         err = _error;
         return stack;
       }
-      lines = $(String(stack).split(/(?:\r\n|\r|\n)/)).filter(/^$/, false);
+      lines = $(String(stack).split(nl)).filter(/^$/, false);
+      if (!node_modules) {
+        lines = lines.filter(/node_modules/, false);
+      }
       message = lines.first();
       lines = lines.skip(1);
       files = lines.map(function(s) {
@@ -1613,7 +1617,7 @@
         try {
           _ref = f.split(/:/), f = _ref[0], ln_num = _ref[1], col = _ref[2];
           data = String(fs.readFileSync(f));
-          f_lines = data.split(/(?:\r\n|\r|\n)/);
+          f_lines = data.split(nl);
           line = f_lines[ln_num - 1];
           if (line.length > 80) {
             line = "... " + line.substr(col - 35, 70) + " ...";
@@ -1631,17 +1635,22 @@
     };
     return {
       $: {
-        debugStack: function(error) {
-          return explodeStack((function() {
-            switch (true) {
-              case $.is('error', error):
+        debugStack: function(error, node_modules) {
+          var stack;
+          if (node_modules == null) {
+            node_modules = false;
+          }
+          stack = (function() {
+            switch (false) {
+              case !$.is('error', error):
                 return String(error.stack);
-              case $.is('string', error):
+              case !$.is('string', error):
                 return error;
               default:
                 return String(error);
             }
-          })());
+          })();
+          return explodeStack(stack, node_modules);
         }
       }
     };

@@ -685,11 +685,14 @@ $.plugin
 	provides: "debug, debugStack",
 	depends: "core"
 , ->
-	explodeStack = (stack) ->
+	explodeStack = (stack, node_modules) ->
+		nl = /(?:\r\n|\r|\n)/
 		fs = null
 		try fs = require 'fs'
 		catch err then return stack # if we aren't in node, reading files is meaningless
-		lines = $(String(stack).split(/(?:\r\n|\r|\n)/)).filter(/^$/, false)
+		lines = $(String(stack).split nl).filter(/^$/, false)
+		if not node_modules
+			lines = lines.filter(/node_modules/, false)
 		message = lines.first()
 		lines = lines.skip 1
 		files = lines.map (s) ->
@@ -700,7 +703,7 @@ $.plugin
 			try
 				[f,ln_num,col] = f.split(/:/)
 				data = String(fs.readFileSync f)
-				f_lines = data.split(/(?:\r\n|\r|\n)/)
+				f_lines = data.split nl
 				line = f_lines[ln_num-1]
 				if line.length > 80
 					line = "... " + line.substr(col-35,70) + " ..."
@@ -712,11 +715,12 @@ $.plugin
 				return null
 		return message + "\n" + $.weave(files, lines).filter(null, false).join "\n"
 	return $: {
-		debugStack: (error) ->
-			explodeStack switch true
+		debugStack: (error, node_modules=false) ->
+			stack = switch
 				when $.is 'error', error then String(error.stack)
 				when $.is 'string', error then error
 				else String(error)
+			explodeStack stack, node_modules
 	}
 $.plugin
 	provides: "delay,immediate,interval"

@@ -59,6 +59,16 @@ $.plugin
 			(b[i++] = f.call t,t) for t in @
 			return b
 
+		every: (f) ->
+			for x in @ when not f(x)
+				return false
+			return true
+
+		some: (f) ->
+			for x in @ when f(x)
+				return true
+			return false
+
 		filterMap: (f) ->
 			b = $()
 			for t in @

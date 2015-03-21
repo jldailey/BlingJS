@@ -657,6 +657,26 @@
         }
         return b;
       },
+      every: function(f) {
+        var x, _i, _len;
+        for (_i = 0, _len = this.length; _i < _len; _i++) {
+          x = this[_i];
+          if (!f(x)) {
+            return false;
+          }
+        }
+        return true;
+      },
+      some: function(f) {
+        var x, _i, _len;
+        for (_i = 0, _len = this.length; _i < _len; _i++) {
+          x = this[_i];
+          if (f(x)) {
+            return true;
+          }
+        }
+        return false;
+      },
       filterMap: function(f) {
         var b, t, v, _i, _len;
         b = $();

@@ -4165,6 +4165,7 @@
     Promise.compose = Promise.parallel = function() {
       var p, promises;
       promises = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+      promises = $(promises).flatten();
       p = $.Progress(1 + promises.length);
       $(promises).select('wait').call(function(err) {
         if (err) {

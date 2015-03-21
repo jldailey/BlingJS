@@ -95,6 +95,7 @@ $.plugin
 		return ret
 
 	Promise.compose = Promise.parallel = (promises...) ->
+		promises = $(promises).flatten()
 		# always an extra one for setup, so an empty list is finished immediately
 		p = $.Progress(1 + promises.length)
 		$(promises).select('wait').call (err) ->

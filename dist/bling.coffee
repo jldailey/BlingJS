@@ -1858,6 +1858,7 @@ $.plugin
 		$.defineProperty ret, 'rejected', get: isFailed
 		return ret
 	Promise.compose = Promise.parallel = (promises...) ->
+		promises = $(promises).flatten()
 		p = $.Progress(1 + promises.length)
 		$(promises).select('wait').call (err) ->
 			if err then p.reject(err) else p.resolve 1

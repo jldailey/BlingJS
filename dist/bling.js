@@ -4229,16 +4229,13 @@
       try {
         return p = $.Promise();
       } finally {
-        args.push(function(err, result) {
-          if (err) {
-            return p.reject(err);
+        f.apply(null, __slice.call(args).concat([function(e, r) {
+          if (e) {
+            return p.reject(e);
           } else {
-            return p.resolve(result);
+            return p.resolve(r);
           }
-        });
-        $.immediate(function() {
-          return f.apply(null, args);
-        });
+        }]));
       }
     };
     Progress = function(max) {
@@ -4311,6 +4308,27 @@
             }
           }
         };
+      }
+    };
+    Promise.series = function() {
+      var p, run, series;
+      series = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+      series = $(series).flatten();
+      run = function(i) {
+        return function() {
+          if (i >= series.length) {
+            return;
+          }
+          return series[i] = series[i]().wait(function(err, result) {
+            p.resolve(series[i] = [err, result]);
+            return $.immediate(run(i + 1));
+          });
+        };
+      };
+      try {
+        return p = $.Progress(series.length);
+      } finally {
+        $.immediate(run(0));
       }
     };
     $.depend('dom', function() {

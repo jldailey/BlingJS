@@ -1884,10 +1884,9 @@ $.plugin
 		q.resolve(1)
 		p
 	Promise.wrapCall = (f, args...) ->
-		try p = $.Promise()
-		finally # the last argument to f will be a callback that finishes the promise
-			args.push (err, result) -> if err then p.reject(err) else p.resolve(result)
-			$.immediate -> f args...
+		try return p = $.Promise()
+		finally f args..., (e, r) ->
+			if e then p.reject(e) else p.resolve(r)
 	Progress = (max = 1.0) ->
 		cur = 0.0
 		return $.inherit {
@@ -1921,6 +1920,16 @@ $.plugin
 					p.resolve xhr.responseText
 				else
 					p.resolve "#{@status} #{@statusText}"
+	Promise.series = (series...) ->
+		series = $(series).flatten()
+		run = (i) -> ->
+			if i >= series.length
+				return
+			series[i] = series[i]().wait (err, result) ->
+				p.resolve series[i] = [ err, result ]
+				$.immediate run i + 1
+		try return p = $.Progress(series.length)
+		finally $.immediate run 0
 	$.depend 'dom', ->
 		Promise.image = (src) ->
 			try p = $.Promise()

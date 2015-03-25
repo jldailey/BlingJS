@@ -1634,7 +1634,7 @@
       data_cache = Object.create(null);
       files = lines.map(function(s) {
         var before, col, data, f, f_lines, line, ln_num, ref, spacer, tabs;
-        f = s.replace(/^\s*at\s+/, '').replace(/^[^(]*\(/, '(').replace(/^\(/, '').replace(/\)$/, '');
+        f = s.replace(/^\s*at\s+/g, '').replace(/.*\(([^:]+:\d+:\d+)\)$/, "$1");
         try {
           ref = f.split(/:/), f = ref[0], ln_num = ref[1], col = ref[2];
           data = data_cache[f] != null ? data_cache[f] : data_cache[f] = String(fs.readFileSync(f));

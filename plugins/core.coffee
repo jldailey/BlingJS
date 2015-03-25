@@ -59,6 +59,16 @@ $.plugin
 			(b[i++] = f.call t,t) for t in @
 			return b
 
+		every: (f) ->
+			for x in @ when not f(x)
+				return false
+			return true
+
+		some: (f) ->
+			for x in @ when f(x)
+				return true
+			return false
+
 		filterMap: (f) ->
 			b = $()
 			for t in @
@@ -134,7 +144,9 @@ $.plugin
 			# First, a private helper that will read property `prop` from some object later.
 			getter = (prop) ->
 				->
-					if $.is("function",v = @[prop]) then $.bound(@,v) else v
+					if $.is("function",v = @[prop]) and prop isnt "constructor"
+						return $.bound(@,v)
+					else v
 			# Recursively split `p` on `.` and map the getter helper
 			# to read a set of complex `p` values from an object.
 			# > `$([x]).select("name") == [ x.name ]`
@@ -287,6 +299,8 @@ $.plugin
 				when "regexp" then (x) -> f.test(x)
 				# * function: `.filter (x) -> (x%2) is 1`
 				when "function" then f
+				# * primitives
+				when "bool","number","null","undefined" then (x) -> f is x
 				else throw new Error "unsupported argument to filter: #{$.type f}"
 			a = $()
 			for it in @

@@ -1,5 +1,5 @@
 $.plugin
-	depends: "StateMachine"
+	depends: "StateMachine, function"
 	provides: "template"
 , -> # Template plugin, pythonic style: %(value).2f
 	current_engine = null
@@ -23,8 +23,7 @@ $.plugin
 	template.__defineGetter__ 'engines', -> $.keysOf(engines)
 
 	template.register_engine 'null', do ->
-		return (text, values) ->
-			text
+		return $.identity
 
 	# a bracket-matcher, useful in most template parsing steps
 	match_forward = (text, find, against, start, stop = -1) ->
@@ -72,7 +71,7 @@ $.plugin
 			return ret
 		compile.cache = {}
 
-		render = (text, values) -> # replace markers in /text/ with /values/
+		return render = (text, values) -> # replace markers in /text/ with /values/
 			cache = compile.cache[text] # get the cached version
 			if not cache?
 				cache = compile.cache[text] = compile(text) # or compile and cache it
@@ -106,21 +105,5 @@ $.plugin
 				output[j++] = rest
 			output.join ""
 
-		return render
-
-	template.register_engine 'js-eval', do -> # work in progress...
-		class TemplateMachine extends $.StateMachine
-			@STATE_TABLE = [
-				{ # 0: START
-					enter: () ->
-						@data = []
-						@GO(1)
-				},
-				{ # 1: read anything
-				}
-			]
-
-		return (text, values) ->
-			text
 
 	return $: { template }

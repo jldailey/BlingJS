@@ -29,7 +29,7 @@ describe "$.Promise()", ->
 		describe "optional timeout", ->
 			it "sets error to 'timeout'", (done) ->
 				$.Promise().wait 100, (err, data) ->
-					assert.equal err, 'timeout'
+					assert.equal String(err), 'Error: timeout'
 					done()
 			it "does not fire an error if the promise is resolved in time", (done) ->
 				pass = false
@@ -40,19 +40,24 @@ describe "$.Promise()", ->
 				$.delay 200, ->
 					assert.equal pass, true
 					done()
+		describe "can resolve with another promise", ->
+			a = $.Promise()
+			b = $.Promise()
+			a.resolve b
+
 	describe "reject", ->
 		it "passes errors to queued callbacks", (done) ->
 			$.Promise().wait((err, data) ->
-				if err isnt "fizzle"
-					done "rejected: no fizzle!"
+				if String(err) isnt "Error: fizzle"
+					done "expected: 'Error: fizzle' got: '#{String err}'"
 				else done()
 				).reject "fizzle"
 		it "ignores repeated calls", ->
-			pass = 1
-			a = $.Promise().wait (err, data) -> pass += err
-			a.reject pass
-			a.reject pass
-			assert.equal pass, 2 # not 4, if it had run twice
+			pass = ""
+			a = $.Promise().wait (err, data) -> pass += String(err)
+			a.reject "error"
+			a.reject "error"
+			assert.equal pass, "Error: error" # not 4, if it had run twice
 	describe "reset", ->
 		it "resets", ->
 			rp = $.Promise()
@@ -97,6 +102,13 @@ describe "$.Promise()", ->
 			a.resolve()
 			b.resolve()
 			assert pass
+		it "accepts an array", ->
+			pass = false
+			a = $.Promise()
+			c = $.Promise.compose([a]).wait -> pass = true
+			a.resolve()
+			assert pass
+
 	describe ".collect()", ->
 		it "exists", ->
 			assert 'collect' of $.Promise
@@ -124,7 +136,7 @@ describe "$.Promise()", ->
 			b.reject("err_b")
 			a.resolve('a')
 			d.wait (err) ->
-				assert.equal "err_b", err
+				assert.equal "Error: err_b", String(err)
 				done()
 
 	describe ".handler()", ->

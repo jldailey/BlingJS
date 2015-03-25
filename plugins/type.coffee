@@ -52,7 +52,7 @@ $.plugin
 		# each type, we will extend this base with default implementations.
 		base =
 			name: 'unknown'
-			is: (o) -> true
+			is: -> true
 
 		# When classifying an object, this array of names will control
 		# the _order_ of the calls to `is` (and thus, the _type precedence_).
@@ -109,15 +109,15 @@ $.plugin
 		# first, and conceptually more specialized checks would get added
 		# as time goes on (so specialized type matches are preferred).
 		register "object",    is: (o) -> typeof o is "object" and (o.constructor?.name in [undefined, "Object"])
+		register "array",     is: Array.isArray or (o) -> isType Array, o
+		register "buffer",    is: $.global.Buffer.isBuffer or -> false
 		register "error",     is: (o) -> isType 'Error', o
 		register "regexp",    is: (o) -> isType 'RegExp', o
-		register "string",    is: (o) -> typeof o is "string" or isType String, o
-		register "number",    is: (o) -> (isType Number, o) and not isNaN(o)
-		register "bool",      is: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
-		register "array",     is: Array.isArray or (o) -> isType Array, o
-		register "buffer",    is: Buffer.isBuffer or -> false
+		register "string",    is: (o) -> typeof o is "string" # or isType String, o
+		register "number",    is: (o) -> typeof o is "number" and not isNaN(o)
+		register "bool",      is: (o) -> typeof o is "boolean" # or try String(o) in ["true","false"]
 		register "function",  is: (o) -> typeof o is "function"
-		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of @
+		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of o
 		register "arguments", is: (o) -> try 'callee' of o and 'length' of o
 		# These checks for null and undefined are small exceptions to the
 		# simple-first idea, since they are precise and getting them out
@@ -131,7 +131,7 @@ $.plugin
 			lookup: lookup
 			extend: _extend
 			get: (t) -> cache[t]
-			is: (t, o) -> cache[t]?.is.call o, o
+			is: (t, o) -> cache[t]?.is.call(o, o) ? false
 			as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
 			# Find all types with a certain function available:
 			# e.g. $.type.with('compact') == a list of all `compact`-able types
@@ -160,8 +160,8 @@ $.plugin
 		# this further to know how to convert "html", "node", etc.
 
 		# Null and undefined values convert to an empty array.
-		null:      { array: (o) -> [] }
-		undefined: { array: (o) -> [] }
+		null:      { array:     -> [] }
+		undefined: { array:     -> [] }
 		# Arrays just convert to themselves.
 		array:     { array: (o) -> o }
 		# Numbers create a new array of that capacity (but zero length).
@@ -176,7 +176,7 @@ $.plugin
 		# Add the type test so: `$.type($()) == "bling"`.
 		is:     (o) -> o and isType $, o
 		# Bling extends array so they can convert themselves.
-		array:  (o) -> o.toArray()
+		array:  (o) -> (o and o.toArray()) or []
 		# Their hash is just the sum of member hashes (order matters).
 		hash:   (o) -> o.map($.hash).reduce (a,x) -> ((a*a)+x) % maxHash
 		# They have a very literal string representation.

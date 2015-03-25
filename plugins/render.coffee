@@ -9,6 +9,7 @@ $.plugin
 		unless $.is "promise", promise
 			return $.Promise().resolve(reduce promise, opts)
 		promise.wait (err, result) ->
+			if err then return p.reject err
 			r = reduce result, opts
 			if $.is 'promise', r
 				consume_forever r, opts, p
@@ -42,7 +43,7 @@ $.plugin
 				p = $.Progress m = 1 # always start with one step (creation)
 				# more steps will be added later during the recursion
 				q = $.Promise() # use a summary promise for public view
-				p.wait (err, result) ->
+				p.wait (err) ->
 					if err then q.reject(err) else q.resolve(finalize n, opts)
 				n = []
 				has_promises = false
@@ -75,14 +76,14 @@ $.plugin
 		return switch t = $.type o
 			when "string","html" then o
 			when "number" then String(o)
-			when "array","bling" then (finalize(x) for x in o).join ''
+			when "array","bling" then (finalize(x, opts) for x in o).join ''
 			when "null","undefined" then t
 			else "[ cant finalize type: #{t} ]"
 
 	register 'link', (o, opts) -> [
 		"<a"
-			[" ",k,"='",@[k],"'"] for k in ["href","name","target"] when k of @
-		">",reduce(@content,opts),"</a>"
+			[" #{k}='",o[k],"'"] for k in ["href","name","target"] when k of o
+		">",reduce(o.content,opts),"</a>"
 	]
 
 	register 'let', (o, opts) ->

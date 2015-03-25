@@ -190,6 +190,24 @@ $.plugin
 				null
 			helper [], -1
 			return $(ret)
+$.plugin {
+	provides: "clone"
+	depends: "type"
+}, ->
+	$.type.extend {
+		unknown: { clone: (s) ->
+			null
+		}
+		string:  { clone: (s) -> s + "" }
+		number:  { clone: (n) -> n + 0.0 }
+		array:   { clone: (a) -> a.concat [] }
+		bling:   { clone: (b) -> b.concat [] }
+		object:  { clone: (o) ->
+			try return ret = Object.create(o.__proto__)
+			finally for own k,v of o then ret[k] = $.type.lookup(v).clone(v)
+		}
+	}
+	return { $: { clone: (o) -> $.type.lookup(o).clone(o) } }
 $.plugin
 	provides: "compat, trimLeft, split, lastIndexOf, join, preventAll, matchesSelector, isBuffer"
 , ->
@@ -292,6 +310,14 @@ $.plugin
 			i = 0
 			(b[i++] = f.call t,t) for t in @
 			return b
+		every: (f) ->
+			for x in @ when not f(x)
+				return false
+			return true
+		some: (f) ->
+			for x in @ when f(x)
+				return true
+			return false
 		filterMap: (f) ->
 			b = $()
 			for t in @
@@ -346,7 +372,9 @@ $.plugin
 		select: do ->
 			getter = (prop) ->
 				->
-					if $.is("function",v = @[prop]) then $.bound(@,v) else v
+					if $.is("function",v = @[prop]) and prop isnt "constructor"
+						return $.bound(@,v)
+					else v
 			selectOne = (p) ->
 				switch type = $.type p
 					when 'regexp' then selectMany.call @, p
@@ -429,6 +457,7 @@ $.plugin
 				when "string" then (x) -> x?.matchesSelector?(f) ? false
 				when "regexp" then (x) -> f.test(x)
 				when "function" then f
+				when "bool","number","null","undefined" then (x) -> f is x
 				else throw new Error "unsupported argument to filter: #{$.type f}"
 			a = $()
 			for it in @
@@ -679,6 +708,50 @@ $.plugin
 	dateFormat: (fmt = $.date.defaultFormat, unit = $.date.defaultUnit) -> @map(-> $.date.format @, fmt, unit)
 	dateParse: (fmt = $.date.defaultFormat, unit = $.date.defaultUnit) -> @map(-> $.date.parse @, fmt, unit)
 $.plugin
+	provides: "debug, debugStack",
+	depends: "core"
+, ->
+	explodeStack = (stack, node_modules) ->
+		nl = /(?:\r\n|\r|\n)/
+		fs = null
+		try fs = require 'fs'
+		catch err then return stack # if we aren't in node, reading files is meaningless
+		lines = $(String(stack).split nl).filter(/^$/, false)
+		if not node_modules
+			lines = lines.filter(/node_modules/, false)
+		message = lines.first()
+		lines = lines.skip 1
+		lines_cache = Object.create null
+		files = lines.map (s) ->
+			f = s.replace(/^\s*at\s+/g,'') \
+				.replace(/.*\(([^:]+:\d+:\d+)\)$/, "$1")
+			try
+				[f,ln_num,col] = f.split(/:/)
+				f_lines = lines_cache[f] ?= String(fs.readFileSync f).split nl
+				if ln_num > 1
+					before = f_lines[ln_num-2]
+					if before.length > 80
+						before = "..8<.." + before.substr(col-25,50) + "..>8.."
+				else before = ""
+				line = f_lines[ln_num-1]
+				if line.length > 80
+					line = "..8<.." + line.substr(col-25,50) + "..>8.."
+					col = 31
+				tabs = line.replace(/[^\t]/g,'').length
+				spacer = $.repeat('\t', tabs) + $.repeat(' ', (col-1)-tabs)
+				return """  #{ln_num-1} #{before}\n  #{ln_num} #{line}\n  #{ln_num} #{spacer}^"""
+			catch err
+				return null
+		return message + "\n" + $.weave(files, lines).filter(null, false).join "\n"
+	return $: {
+		debugStack: (error, node_modules=false) ->
+			stack = switch
+				when $.is 'error', error then String(error.stack)
+				when $.is 'string', error then error
+				else String(error)
+			explodeStack stack, node_modules
+	}
+$.plugin
 	provides: "delay,immediate,interval"
 	depends: "is,select,extend,bound"
 , ->
@@ -807,9 +880,9 @@ if $.global.document?
 	, ->
 		bNodelistsAreSpecial = false
 		$.type.register "nodelist",
-			is:  (o) -> o? and $.isType "NodeList", o
-			hash:   (o) -> $($.hash(i) for i in x).sum()
-			array:  do ->
+			is:			(o) -> o? and $.isType "NodeList", o
+			hash:		(o) -> $($.hash(i) for i in o).sum()
+			array:	do ->
 				try # probe to see if this browsers allows modification of a NodeList's prototype
 					document.querySelectorAll("xxx").__proto__ = {}
 					return $.identity
@@ -817,33 +890,33 @@ if $.global.document?
 					bNodelistsAreSpecial = true
 					return (o) -> (node for node in o)
 			string: (o) -> "{Nodelist:["+$(o).select('nodeName').join(",")+"]}"
-			node:   (o) -> $(o).toFragment()
+			node:		(o) -> $(o).toFragment()
 		$.type.register "node",
 			is:  (o) -> o?.nodeType > 0
-			hash:   (o) -> $.checksum(o.nodeName) + $.hash(o.attributes) + $.checksum(o.innerHTML)
+			hash:		(o) -> $.checksum(o.nodeName) + $.hash(o.attributes) + $.checksum(o.innerHTML)
 			string: (o) -> o.toString()
-			node:   $.identity
+			node:		$.identity
 		$.type.register "fragment",
 			is:  (o) -> o?.nodeType is 11
-			hash:   (o) -> $($.hash(x) for x in o.childNodes).sum()
+			hash:		(o) -> $($.hash(x) for x in o.childNodes).sum()
 			string: (o) -> o.toString()
-			node:   $.identity
+			node:		$.identity
 		$.type.register "html",
 			is:  (o) -> typeof o is "string" and (s=o.trimLeft())[0] == "<" and s[s.length-1] == ">"
-			node:   (h) ->
+			node:		(h) ->
 				(node = document.createElement('div')).innerHTML = h
 				if (n = (childNodes = node.childNodes).length) is 1
 					return node.removeChild(childNodes[0])
 				df = document.createDocumentFragment()
 				df.appendChild(node.removeChild(childNodes[0])) for i in [0...n] by 1
 				df
-			array:  (o) -> $.type.lookup(h = $.HTML.parse o).array h
+			array:	(o) -> $.type.lookup(h = $.HTML.parse o).array h
 			string: (o) -> "'#{o}'"
-			repr:   (o) -> '"' + o + '"'
+			repr:		(o) -> '"' + o + '"'
 		$.type.extend
-			unknown:  { node: -> null }
-			bling:    { node: (o) -> o.toFragment() }
-			node:     { html: (n) ->
+			unknown:	{ node: -> null }
+			bling:		{ node: (o) -> o.toFragment() }
+			node:			{ html: (n) ->
 				d = document.createElement "div"
 				d.appendChild (n = n.cloneNode true)
 				ret = d.innerHTML
@@ -858,17 +931,16 @@ if $.global.document?
 					else
 						(o) -> document.querySelectorAll o
 			function: { node: (o) -> $(o.toString()).toFragment() }
-		toFrag = (a) ->
-			if not a.parentNode?
-				df = document.createDocumentFragment()
-				df.appendChild a
+		toFrag  = (a) ->
+			unless a.parentNode
+				document.createDocumentFragment().appendChild a
 			a
-		before = (a,b) -> toFrag(a).parentNode.insertBefore b, a
-		after = (a,b) -> toFrag(a).parentNode.insertBefore b, a.nextSibling
-		toNode = (x) -> $.type.lookup(x).node x
+		before  = (a,b) -> toFrag(a).parentNode.insertBefore b, a
+		after   = (a,b) -> toFrag(a).parentNode.insertBefore b, a.nextSibling
+		toNode  = (x) -> $.type.lookup(x).node x
 		escaper = false
-		parser = false
-		$.computeCSSProperty = computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
+		parser  = false
+		$.computeCSSProperty = (k) -> -> $.global.getComputedStyle(@, null).getPropertyValue k
 		getOrSetRect = (p) -> (x) -> if x? then @css(p, x) else @rect().select p
 		selectChain = (prop) -> -> @map (p) -> $( p while p = p[prop] )
 		return {
@@ -893,10 +965,12 @@ if $.global.document?
 								@removeChild @childNodes[1]
 			append: (x) -> # .append(/n/) - insert /n/ [or a clone] as the last child of each node
 				x = toNode(x) # parse, cast, do whatever it takes to get a Node or Fragment
+				return unless x?
 				@each (n) -> n?.appendChild? x.cloneNode true
 			appendText: (text) ->
-				node = document.createTextNode(text)
-				@each (n) -> n?.appendChild? node.cloneNode true
+				x = document.createTextNode(text)
+				return unless x?
+				@each (n) -> n?.appendChild? x.cloneNode true
 			appendTo: (x) -> # .appendTo(/n/) - each node [or fragment] will become the last child of x
 				clones = @map( -> @cloneNode true)
 				i = 0
@@ -1007,14 +1081,14 @@ if $.global.document?
 							setters[i%nn](key, v[i%n], "")
 					else if $.is 'function', v
 						values = @select("style.#{key}") \
-							.weave(@map computeCSSProperty key) \
+							.weave(@map $.computeCSSProperty key) \
 							.fold($.coalesce) \
 							.weave(setters) \
 							.fold (setter, value) -> setter(key, v.call value, value)
 					else setters.call key, v, ""
 					return @
 				else @select("style.#{key}") \
-					.weave(@map computeCSSProperty key) \
+					.weave(@map $.computeCSSProperty key) \
 					.fold($.coalesce)
 			defaultCss: (k, v) ->
 				sel = @selector
@@ -1103,7 +1177,7 @@ $.plugin
 			addListener: add
 			removeListener:     (e, f) -> (l.splice i, 1) if (i = (l = list e).indexOf f) > -1
 			removeAllListeners: (e) -> listeners[e] = []
-			setMaxListeners:    (n) -> # who really needs this in the core API?
+			setMaxListeners:        -> # who really needs this in the core API?
 			listeners:          (e) -> list(e).slice 0
 		}, obj
 $.plugin
@@ -1450,6 +1524,57 @@ $.depends 'hook', ->
 				null
 		}, obj
 $.plugin
+	provides: "toHTML"
+	depends: "type,synth,once"
+, ->
+	dumpStyles = $.once -> try $("head").append $.synth("style#dump").text """
+		table.dump                { border: 1px solid black; }
+		table.dump tr.h           { background-color: blue; color: white; cursor: pointer; }
+		table.dump tr.h th        { padding: 0px 4px; }
+		table.dump tr.h.array     { background-color: purple; }
+		table.dump tr.h.bling     { background-color: gold; }
+		table.dump td             { padding: 2px; }
+		table.dump td.k           { background-color: lightblue; }
+		table.dump td.v.string    { background-color: #cfc; }
+		table.dump td.v.number    { background-color: #ffc; }
+		table.dump td.v.bool      { background-color: #fcf; }
+	"""
+	dumpScript = $.once -> try $("head").append $.synth("script#dump").text """
+		$(document.body).delegate('table.dump tr.h', 'click', function() {
+			$(this.parentNode).find("tr.kv").toggle()
+		})
+	"""
+	table = (t, rows) ->
+		tab = $.synth "table.dump tr.h.#{t} th[colspan=2] '#{t}'"
+		if t in ["array","bling","nodelist"]
+			tab.find("th").appendText " [#{rows.length}]"
+		tab.append(row) for row in rows
+		tab[0]
+	tableRow = (k, v, open) ->
+		row = $.synth "tr.kv td.k[align=right][valign=top] '#{k}' + td.v"
+		td = row.find "td.v"
+		switch _t = $.type v = $.toHTML v, open
+			when "string","number","bool","html","null","undefined" then td.appendText String v
+			else td.append v
+		td.addClass _t
+		row.toggle() unless open
+		return row
+	return { $: {
+		toHTML: (obj, open=true) ->
+			do dumpStyles
+			do dumpScript
+			return switch t = $.type obj
+				when "string","number","bool","null","undefined","html" then obj
+				when "bling","array","nodelist"
+					table(t, tableRow(k, v, open) for v,k in obj)
+				when "object","array"
+					table(t, tableRow(k, v, open) for k,v of obj)
+				when "node"
+					s = $.HTML.stringify obj
+					s.substr(0, s.indexOf('>') + 1) + '...'
+				else String(obj)
+	} }
+$.plugin
 	provides: 'keyName,keyNames'
 	depends: "math"
 , ->
@@ -1596,15 +1721,15 @@ $.plugin
 		number: { bool: (o) -> not not o }
 	_By = (cmp) ->
 		(field) ->
-			valueOf = switch $.type field
-				when "string" then (o) -> o[field]
-				when "function" then field
+			valueOf = switch
+				when $.is "string", field then (o) -> o[field]
+				when $.is "function", field then field
 				else throw new Error ".maxBy first argument should be a string or function"
 			x = @first()
-			@skip(1).each ->
-				if cmp valueOf(@), valueOf(x)
-					x = @
-			return x
+			@skip(1).each (n) ->
+				if cmp valueOf(n), valueOf(x)
+					x = n
+			x
 	$:
 		range: (start, end, step = 1) ->
 			if not end? then (end = start; start = 0)
@@ -1623,7 +1748,7 @@ $.plugin
 	minBy: _By (a,b) -> a < b
 	mean: mean = -> if not @length then 0 else @sum() / @length
 	avg: mean
-	sum: -> @filter( isFinite ).reduce(((a) -> a + @), 0)
+	sum: -> @filter( isFinite ).filter(null, false).reduce(((a) -> a + @), 0)
 	product: -> @filter( isFinite ).reduce (a) -> a * @
 	squares: -> @pow(2)
 	pow: (n) -> @map -> Math.pow @, n
@@ -1697,23 +1822,27 @@ $.plugin
 			cb.timeout?.cancel()
 			try cb e, v
 			catch _e
+				_stack = $.debugStack _e
+				$.log "Promise(#{ret.promiseId}) first-chance exception:", _stack
 				try cb _e, null
 				catch __e
-					$.log "Fatal error in promise callback:", \
-						__e?.stack ? __e, "caused by:", _e?.stack ? _e
+					__stack = $.debugStack __e
+					$.log "Promise(#{ret.promiseId}) last-chance exception:", __stack
 			null
 		end = (error, value) =>
 			if err is result is NoValue
 				if error isnt NoValue
 					err = error
+					unless error?.stack # force all errors to capture the current stack
+						err = new Error error
 				else if value isnt NoValue
 					result = value
-				switch
+				switch true
 					when value is @
 						return end new TypeError "cant resolve a promise with itself"
 					when $.is 'promise', value then value.wait end
-					when error isnt NoValue then consume_all error, null
-					when value isnt NoValue then consume_all null, value
+					when error isnt NoValue then consume_all err, null
+					when value isnt NoValue then consume_all null, result
 			return @
 		ret = $.inherit {
 			promiseId: $.random.string 6
@@ -1730,12 +1859,10 @@ $.plugin
 						cb.timeout = $.delay timeout, ->
 							if (i = waiting.indexOf cb) > -1
 								waiting.splice i, 1
-								consume_one cb, err = 'timeout', undefined
+								consume_one cb, err = new Error('timeout'), undefined
 				@
 			then: (f, e) -> @wait (err, x) ->
-				if err
-					if e? then e(err)
-					else throw err
+				if err then e?(err)
 				else f(x)
 			finish:  (value) -> end NoValue, value; @
 			resolve: (value) -> end NoValue, value; @
@@ -1760,8 +1887,9 @@ $.plugin
 		$.defineProperty ret, 'rejected', get: isFailed
 		return ret
 	Promise.compose = Promise.parallel = (promises...) ->
+		promises = $(promises).flatten()
 		p = $.Progress(1 + promises.length)
-		$(promises).select('wait').call (err, data) ->
+		$(promises).select('wait').call (err) ->
 			if err then p.reject(err) else p.resolve 1
 		p.resolve 1
 	Promise.collect = (promises) ->
@@ -1777,10 +1905,9 @@ $.plugin
 		q.resolve(1)
 		p
 	Promise.wrapCall = (f, args...) ->
-		try p = $.Promise()
-		finally # the last argument to f will be a callback that finishes the promise
-			args.push (err, result) -> if err then p.reject(err) else p.resolve(result)
-			$.immediate -> f args...
+		try return p = $.Promise()
+		finally f args..., (e, r) ->
+			if e then p.reject(e) else p.resolve(r)
 	Progress = (max = 1.0) ->
 		cur = 0.0
 		return $.inherit {
@@ -1814,6 +1941,16 @@ $.plugin
 					p.resolve xhr.responseText
 				else
 					p.resolve "#{@status} #{@statusText}"
+	Promise.series = (series...) ->
+		series = $(series).flatten()
+		run = (i) -> ->
+			if i >= series.length
+				return
+			series[i] = series[i]().wait (err, result) ->
+				p.resolve series[i] = [ err, result ]
+				$.immediate run i + 1
+		try return p = $.Progress(series.length)
+		finally $.immediate run 0
 	$.depend 'dom', ->
 		Promise.image = (src) ->
 			try p = $.Promise()
@@ -2033,6 +2170,7 @@ $.plugin
 		unless $.is "promise", promise
 			return $.Promise().resolve(reduce promise, opts)
 		promise.wait (err, result) ->
+			if err then return p.reject err
 			r = reduce result, opts
 			if $.is 'promise', r
 				consume_forever r, opts, p
@@ -2061,7 +2199,7 @@ $.plugin
 			when "array", "bling"
 				p = $.Progress m = 1 # always start with one step (creation)
 				q = $.Promise() # use a summary promise for public view
-				p.wait (err, result) ->
+				p.wait (err) ->
 					if err then q.reject(err) else q.resolve(finalize n, opts)
 				n = []
 				has_promises = false
@@ -2092,13 +2230,13 @@ $.plugin
 		return switch t = $.type o
 			when "string","html" then o
 			when "number" then String(o)
-			when "array","bling" then (finalize(x) for x in o).join ''
+			when "array","bling" then (finalize(x, opts) for x in o).join ''
 			when "null","undefined" then t
 			else "[ cant finalize type: #{t} ]"
 	register 'link', (o, opts) -> [
 		"<a"
-			[" ",k,"='",@[k],"'"] for k in ["href","name","target"] when k of @
-		">",reduce(@content,opts),"</a>"
+			[" #{k}='",o[k],"'"] for k in ["href","name","target"] when k of o
+		">",reduce(o.content,opts),"</a>"
 	]
 	register 'let', (o, opts) ->
 		save = opts[o.name]
@@ -2109,38 +2247,6 @@ $.plugin
 			else opts[o.name] = save
 	register 'get', (o, opts) -> reduce opts[o.name], opts
 	return $: { render }
-$.plugin
-	provides: "sendgrid"
-	depends: "config"
-, ->
-	try
-		nodemailer = require 'nodemailer'
-	catch err
-		return
-	transport = null
-	openTransport = ->
-		transport or= nodemailer.createTransport 'SMTP',
-			service: 'SendGrid'
-			auth:
-				user: $.config.get 'SENDGRID_USERNAME'
-				pass: $.config.get 'SENDGRID_PASSWORD'
-	closeTransport = ->
-		transport?.close()
-		transport = null
-	$:
-		sendMail: (mail, callback) ->
-			mail.transport ?= openTransport()
-			mail.from ?= $.config.get 'EMAILS_FROM'
-			mail.bcc ?= $.config.get 'EMAILS_BCC'
-			if $.config.get('SENDGRID_ENABLED', 'true') is 'true'
-				nodemailer.sendMail mail, (err) ->
-					if mail.close
-						closeTransport()
-					callback(err)
-			else
-				if mail.close
-					closeTransport()
-				callback(false) # Reply as if an email was sent
 $.plugin
 	provides: "sortBy,sortedIndex,sortedInsert"
 , ->
@@ -2331,17 +2437,17 @@ $.plugin
 				while s.length < n
 					s = s + c
 				s
-			stringTruncate: (s, n, c='...') ->
-				if s.length <= n
-					return s
-				s = s.split(' ') # split into words.
+			stringTruncate: (s, n, c='...',sep=' ') ->
+				return s if s.length <= n
+				return c if c.length >= n
+				s = s.split(sep) # split into words.
 				r = []
 				while n > 0
 					x = s.shift()
 					n -= x.length
 					if n >= 0
 						r.push x
-				r.join(' ') + c
+				r.join(sep) + c
 			stringCount: (s, x, i = 0, n = 0) ->
 				if (j = s.indexOf x,i) > i-1
 					$.stringCount s, x, j+1, n+1
@@ -2521,7 +2627,7 @@ $.plugin
 					$(s.fragment)
 	}
 $.plugin
-	depends: "StateMachine"
+	depends: "StateMachine, function"
 	provides: "template"
 , -> # Template plugin, pythonic style: %(value).2f
 	current_engine = null
@@ -2543,8 +2649,7 @@ $.plugin
 	template.__defineGetter__ 'engine', -> current_engine
 	template.__defineGetter__ 'engines', -> $.keysOf(engines)
 	template.register_engine 'null', do ->
-		return (text, values) ->
-			text
+		return $.identity
 	match_forward = (text, find, against, start, stop = -1) ->
 		count = 1
 		if stop < 0
@@ -2583,7 +2688,7 @@ $.plugin
 				ret[j++] = rest
 			return ret
 		compile.cache = {}
-		render = (text, values) -> # replace markers in /text/ with /values/
+		return render = (text, values) -> # replace markers in /text/ with /values/
 			cache = compile.cache[text] # get the cached version
 			if not cache?
 				cache = compile.cache[text] = compile(text) # or compile and cache it
@@ -2608,20 +2713,6 @@ $.plugin
 					output[j] = String.PadLeft output[j], pad
 				output[j++] = rest
 			output.join ""
-		return render
-	template.register_engine 'js-eval', do -> # work in progress...
-		class TemplateMachine extends $.StateMachine
-			@STATE_TABLE = [
-				{ # 0: START
-					enter: () ->
-						@data = []
-						@GO(1)
-				},
-				{ # 1: read anything
-				}
-			]
-		return (text, values) ->
-			text
 	return $: { template }
 $.plugin
 	provides: "throttle"
@@ -2966,7 +3057,7 @@ $.plugin
 		cache = {}
 		base =
 			name: 'unknown'
-			is: (o) -> true
+			is: -> true
 		order = []
 		_with_cache = {} # for finding types that have a certain method { method: [ types ] }
 		_with_insert = (method, type) ->
@@ -2995,15 +3086,15 @@ $.plugin
 					return cache[name]
 		register "unknown",   base
 		register "object",    is: (o) -> typeof o is "object" and (o.constructor?.name in [undefined, "Object"])
+		register "array",     is: Array.isArray or (o) -> isType Array, o
+		register "buffer",    is: $.global.Buffer.isBuffer or -> false
 		register "error",     is: (o) -> isType 'Error', o
 		register "regexp",    is: (o) -> isType 'RegExp', o
-		register "string",    is: (o) -> typeof o is "string" or isType String, o
-		register "number",    is: (o) -> (isType Number, o) and not isNaN(o)
-		register "bool",      is: (o) -> typeof o is "boolean" or try String(o) in ["true","false"]
-		register "array",     is: Array.isArray or (o) -> isType Array, o
-		register "buffer",    is: Buffer.isBuffer or -> false
+		register "string",    is: (o) -> typeof o is "string" # or isType String, o
+		register "number",    is: (o) -> typeof o is "number" and not isNaN(o)
+		register "bool",      is: (o) -> typeof o is "boolean" # or try String(o) in ["true","false"]
 		register "function",  is: (o) -> typeof o is "function"
-		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of @
+		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of o
 		register "arguments", is: (o) -> try 'callee' of o and 'length' of o
 		register "undefined", is: (x) -> x is undefined
 		register "null",      is: (x) -> x is null
@@ -3012,20 +3103,20 @@ $.plugin
 			lookup: lookup
 			extend: _extend
 			get: (t) -> cache[t]
-			is: (t, o) -> cache[t]?.is.call o, o
+			is: (t, o) -> cache[t]?.is.call(o, o) ? false
 			as: (t, o, rest...) -> lookup(o)[t]?(o, rest...)
 			with: (f) -> _with_cache[f] ? []
 	_type.extend
 		unknown:   { array: (o) -> [o] }
-		null:      { array: (o) -> [] }
-		undefined: { array: (o) -> [] }
+		null:      { array:     -> [] }
+		undefined: { array:     -> [] }
 		array:     { array: (o) -> o }
 		number:    { array: (o) -> $.extend new Array(o), length: 0 }
 		arguments: { array: (o) -> Array::slice.apply o }
 	maxHash = Math.pow(2,32)
 	_type.register "bling",
 		is:     (o) -> o and isType $, o
-		array:  (o) -> o.toArray()
+		array:  (o) -> (o and o.toArray()) or []
 		hash:   (o) -> o.map($.hash).reduce (a,x) -> ((a*a)+x) % maxHash
 		string: (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
 		repr:   (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"

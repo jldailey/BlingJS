@@ -153,17 +153,17 @@ $.plugin
 					s = s + c
 				s
 
-			stringTruncate: (s, n, c='...') ->
-				if s.length <= n
-					return s
-				s = s.split(' ') # split into words.
+			stringTruncate: (s, n, c='...',sep=' ') ->
+				return s if s.length <= n
+				return c if c.length >= n
+				s = s.split(sep) # split into words.
 				r = []
 				while n > 0
 					x = s.shift()
 					n -= x.length
 					if n >= 0
 						r.push x
-				r.join(' ') + c
+				r.join(sep) + c
 
 
 			# __$.stringCount(s,x)__ counts the number of occurences of `x` in `s`.

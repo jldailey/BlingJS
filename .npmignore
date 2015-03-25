@@ -11,3 +11,12 @@ yuicompressor*
 js/*
 web.config
 node_modules
+Makefile
+bench
+plugins
+release.sh
+test
+bling.coffee
+dist/bling.*
+dist/*.gz
+dist/*.map

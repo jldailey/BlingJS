@@ -1,14 +1,12 @@
 # JAVA=/usr/lib/jvm/java-6-sun/bin/java
-JAVA=$(shell which java)
 DIST=dist
 PLUGINS=plugins
-YUI_VERSION=2.4.7
 COFFEE=node_modules/.bin/coffee
+UGLIFY=node_modules/.bin/uglifyjs
 JLDOM=node_modules/jldom
 MOCHA=node_modules/.bin/mocha
 MOCHA_FMT=spec
 MOCHA_OPTS=--compilers coffee:coffee-script/register --globals document,window,Bling,$$,_ -R ${MOCHA_FMT} -s 500 --bail
-WATCH="coffee watch.coffee"
 
 TEST_FILES=$(shell ls test/*.coffee | grep -v setup.coffee | sort -f )
 PASS_FILES=$(subst .coffee,.coffee.pass,$(shell ls test/*.coffee | grep -v setup.coffee | sort -f ))
@@ -16,9 +14,6 @@ TIME_FILES=$(subst .coffee,.coffee.time,$(shell ls bench/*.coffee | grep -v setu
 
 
 all: dist report
-
-watch: dist
-	coffee watch.coffee -v -i -- '.coffee$$' -- make test
 
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
@@ -57,9 +52,9 @@ site: test
 	@sleep 1
 	@git stash pop || true
 
-$(DIST)/min.%.js: $(DIST)/%.js yuicompressor.jar
+$(DIST)/min.%.js: $(DIST)/%.js $(UGLIFY)
 	@echo Minifying $< to $@...
-	@$(JAVA) -jar yuicompressor.jar $< -o $@
+	$(UGLIFY) $< -c --source-map $@.map --source-map-url $(subst dist/,,$@).map -m -r '$,Bling,window,document' -o $@
 
 $(DIST)/%.js: $(DIST)/%.coffee $(COFFEE)
 	@echo Compiling $< to $@...
@@ -68,14 +63,6 @@ $(DIST)/%.js: $(DIST)/%.coffee $(COFFEE)
 $(DIST)/bling.coffee: bling.coffee $(shell ls $(PLUGINS)/*.coffee | sort -f)
 	@echo Packing plugins into $@...
 	@cat $^ | sed -E 's/^	*#.*$$//g' | grep -v '^ *$$' > $@
-
-yuicompressor.jar:
-	@echo Downloading $@...
-	@curl http://yui.zenfs.com/releases/yuicompressor/yuicompressor-$(YUI_VERSION).zip > yuicompressor.zip
-	@unzip yuicompressor.zip
-	@rm yuicompressor.zip
-	@cp yuicompressor-$(YUI_VERSION)/build/yuicompressor-$(YUI_VERSION).jar ./yuicompressor.jar
-	@rm -rf yuicompressor-$(YUI_VERSION)
 
 %.gz: %
 	@echo Compressing $< to $@...
@@ -99,5 +86,8 @@ $(COFFEE):
 
 $(JLDOM):
 	npm install jldom
+
+$(UGLIFY):
+	npm install uglifyjs
 
 .PHONY: all bling clean dist site test

@@ -241,6 +241,15 @@ describe "Core plugin:", ->
 		it "accepts the limit and inversion in either order", ->
 			a = $("foo", "bar", "baz")
 			assert.deepEqual a.filter(/^b/, true, 1), a.filter(/^b/, 1, true)
+		it "accepts a boolean (false, true)", ->
+			assert.deepEqual $(false, true, true).filter(false, true), [ false ]
+		it "accepts a boolean (false, false)", ->
+			assert.deepEqual $(false, true, true).filter(false, false), [ true, true ]
+		it "accepts a boolean (true, true)", ->
+			assert.deepEqual $(false, true, true).filter(true, true), [ true, true ]
+		it "accepts a boolean (true, false)", ->
+			assert.deepEqual $(false, true, true).filter(true, false), [ false ]
+
 
 	describe ".matches()", ->
 		describe "supports", ->

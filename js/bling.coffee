@@ -705,10 +705,8 @@ $.plugin
 		lines = lines.skip 1
 		data_cache = Object.create null
 		files = lines.map (s) ->
-			f = s.replace(/^\s*at\s+/,'')
-				.replace(/^[^(]*\(/,'(')
-				.replace(/^\(/,'')
-				.replace(/\)$/,'')
+			f = s.replace(/^\s*at\s+/g,'') \
+				.replace(/.*\(([^:]+:\d+:\d+)\)$/, "$1")
 			try
 				[f,ln_num,col] = f.split(/:/)
 				data = data_cache[f] ?= String(fs.readFileSync f)

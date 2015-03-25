@@ -703,6 +703,7 @@ $.plugin
 			lines = lines.filter(/node_modules/, false)
 		message = lines.first()
 		lines = lines.skip 1
+		data_cache = Object.create null
 		files = lines.map (s) ->
 			f = s.replace(/^\s*at\s+/,'')
 				.replace(/^[^(]*\(/,'(')
@@ -710,15 +711,20 @@ $.plugin
 				.replace(/\)$/,'')
 			try
 				[f,ln_num,col] = f.split(/:/)
-				data = String(fs.readFileSync f)
+				data = data_cache[f] ?= String(fs.readFileSync f)
 				f_lines = data.split nl
+				if ln_num > 1
+					before = f_lines[ln_num-2]
+					if before.length > 80
+						before = before.substr(0,76) + "..."
+				else before = ""
 				line = f_lines[ln_num-1]
 				if line.length > 80
 					line = "... " + line.substr(col-35,70) + " ..."
 					col = 39
 				tabs = line.replace(/[^\t]/g,'').length
 				spacer = $.repeat('\t', tabs) + $.repeat(' ', (col-1)-tabs)
-				return """  #{ln_num} #{line}\n  #{ln_num} #{spacer}^"""
+				return """  #{ln_num-1} #{before}\n  #{ln_num} #{line}\n  #{ln_num} #{spacer}^"""
 			catch err
 				return null
 		return message + "\n" + $.weave(files, lines).filter(null, false).join "\n"

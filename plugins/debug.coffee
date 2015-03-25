@@ -12,23 +12,22 @@ $.plugin
 			lines = lines.filter(/node_modules/, false)
 		message = lines.first()
 		lines = lines.skip 1
-		data_cache = Object.create null
+		lines_cache = Object.create null
 		files = lines.map (s) ->
 			f = s.replace(/^\s*at\s+/g,'') \
 				.replace(/.*\(([^:]+:\d+:\d+)\)$/, "$1")
 			try
 				[f,ln_num,col] = f.split(/:/)
-				data = data_cache[f] ?= String(fs.readFileSync f)
-				f_lines = data.split nl
+				f_lines = lines_cache[f] ?= String(fs.readFileSync f).split nl
 				if ln_num > 1
 					before = f_lines[ln_num-2]
 					if before.length > 80
-						before = before.substr(0,76) + "..."
+						before = "..8<.." + before.substr(col-25,50) + "..>8.."
 				else before = ""
 				line = f_lines[ln_num-1]
 				if line.length > 80
-					line = "... " + line.substr(col-35,70) + " ..."
-					col = 39
+					line = "..8<.." + line.substr(col-25,50) + "..>8.."
+					col = 31
 				# count the tabs
 				tabs = line.replace(/[^\t]/g,'').length
 				# setup the spacer in a way that is terminal independent

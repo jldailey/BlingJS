@@ -190,6 +190,24 @@ $.plugin
 				null
 			helper [], -1
 			return $(ret)
+$.plugin {
+	provides: "clone"
+	depends: "type"
+}, ->
+	$.type.extend {
+		unknown: { clone: (s) ->
+			null
+		}
+		string:  { clone: (s) -> s + "" }
+		number:  { clone: (n) -> n + 0.0 }
+		array:   { clone: (a) -> a.concat [] }
+		bling:   { clone: (b) -> b.concat [] }
+		object:  { clone: (o) ->
+			try return ret = Object.create(o.__proto__)
+			finally for own k,v of o then ret[k] = $.type.lookup(v).clone(v)
+		}
+	}
+	return { $: { clone: (o) -> $.type.lookup(o).clone(o) } }
 $.plugin
 	provides: "compat, trimLeft, split, lastIndexOf, join, preventAll, matchesSelector, isBuffer"
 , ->
@@ -703,23 +721,22 @@ $.plugin
 			lines = lines.filter(/node_modules/, false)
 		message = lines.first()
 		lines = lines.skip 1
-		data_cache = Object.create null
+		lines_cache = Object.create null
 		files = lines.map (s) ->
 			f = s.replace(/^\s*at\s+/g,'') \
 				.replace(/.*\(([^:]+:\d+:\d+)\)$/, "$1")
 			try
 				[f,ln_num,col] = f.split(/:/)
-				data = data_cache[f] ?= String(fs.readFileSync f)
-				f_lines = data.split nl
+				f_lines = lines_cache[f] ?= String(fs.readFileSync f).split nl
 				if ln_num > 1
 					before = f_lines[ln_num-2]
 					if before.length > 80
-						before = before.substr(0,76) + "..."
+						before = "..8<.." + before.substr(col-25,50) + "..>8.."
 				else before = ""
 				line = f_lines[ln_num-1]
 				if line.length > 80
-					line = "... " + line.substr(col-35,70) + " ..."
-					col = 39
+					line = "..8<.." + line.substr(col-25,50) + "..>8.."
+					col = 31
 				tabs = line.replace(/[^\t]/g,'').length
 				spacer = $.repeat('\t', tabs) + $.repeat(' ', (col-1)-tabs)
 				return """  #{ln_num-1} #{before}\n  #{ln_num} #{line}\n  #{ln_num} #{spacer}^"""

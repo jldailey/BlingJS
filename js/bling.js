@@ -415,6 +415,60 @@
   });
 
   $.plugin({
+    provides: "clone",
+    depends: "type"
+  }, function() {
+    $.type.extend({
+      unknown: {
+        clone: function(s) {
+          return null;
+        }
+      },
+      string: {
+        clone: function(s) {
+          return s + "";
+        }
+      },
+      number: {
+        clone: function(n) {
+          return n + 0.0;
+        }
+      },
+      array: {
+        clone: function(a) {
+          return a.concat([]);
+        }
+      },
+      bling: {
+        clone: function(b) {
+          return b.concat([]);
+        }
+      },
+      object: {
+        clone: function(o) {
+          var k, ret, v;
+          try {
+            return ret = Object.create(o.__proto__);
+          } finally {
+            for (k in o) {
+              if (!hasProp.call(o, k)) continue;
+              v = o[k];
+              ret[k] = $.type.lookup(v).clone(v);
+            }
+          }
+        }
+      }
+    });
+    return {
+      $: {
+        clone: function(o) {
+          return $.type.lookup(o).clone(o);
+        }
+      }
+    };
+  });
+
+  $.plugin({
     provides: "compat, trimLeft, split, lastIndexOf, join, preventAll, matchesSelector, isBuffer"
   }, function() {
     var base1, base2, base3, base4, base5;
@@ -1616,7 +1670,7 @@
   }, function() {
     var explodeStack;
     explodeStack = function(stack, node_modules) {
-      var data_cache, err, files, fs, lines, message, nl;
+      var err, files, fs, lines, lines_cache, message, nl;
       nl = /(?:\r\n|\r|\n)/;
       fs = null;
       try {
@@ -1631,26 +1685,25 @@
       }
       message = lines.first();
       lines = lines.skip(1);
-      data_cache = Object.create(null);
+      lines_cache = Object.create(null);
       files = lines.map(function(s) {
-        var before, col, data, f, f_lines, line, ln_num, ref, spacer, tabs;
+        var before, col, f, f_lines, line, ln_num, ref, spacer, tabs;
         f = s.replace(/^\s*at\s+/g, '').replace(/.*\(([^:]+:\d+:\d+)\)$/, "$1");
         try {
           ref = f.split(/:/), f = ref[0], ln_num = ref[1], col = ref[2];
-          data = data_cache[f] != null ? data_cache[f] : data_cache[f] = String(fs.readFileSync(f));
-          f_lines = data.split(nl);
+          f_lines = lines_cache[f] != null ? lines_cache[f] : lines_cache[f] = String(fs.readFileSync(f)).split(nl);
           if (ln_num > 1) {
             before = f_lines[ln_num - 2];
             if (before.length > 80) {
-              before = before.substr(0, 76) + "...";
+              before = "..8<.." + before.substr(col - 25, 50) + "..>8..";
             }
           } else {
             before = "";
           }
           line = f_lines[ln_num - 1];
           if (line.length > 80) {
-            line = "... " + line.substr(col - 35, 70) + " ...";
-            col = 39;
+            line = "..8<.." + line.substr(col - 25, 50) + "..>8..";
+            col = 31;
           }
           tabs = line.replace(/[^\t]/g, '').length;
           spacer = $.repeat('\t', tabs) + $.repeat(' ', (col - 1) - tabs);

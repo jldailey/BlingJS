@@ -4518,13 +4518,13 @@
       }
     };
     Progress = function(max) {
-      var cur;
+      var cur, ret;
 
       if (max == null) {
         max = 1.0;
       }
       cur = 0.0;
-      return $.inherit({
+      return ret = $.inherit({
         progress: function() {
           var args, item, _ref, _ref1;
 
@@ -4538,9 +4538,9 @@
           }
           item = args.length > 2 ? args[2] : cur;
           if (cur >= max) {
-            this.__proto__.__proto__.resolve(item);
+            ret.__proto__.__proto__.resolve(item);
           }
-          this.emit('progress', cur, max, item);
+          ret.emit('progress', cur, max, item);
           return this;
         },
         resolve: function(delta, item) {
@@ -4550,28 +4550,26 @@
           if (!isFinite(delta)) {
             delta = 1;
           }
-          return this.progress(cur + delta, max, item);
+          return ret.progress(cur + delta, max, item);
         },
         finish: function(delta, item) {
-          return this.resolve(delta, item);
+          return ret.resolve(delta, item);
         },
         include: function(promise) {
-          var _this = this;
-
           if ($.is('promise', promise)) {
-            this.progress(cur, max + 1);
-            promise.wait(function(err) {
+            ret.progress(cur, max + 1);
+            promise.wait(function(err, data) {
               if (err) {
-                return _this.reject(err);
+                return ret.reject(err);
               } else {
-                return _this.resolve(1);
+                return ret.resolve(data);
               }
             });
           }
           return this;
         },
         inspect: function() {
-          return "{Progress[" + this.promiseId + "] " + cur + "/" + max + "}";
+          return "{Progress[" + ret.promiseId + "] " + cur + "/" + max + "}";
         }
       }, Promise());
     };

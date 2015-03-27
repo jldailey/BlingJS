@@ -195,17 +195,14 @@ $.plugin {
 	depends: "type"
 }, ->
 	$.type.extend {
-		unknown: { clone: (s) ->
-			null
-		}
-		string:  { clone: (s) -> s + "" }
-		number:  { clone: (n) -> n + 0.0 }
-		array:   { clone: (a) -> a.concat [] }
-		bling:   { clone: (b) -> b.concat [] }
-		object:  { clone: (o) ->
+		unknown: clone: (s) -> null # err on the side of caution
+		string:  clone: (s) -> s + ""
+		number:  clone: (n) -> n + 0.0
+		array:   clone: (a) -> a.concat []
+		bling:   clone: (b) -> b.concat []
+		object:  clone: (o) ->
 			try return ret = Object.create(o.__proto__)
 			finally for own k,v of o then ret[k] = $.type.lookup(v).clone(v)
-		}
 	}
 	return { $: { clone: (o) -> $.type.lookup(o).clone(o) } }
 $.plugin
@@ -1910,28 +1907,28 @@ $.plugin
 			if e then p.reject(e) else p.resolve(r)
 	Progress = (max = 1.0) ->
 		cur = 0.0
-		return $.inherit {
+		return ret = $.inherit {
 			progress: (args...) ->
 				return cur unless args.length
 				cur = args[0] ? cur
 				max = (args[1] ? max) if args.length > 1
 				item = if args.length > 2 then args[2] else cur
 				if cur >= max
-					@__proto__.__proto__.resolve(item)
-				@emit 'progress', cur, max, item
+					ret.__proto__.__proto__.resolve(item)
+				ret.emit 'progress', cur, max, item
 				@
 			resolve: (delta, item = delta) ->
 				unless isFinite(delta) then delta = 1
-				@progress cur + delta, max, item
-			finish: (delta, item) -> @resolve delta, item
+				ret.progress cur + delta, max, item
+			finish: (delta, item) -> ret.resolve delta, item
 			include: (promise) ->
 				if $.is 'promise', promise
-					@progress cur, max + 1
-					promise.wait (err) =>
-						if err then @reject err
-						else @resolve 1
-				return @
-			inspect: -> "{Progress[#{@promiseId}] #{cur}/#{max}}"
+					ret.progress cur, max + 1
+					promise.wait (err, data) ->
+						if err then ret.reject err
+						else ret.resolve data
+				@
+			inspect: -> "{Progress[#{ret.promiseId}] #{cur}/#{max}}"
 		}, Promise()
 	Promise.xhr = (xhr) ->
 		try p = $.Promise()

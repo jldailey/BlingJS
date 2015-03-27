@@ -74,6 +74,7 @@ $.plugin
 			cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
 			# * Fill-in the identity conversion (from name to name).
 			cache[name][name] = (o) -> o
+			# * Record capabilities for that $.type.with(name) finds this type.
 			for key of cache[name]
 				_with_insert key, cache[name]
 

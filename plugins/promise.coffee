@@ -122,7 +122,7 @@ $.plugin
 
 	Progress = (max = 1.0) ->
 		cur = 0.0
-		return $.inherit {
+		return ret = $.inherit {
 			# .progress() - returns current progress
 			# .progress(cur) - sets progress
 			# .progress(cur, max) - set progress and goal
@@ -133,23 +133,22 @@ $.plugin
 				max = (args[1] ? max) if args.length > 1
 				item = if args.length > 2 then args[2] else cur
 				if cur >= max
-					@__proto__.__proto__.resolve(item)
-				@emit 'progress', cur, max, item
+					ret.__proto__.__proto__.resolve(item)
+				ret.emit 'progress', cur, max, item
 				@
 			resolve: (delta, item = delta) ->
 				unless isFinite(delta) then delta = 1
-				@progress cur + delta, max, item
-			finish: (delta, item) -> @resolve delta, item
-
+				ret.progress cur + delta, max, item
+			finish: (delta, item) -> ret.resolve delta, item
 			include: (promise) ->
 				if $.is 'promise', promise
-					@progress cur, max + 1
-					promise.wait (err) =>
-						if err then @reject err
-						else @resolve 1
-				return @
+					ret.progress cur, max + 1
+					promise.wait (err, data) ->
+						if err then ret.reject err
+						else ret.resolve data
+				@
 
-			inspect: -> "{Progress[#{@promiseId}] #{cur}/#{max}}"
+			inspect: -> "{Progress[#{ret.promiseId}] #{cur}/#{max}}"
 		}, Promise()
 
 	# Helper for wrapping an XHR object in a Promise

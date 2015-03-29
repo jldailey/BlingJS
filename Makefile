@@ -5,11 +5,10 @@ COFFEE=node_modules/.bin/coffee
 UGLIFY=node_modules/.bin/uglifyjs
 JLDOM=node_modules/jldom
 MOCHA=node_modules/.bin/mocha
-MOCHA_FMT=spec
+MOCHA_FMT?=dot
 MOCHA_OPTS=--compilers coffee:coffee-script/register --globals document,window,Bling,$$,_ -R ${MOCHA_FMT} -s 500 --bail
 
 TEST_FILES=$(shell ls test/*.coffee | grep -v setup.coffee | sort -f )
-PASS_FILES=$(subst .coffee,.coffee.pass,$(shell ls test/*.coffee | grep -v setup.coffee | sort -f ))
 TIME_FILES=$(subst .coffee,.coffee.time,$(shell ls bench/*.coffee | grep -v setup.coffee | sort -f ))
 
 
@@ -17,22 +16,22 @@ all: dist report
 
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
-test: dist $(PASS_FILES)
+test: dist $(TEST_FILES)
 	@echo "All tests are passing."
 
-test/bling.coffee.pass: test/bling.coffee bling.coffee
-	# @echo Running $<
-	@$(MOCHA) $(MOCHA_OPTS) $< && touch $@
+test/bling.coffee: bling.coffee
+	# Testing $<
+	@$(MOCHA) $(MOCHA_OPTS) $@ && touch $@
 
-test/%.coffee.pass: test/%.coffee plugins/%.coffee bling.coffee
-	@echo Running $<
-	@$(MOCHA) $(MOCHA_OPTS) $< && touch $@
+test/%.coffee: plugins/%.coffee bling.coffee
+	# Testing $<
+	@$(MOCHA) $(MOCHA_OPTS) $@ && touch $@
 
 bench: dist $(TIME_FILES)
 	@echo "All benchmarks are complete."
 	@cat bench/*.time
 
-bench/%.coffee.time: bench/%.coffee plugins/%.coffee test/%.coffee.pass bench/setup.coffee bling.coffee Makefile
+bench/%.coffee.time: bench/%.coffee plugins/%.coffee test/%.coffee bench/setup.coffee bling.coffee Makefile
 	@echo Running $<
 	@$(COFFEE) $< > $@
 

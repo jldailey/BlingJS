@@ -714,23 +714,30 @@ $.plugin
 		try fs = require 'fs'
 		catch err then return stack # if we aren't in node, reading files is meaningless
 		lines = $(String(stack).split nl).filter(/^$/, false)
-		if not node_modules
+		unless node_modules
 			lines = lines.filter(/node_modules/, false)
 		message = lines.first()
 		lines = lines.skip 1
 		lines_cache = Object.create null
 		files = lines.map (s) ->
+			unless s? then return null
 			f = s.replace(/^\s*at\s+/g,'') \
 				.replace(/.*\(([^:]+:\d+:\d+)\)$/, "$1")
 			try
 				[f,ln_num,col] = f.split(/:/)
 				f_lines = lines_cache[f] ?= String(fs.readFileSync f).split nl
+				unless f_lines?
+					return null
+				before = ""
 				if ln_num > 1
 					before = f_lines[ln_num-2]
 					if before.length > 80
-						before = "..8<.." + before.substr(col-25,50) + "..>8.."
-				else before = ""
+						before = "..8<.. " + before.substr(col-25,50) + " ..>8.."
+				if ln_num >= f_lines.length
+					return null
 				line = f_lines[ln_num-1]
+				unless line?
+					return null
 				if line.length > 80
 					line = "..8<.." + line.substr(col-25,50) + "..>8.."
 					col = 31
@@ -1658,56 +1665,75 @@ $.plugin
 			lazy_load "link", { href: src, rel: "stylesheet" }
 $.plugin
 	provides: "matches"
+	depends: "function,core,string"
 , ->
-	matches = (pattern, obj) ->
+	IsEqual = (p, o) -> (o is p)
+	Contains = (p, a) ->
+		for v in a when (matches p, v) then return true
+		return false
+	ContainsValue = (p, o) ->
+		for k,v of o when (matches p, v) then return true
+		return false
+	ObjMatch = (p, o) -> # matches if all keys match
+		for k,v of p when not (matches v, o[k]) then return false
+		return true
+	ArrayMatch = (p, o) ->
+		for v,i in p when not (matches v, o[i]) then return false
+		return true
+	RegExpMatch = (p, s) -> p.test String(s)
+	behaviors = {
+		null:      [ ['else', IsEqual ] ]
+		undefined: [ ['else', IsEqual ] ]
+		function: [
+			['array', 'bling', Contains]
+			['object', ContainsValue]
+			['else', IsEqual]
+		]
+		regexp: [
+			['string','number', RegExpMatch ]
+			['array','bling', Contains ]
+			['object', ContainsValue ]
+			['else', IsEqual ]
+		]
+		object: [
+			['array','bling', Contains ]
+			['object', ObjMatch ]
+			['else', IsEqual ]
+		]
+		array: [
+			['array','bling', ArrayMatch ]
+			['else', IsEqual ]
+		]
+		number: [
+			['number', IsEqual ]
+			['array','bling', Contains ]
+			['else', IsEqual ]
+		]
+		string: [
+			['string', IsEqual ]
+			['array','bling', Contains ]
+			['else', IsEqual ]
+		]
+	}
+	for pattern_type,v of behaviors
+		$.type.extend pattern_type, { matches: {} }
+		for list in v
+			f = list.pop()
+			for obj_type in list
+				e = { matches: {} }
+				e.matches[obj_type] = f
+				$.type.extend pattern_type, e
+	matches = (pattern, obj, pt = $.type.lookup pattern) ->
 		if pattern is matches.Any
 			return true
-		obj_type = $.type obj
-		switch $.type pattern
-			when 'null','undefined' then return (obj is pattern)
-			when 'function'
-				switch obj_type
-					when 'array','bling' then for v in obj when (pattern is v) then return true
-					when 'object' then for k,v of obj when (matches pattern, v) then return true
-				return false
-			when 'regexp'
-				switch obj_type
-					when 'null','undefined' then return false
-					when 'string' then return pattern.test obj
-					when 'number' then return pattern.test String(obj)
-					when 'array','bling' then for v in obj when pattern.test v then return true
-				return false
-			when 'object'
-				switch obj_type
-					when 'null','undefined','string','number' then return false
-					when 'array','bling' then for v in obj when matches pattern, v then return true
-					when 'object' # dont match if any of the keys dont match
-						for k, v of pattern when not matches v, obj[k] then return false
-						return true # matches if all keys match
-				return false
-			when 'array'
-				switch obj_type
-					when 'null','undefined','string','number','object' then return false
-					when 'array','bling'
-						for k,v of pattern when not (matches v, obj[k]) then return false
-						return true # an empty array matches true against any other array
-				return false
-			when 'number'
-				switch obj_type
-					when 'null','undefined','object','string' then return false
-					when 'number' then return (obj is pattern)
-					when 'array','bling' then for v in obj when matches pattern, v then return true
-				return false
-			when 'string'
-				switch obj_type
-					when 'null','undefined','object' then return false
-					when 'string' then return (obj is pattern)
-					when 'array','bling' then for v in obj when matches pattern, v then return true
-				return false
-			else return obj is pattern
+		for type, f of pt.matches
+			continue if type is 'else'
+			if $.is type, obj
+				return f(pattern, obj)
+		return pt.matches.else(pattern, obj)
 	class matches.Any # magic token
-		@toString: -> "{Any}"
-		@inspect:  -> "{Any}"
+		@toString: -> "{$any:true}"
+		@inspect:  -> "{$any:true}"
 	return $: matches: matches
 $.plugin
 	provides: "math"

@@ -1688,19 +1688,30 @@
       lines_cache = Object.create(null);
       files = lines.map(function(s) {
         var before, col, f, f_lines, line, ln_num, ref, spacer, tabs;
+        if (s == null) {
+          return null;
+        }
         f = s.replace(/^\s*at\s+/g, '').replace(/.*\(([^:]+:\d+:\d+)\)$/, "$1");
         try {
           ref = f.split(/:/), f = ref[0], ln_num = ref[1], col = ref[2];
           f_lines = lines_cache[f] != null ? lines_cache[f] : lines_cache[f] = String(fs.readFileSync(f)).split(nl);
+          if (f_lines == null) {
+            return null;
+          }
+          before = "";
           if (ln_num > 1) {
             before = f_lines[ln_num - 2];
             if (before.length > 80) {
-              before = "..8<.." + before.substr(col - 25, 50) + "..>8..";
+              before = "..8<.. " + before.substr(col - 25, 50) + " ..>8..";
             }
-          } else {
-            before = "";
+          }
+          if (ln_num >= f_lines.length) {
+            return null;
           }
           line = f_lines[ln_num - 1];
+          if (line == null) {
+            return null;
+          }
           if (line.length > 80) {
             line = "..8<.." + line.substr(col - 25, 50) + "..>8..";
             col = 31;
@@ -3581,153 +3592,113 @@
   });
 
   $.plugin({
-    provides: "matches"
+    provides: "matches",
+    depends: "function,core,string"
   }, function() {
-    var matches;
-    matches = function(pattern, obj) {
-      var aa, ab, ac, ad, ae, k, len1, len2, len3, len4, len5, obj_type, v;
+    var ArrayMatch, Contains, ContainsValue, IsEqual, ObjMatch, RegExpMatch, aa, ab, behaviors, e, f, len1, len2, list, matches, obj_type, pattern_type, v;
+    IsEqual = function(p, o) {
+      return o === p;
+    };
+    Contains = function(p, a) {
+      var aa, len1, v;
+      for (aa = 0, len1 = a.length; aa < len1; aa++) {
+        v = a[aa];
+        if (matches(p, v)) {
+          return true;
+        }
+      }
+      return false;
+    };
+    ContainsValue = function(p, o) {
+      var k, v;
+      for (k in o) {
+        v = o[k];
+        if (matches(p, v)) {
+          return true;
+        }
+      }
+      return false;
+    };
+    ObjMatch = function(p, o) {
+      var k, v;
+      for (k in p) {
+        v = p[k];
+        if (!(matches(v, o[k]))) {
+          return false;
+        }
+      }
+      return true;
+    };
+    ArrayMatch = function(p, o) {
+      var aa, i, len1, v;
+      for (i = aa = 0, len1 = p.length; aa < len1; i = ++aa) {
+        v = p[i];
+        if (!(matches(v, o[i]))) {
+          return false;
+        }
+      }
+      return true;
+    };
+    RegExpMatch = function(p, s) {
+      return p.test(String(s));
+    };
+    behaviors = {
+      "null": [['else', IsEqual]],
+      undefined: [['else', IsEqual]],
+      "function": [['array', 'bling', Contains], ['object', ContainsValue], ['else', IsEqual]],
+      regexp: [['string', 'number', RegExpMatch], ['array', 'bling', Contains], ['object', ContainsValue], ['else', IsEqual]],
+      object: [['array', 'bling', Contains], ['object', ObjMatch], ['else', IsEqual]],
+      array: [['array', 'bling', ArrayMatch], ['else', IsEqual]],
+      number: [['number', IsEqual], ['array', 'bling', Contains], ['else', IsEqual]],
+      string: [['string', IsEqual], ['array', 'bling', Contains], ['else', IsEqual]]
+    };
+    for (pattern_type in behaviors) {
+      v = behaviors[pattern_type];
+      $.type.extend(pattern_type, {
+        matches: {}
+      });
+      for (aa = 0, len1 = v.length; aa < len1; aa++) {
+        list = v[aa];
+        f = list.pop();
+        for (ab = 0, len2 = list.length; ab < len2; ab++) {
+          obj_type = list[ab];
+          e = {
+            matches: {}
+          };
+          e.matches[obj_type] = f;
+          $.type.extend(pattern_type, e);
+        }
+      }
+    }
+    matches = function(pattern, obj, pt) {
+      var ref, type;
+      if (pt == null) {
+        pt = $.type.lookup(pattern);
+      }
       if (pattern === matches.Any) {
         return true;
       }
-      obj_type = $.type(obj);
-      switch ($.type(pattern)) {
-        case 'null':
-        case 'undefined':
-          return obj === pattern;
-        case 'function':
-          switch (obj_type) {
-            case 'array':
-            case 'bling':
-              for (aa = 0, len1 = obj.length; aa < len1; aa++) {
-                v = obj[aa];
-                if (pattern === v) {
-                  return true;
-                }
-              }
-              break;
-            case 'object':
-              for (k in obj) {
-                v = obj[k];
-                if (matches(pattern, v)) {
-                  return true;
-                }
-              }
-          }
-          return false;
-        case 'regexp':
-          switch (obj_type) {
-            case 'null':
-            case 'undefined':
-              return false;
-            case 'string':
-              return pattern.test(obj);
-            case 'number':
-              return pattern.test(String(obj));
-            case 'array':
-            case 'bling':
-              for (ab = 0, len2 = obj.length; ab < len2; ab++) {
-                v = obj[ab];
-                if (pattern.test(v)) {
-                  return true;
-                }
-              }
-          }
-          return false;
-        case 'object':
-          switch (obj_type) {
-            case 'null':
-            case 'undefined':
-            case 'string':
-            case 'number':
-              return false;
-            case 'array':
-            case 'bling':
-              for (ac = 0, len3 = obj.length; ac < len3; ac++) {
-                v = obj[ac];
-                if (matches(pattern, v)) {
-                  return true;
-                }
-              }
-              break;
-            case 'object':
-              for (k in pattern) {
-                v = pattern[k];
-                if (!matches(v, obj[k])) {
-                  return false;
-                }
-              }
-              return true;
-          }
-          return false;
-        case 'array':
-          switch (obj_type) {
-            case 'null':
-            case 'undefined':
-            case 'string':
-            case 'number':
-            case 'object':
-              return false;
-            case 'array':
-            case 'bling':
-              for (k in pattern) {
-                v = pattern[k];
-                if (!(matches(v, obj[k]))) {
-                  return false;
-                }
-              }
-              return true;
-          }
-          return false;
-        case 'number':
-          switch (obj_type) {
-            case 'null':
-            case 'undefined':
-            case 'object':
-            case 'string':
-              return false;
-            case 'number':
-              return obj === pattern;
-            case 'array':
-            case 'bling':
-              for (ad = 0, len4 = obj.length; ad < len4; ad++) {
-                v = obj[ad];
-                if (matches(pattern, v)) {
-                  return true;
-                }
-              }
-          }
-          return false;
-        case 'string':
-          switch (obj_type) {
-            case 'null':
-            case 'undefined':
-            case 'object':
-              return false;
-            case 'string':
-              return obj === pattern;
-            case 'array':
-            case 'bling':
-              for (ae = 0, len5 = obj.length; ae < len5; ae++) {
-                v = obj[ae];
-                if (matches(pattern, v)) {
-                  return true;
-                }
-              }
-          }
-          return false;
-        default:
-          return obj === pattern;
+      ref = pt.matches;
+      for (type in ref) {
+        f = ref[type];
+        if (type === 'else') {
+          continue;
+        }
+        if ($.is(type, obj)) {
+          return f(pattern, obj);
+        }
       }
+      return pt.matches["else"](pattern, obj);
     };
     matches.Any = (function() {
       function Any() {}
 
       Any.toString = function() {
-        return "{Any}";
+        return "{$any:true}";
       };
 
       Any.inspect = function() {
-        return "{Any}";
+        return "{$any:true}";
       };
 
       return Any;

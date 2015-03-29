@@ -18,8 +18,7 @@ document.body.innerHTML = """
 	<div id='empty'></div>
 """
 
-
 module.exports = [
-	'../dist/min.bling.js',
+	'../dist/bling.js',
 	'assert'
 ].map require

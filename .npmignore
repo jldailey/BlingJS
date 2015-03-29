@@ -17,6 +17,4 @@ plugins
 release.sh
 test
 bling.coffee
-dist/bling.*
 dist/*.gz
-dist/*.map

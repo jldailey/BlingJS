@@ -4716,20 +4716,22 @@
               return arr[$.random.integer(0, arr.length)];
             },
             gaussian: gaussian = function(mean, ssig) {
-              var q, u, v, x, y;
+              var abs, log, q, u, v, x, y;
               if (mean == null) {
                 mean = 0.5;
               }
               if (ssig == null) {
                 ssig = 0.12;
               }
+              log = Math.log;
+              abs = Math.abs;
               while (true) {
                 u = $.random();
                 v = 1.7156 * ($.random() - 0.5);
                 x = u - 0.449871;
-                y = Math.abs(v) + 0.386595;
+                y = abs(v) + 0.386595;
                 q = (x * x) + y * (0.19600 * y - 0.25472 * x);
-                if (!(q > 0.27597 && (q > 0.27846 || (v * v) > (-4 * Math.log(u) * u * u)))) {
+                if (!(q > 0.27597 && (q > 0.27846 || (v * v) > (-4 * log(u) * u * u)))) {
                   break;
                 }
               }

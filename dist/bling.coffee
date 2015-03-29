@@ -2168,13 +2168,15 @@ $.plugin
 						return item.v if (sum += item.w) >= r
 				return arr[$.random.integer 0, arr.length]
 			gaussian: gaussian = (mean=0.5, ssig=0.12) -> # paraphrased from Wikipedia
+				log = Math.log
+				abs = Math.abs
 				while true
 					u = $.random()
 					v = 1.7156 * ($.random() - 0.5)
 					x = u - 0.449871
-					y = Math.abs(v) + 0.386595
+					y = abs(v) + 0.386595
 					q = (x*x) + y*(0.19600*y-0.25472*x)
-					break unless q > 0.27597 and (q > 0.27846 or (v*v) > (-4*Math.log(u)*u*u))
+					break unless q > 0.27597 and (q > 0.27846 or (v*v) > (-4*log(u)*u*u))
 				return mean + ssig*v/u
 			dice: dice = (n, faces) -> # a 2d8 is dice(2,8)
 				$( die(faces) for _ in [0...n] by 1 )

@@ -3595,31 +3595,31 @@
     provides: "matches",
     depends: "function,core,string"
   }, function() {
-    var ArrayMatch, Contains, ContainsValue, IsEqual, ObjMatch, RegExpMatch, aa, ab, behaviors, e, f, len1, len2, list, matches, obj_type, pattern_type, v;
-    IsEqual = function(p, o) {
+    var ArrayMatch, Contains, ContainsValue, IsEqual, ObjMatch, RegExpMatch, aa, ab, behaviors, f, len1, len2, list, matches, obj_type, pattern_type, v;
+    IsEqual = function(p, o, t) {
       return o === p;
     };
-    Contains = function(p, a) {
+    Contains = function(p, a, t) {
       var aa, len1, v;
       for (aa = 0, len1 = a.length; aa < len1; aa++) {
         v = a[aa];
-        if (matches(p, v)) {
+        if (matches(p, v, t)) {
           return true;
         }
       }
       return false;
     };
-    ContainsValue = function(p, o) {
+    ContainsValue = function(p, o, t) {
       var k, v;
       for (k in o) {
         v = o[k];
-        if (matches(p, v)) {
+        if (matches(p, v, t)) {
           return true;
         }
       }
       return false;
     };
-    ObjMatch = function(p, o) {
+    ObjMatch = function(p, o, t) {
       var k, v;
       for (k in p) {
         v = p[k];
@@ -3629,7 +3629,7 @@
       }
       return true;
     };
-    ArrayMatch = function(p, o) {
+    ArrayMatch = function(p, o, t) {
       var aa, i, len1, v;
       for (i = aa = 0, len1 = p.length; aa < len1; i = ++aa) {
         v = p[i];
@@ -3639,7 +3639,7 @@
       }
       return true;
     };
-    RegExpMatch = function(p, s) {
+    RegExpMatch = function(p, s, t) {
       return p.test(String(s));
     };
     behaviors = {
@@ -3654,21 +3654,18 @@
     };
     for (pattern_type in behaviors) {
       v = behaviors[pattern_type];
-      $.type.extend(pattern_type, {
-        matches: {}
-      });
+      matches = {};
       for (aa = 0, len1 = v.length; aa < len1; aa++) {
         list = v[aa];
         f = list.pop();
         for (ab = 0, len2 = list.length; ab < len2; ab++) {
           obj_type = list[ab];
-          e = {
-            matches: {}
-          };
-          e.matches[obj_type] = f;
-          $.type.extend(pattern_type, e);
+          matches[obj_type] = f;
         }
       }
+      $.type.extend(pattern_type, {
+        matches: matches
+      });
     }
     matches = function(pattern, obj, pt) {
       var ref, type;
@@ -3685,10 +3682,10 @@
           continue;
         }
         if ($.is(type, obj)) {
-          return f(pattern, obj);
+          return f(pattern, obj, pt);
         }
       }
-      return pt.matches["else"](pattern, obj);
+      return pt.matches["else"](pattern, obj, pt);
     };
     matches.Any = (function() {
       function Any() {}
@@ -6506,7 +6503,7 @@
       register("object", {
         is: function(o) {
           var ref, ref1;
-          return typeof o === "object" && ((ref = (ref1 = o.constructor) != null ? ref1.name : void 0) === (void 0) || ref === "Object");
+          return (o != null) && (typeof o === "object") && ((ref = (ref1 = o.constructor) != null ? ref1.name : void 0) === (void 0) || ref === "Object");
         }
       });
       register("array", {

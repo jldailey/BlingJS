@@ -109,7 +109,7 @@ $.plugin
 		# This implies that the 'simplest' checks should be registered
 		# first, and conceptually more specialized checks would get added
 		# as time goes on (so specialized type matches are preferred).
-		register "object",    is: (o) -> typeof o is "object" and (o.constructor?.name in [undefined, "Object"])
+		register "object",    is: (o) -> o? and (typeof o is "object") and (o.constructor?.name in [undefined, "Object"])
 		register "array",     is: Array.isArray or (o) -> isType Array, o
 		register "buffer",    is: $.global.Buffer.isBuffer or -> false
 		register "error",     is: (o) -> isType 'Error', o

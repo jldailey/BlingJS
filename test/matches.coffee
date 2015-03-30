@@ -1,7 +1,7 @@
 [$, assert] = require './setup'
 
 describe ".matches()", ->
-	it "compares an object against a pattern object", ->
+	it "compares an object against an object", ->
 		assert $.matches { a: 1 }, { a: 1 }
 	it "properly fails to match", ->
 		assert.equal false, $.matches { a: /oo$/ }, { a: "bar" }

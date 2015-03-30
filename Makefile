@@ -16,7 +16,7 @@ all: dist report
 
 dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
-test: dist $(TEST_FILES)
+test: $(DIST)/bling.js $(TEST_FILES)
 	@echo "All tests are passing."
 
 test/bling.coffee: bling.coffee

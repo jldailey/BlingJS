@@ -4,10 +4,39 @@
 # 'shim-like' stuff here; adding or replacing basic ES5 stuff that
 # we need to use.
 $.plugin
-	provides: "compat, trimLeft, split, lastIndexOf, join, preventAll, matchesSelector, isBuffer"
+	provides: "compat,trimLeft,split,lastIndexOf,join,preventAll,matchesSelector,isBuffer,Map"
 , ->
 	# if Buffer isn't defined globally, then isBuffer is always false
 	$.global.Buffer or= { isBuffer: -> false }
+	$.global.Map or= class Map # shim for the ES6 Map
+		constructor: (iterable) ->
+			data = Object.create null
+			$.extend @, {
+				size:       0
+				keys:       -> Object.keys(data)
+				values:     -> (v for k,v of data)
+				entries:    -> ( [k,v] for k,v of data )
+				has:    (k) -> k of data
+				get:    (k) -> data[k]
+				set: (k, v) ->
+					@size += 1 unless k of data
+					data[k] = v
+					@
+				delete: (k) ->
+					@size -= 1 if k of data
+					delete data[k]
+					@
+				clear:      ->
+					data = Object.create null
+					@size = 0
+					@
+				forEach: (cb, t) ->
+					cb.call(t,k,v) for k,v of data
+					@
+			}
+			for item in iterable
+				@set item...
+
 	# Make sure we have String functions: `trimLeft`, and `split`.
 	String::trimLeft or= -> @replace(/^\s+/, "")
 	String::split or= (sep) ->

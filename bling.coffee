@@ -111,7 +111,7 @@ $.plugin = (opts, constructor) ->
 			extend @prototype, plugin
 			# Add static wrappers for anything that doesn't have one.
 			for key of plugin then do (key) =>
-				@[key] or= (a...) => (@::[key].apply $(a[0]), a[1...])
+				@[key] or= (a...) => (@prototype[key].apply $(a[0]), a[1...])
 			# Honor the { provides: } option.
 			if opts.provides? then @provide opts.provides
 	catch error

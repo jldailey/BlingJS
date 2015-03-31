@@ -278,7 +278,7 @@ $.plugin
 
 		# Appends a single item to _this_; unlike a native Array, it
 		# returns a reference to _this_ for chaining.
-		push: (b) -> Array::push.call(@, b); @
+		push: (b) -> Array.prototype.push.call(@, b); @
 
 		# Get a new set containing only items that match _f_. _f_ can be
 		# any of:

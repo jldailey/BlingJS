@@ -41,27 +41,10 @@ describe ".matches()", ->
 				assert $.matches { a: $.matches.Any }, { a: 1 }
 			it "inside objects (negative)", ->
 				assert $.matches { a: $.matches.Any }, { b: 1 }
-		"""
-		describe "matches.Contains", ->
-			it "supports literal values contained in arrays", ->
-				assert $.matches $.matches.Contains('a'), ['a','b','c']
-				assert $.matches $.matches.Contains('b'), ['a','b','c']
-				assert $.matches $.matches.Contains('c'), ['a','b','c']
-			it "supports literal values in arrays (negative)", ->
-				assert.equal false, $.matches $.matches.Contains('z'), ['a','b','c']
-			it "supports patterns in arrays", ->
-				assert $.matches $.matches.Contains({a:/^a/}), [ {a: "abc", b: "bca" } ]
-			it "supports patterns in arrays (negative)", ->
-				assert.equal false, $.matches $.matches.Contains({a:/^b/}), [ {a: "abc", b: "bca" } ]
-			it "supports patterns in objects", ->
-				assert $.matches $.matches.Contains(/^b/), { a: "abc", b: "bca" }
-			it "supports patterns in objects (negative)", ->
-				assert.equal false, $.matches $.matches.Contains(/^c/), { a: "abc", b: "bca" }
-			it "does not support nesting", ->
-				assert.equal false, $.matches $.matches.Contains(/^a/), [ { a: "abc" } ]
-			it "supports nesting", ->
-				assert.equal true, $.matches { port: $.matches.Contains(1080) }, { foo: "bar", port: [ 1080 ] }
-		"""
+		describe "matches.Type(t) matches", ->
+			it "undefined", -> assert $.matches $.matches.Type('undefined'), undefined
+			it "numbers", -> assert $.matches $.matches.Type('number'), 32
+			it "strings", -> assert $.matches $.matches.Type('string'), "abc"
 		it "nested", ->
 			assert $.matches {a: { b: 42 }}, {a: { b: 42 }}
 		it "nested (negative)", ->

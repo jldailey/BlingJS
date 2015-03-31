@@ -40,7 +40,7 @@ $.plugin
 	format_keys = Object.keys(formats).sort().reverse()
 
 	parsers =
-		YYYY: pYYYY =Date::setUTCFullYear
+		YYYY: pYYYY = Date::setUTCFullYear
 		yyyy: pYYYY
 		YY: pYY = (x) -> @setUTCFullYear (if x > 50 then 1900 else 2000) + x
 		yy: pYY

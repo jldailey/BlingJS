@@ -72,7 +72,7 @@ $.plugin
 
 	# Make sure we have Element functions: `matchesSelector`
 	if Element?
-		Element.prototype.matchesSelector = Element::webkitMatchesSelector or
+		Element.prototype.matchesSelector = Element.prototype.webkitMatchesSelector or
 			Element.prototype.mozMatchesSelector or
 			Element.prototype.matchesSelector
 

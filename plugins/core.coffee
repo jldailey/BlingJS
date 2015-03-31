@@ -377,7 +377,7 @@ $.plugin
 
 		# Convert this to an array.
 		toArray: ->
-			@__proto__ = Array::
+			@__proto__ = Array.prototype
 			@ # no copies, yay?
 
 		# Remove all items

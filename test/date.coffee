@@ -5,13 +5,13 @@ describe "Date plugin:", ->
 		assert $.is 'date', new Date(0)
 	describe "the 'date' type converts", ->
 		it "date to string", ->
-			assert.equal ($.as "string", new Date 1,2,3,4,5,6), "1901-03-03 04:05:06"
+			assert.equal ($.as "string", new Date Date.UTC 1,2,3,4,5,6), "1901-03-03 04:05:06"
 		it "string to date", ->
-			assert.equal ($.as "date", "1901-03-03 04:05:06").toString(), new Date(1,2,3,4,5,6).toString()
+			assert.equal ($.as "date", "1901-03-03 04:05:06").toUTCString(), new Date(1,2,3,4,5,6).toUTCString()
 		it "date to number", ->
-			assert.equal ($.as "number", new Date 1,2,3,4,5,6), -2172167694
+			assert.equal ($.as "number", new Date Date.UTC 1,2,3,4,5,6), -2172167694
 		it "number to date", ->
-			assert.equal ($.as "date", -2172167694).toString(), (new Date 1,2,3,4,5,6).toString()
+			assert.equal ($.as "date", -2172167694).toString(), (new Date Date.UTC 1,2,3,4,5,6).toString()
 	describe "$.date", ->
 		describe ".stamp()", ->
 			describe "converts date objects to numbers (with units)", ->

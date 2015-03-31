@@ -17,6 +17,7 @@ $.plugin
 		return true
 	RegExpMatch = (p, s, t) -> p.test String(s)
 
+	# specify the comparison behavior data
 	behaviors = {
 		'function': [
 			['array', 'bling', Contains]
@@ -43,25 +44,36 @@ $.plugin
 			['array','bling', Contains ]
 		]
 	}
-	for pattern_type,v of behaviors
+	# parse the behavior data into the $.type system
+	for pt,v of behaviors
 		matches = { }
 		for list in v
 			f = list.pop()
 			for obj_type in list
 				matches[obj_type] = f
-		$.type.extend pattern_type, { matches: matches }
+		$.type.extend pt, { matches }
 
 	matches = (pattern, obj, pt = $.type.lookup pattern) ->
-		if typeof pattern is 'object' then  switch
-			when '$any' of pattern then return true
-			when '$type' of pattern then return $.is pattern.$type, obj
-			when '$class' of pattern then return $.isType pattern.$class, obj
+		if pt.name is 'object'
+			for k, f of specialPatterns
+				if k of pattern
+					return f pattern, obj, pt
 		for type, f of pt.matches
 			continue if type is 'else'
 			if $.is type, obj
 				return f pattern, obj, pt
 		return pt.matches?.else?(pattern, obj, pt) ? IsEqual pattern, obj, pt
 
+	specialPatterns = {
+		$any: -> true
+		$type:  (p, o, t) -> $.is p.$type, o
+		$class: (p, o, t) -> $.isType p.$class, o
+		$lt:    (p, o, t) -> o < p.$lt
+		$gt:    (p, o, t) -> o > p.$gt
+		$lte:   (p, o, t) -> o <= p.$lte
+		$gte:   (p, o, t) -> o >= p.$gte
+	}
+			
 	matches.Any = { $any: true }
 	matches.Type = (type) -> { $type: type }
 	matches.Class = (klass) -> { $class: klass }

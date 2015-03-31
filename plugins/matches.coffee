@@ -18,37 +18,29 @@ $.plugin
 	RegExpMatch = (p, s, t) -> p.test String(s)
 
 	behaviors = {
-		null:      [ ['else', IsEqual ] ]
-		undefined: [ ['else', IsEqual ] ]
 		'function': [
 			['array', 'bling', Contains]
 			['object', ContainsValue]
-			['else', IsEqual]
 		]
 		regexp: [
 			['string','number', RegExpMatch ]
 			['array','bling', Contains ]
 			['object', ContainsValue ]
-			['else', IsEqual ]
 		]
 		object: [
 			['array','bling', Contains ]
 			['object', ObjMatch ]
-			['else', IsEqual ]
 		]
 		array: [
 			['array','bling', ArrayMatch ]
-			['else', IsEqual ]
 		]
 		number: [
 			['number', IsEqual ]
 			['array','bling', Contains ]
-			['else', IsEqual ]
 		]
 		string: [
 			['string', IsEqual ]
 			['array','bling', Contains ]
-			['else', IsEqual ]
 		]
 	}
 	for pattern_type,v of behaviors
@@ -68,7 +60,7 @@ $.plugin
 			continue if type is 'else'
 			if $.is type, obj
 				return f pattern, obj, pt
-		return pt.matches.else pattern, obj, pt
+		return pt.matches?.else?(pattern, obj, pt) ? IsEqual pattern, obj, pt
 
 	matches.Any = { $any: true }
 	matches.Type = (type) -> { $type: type }

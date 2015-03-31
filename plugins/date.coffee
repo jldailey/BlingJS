@@ -76,7 +76,7 @@ $.plugin
 			stamp: (date = new Date, unit = $.date.defaultUnit) ->
 				floor (date / units[unit])
 			unstamp: (stamp, unit = $.date.defaultUnit) ->
-				new Date floor(stamp * units[unit])
+				new Date floor stamp * units[unit]
 			convert: (stamp, from = $.date.defaultUnit, to = $.date.defaultUnit) ->
 				if $.is "date", stamp then stamp = $.date.stamp(stamp, from)
 				(floor stamp * units[from] / units[to])
@@ -104,12 +104,12 @@ $.plugin
 					i += 1
 				$.date.stamp date, to
 			addMilliseconds: adder("MS")
-			addSeconds: adder("SS")
-			addMinutes: adder("MM")
-			addHours: adder("HH")
-			addDays: adder("dd")
-			addMonths: adder("mm")
-			addYears: adder("yyyy")
+			addSeconds:      adder("SS")
+			addMinutes:      adder("MM")
+			addHours:        adder("HH")
+			addDays:         adder("dd")
+			addMonths:       adder("mm")
+			addYears:        adder("yyyy")
 			range: (from, to, interval=1, interval_unit="dd", stamp_unit = $.date.defaultUnit) ->
 				add = adder(interval_unit)
 				ret = [from]

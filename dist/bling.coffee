@@ -659,7 +659,7 @@ $.plugin
 			stamp: (date = new Date, unit = $.date.defaultUnit) ->
 				floor (date / units[unit])
 			unstamp: (stamp, unit = $.date.defaultUnit) ->
-				new Date floor(stamp * units[unit])
+				new Date floor stamp * units[unit]
 			convert: (stamp, from = $.date.defaultUnit, to = $.date.defaultUnit) ->
 				if $.is "date", stamp then stamp = $.date.stamp(stamp, from)
 				(floor stamp * units[from] / units[to])
@@ -687,12 +687,12 @@ $.plugin
 					i += 1
 				$.date.stamp date, to
 			addMilliseconds: adder("MS")
-			addSeconds: adder("SS")
-			addMinutes: adder("MM")
-			addHours: adder("HH")
-			addDays: adder("dd")
-			addMonths: adder("mm")
-			addYears: adder("yyyy")
+			addSeconds:      adder("SS")
+			addMinutes:      adder("MM")
+			addHours:        adder("HH")
+			addDays:         adder("dd")
+			addMonths:       adder("mm")
+			addYears:        adder("yyyy")
 			range: (from, to, interval=1, interval_unit="dd", stamp_unit = $.date.defaultUnit) ->
 				add = adder(interval_unit)
 				ret = [from]
@@ -1684,7 +1684,7 @@ $.plugin
 	behaviors = {
 		null:      [ ['else', IsEqual ] ]
 		undefined: [ ['else', IsEqual ] ]
-		function: [
+		'function': [
 			['array', 'bling', Contains]
 			['object', ContainsValue]
 			['else', IsEqual]
@@ -1723,16 +1723,18 @@ $.plugin
 				matches[obj_type] = f
 		$.type.extend pattern_type, { matches: matches }
 	matches = (pattern, obj, pt = $.type.lookup pattern) ->
-		if pattern is matches.Any
-			return true
+		if typeof pattern is 'object' then  switch
+			when '$any' of pattern then return true
+			when '$type' of pattern then return $.is pattern.$type, obj
+			when '$class' of pattern then return $.isType pattern.$class, obj
 		for type, f of pt.matches
 			continue if type is 'else'
 			if $.is type, obj
 				return f pattern, obj, pt
 		return pt.matches.else pattern, obj, pt
-	class matches.Any # magic token
-		@toString: -> "{$any:true}"
-		@inspect:  -> "{$any:true}"
+	matches.Any = { $any: true }
+	matches.Type = (type) -> { $type: type }
+	matches.Class = (klass) -> { $class: klass }
 	return $: matches: matches
 $.plugin
 	provides: "math"

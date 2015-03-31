@@ -3645,7 +3645,7 @@
     behaviors = {
       "null": [['else', IsEqual]],
       undefined: [['else', IsEqual]],
-      "function": [['array', 'bling', Contains], ['object', ContainsValue], ['else', IsEqual]],
+      'function': [['array', 'bling', Contains], ['object', ContainsValue], ['else', IsEqual]],
       regexp: [['string', 'number', RegExpMatch], ['array', 'bling', Contains], ['object', ContainsValue], ['else', IsEqual]],
       object: [['array', 'bling', Contains], ['object', ObjMatch], ['else', IsEqual]],
       array: [['array', 'bling', ArrayMatch], ['else', IsEqual]],
@@ -3672,8 +3672,15 @@
       if (pt == null) {
         pt = $.type.lookup(pattern);
       }
-      if (pattern === matches.Any) {
-        return true;
+      if (typeof pattern === 'object') {
+        switch (false) {
+          case !('$any' in pattern):
+            return true;
+          case !('$type' in pattern):
+            return $.is(pattern.$type, obj);
+          case !('$class' in pattern):
+            return $.isType(pattern.$class, obj);
+        }
       }
       ref = pt.matches;
       for (type in ref) {
@@ -3687,20 +3694,19 @@
       }
       return pt.matches["else"](pattern, obj, pt);
     };
-    matches.Any = (function() {
-      function Any() {}
-
-      Any.toString = function() {
-        return "{$any:true}";
+    matches.Any = {
+      $any: true
+    };
+    matches.Type = function(type) {
+      return {
+        $type: type
       };
-
-      Any.inspect = function() {
-        return "{$any:true}";
+    };
+    matches.Class = function(klass) {
+      return {
+        $class: klass
       };
-
-      return Any;
-
-    })();
+    };
     return {
       $: {
         matches: matches

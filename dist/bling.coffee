@@ -206,9 +206,37 @@ $.plugin {
 	}
 	return { $: { clone: (o) -> $.type.lookup(o).clone(o) } }
 $.plugin
-	provides: "compat, trimLeft, split, lastIndexOf, join, preventAll, matchesSelector, isBuffer"
+	provides: "compat,trimLeft,split,lastIndexOf,join,preventAll,matchesSelector,isBuffer,Map"
 , ->
 	$.global.Buffer or= { isBuffer: -> false }
+	$.global.Map or= class Map # shim for the ES6 Map
+		constructor: (iterable) ->
+			data = Object.create null
+			$.extend @, {
+				size:       0
+				keys:       -> Object.keys(data)
+				values:     -> (v for k,v of data)
+				entries:    -> ( [k,v] for k,v of data )
+				has:    (k) -> k of data
+				get:    (k) -> data[k]
+				set: (k, v) ->
+					@size += 1 unless k of data
+					data[k] = v
+					@
+				delete: (k) ->
+					@size -= 1 if k of data
+					delete data[k]
+					@
+				clear:      ->
+					data = Object.create null
+					@size = 0
+					@
+				forEach: (cb, t) ->
+					cb.call(t,k,v) for k,v of data
+					@
+			}
+			for item in iterable
+				@set item...
 	String::trimLeft or= -> @replace(/^\s+/, "")
 	String::split or= (sep) ->
 		a = []; i = 0
@@ -628,7 +656,7 @@ $.plugin
 		MS: Date::getUTCMilliseconds
 	format_keys = Object.keys(formats).sort().reverse()
 	parsers =
-		YYYY: pYYYY =Date::setUTCFullYear
+		YYYY: pYYYY = Date::setUTCFullYear
 		yyyy: pYYYY
 		YY: pYY = (x) -> @setUTCFullYear (if x > 50 then 1900 else 2000) + x
 		yy: pYY
@@ -1682,37 +1710,29 @@ $.plugin
 		return true
 	RegExpMatch = (p, s, t) -> p.test String(s)
 	behaviors = {
-		null:      [ ['else', IsEqual ] ]
-		undefined: [ ['else', IsEqual ] ]
 		'function': [
 			['array', 'bling', Contains]
 			['object', ContainsValue]
-			['else', IsEqual]
 		]
 		regexp: [
 			['string','number', RegExpMatch ]
 			['array','bling', Contains ]
 			['object', ContainsValue ]
-			['else', IsEqual ]
 		]
 		object: [
 			['array','bling', Contains ]
 			['object', ObjMatch ]
-			['else', IsEqual ]
 		]
 		array: [
 			['array','bling', ArrayMatch ]
-			['else', IsEqual ]
 		]
 		number: [
 			['number', IsEqual ]
 			['array','bling', Contains ]
-			['else', IsEqual ]
 		]
 		string: [
 			['string', IsEqual ]
 			['array','bling', Contains ]
-			['else', IsEqual ]
 		]
 	}
 	for pattern_type,v of behaviors
@@ -1731,7 +1751,7 @@ $.plugin
 			continue if type is 'else'
 			if $.is type, obj
 				return f pattern, obj, pt
-		return pt.matches.else pattern, obj, pt
+		return pt.matches?.else?(pattern, obj, pt) ? IsEqual pattern, obj, pt
 	matches.Any = { $any: true }
 	matches.Type = (type) -> { $type: type }
 	matches.Class = (klass) -> { $class: klass }

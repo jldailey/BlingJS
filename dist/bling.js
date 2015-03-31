@@ -469,18 +469,88 @@
   });
 
   $.plugin({
-    provides: "compat, trimLeft, split, lastIndexOf, join, preventAll, matchesSelector, isBuffer"
+    provides: "compat,trimLeft,split,lastIndexOf,join,preventAll,matchesSelector,isBuffer,Map"
   }, function() {
-    var base1, base2, base3, base4, base5;
+    var Map, base1, base2, base3, base4, base5, base6;
     (base1 = $.global).Buffer || (base1.Buffer = {
       isBuffer: function() {
         return false;
       }
     });
-    (base2 = String.prototype).trimLeft || (base2.trimLeft = function() {
+    (base2 = $.global).Map || (base2.Map = Map = (function() {
+      function Map(iterable) {
+        var aa, data, item, len1;
+        data = Object.create(null);
+        $.extend(this, {
+          size: 0,
+          keys: function() {
+            return Object.keys(data);
+          },
+          values: function() {
+            var k, results, v;
+            results = [];
+            for (k in data) {
+              v = data[k];
+              results.push(v);
+            }
+            return results;
+          },
+          entries: function() {
+            var k, results, v;
+            results = [];
+            for (k in data) {
+              v = data[k];
+              results.push([k, v]);
+            }
+            return results;
+          },
+          has: function(k) {
+            return k in data;
+          },
+          get: function(k) {
+            return data[k];
+          },
+          set: function(k, v) {
+            if (!(k in data)) {
+              this.size += 1;
+            }
+            data[k] = v;
+            return this;
+          },
+          "delete": function(k) {
+            if (k in data) {
+              this.size -= 1;
+            }
+            delete data[k];
+            return this;
+          },
+          clear: function() {
+            data = Object.create(null);
+            this.size = 0;
+            return this;
+          },
+          forEach: function(cb, t) {
+            var k, v;
+            for (k in data) {
+              v = data[k];
+              cb.call(t, k, v);
+            }
+            return this;
+          }
+        });
+        for (aa = 0, len1 = iterable.length; aa < len1; aa++) {
+          item = iterable[aa];
+          this.set.apply(this, item);
+        }
+      }
+
+      return Map;
+
+    })());
+    (base3 = String.prototype).trimLeft || (base3.trimLeft = function() {
       return this.replace(/^\s+/, "");
     });
-    (base3 = String.prototype).split || (base3.split = function(sep) {
+    (base4 = String.prototype).split || (base4.split = function(sep) {
       var a, i, j;
       a = [];
       i = 0;
@@ -490,7 +560,7 @@
       }
       return a;
     });
-    (base4 = String.prototype).lastIndexOf || (base4.lastIndexOf = function(s, c, i) {
+    (base5 = String.prototype).lastIndexOf || (base5.lastIndexOf = function(s, c, i) {
       var j;
       if (i == null) {
         i = -1;
@@ -501,7 +571,7 @@
       }
       return j;
     });
-    (base5 = Array.prototype).join || (base5.join = function(sep) {
+    (base6 = Array.prototype).join || (base6.join = function(sep) {
       var n, s;
       if (sep == null) {
         sep = '';
@@ -3643,14 +3713,12 @@
       return p.test(String(s));
     };
     behaviors = {
-      "null": [['else', IsEqual]],
-      undefined: [['else', IsEqual]],
-      'function': [['array', 'bling', Contains], ['object', ContainsValue], ['else', IsEqual]],
-      regexp: [['string', 'number', RegExpMatch], ['array', 'bling', Contains], ['object', ContainsValue], ['else', IsEqual]],
-      object: [['array', 'bling', Contains], ['object', ObjMatch], ['else', IsEqual]],
-      array: [['array', 'bling', ArrayMatch], ['else', IsEqual]],
-      number: [['number', IsEqual], ['array', 'bling', Contains], ['else', IsEqual]],
-      string: [['string', IsEqual], ['array', 'bling', Contains], ['else', IsEqual]]
+      'function': [['array', 'bling', Contains], ['object', ContainsValue]],
+      regexp: [['string', 'number', RegExpMatch], ['array', 'bling', Contains], ['object', ContainsValue]],
+      object: [['array', 'bling', Contains], ['object', ObjMatch]],
+      array: [['array', 'bling', ArrayMatch]],
+      number: [['number', IsEqual], ['array', 'bling', Contains]],
+      string: [['string', IsEqual], ['array', 'bling', Contains]]
     };
     for (pattern_type in behaviors) {
       v = behaviors[pattern_type];
@@ -3668,7 +3736,7 @@
       });
     }
     matches = function(pattern, obj, pt) {
-      var ref, type;
+      var ref, ref1, ref2, type;
       if (pt == null) {
         pt = $.type.lookup(pattern);
       }
@@ -3692,7 +3760,7 @@
           return f(pattern, obj, pt);
         }
       }
-      return pt.matches["else"](pattern, obj, pt);
+      return (ref1 = (ref2 = pt.matches) != null ? typeof ref2["else"] === "function" ? ref2["else"](pattern, obj, pt) : void 0 : void 0) != null ? ref1 : IsEqual(pattern, obj, pt);
     };
     matches.Any = {
       $any: true

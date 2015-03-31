@@ -37,6 +37,9 @@ $.plugin
 			for item in iterable ? []
 				@set item...
 
+	signs = [-1, 1]
+	Math.sign or= (n) -> signs[0 + (n >= 0)]
+
 	# Make sure we have String functions: `trimLeft`, and `split`.
 	String.prototype.trimLeft or= -> @replace(/^\s+/, "")
 	String.prototype.split or= (sep) ->

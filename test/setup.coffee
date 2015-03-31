@@ -20,6 +20,6 @@ document.body.innerHTML = """
 
 
 module.exports = [
-	'../dist/min.bling.js',
+	'../dist/bling.js',
 	'assert'
 ].map require

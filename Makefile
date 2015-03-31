@@ -12,11 +12,11 @@ TEST_FILES=$(shell ls test/*.coffee | grep -v setup.coffee | sort -f )
 TIME_FILES=$(subst .coffee,.coffee.time,$(shell ls bench/*.coffee | grep -v setup.coffee | sort -f ))
 
 
-all: dist report
+all: release report
 
-dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
+release: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
-test: dist $(TEST_FILES)
+test: $(DIST)/bling.js $(TEST_FILES)
 	@echo "All tests are passing."
 
 test/bling.coffee: bling.coffee
@@ -31,7 +31,7 @@ bench: dist $(TIME_FILES)
 	@echo "All benchmarks are complete."
 	@cat bench/*.time
 
-bench/%.coffee.time: bench/%.coffee plugins/%.coffee test/%.coffee bench/setup.coffee bling.coffee Makefile
+bench/%.coffee.time: bench/%.coffee plugins/%.coffee bench/setup.coffee bling.coffee Makefile
 	@echo Running $<
 	@$(COFFEE) $< > $@
 
@@ -89,4 +89,4 @@ $(JLDOM):
 $(UGLIFY):
 	npm install uglifyjs
 
-.PHONY: all bling clean dist site test
+.PHONY: all bling clean release site test

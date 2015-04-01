@@ -184,6 +184,10 @@ $.plugin
 		string: (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
 		repr:   (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 
+	_type.in = (types..., obj) ->
+		for type in types
+			return true if $.is type, obj
+		return false
 	$:
 		# __$.inherit(parent, child)__ makes _parent_ become the
 		# immediate *__proto__* of _child_.
@@ -211,7 +215,7 @@ $.plugin
 		# `$.as("number", "1234")` attempt to convert types.
 		as: _type.as
 		isDefined: (o) -> o?
-		isSimple: (o) -> _type(o) in ["string", "number", "bool"]
+		isSimple: (o) -> _type.in "string", "number", "bool", o
 		isEmpty: (o) -> o in ["", null, undefined] \
 			or o.length is 0 or (typeof o is "object" and Object.keys(o).length is 0)
 	defineProperty: (name, opts) -> @each -> $.defineProperty @, name, opts

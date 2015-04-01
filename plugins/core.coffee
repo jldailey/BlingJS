@@ -2,7 +2,7 @@ $.plugin
 	provides: "core,eq,each,map,filterMap,tap,replaceWith,reduce,union,intersect,distinct," +
 		"contains,count,coalesce,swap,shuffle,select,or,zap,clean,take,skip,first,last,slice," +
 		"push,filter,matches,weave,fold,flatten,call,apply,log,toArray,clear,indexWhere"
-	depends: "string"
+	depends: "string,type"
 , ->
 	# Core Plugin
 	# -----------
@@ -60,12 +60,12 @@ $.plugin
 			return b
 
 		every: (f) ->
-			for x in @ when not f(x)
+			for x in @ when not f.call x,x
 				return false
 			return true
 
 		some: (f) ->
-			for x in @ when f(x)
+			for x in @ when f.call x,x
 				return true
 			return false
 
@@ -122,7 +122,7 @@ $.plugin
 		# Get the first non-null item in _this_.
 		coalesce: ->
 			for i in @
-				if $.is('array',i) or $.is('bling',i) then i = $(i).coalesce()
+				if $.type.in 'array','bling', i then i = $(i).coalesce()
 				if i? then return i
 			null
 		# Swap item i with item j, in-place.
@@ -142,11 +142,10 @@ $.plugin
 		# Get a new set of properties from every item in _this_.
 		select: do ->
 			# First, a private helper that will read property `prop` from some object later.
-			getter = (prop) ->
-				->
-					if $.is("function",v = @[prop]) and prop isnt "constructor"
-						return $.bound(@,v)
-					else v
+			getter = (prop) -> ->
+				if $.is("function",v = @[prop]) and prop isnt "constructor"
+					return $.bound(@,v)
+				else v
 			# Recursively split `p` on `.` and map the getter helper
 			# to read a set of complex `p` values from an object.
 			# > `$([x]).select("name") == [ x.name ]`
@@ -211,7 +210,7 @@ $.plugin
 			# internally.
 
 			# Optionally, accepts .zap({ width: 10, height: 20 });
-			if ($.is 'object', p) and not v?
+			if $.is 'object', p
 				@zap(k,v) for k,v of p
 				return @
 
@@ -290,17 +289,17 @@ $.plugin
 			limit ?= @length
 			positive ?= true
 			# The argument _f_ can be any of:
-			g = switch $.type f
+			g = switch
 				# * pattern object: `.filter({ enabled: true })`
-				when "object" then (x) -> $.matches f,x
+				when $.is "object", f then (x) -> $.matches f,x
 				# * selector string: `.filter("td.selected")`
-				when "string" then (x) -> x?.matchesSelector?(f) ? false
+				when $.is "string", f then (x) -> x?.matchesSelector?(f) ? false
 				# * RegExp object: `.filter(/^prefix-/)`
-				when "regexp" then (x) -> f.test(x)
+				when $.is "regexp", f then (x) -> f.test(x)
 				# * function: `.filter (x) -> (x%2) is 1`
-				when "function" then f
+				when $.is "function", f then f
 				# * primitives
-				when "bool","number","null","undefined" then (x) -> f is x
+				when $.type.in "bool","number","null","undefined", f then (x) -> f is x
 				else throw new Error "unsupported argument to filter: #{$.type f}"
 			a = $()
 			for it in @
@@ -314,9 +313,9 @@ $.plugin
 		# or if a string matches a regular expression.
 		# e.g. $('a','b').matches(/^a/) == [true, false]
 		matches: (expr) ->
-			switch $.type expr
-				when "string" then @select('matchesSelector').call(expr)
-				when "regexp" then @map (x) -> expr.test x
+			switch
+				when $.is "string", expr then @select('matchesSelector').call(expr)
+				when $.is "regexp", expr then @map (x) -> expr.test x
 				else throw new Error "unsupported argument to matches: #{$.type expr}"
 
 		# Get a new set with items interleaved from the items in _a_ and
@@ -353,7 +352,7 @@ $.plugin
 		flatten: ->
 			b = $()
 			for item, i in @
-				if ($.is 'array', item) or ($.is 'bling', item) or ($.is 'arguments', item) or ($.is 'nodelist', item)
+				if $.type.in 'array','bling','arguments','nodelist', item
 					for j in item then b.push(j)
 				else b.push(item)
 			b

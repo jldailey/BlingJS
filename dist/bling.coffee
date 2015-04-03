@@ -34,7 +34,7 @@ $.plugin = (opts, constructor) ->
 			delete plugin.$
 			extend @prototype, plugin
 			for key of plugin then do (key) =>
-				@[key] or= (a...) => (@::[key].apply $(a[0]), a[1...])
+				@[key] or= (a...) => (@prototype[key].apply $(a[0]), a[1...])
 			if opts.provides? then @provide opts.provides
 	catch error
 		console.log "failed to load plugin: #{@name} #{error.message}: #{error.stack}"
@@ -235,20 +235,22 @@ $.plugin
 					cb.call(t,k,v) for k,v of data
 					@
 			}
-			for item in iterable
+			for item in iterable ? []
 				@set item...
-	String::trimLeft or= -> @replace(/^\s+/, "")
-	String::split or= (sep) ->
+	signs = [-1, 1]
+	Math.sign or= (n) -> signs[0 + (n >= 0)]
+	String.prototype.trimLeft or= -> @replace(/^\s+/, "")
+	String.prototype.split or= (sep) ->
 		a = []; i = 0
 		while (j = @indexOf sep,i) > -1
 			a.push @substring(i,j)
 			i = j + 1
 		a
-	String::lastIndexOf or= (s, c, i = -1) ->
+	String.prototype.lastIndexOf or= (s, c, i = -1) ->
 		j = -1
 		j = i while (i = s.indexOf c, i+1) > -1
 		j
-	Array::join or= (sep = '') ->
+	Array.prototype.join or= (sep = '') ->
 		n = @length
 		return "" if n is 0
 		s = @[n-1]
@@ -256,14 +258,14 @@ $.plugin
 			s = @[n-1] + sep + s
 		s
 	if Event?
-		Event::preventAll = () ->
+		Event.prototype.preventAll = () ->
 			@preventDefault()
 			@stopPropagation()
 			@cancelBubble = true
 	if Element?
-		Element::matchesSelector = Element::webkitMatchesSelector or
-			Element::mozMatchesSelector or
-			Element::matchesSelector
+		Element.prototype.matchesSelector = Element.prototype.webkitMatchesSelector or
+			Element.prototype.mozMatchesSelector or
+			Element.prototype.matchesSelector
 	return { }
 $.plugin
 	provides: 'config'
@@ -296,7 +298,7 @@ $.plugin
 	provides: "core,eq,each,map,filterMap,tap,replaceWith,reduce,union,intersect,distinct," +
 		"contains,count,coalesce,swap,shuffle,select,or,zap,clean,take,skip,first,last,slice," +
 		"push,filter,matches,weave,fold,flatten,call,apply,log,toArray,clear,indexWhere"
-	depends: "string"
+	depends: "string,type"
 , ->
 	$.defineProperty $, "now",
 		get: -> +new Date
@@ -336,11 +338,11 @@ $.plugin
 			(b[i++] = f.call t,t) for t in @
 			return b
 		every: (f) ->
-			for x in @ when not f(x)
+			for x in @ when not f.call x,x
 				return false
 			return true
 		some: (f) ->
-			for x in @ when f(x)
+			for x in @ when f.call x,x
 				return true
 			return false
 		filterMap: (f) ->
@@ -380,7 +382,7 @@ $.plugin
 			).sum()
 		coalesce: ->
 			for i in @
-				if $.is('array',i) or $.is('bling',i) then i = $(i).coalesce()
+				if $.type.in 'array','bling', i then i = $(i).coalesce()
 				if i? then return i
 			null
 		swap: (i,j) ->
@@ -395,11 +397,10 @@ $.plugin
 				@swap --i, Math.floor(Math.random() * i)
 			@
 		select: do ->
-			getter = (prop) ->
-				->
-					if $.is("function",v = @[prop]) and prop isnt "constructor"
-						return $.bound(@,v)
-					else v
+			getter = (prop) -> ->
+				if $.is("function",v = @[prop]) and prop isnt "constructor"
+					return $.bound(@,v)
+				else v
 			selectOne = (p) ->
 				switch type = $.type p
 					when 'regexp' then selectMany.call @, p
@@ -433,7 +434,7 @@ $.plugin
 					else selectMany.apply @, arguments
 		or: (x) -> @[i] or= x for i in [0...@length]; @
 		zap: (p, v) ->
-			if ($.is 'object', p) and not v?
+			if $.is 'object', p
 				@zap(k,v) for k,v of p
 				return @
 			i = p.lastIndexOf "."
@@ -469,7 +470,7 @@ $.plugin
 			end = index end, @
 			$( @[i] for i in [start...end] )
 		extend: (b) -> @.push(i) for i in b; @
-		push: (b) -> Array::push.call(@, b); @
+		push: (b) -> Array.prototype.push.call(@, b); @
 		filter: (f, limit, positive) ->
 			if $.is "bool", limit
 				[positive, limit] = [limit, positive]
@@ -477,12 +478,12 @@ $.plugin
 				[limit, positive] = [positive, limit]
 			limit ?= @length
 			positive ?= true
-			g = switch $.type f
-				when "object" then (x) -> $.matches f,x
-				when "string" then (x) -> x?.matchesSelector?(f) ? false
-				when "regexp" then (x) -> f.test(x)
-				when "function" then f
-				when "bool","number","null","undefined" then (x) -> f is x
+			g = switch
+				when $.is "object", f then (x) -> $.matches f,x
+				when $.is "string", f then (x) -> x?.matchesSelector?(f) ? false
+				when $.is "regexp", f then (x) -> f.test(x)
+				when $.is "function", f then f
+				when $.type.in "bool","number","null","undefined", f then (x) -> f is x
 				else throw new Error "unsupported argument to filter: #{$.type f}"
 			a = $()
 			for it in @
@@ -492,9 +493,9 @@ $.plugin
 					a.push it
 			a
 		matches: (expr) ->
-			switch $.type expr
-				when "string" then @select('matchesSelector').call(expr)
-				when "regexp" then @map (x) -> expr.test x
+			switch
+				when $.is "string", expr then @select('matchesSelector').call(expr)
+				when $.is "regexp", expr then @map (x) -> expr.test x
 				else throw new Error "unsupported argument to matches: #{$.type expr}"
 		weave: (b) ->
 			c = $()
@@ -512,7 +513,7 @@ $.plugin
 		flatten: ->
 			b = $()
 			for item, i in @
-				if ($.is 'array', item) or ($.is 'bling', item) or ($.is 'arguments', item) or ($.is 'nodelist', item)
+				if $.type.in 'array','bling','arguments','nodelist', item
 					for j in item then b.push(j)
 				else b.push(item)
 			b
@@ -528,7 +529,7 @@ $.plugin
 				$.log(@toString(), @length + " items")
 			@
 		toArray: ->
-			@__proto__ = Array::
+			@__proto__ = Array.prototype
 			@ # no copies, yay?
 		clear: -> @splice 0, @length
 		indexWhere: (f) ->
@@ -642,30 +643,30 @@ $.plugin
 	shortDays = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
 	longDays = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
 	formats =
-		yyyy: Date::getUTCFullYear
+		yyyy: Date.prototype.getUTCFullYear
 		YY: fYY = -> String(@getUTCFullYear()).substr(2)
 		yy: fYY
 		mm: -> @getUTCMonth() + 1
-		dd: Date::getUTCDate
-		dw: Date::getUTCDay # day of the week, 1=monday
+		dd: Date.prototype.getUTCDate
+		dw: Date.prototype.getUTCDay # day of the week, 1=monday
 		dW: -> shortDays[parseInt(@getUTCDay(), 10) - 1]
 		DW: -> longDays[parseInt(@getUTCDay(), 10) - 1]
-		HH: Date::getUTCHours
-		MM: Date::getUTCMinutes
-		SS: Date::getUTCSeconds
-		MS: Date::getUTCMilliseconds
+		HH: Date.prototype.getUTCHours
+		MM: Date.prototype.getUTCMinutes
+		SS: Date.prototype.getUTCSeconds
+		MS: Date.prototype.getUTCMilliseconds
 	format_keys = Object.keys(formats).sort().reverse()
 	parsers =
-		YYYY: pYYYY = Date::setUTCFullYear
+		YYYY: pYYYY = Date.prototype.setUTCFullYear
 		yyyy: pYYYY
 		YY: pYY = (x) -> @setUTCFullYear (if x > 50 then 1900 else 2000) + x
 		yy: pYY
 		mm: (x) -> @setUTCMonth(x - 1)
-		dd: Date::setUTCDate
-		HH: Date::setUTCHours
-		MM: Date::setUTCMinutes
-		SS: Date::setUTCSeconds
-		MS: Date::setUTCMilliseconds
+		dd: Date.prototype.setUTCDate
+		HH: Date.prototype.setUTCHours
+		MM: Date.prototype.setUTCMinutes
+		SS: Date.prototype.setUTCSeconds
+		MS: Date.prototype.setUTCMilliseconds
 	parser_keys = Object.keys(parsers).sort().reverse()
 	floor = Math.floor
 	$.type.register "date",
@@ -1742,6 +1743,18 @@ $.plugin
 			for obj_type in list
 				matches[obj_type] = f
 		$.type.extend pt, { matches }
+<<<<<<< HEAD
+=======
+	specialPatterns = {
+		$any: -> true
+		$type:  (p, o, t) -> $.is p.$type, o
+		$class: (p, o, t) -> $.isType p.$class, o
+		$lt:    (p, o, t) -> o < p.$lt
+		$gt:    (p, o, t) -> o > p.$gt
+		$lte:   (p, o, t) -> o <= p.$lte
+		$gte:   (p, o, t) -> o >= p.$gte
+	}
+>>>>>>> c3fa51bde71098dd70bb4c771198ef343140bf19
 	matches = (pattern, obj, pt = $.type.lookup pattern) ->
 		if pt.name is 'object'
 			for k, f of specialPatterns
@@ -2548,7 +2561,7 @@ $.plugin
 					if target.test @[i]
 						return i
 				return -1
-			else Array::indexOf.apply @, arguments
+			else Array.prototype.indexOf.apply @, arguments
 	}
 $.plugin
 	provides: "symbol"
@@ -3094,7 +3107,7 @@ $.plugin
 	isType = (T, o) ->
 		if not o? then T in [o,"null","undefined"]
 		else (o.constructor? and (o.constructor is T or o.constructor.name is T)) or
-			Object::toString.apply(o) is "[object #{T}]" or
+			Object.prototype.toString.apply(o) is "[object #{T}]" or
 			isType T, o.__proto__ # recursive
 	inherit = (parent, objs...) ->
 		return unless objs.length > 0
@@ -3166,7 +3179,7 @@ $.plugin
 		undefined: { array:     -> [] }
 		array:     { array: (o) -> o }
 		number:    { array: (o) -> $.extend new Array(o), length: 0 }
-		arguments: { array: (o) -> Array::slice.apply o }
+		arguments: { array: (o) -> Array.prototype.slice.apply o }
 	maxHash = Math.pow(2,32)
 	_type.register "bling",
 		is:     (o) -> o and isType $, o
@@ -3174,6 +3187,10 @@ $.plugin
 		hash:   (o) -> o.map($.hash).reduce (a,x) -> ((a*a)+x) % maxHash
 		string: (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
 		repr:   (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
+	_type.in = (types..., obj) ->
+		for type in types
+			return true if $.is type, obj
+		return false
 	$:
 		inherit: inherit
 		extend: extend
@@ -3189,7 +3206,7 @@ $.plugin
 			return true
 		as: _type.as
 		isDefined: (o) -> o?
-		isSimple: (o) -> _type(o) in ["string", "number", "bool"]
+		isSimple: (o) -> _type.in "string", "number", "bool", o
 		isEmpty: (o) -> o in ["", null, undefined] \
 			or o.length is 0 or (typeof o is "object" and Object.keys(o).length is 0)
 	defineProperty: (name, opts) -> @each -> $.defineProperty @, name, opts

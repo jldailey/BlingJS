@@ -471,7 +471,7 @@
   $.plugin({
     provides: "compat,trimLeft,split,lastIndexOf,join,preventAll,matchesSelector,isBuffer,Map"
   }, function() {
-    var Map, base1, base2, base3, base4, base5, base6;
+    var Map, base1, base2, base3, base4, base5, base6, signs;
     (base1 = $.global).Buffer || (base1.Buffer = {
       isBuffer: function() {
         return false;
@@ -479,7 +479,7 @@
     });
     (base2 = $.global).Map || (base2.Map = Map = (function() {
       function Map(iterable) {
-        var aa, data, item, len1;
+        var aa, data, item, len1, ref;
         data = Object.create(null);
         $.extend(this, {
           size: 0,
@@ -538,8 +538,9 @@
             return this;
           }
         });
-        for (aa = 0, len1 = iterable.length; aa < len1; aa++) {
-          item = iterable[aa];
+        ref = iterable != null ? iterable : [];
+        for (aa = 0, len1 = ref.length; aa < len1; aa++) {
+          item = ref[aa];
           this.set.apply(this, item);
         }
       }
@@ -547,6 +548,10 @@
       return Map;
 
     })());
+    signs = [-1, 1];
+    Math.sign || (Math.sign = function(n) {
+      return signs[0 + (n >= 0)];
+    });
     (base3 = String.prototype).trimLeft || (base3.trimLeft = function() {
       return this.replace(/^\s+/, "");
     });
@@ -659,7 +664,7 @@
 
   $.plugin({
     provides: "core,eq,each,map,filterMap,tap,replaceWith,reduce,union,intersect,distinct," + "contains,count,coalesce,swap,shuffle,select,or,zap,clean,take,skip,first,last,slice," + "push,filter,matches,weave,fold,flatten,call,apply,log,toArray,clear,indexWhere",
-    depends: "string"
+    depends: "string,type"
   }, function() {
     var baseTime, index;
     $.defineProperty($, "now", {
@@ -785,7 +790,7 @@
         var aa, len1, x;
         for (aa = 0, len1 = this.length; aa < len1; aa++) {
           x = this[aa];
-          if (!f(x)) {
+          if (!f.call(x, x)) {
             return false;
           }
         }
@@ -795,7 +800,7 @@
         var aa, len1, x;
         for (aa = 0, len1 = this.length; aa < len1; aa++) {
           x = this[aa];
-          if (f(x)) {
+          if (f.call(x, x)) {
             return true;
           }
         }
@@ -914,7 +919,7 @@
         var aa, i, len1;
         for (aa = 0, len1 = this.length; aa < len1; aa++) {
           i = this[aa];
-          if ($.is('array', i) || $.is('bling', i)) {
+          if ($.type["in"]('array', 'bling', i)) {
             i = $(i).coalesce();
           }
           if (i != null) {
@@ -1022,7 +1027,7 @@
       },
       zap: function(p, v) {
         var head, i, k, tail;
-        if (($.is('object', p)) && (v == null)) {
+        if ($.is('object', p)) {
           for (k in p) {
             v = p[k];
             this.zap(k, v);
@@ -1174,26 +1179,23 @@
           positive = true;
         }
         g = (function() {
-          switch ($.type(f)) {
-            case "object":
+          switch (false) {
+            case !$.is("object", f):
               return function(x) {
                 return $.matches(f, x);
               };
-            case "string":
+            case !$.is("string", f):
               return function(x) {
                 var ref2;
                 return (ref2 = x != null ? typeof x.matchesSelector === "function" ? x.matchesSelector(f) : void 0 : void 0) != null ? ref2 : false;
               };
-            case "regexp":
+            case !$.is("regexp", f):
               return function(x) {
                 return f.test(x);
               };
-            case "function":
+            case !$.is("function", f):
               return f;
-            case "bool":
-            case "number":
-            case "null":
-            case "undefined":
+            case !$.type["in"]("bool", "number", "null", "undefined", f):
               return function(x) {
                 return f === x;
               };
@@ -1214,10 +1216,10 @@
         return a;
       },
       matches: function(expr) {
-        switch ($.type(expr)) {
-          case "string":
+        switch (false) {
+          case !$.is("string", expr):
             return this.select('matchesSelector').call(expr);
-          case "regexp":
+          case !$.is("regexp", expr):
             return this.map(function(x) {
               return expr.test(x);
             });
@@ -1257,7 +1259,7 @@
         b = $();
         for (i = aa = 0, len1 = this.length; aa < len1; i = ++aa) {
           item = this[i];
-          if (($.is('array', item)) || ($.is('bling', item)) || ($.is('arguments', item)) || ($.is('nodelist', item))) {
+          if ($.type["in"]('array', 'bling', 'arguments', 'nodelist', item)) {
             for (ab = 0, len2 = item.length; ab < len2; ab++) {
               j = item[ab];
               b.push(j);
@@ -3735,6 +3737,29 @@
         matches: matches
       });
     }
+    specialPatterns = {
+      $any: function() {
+        return true;
+      },
+      $type: function(p, o, t) {
+        return $.is(p.$type, o);
+      },
+      $class: function(p, o, t) {
+        return $.isType(p.$class, o);
+      },
+      $lt: function(p, o, t) {
+        return o < p.$lt;
+      },
+      $gt: function(p, o, t) {
+        return o > p.$gt;
+      },
+      $lte: function(p, o, t) {
+        return o <= p.$lte;
+      },
+      $gte: function(p, o, t) {
+        return o >= p.$gte;
+      }
+    };
     matches = function(pattern, obj, pt) {
       var k, ref, ref1, ref2, type;
       if (pt == null) {
@@ -6745,6 +6770,17 @@
         }).join(", ") + "])";
       }
     });
+    _type["in"] = function() {
+      var aa, ab, len1, obj, type, types;
+      types = 2 <= arguments.length ? slice.call(arguments, 0, aa = arguments.length - 1) : (aa = 0, []), obj = arguments[aa++];
+      for (ab = 0, len1 = types.length; ab < len1; ab++) {
+        type = types[ab];
+        if ($.is(type, obj)) {
+          return true;
+        }
+      }
+      return false;
+    };
     return {
       $: {
         inherit: inherit,
@@ -6775,8 +6811,7 @@
           return o != null;
         },
         isSimple: function(o) {
-          var ref;
-          return (ref = _type(o)) === "string" || ref === "number" || ref === "bool";
+          return _type["in"]("string", "number", "bool", o);
         },
         isEmpty: function(o) {
           return (o === "" || o === null || o === (void 0)) || o.length === 0 || (typeof o === "object" && Object.keys(o).length === 0);

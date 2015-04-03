@@ -19,7 +19,7 @@ $.plugin
 	isType = (T, o) ->
 		if not o? then T in [o,"null","undefined"]
 		else (o.constructor? and (o.constructor is T or o.constructor.name is T)) or
-			Object::toString.apply(o) is "[object #{T}]" or
+			Object.prototype.toString.apply(o) is "[object #{T}]" or
 			isType T, o.__proto__ # recursive
 
 	# `inherit(parent, child)` is similar to extend, except it works by
@@ -168,7 +168,7 @@ $.plugin
 		# Numbers create a new array of that capacity (but zero length).
 		number:    { array: (o) -> $.extend new Array(o), length: 0 }
 		# Arguments get sliced into to a real array.
-		arguments: { array: (o) -> Array::slice.apply o }
+		arguments: { array: (o) -> Array.prototype.slice.apply o }
 
 	# Now, we register "bling", and all the things we know how to do
 	# with it:
@@ -184,6 +184,10 @@ $.plugin
 		string: (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
 		repr:   (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 
+	_type.in = (types..., obj) ->
+		for type in types
+			return true if $.is type, obj
+		return false
 	$:
 		# __$.inherit(parent, child)__ makes _parent_ become the
 		# immediate *__proto__* of _child_.
@@ -211,7 +215,7 @@ $.plugin
 		# `$.as("number", "1234")` attempt to convert types.
 		as: _type.as
 		isDefined: (o) -> o?
-		isSimple: (o) -> _type(o) in ["string", "number", "bool"]
+		isSimple: (o) -> _type.in "string", "number", "bool", o
 		isEmpty: (o) -> o in ["", null, undefined] \
 			or o.length is 0 or (typeof o is "object" and Object.keys(o).length is 0)
 	defineProperty: (name, opts) -> @each -> $.defineProperty @, name, opts

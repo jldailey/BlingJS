@@ -22,6 +22,9 @@ describe "Compat plugin", ->
 			assert $.is 'function', Array.prototype.join
 		it "Event::preventAll", ->
 			assert $.is 'function', Event.prototype.preventAll
+		it "Math.sign", ->
+			assert.equal Math.sign(-12), -1
+			assert.equal Math.sign(0), 1
 
 
 

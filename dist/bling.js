@@ -3665,7 +3665,7 @@
     provides: "matches",
     depends: "function,core,string"
   }, function() {
-    var ArrayMatch, Contains, ContainsValue, IsEqual, ObjMatch, RegExpMatch, aa, ab, behaviors, f, len1, len2, list, matches, obj_type, pattern_type, v;
+    var ArrayMatch, Contains, ContainsValue, IsEqual, ObjMatch, RegExpMatch, aa, ab, behaviors, f, len1, len2, list, matches, obj_type, pt, specialPatterns, v;
     IsEqual = function(p, o, t) {
       return o === p;
     };
@@ -3720,8 +3720,8 @@
       number: [['number', IsEqual], ['array', 'bling', Contains]],
       string: [['string', IsEqual], ['array', 'bling', Contains]]
     };
-    for (pattern_type in behaviors) {
-      v = behaviors[pattern_type];
+    for (pt in behaviors) {
+      v = behaviors[pt];
       matches = {};
       for (aa = 0, len1 = v.length; aa < len1; aa++) {
         list = v[aa];
@@ -3731,23 +3731,21 @@
           matches[obj_type] = f;
         }
       }
-      $.type.extend(pattern_type, {
+      $.type.extend(pt, {
         matches: matches
       });
     }
     matches = function(pattern, obj, pt) {
-      var ref, ref1, ref2, type;
+      var k, ref, ref1, ref2, type;
       if (pt == null) {
         pt = $.type.lookup(pattern);
       }
-      if (typeof pattern === 'object') {
-        switch (false) {
-          case !('$any' in pattern):
-            return true;
-          case !('$type' in pattern):
-            return $.is(pattern.$type, obj);
-          case !('$class' in pattern):
-            return $.isType(pattern.$class, obj);
+      if (pt.name === 'object') {
+        for (k in specialPatterns) {
+          f = specialPatterns[k];
+          if (k in pattern) {
+            return f(pattern, obj, pt);
+          }
         }
       }
       ref = pt.matches;
@@ -3761,6 +3759,29 @@
         }
       }
       return (ref1 = (ref2 = pt.matches) != null ? typeof ref2["else"] === "function" ? ref2["else"](pattern, obj, pt) : void 0 : void 0) != null ? ref1 : IsEqual(pattern, obj, pt);
+    };
+    specialPatterns = {
+      $any: function() {
+        return true;
+      },
+      $type: function(p, o, t) {
+        return $.is(p.$type, o);
+      },
+      $class: function(p, o, t) {
+        return $.isType(p.$class, o);
+      },
+      $lt: function(p, o, t) {
+        return o < p.$lt;
+      },
+      $gt: function(p, o, t) {
+        return o > p.$gt;
+      },
+      $lte: function(p, o, t) {
+        return o <= p.$lte;
+      },
+      $gte: function(p, o, t) {
+        return o >= p.$gte;
+      }
     };
     matches.Any = {
       $any: true

@@ -3,6 +3,7 @@ DIST=dist
 PLUGINS=plugins
 COFFEE=node_modules/.bin/coffee
 UGLIFY=node_modules/.bin/uglifyjs
+UGLIFY_OPTS?=--screw-ie8
 JLDOM=node_modules/jldom
 MOCHA=node_modules/.bin/mocha
 MOCHA_FMT?=dot
@@ -10,7 +11,6 @@ MOCHA_OPTS=--compilers coffee:coffee-script/register --globals document,window,B
 
 TEST_FILES=$(shell ls test/*.coffee | grep -v setup.coffee | sort -f )
 TIME_FILES=$(subst .coffee,.coffee.time,$(shell ls bench/*.coffee | grep -v setup.coffee | sort -f ))
-
 
 all: release report
 
@@ -53,7 +53,7 @@ site: test
 
 $(DIST)/min.%.js: $(DIST)/%.js $(UGLIFY)
 	@echo Minifying $< to $@...
-	$(UGLIFY) $< -c --source-map $@.map --source-map-url $(subst dist/,,$@).map -m -r '$,Bling,window,document' -o $@
+	$(UGLIFY) $< -c --source-map $@.map --source-map-url $(subst dist/,,$@).map -m -r '$,Bling,window,document' $(UGLIFY_OPTS) -o $@
 
 $(DIST)/%.js: $(DIST)/%.coffee $(COFFEE)
 	@echo Compiling $< to $@...
@@ -70,12 +70,8 @@ $(DIST)/bling.coffee: bling.coffee $(shell ls $(PLUGINS)/*.coffee | sort -f)
 report:
 	@cd $(DIST) && wc -c `ls *.coffee *.js *.gz | sort -n` | grep -v total
 
-clean-test:
-	rm -f test/pass test/*.pass
-	
-clean: clean-test
+clean:
 	rm -rf $(DIST)/*
-	rm -rf yuicompressor.zip yuicompressor.jar yuicompressor-$(YUI_VERSION)
 
 $(MOCHA):
 	npm install mocha

@@ -469,18 +469,93 @@
   });
 
   $.plugin({
-    provides: "compat, trimLeft, split, lastIndexOf, join, preventAll, matchesSelector, isBuffer"
+    provides: "compat,trimLeft,split,lastIndexOf,join,preventAll,matchesSelector,isBuffer,Map"
   }, function() {
-    var base1, base2, base3, base4, base5;
+    var Map, base1, base2, base3, base4, base5, base6, signs;
     (base1 = $.global).Buffer || (base1.Buffer = {
       isBuffer: function() {
         return false;
       }
     });
-    (base2 = String.prototype).trimLeft || (base2.trimLeft = function() {
+    (base2 = $.global).Map || (base2.Map = Map = (function() {
+      function Map(iterable) {
+        var aa, data, item, len1, ref;
+        data = Object.create(null);
+        $.extend(this, {
+          size: 0,
+          keys: function() {
+            return Object.keys(data);
+          },
+          values: function() {
+            var k, results, v;
+            results = [];
+            for (k in data) {
+              v = data[k];
+              results.push(v);
+            }
+            return results;
+          },
+          entries: function() {
+            var k, results, v;
+            results = [];
+            for (k in data) {
+              v = data[k];
+              results.push([k, v]);
+            }
+            return results;
+          },
+          has: function(k) {
+            return k in data;
+          },
+          get: function(k) {
+            return data[k];
+          },
+          set: function(k, v) {
+            if (!(k in data)) {
+              this.size += 1;
+            }
+            data[k] = v;
+            return this;
+          },
+          "delete": function(k) {
+            if (k in data) {
+              this.size -= 1;
+            }
+            delete data[k];
+            return this;
+          },
+          clear: function() {
+            data = Object.create(null);
+            this.size = 0;
+            return this;
+          },
+          forEach: function(cb, t) {
+            var k, v;
+            for (k in data) {
+              v = data[k];
+              cb.call(t, k, v);
+            }
+            return this;
+          }
+        });
+        ref = iterable != null ? iterable : [];
+        for (aa = 0, len1 = ref.length; aa < len1; aa++) {
+          item = ref[aa];
+          this.set.apply(this, item);
+        }
+      }
+
+      return Map;
+
+    })());
+    signs = [-1, 1];
+    Math.sign || (Math.sign = function(n) {
+      return signs[0 + (n >= 0)];
+    });
+    (base3 = String.prototype).trimLeft || (base3.trimLeft = function() {
       return this.replace(/^\s+/, "");
     });
-    (base3 = String.prototype).split || (base3.split = function(sep) {
+    (base4 = String.prototype).split || (base4.split = function(sep) {
       var a, i, j;
       a = [];
       i = 0;
@@ -490,7 +565,7 @@
       }
       return a;
     });
-    (base4 = String.prototype).lastIndexOf || (base4.lastIndexOf = function(s, c, i) {
+    (base5 = String.prototype).lastIndexOf || (base5.lastIndexOf = function(s, c, i) {
       var j;
       if (i == null) {
         i = -1;
@@ -501,7 +576,7 @@
       }
       return j;
     });
-    (base5 = Array.prototype).join || (base5.join = function(sep) {
+    (base6 = Array.prototype).join || (base6.join = function(sep) {
       var n, s;
       if (sep == null) {
         sep = '';
@@ -589,7 +664,7 @@
 
   $.plugin({
     provides: "core,eq,each,map,filterMap,tap,replaceWith,reduce,union,intersect,distinct," + "contains,count,coalesce,swap,shuffle,select,or,zap,clean,take,skip,first,last,slice," + "push,filter,matches,weave,fold,flatten,call,apply,log,toArray,clear,indexWhere",
-    depends: "string"
+    depends: "string,type"
   }, function() {
     var baseTime, index;
     $.defineProperty($, "now", {
@@ -715,7 +790,7 @@
         var aa, len1, x;
         for (aa = 0, len1 = this.length; aa < len1; aa++) {
           x = this[aa];
-          if (!f(x)) {
+          if (!f.call(x, x)) {
             return false;
           }
         }
@@ -725,7 +800,7 @@
         var aa, len1, x;
         for (aa = 0, len1 = this.length; aa < len1; aa++) {
           x = this[aa];
-          if (f(x)) {
+          if (f.call(x, x)) {
             return true;
           }
         }
@@ -844,7 +919,7 @@
         var aa, i, len1;
         for (aa = 0, len1 = this.length; aa < len1; aa++) {
           i = this[aa];
-          if ($.is('array', i) || $.is('bling', i)) {
+          if ($.type["in"]('array', 'bling', i)) {
             i = $(i).coalesce();
           }
           if (i != null) {
@@ -952,7 +1027,7 @@
       },
       zap: function(p, v) {
         var head, i, k, tail;
-        if (($.is('object', p)) && (v == null)) {
+        if ($.is('object', p)) {
           for (k in p) {
             v = p[k];
             this.zap(k, v);
@@ -1104,26 +1179,23 @@
           positive = true;
         }
         g = (function() {
-          switch ($.type(f)) {
-            case "object":
+          switch (false) {
+            case !$.is("object", f):
               return function(x) {
                 return $.matches(f, x);
               };
-            case "string":
+            case !$.is("string", f):
               return function(x) {
                 var ref2;
                 return (ref2 = x != null ? typeof x.matchesSelector === "function" ? x.matchesSelector(f) : void 0 : void 0) != null ? ref2 : false;
               };
-            case "regexp":
+            case !$.is("regexp", f):
               return function(x) {
                 return f.test(x);
               };
-            case "function":
+            case !$.is("function", f):
               return f;
-            case "bool":
-            case "number":
-            case "null":
-            case "undefined":
+            case !$.type["in"]("bool", "number", "null", "undefined", f):
               return function(x) {
                 return f === x;
               };
@@ -1144,10 +1216,10 @@
         return a;
       },
       matches: function(expr) {
-        switch ($.type(expr)) {
-          case "string":
+        switch (false) {
+          case !$.is("string", expr):
             return this.select('matchesSelector').call(expr);
-          case "regexp":
+          case !$.is("regexp", expr):
             return this.map(function(x) {
               return expr.test(x);
             });
@@ -1187,7 +1259,7 @@
         b = $();
         for (i = aa = 0, len1 = this.length; aa < len1; i = ++aa) {
           item = this[i];
-          if (($.is('array', item)) || ($.is('bling', item)) || ($.is('arguments', item)) || ($.is('nodelist', item))) {
+          if ($.type["in"]('array', 'bling', 'arguments', 'nodelist', item)) {
             for (ab = 0, len2 = item.length; ab < len2; ab++) {
               j = item[ab];
               b.push(j);
@@ -1688,19 +1760,30 @@
       lines_cache = Object.create(null);
       files = lines.map(function(s) {
         var before, col, f, f_lines, line, ln_num, ref, spacer, tabs;
+        if (s == null) {
+          return null;
+        }
         f = s.replace(/^\s*at\s+/g, '').replace(/.*\(([^:]+:\d+:\d+)\)$/, "$1");
         try {
           ref = f.split(/:/), f = ref[0], ln_num = ref[1], col = ref[2];
           f_lines = lines_cache[f] != null ? lines_cache[f] : lines_cache[f] = String(fs.readFileSync(f)).split(nl);
+          if (f_lines == null) {
+            return null;
+          }
+          before = "";
           if (ln_num > 1) {
             before = f_lines[ln_num - 2];
             if (before.length > 80) {
-              before = "..8<.." + before.substr(col - 25, 50) + "..>8..";
+              before = "..8<.. " + before.substr(col - 25, 50) + " ..>8..";
             }
-          } else {
-            before = "";
+          }
+          if (ln_num >= f_lines.length) {
+            return null;
           }
           line = f_lines[ln_num - 1];
+          if (line == null) {
+            return null;
+          }
           if (line.length > 80) {
             line = "..8<.." + line.substr(col - 25, 50) + "..>8..";
             col = 31;
@@ -3581,158 +3664,140 @@
   });
 
   $.plugin({
-    provides: "matches"
+    provides: "matches",
+    depends: "function,core,string"
   }, function() {
-    var matches;
-    matches = function(pattern, obj) {
-      var aa, ab, ac, ad, ae, k, len1, len2, len3, len4, len5, obj_type, v;
-      if (pattern === matches.Any) {
-        return true;
+    var ArrayMatch, Contains, ContainsValue, IsEqual, ObjMatch, RegExpMatch, aa, ab, behaviors, f, len1, len2, list, matches, obj_type, pt, specialPatterns, v;
+    IsEqual = function(p, o, t) {
+      return o === p;
+    };
+    Contains = function(p, a, t) {
+      var aa, len1, v;
+      for (aa = 0, len1 = a.length; aa < len1; aa++) {
+        v = a[aa];
+        if (matches(p, v, t)) {
+          return true;
+        }
       }
-      obj_type = $.type(obj);
-      switch ($.type(pattern)) {
-        case 'null':
-        case 'undefined':
-          return obj === pattern;
-        case 'function':
-          switch (obj_type) {
-            case 'array':
-            case 'bling':
-              for (aa = 0, len1 = obj.length; aa < len1; aa++) {
-                v = obj[aa];
-                if (pattern === v) {
-                  return true;
-                }
-              }
-              break;
-            case 'object':
-              for (k in obj) {
-                v = obj[k];
-                if (matches(pattern, v)) {
-                  return true;
-                }
-              }
-          }
+      return false;
+    };
+    ContainsValue = function(p, o, t) {
+      var k, v;
+      for (k in o) {
+        v = o[k];
+        if (matches(p, v, t)) {
+          return true;
+        }
+      }
+      return false;
+    };
+    ObjMatch = function(p, o, t) {
+      var k, v;
+      for (k in p) {
+        v = p[k];
+        if (!(matches(v, o[k]))) {
           return false;
-        case 'regexp':
-          switch (obj_type) {
-            case 'null':
-            case 'undefined':
-              return false;
-            case 'string':
-              return pattern.test(obj);
-            case 'number':
-              return pattern.test(String(obj));
-            case 'array':
-            case 'bling':
-              for (ab = 0, len2 = obj.length; ab < len2; ab++) {
-                v = obj[ab];
-                if (pattern.test(v)) {
-                  return true;
-                }
-              }
-          }
+        }
+      }
+      return true;
+    };
+    ArrayMatch = function(p, o, t) {
+      var aa, i, len1, v;
+      for (i = aa = 0, len1 = p.length; aa < len1; i = ++aa) {
+        v = p[i];
+        if (!(matches(v, o[i]))) {
           return false;
-        case 'object':
-          switch (obj_type) {
-            case 'null':
-            case 'undefined':
-            case 'string':
-            case 'number':
-              return false;
-            case 'array':
-            case 'bling':
-              for (ac = 0, len3 = obj.length; ac < len3; ac++) {
-                v = obj[ac];
-                if (matches(pattern, v)) {
-                  return true;
-                }
-              }
-              break;
-            case 'object':
-              for (k in pattern) {
-                v = pattern[k];
-                if (!matches(v, obj[k])) {
-                  return false;
-                }
-              }
-              return true;
-          }
-          return false;
-        case 'array':
-          switch (obj_type) {
-            case 'null':
-            case 'undefined':
-            case 'string':
-            case 'number':
-            case 'object':
-              return false;
-            case 'array':
-            case 'bling':
-              for (k in pattern) {
-                v = pattern[k];
-                if (!(matches(v, obj[k]))) {
-                  return false;
-                }
-              }
-              return true;
-          }
-          return false;
-        case 'number':
-          switch (obj_type) {
-            case 'null':
-            case 'undefined':
-            case 'object':
-            case 'string':
-              return false;
-            case 'number':
-              return obj === pattern;
-            case 'array':
-            case 'bling':
-              for (ad = 0, len4 = obj.length; ad < len4; ad++) {
-                v = obj[ad];
-                if (matches(pattern, v)) {
-                  return true;
-                }
-              }
-          }
-          return false;
-        case 'string':
-          switch (obj_type) {
-            case 'null':
-            case 'undefined':
-            case 'object':
-              return false;
-            case 'string':
-              return obj === pattern;
-            case 'array':
-            case 'bling':
-              for (ae = 0, len5 = obj.length; ae < len5; ae++) {
-                v = obj[ae];
-                if (matches(pattern, v)) {
-                  return true;
-                }
-              }
-          }
-          return false;
-        default:
-          return obj === pattern;
+        }
+      }
+      return true;
+    };
+    RegExpMatch = function(p, s, t) {
+      return p.test(String(s));
+    };
+    behaviors = {
+      'function': [['array', 'bling', Contains], ['object', ContainsValue]],
+      regexp: [['string', 'number', RegExpMatch], ['array', 'bling', Contains], ['object', ContainsValue]],
+      object: [['array', 'bling', Contains], ['object', ObjMatch]],
+      array: [['array', 'bling', ArrayMatch]],
+      number: [['number', IsEqual], ['array', 'bling', Contains]],
+      string: [['string', IsEqual], ['array', 'bling', Contains]]
+    };
+    for (pt in behaviors) {
+      v = behaviors[pt];
+      matches = {};
+      for (aa = 0, len1 = v.length; aa < len1; aa++) {
+        list = v[aa];
+        f = list.pop();
+        for (ab = 0, len2 = list.length; ab < len2; ab++) {
+          obj_type = list[ab];
+          matches[obj_type] = f;
+        }
+      }
+      $.type.extend(pt, {
+        matches: matches
+      });
+    }
+    specialPatterns = {
+      $any: function() {
+        return true;
+      },
+      $type: function(p, o, t) {
+        return $.is(p.$type, o);
+      },
+      $class: function(p, o, t) {
+        return $.isType(p.$class, o);
+      },
+      $lt: function(p, o, t) {
+        return o < p.$lt;
+      },
+      $gt: function(p, o, t) {
+        return o > p.$gt;
+      },
+      $lte: function(p, o, t) {
+        return o <= p.$lte;
+      },
+      $gte: function(p, o, t) {
+        return o >= p.$gte;
       }
     };
-    matches.Any = (function() {
-      function Any() {}
-
-      Any.toString = function() {
-        return "{Any}";
+    matches = function(pattern, obj, pt) {
+      var k, ref, ref1, ref2, type;
+      if (pt == null) {
+        pt = $.type.lookup(pattern);
+      }
+      if (pt.name === 'object') {
+        for (k in specialPatterns) {
+          f = specialPatterns[k];
+          if (k in pattern) {
+            return f(pattern, obj, pt);
+          }
+        }
+      }
+      ref = pt.matches;
+      for (type in ref) {
+        f = ref[type];
+        if (type === 'else') {
+          continue;
+        }
+        if ($.is(type, obj)) {
+          return f(pattern, obj, pt);
+        }
+      }
+      return (ref1 = (ref2 = pt.matches) != null ? typeof ref2["else"] === "function" ? ref2["else"](pattern, obj, pt) : void 0 : void 0) != null ? ref1 : IsEqual(pattern, obj, pt);
+    };
+    matches.Any = {
+      $any: true
+    };
+    matches.Type = function(type) {
+      return {
+        $type: type
       };
-
-      Any.inspect = function() {
-        return "{Any}";
+    };
+    matches.Class = function(klass) {
+      return {
+        $class: klass
       };
-
-      return Any;
-
-    })();
+    };
     return {
       $: {
         matches: matches
@@ -4745,20 +4810,22 @@
               return arr[$.random.integer(0, arr.length)];
             },
             gaussian: gaussian = function(mean, ssig) {
-              var q, u, v, x, y;
+              var abs, log, q, u, v, x, y;
               if (mean == null) {
                 mean = 0.5;
               }
               if (ssig == null) {
                 ssig = 0.12;
               }
+              log = Math.log;
+              abs = Math.abs;
               while (true) {
                 u = $.random();
                 v = 1.7156 * ($.random() - 0.5);
                 x = u - 0.449871;
-                y = Math.abs(v) + 0.386595;
+                y = abs(v) + 0.386595;
                 q = (x * x) + y * (0.19600 * y - 0.25472 * x);
-                if (!(q > 0.27597 && (q > 0.27846 || (v * v) > (-4 * Math.log(u) * u * u)))) {
+                if (!(q > 0.27597 && (q > 0.27846 || (v * v) > (-4 * log(u) * u * u)))) {
                   break;
                 }
               }
@@ -6533,7 +6600,7 @@
       register("object", {
         is: function(o) {
           var ref, ref1;
-          return typeof o === "object" && ((ref = (ref1 = o.constructor) != null ? ref1.name : void 0) === (void 0) || ref === "Object");
+          return (o != null) && (typeof o === "object") && ((ref = (ref1 = o.constructor) != null ? ref1.name : void 0) === (void 0) || ref === "Object");
         }
       });
       register("array", {
@@ -6680,6 +6747,17 @@
         }).join(", ") + "])";
       }
     });
+    _type["in"] = function() {
+      var aa, ab, len1, obj, type, types;
+      types = 2 <= arguments.length ? slice.call(arguments, 0, aa = arguments.length - 1) : (aa = 0, []), obj = arguments[aa++];
+      for (ab = 0, len1 = types.length; ab < len1; ab++) {
+        type = types[ab];
+        if ($.is(type, obj)) {
+          return true;
+        }
+      }
+      return false;
+    };
     return {
       $: {
         inherit: inherit,
@@ -6710,8 +6788,7 @@
           return o != null;
         },
         isSimple: function(o) {
-          var ref;
-          return (ref = _type(o)) === "string" || ref === "number" || ref === "bool";
+          return _type["in"]("string", "number", "bool", o);
         },
         isEmpty: function(o) {
           return (o === "" || o === null || o === (void 0)) || o.length === 0 || (typeof o === "object" && Object.keys(o).length === 0);

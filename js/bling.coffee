@@ -34,7 +34,7 @@ $.plugin = (opts, constructor) ->
 			delete plugin.$
 			extend @prototype, plugin
 			for key of plugin then do (key) =>
-				@[key] or= (a...) => (@::[key].apply $(a[0]), a[1...])
+				@[key] or= (a...) => (@prototype[key].apply $(a[0]), a[1...])
 			if opts.provides? then @provide opts.provides
 	catch error
 		console.log "failed to load plugin: #{@name} #{error.message}: #{error.stack}"
@@ -206,21 +206,51 @@ $.plugin {
 	}
 	return { $: { clone: (o) -> $.type.lookup(o).clone(o) } }
 $.plugin
-	provides: "compat, trimLeft, split, lastIndexOf, join, preventAll, matchesSelector, isBuffer"
+	provides: "compat,trimLeft,split,lastIndexOf,join,preventAll,matchesSelector,isBuffer,Map"
 , ->
 	$.global.Buffer or= { isBuffer: -> false }
-	String::trimLeft or= -> @replace(/^\s+/, "")
-	String::split or= (sep) ->
+	$.global.Map or= class Map # shim for the ES6 Map
+		constructor: (iterable) ->
+			data = Object.create null
+			$.extend @, {
+				size:       0
+				keys:       -> Object.keys(data)
+				values:     -> (v for k,v of data)
+				entries:    -> ( [k,v] for k,v of data )
+				has:    (k) -> k of data
+				get:    (k) -> data[k]
+				set: (k, v) ->
+					@size += 1 unless k of data
+					data[k] = v
+					@
+				delete: (k) ->
+					@size -= 1 if k of data
+					delete data[k]
+					@
+				clear:      ->
+					data = Object.create null
+					@size = 0
+					@
+				forEach: (cb, t) ->
+					cb.call(t,k,v) for k,v of data
+					@
+			}
+			for item in iterable ? []
+				@set item...
+	signs = [-1, 1]
+	Math.sign or= (n) -> signs[0 + (n >= 0)]
+	String.prototype.trimLeft or= -> @replace(/^\s+/, "")
+	String.prototype.split or= (sep) ->
 		a = []; i = 0
 		while (j = @indexOf sep,i) > -1
 			a.push @substring(i,j)
 			i = j + 1
 		a
-	String::lastIndexOf or= (s, c, i = -1) ->
+	String.prototype.lastIndexOf or= (s, c, i = -1) ->
 		j = -1
 		j = i while (i = s.indexOf c, i+1) > -1
 		j
-	Array::join or= (sep = '') ->
+	Array.prototype.join or= (sep = '') ->
 		n = @length
 		return "" if n is 0
 		s = @[n-1]
@@ -228,14 +258,14 @@ $.plugin
 			s = @[n-1] + sep + s
 		s
 	if Event?
-		Event::preventAll = () ->
+		Event.prototype.preventAll = () ->
 			@preventDefault()
 			@stopPropagation()
 			@cancelBubble = true
 	if Element?
-		Element::matchesSelector = Element::webkitMatchesSelector or
-			Element::mozMatchesSelector or
-			Element::matchesSelector
+		Element.prototype.matchesSelector = Element.prototype.webkitMatchesSelector or
+			Element.prototype.mozMatchesSelector or
+			Element.prototype.matchesSelector
 	return { }
 $.plugin
 	provides: 'config'
@@ -268,7 +298,7 @@ $.plugin
 	provides: "core,eq,each,map,filterMap,tap,replaceWith,reduce,union,intersect,distinct," +
 		"contains,count,coalesce,swap,shuffle,select,or,zap,clean,take,skip,first,last,slice," +
 		"push,filter,matches,weave,fold,flatten,call,apply,log,toArray,clear,indexWhere"
-	depends: "string"
+	depends: "string,type"
 , ->
 	$.defineProperty $, "now",
 		get: -> +new Date
@@ -308,11 +338,11 @@ $.plugin
 			(b[i++] = f.call t,t) for t in @
 			return b
 		every: (f) ->
-			for x in @ when not f(x)
+			for x in @ when not f.call x,x
 				return false
 			return true
 		some: (f) ->
-			for x in @ when f(x)
+			for x in @ when f.call x,x
 				return true
 			return false
 		filterMap: (f) ->
@@ -352,7 +382,7 @@ $.plugin
 			).sum()
 		coalesce: ->
 			for i in @
-				if $.is('array',i) or $.is('bling',i) then i = $(i).coalesce()
+				if $.type.in 'array','bling', i then i = $(i).coalesce()
 				if i? then return i
 			null
 		swap: (i,j) ->
@@ -367,11 +397,10 @@ $.plugin
 				@swap --i, Math.floor(Math.random() * i)
 			@
 		select: do ->
-			getter = (prop) ->
-				->
-					if $.is("function",v = @[prop]) and prop isnt "constructor"
-						return $.bound(@,v)
-					else v
+			getter = (prop) -> ->
+				if $.is("function",v = @[prop]) and prop isnt "constructor"
+					return $.bound(@,v)
+				else v
 			selectOne = (p) ->
 				switch type = $.type p
 					when 'regexp' then selectMany.call @, p
@@ -405,7 +434,7 @@ $.plugin
 					else selectMany.apply @, arguments
 		or: (x) -> @[i] or= x for i in [0...@length]; @
 		zap: (p, v) ->
-			if ($.is 'object', p) and not v?
+			if $.is 'object', p
 				@zap(k,v) for k,v of p
 				return @
 			i = p.lastIndexOf "."
@@ -441,7 +470,7 @@ $.plugin
 			end = index end, @
 			$( @[i] for i in [start...end] )
 		extend: (b) -> @.push(i) for i in b; @
-		push: (b) -> Array::push.call(@, b); @
+		push: (b) -> Array.prototype.push.call(@, b); @
 		filter: (f, limit, positive) ->
 			if $.is "bool", limit
 				[positive, limit] = [limit, positive]
@@ -449,12 +478,12 @@ $.plugin
 				[limit, positive] = [positive, limit]
 			limit ?= @length
 			positive ?= true
-			g = switch $.type f
-				when "object" then (x) -> $.matches f,x
-				when "string" then (x) -> x?.matchesSelector?(f) ? false
-				when "regexp" then (x) -> f.test(x)
-				when "function" then f
-				when "bool","number","null","undefined" then (x) -> f is x
+			g = switch
+				when $.is "object", f then (x) -> $.matches f,x
+				when $.is "string", f then (x) -> x?.matchesSelector?(f) ? false
+				when $.is "regexp", f then (x) -> f.test(x)
+				when $.is "function", f then f
+				when $.type.in "bool","number","null","undefined", f then (x) -> f is x
 				else throw new Error "unsupported argument to filter: #{$.type f}"
 			a = $()
 			for it in @
@@ -464,9 +493,9 @@ $.plugin
 					a.push it
 			a
 		matches: (expr) ->
-			switch $.type expr
-				when "string" then @select('matchesSelector').call(expr)
-				when "regexp" then @map (x) -> expr.test x
+			switch
+				when $.is "string", expr then @select('matchesSelector').call(expr)
+				when $.is "regexp", expr then @map (x) -> expr.test x
 				else throw new Error "unsupported argument to matches: #{$.type expr}"
 		weave: (b) ->
 			c = $()
@@ -484,7 +513,7 @@ $.plugin
 		flatten: ->
 			b = $()
 			for item, i in @
-				if ($.is 'array', item) or ($.is 'bling', item) or ($.is 'arguments', item) or ($.is 'nodelist', item)
+				if $.type.in 'array','bling','arguments','nodelist', item
 					for j in item then b.push(j)
 				else b.push(item)
 			b
@@ -500,7 +529,7 @@ $.plugin
 				$.log(@toString(), @length + " items")
 			@
 		toArray: ->
-			@__proto__ = Array::
+			@__proto__ = Array.prototype
 			@ # no copies, yay?
 		clear: -> @splice 0, @length
 		indexWhere: (f) ->
@@ -614,30 +643,30 @@ $.plugin
 	shortDays = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
 	longDays = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
 	formats =
-		yyyy: Date::getUTCFullYear
+		yyyy: Date.prototype.getUTCFullYear
 		YY: fYY = -> String(@getUTCFullYear()).substr(2)
 		yy: fYY
 		mm: -> @getUTCMonth() + 1
-		dd: Date::getUTCDate
-		dw: Date::getUTCDay # day of the week, 1=monday
+		dd: Date.prototype.getUTCDate
+		dw: Date.prototype.getUTCDay # day of the week, 1=monday
 		dW: -> shortDays[parseInt(@getUTCDay(), 10) - 1]
 		DW: -> longDays[parseInt(@getUTCDay(), 10) - 1]
-		HH: Date::getUTCHours
-		MM: Date::getUTCMinutes
-		SS: Date::getUTCSeconds
-		MS: Date::getUTCMilliseconds
+		HH: Date.prototype.getUTCHours
+		MM: Date.prototype.getUTCMinutes
+		SS: Date.prototype.getUTCSeconds
+		MS: Date.prototype.getUTCMilliseconds
 	format_keys = Object.keys(formats).sort().reverse()
 	parsers =
-		YYYY: pYYYY =Date::setUTCFullYear
+		YYYY: pYYYY = Date.prototype.setUTCFullYear
 		yyyy: pYYYY
 		YY: pYY = (x) -> @setUTCFullYear (if x > 50 then 1900 else 2000) + x
 		yy: pYY
 		mm: (x) -> @setUTCMonth(x - 1)
-		dd: Date::setUTCDate
-		HH: Date::setUTCHours
-		MM: Date::setUTCMinutes
-		SS: Date::setUTCSeconds
-		MS: Date::setUTCMilliseconds
+		dd: Date.prototype.setUTCDate
+		HH: Date.prototype.setUTCHours
+		MM: Date.prototype.setUTCMinutes
+		SS: Date.prototype.setUTCSeconds
+		MS: Date.prototype.setUTCMilliseconds
 	parser_keys = Object.keys(parsers).sort().reverse()
 	floor = Math.floor
 	$.type.register "date",
@@ -659,7 +688,7 @@ $.plugin
 			stamp: (date = new Date, unit = $.date.defaultUnit) ->
 				floor (date / units[unit])
 			unstamp: (stamp, unit = $.date.defaultUnit) ->
-				new Date floor(stamp * units[unit])
+				new Date floor stamp * units[unit]
 			convert: (stamp, from = $.date.defaultUnit, to = $.date.defaultUnit) ->
 				if $.is "date", stamp then stamp = $.date.stamp(stamp, from)
 				(floor stamp * units[from] / units[to])
@@ -687,12 +716,12 @@ $.plugin
 					i += 1
 				$.date.stamp date, to
 			addMilliseconds: adder("MS")
-			addSeconds: adder("SS")
-			addMinutes: adder("MM")
-			addHours: adder("HH")
-			addDays: adder("dd")
-			addMonths: adder("mm")
-			addYears: adder("yyyy")
+			addSeconds:      adder("SS")
+			addMinutes:      adder("MM")
+			addHours:        adder("HH")
+			addDays:         adder("dd")
+			addMonths:       adder("mm")
+			addYears:        adder("yyyy")
 			range: (from, to, interval=1, interval_unit="dd", stamp_unit = $.date.defaultUnit) ->
 				add = adder(interval_unit)
 				ret = [from]
@@ -714,23 +743,30 @@ $.plugin
 		try fs = require 'fs'
 		catch err then return stack # if we aren't in node, reading files is meaningless
 		lines = $(String(stack).split nl).filter(/^$/, false)
-		if not node_modules
+		unless node_modules
 			lines = lines.filter(/node_modules/, false)
 		message = lines.first()
 		lines = lines.skip 1
 		lines_cache = Object.create null
 		files = lines.map (s) ->
+			unless s? then return null
 			f = s.replace(/^\s*at\s+/g,'') \
 				.replace(/.*\(([^:]+:\d+:\d+)\)$/, "$1")
 			try
 				[f,ln_num,col] = f.split(/:/)
 				f_lines = lines_cache[f] ?= String(fs.readFileSync f).split nl
+				unless f_lines?
+					return null
+				before = ""
 				if ln_num > 1
 					before = f_lines[ln_num-2]
 					if before.length > 80
-						before = "..8<.." + before.substr(col-25,50) + "..>8.."
-				else before = ""
+						before = "..8<.. " + before.substr(col-25,50) + " ..>8.."
+				if ln_num >= f_lines.length
+					return null
 				line = f_lines[ln_num-1]
+				unless line?
+					return null
 				if line.length > 80
 					line = "..8<.." + line.substr(col-25,50) + "..>8.."
 					col = 31
@@ -1658,56 +1694,77 @@ $.plugin
 			lazy_load "link", { href: src, rel: "stylesheet" }
 $.plugin
 	provides: "matches"
+	depends: "function,core,string"
 , ->
-	matches = (pattern, obj) ->
-		if pattern is matches.Any
-			return true
-		obj_type = $.type obj
-		switch $.type pattern
-			when 'null','undefined' then return (obj is pattern)
-			when 'function'
-				switch obj_type
-					when 'array','bling' then for v in obj when (pattern is v) then return true
-					when 'object' then for k,v of obj when (matches pattern, v) then return true
-				return false
-			when 'regexp'
-				switch obj_type
-					when 'null','undefined' then return false
-					when 'string' then return pattern.test obj
-					when 'number' then return pattern.test String(obj)
-					when 'array','bling' then for v in obj when pattern.test v then return true
-				return false
-			when 'object'
-				switch obj_type
-					when 'null','undefined','string','number' then return false
-					when 'array','bling' then for v in obj when matches pattern, v then return true
-					when 'object' # dont match if any of the keys dont match
-						for k, v of pattern when not matches v, obj[k] then return false
-						return true # matches if all keys match
-				return false
-			when 'array'
-				switch obj_type
-					when 'null','undefined','string','number','object' then return false
-					when 'array','bling'
-						for k,v of pattern when not (matches v, obj[k]) then return false
-						return true # an empty array matches true against any other array
-				return false
-			when 'number'
-				switch obj_type
-					when 'null','undefined','object','string' then return false
-					when 'number' then return (obj is pattern)
-					when 'array','bling' then for v in obj when matches pattern, v then return true
-				return false
-			when 'string'
-				switch obj_type
-					when 'null','undefined','object' then return false
-					when 'string' then return (obj is pattern)
-					when 'array','bling' then for v in obj when matches pattern, v then return true
-				return false
-			else return obj is pattern
-	class matches.Any # magic token
-		@toString: -> "{Any}"
-		@inspect:  -> "{Any}"
+	IsEqual = (p, o, t) -> (o is p)
+	Contains = (p, a, t) ->
+		for v in a when (matches p, v, t) then return true
+		return false
+	ContainsValue = (p, o, t) ->
+		for k,v of o when (matches p, v, t) then return true
+		return false
+	ObjMatch = (p, o, t) -> # matches if all keys match
+		for k,v of p when not (matches v, o[k]) then return false
+		return true
+	ArrayMatch = (p, o, t) ->
+		for v,i in p when not (matches v, o[i]) then return false
+		return true
+	RegExpMatch = (p, s, t) -> p.test String(s)
+	behaviors = {
+		'function': [
+			['array', 'bling', Contains]
+			['object', ContainsValue]
+		]
+		regexp: [
+			['string','number', RegExpMatch ]
+			['array','bling', Contains ]
+			['object', ContainsValue ]
+		]
+		object: [
+			['array','bling', Contains ]
+			['object', ObjMatch ]
+		]
+		array: [
+			['array','bling', ArrayMatch ]
+		]
+		number: [
+			['number', IsEqual ]
+			['array','bling', Contains ]
+		]
+		string: [
+			['string', IsEqual ]
+			['array','bling', Contains ]
+		]
+	}
+	for pt,v of behaviors
+		matches = { }
+		for list in v
+			f = list.pop()
+			for obj_type in list
+				matches[obj_type] = f
+		$.type.extend pt, { matches }
+	specialPatterns = {
+		$any: -> true
+		$type:  (p, o, t) -> $.is p.$type, o
+		$class: (p, o, t) -> $.isType p.$class, o
+		$lt:    (p, o, t) -> o < p.$lt
+		$gt:    (p, o, t) -> o > p.$gt
+		$lte:   (p, o, t) -> o <= p.$lte
+		$gte:   (p, o, t) -> o >= p.$gte
+	}
+	matches = (pattern, obj, pt = $.type.lookup pattern) ->
+		if pt.name is 'object'
+			for k, f of specialPatterns
+				if k of pattern
+					return f pattern, obj, pt
+		for type, f of pt.matches
+			continue if type is 'else'
+			if $.is type, obj
+				return f pattern, obj, pt
+		return pt.matches?.else?(pattern, obj, pt) ? IsEqual pattern, obj, pt
+	matches.Any = { $any: true }
+	matches.Type = (type) -> { $type: type }
+	matches.Class = (klass) -> { $class: klass }
 	return $: matches: matches
 $.plugin
 	provides: "math"
@@ -2142,13 +2199,15 @@ $.plugin
 						return item.v if (sum += item.w) >= r
 				return arr[$.random.integer 0, arr.length]
 			gaussian: gaussian = (mean=0.5, ssig=0.12) -> # paraphrased from Wikipedia
+				log = Math.log
+				abs = Math.abs
 				while true
 					u = $.random()
 					v = 1.7156 * ($.random() - 0.5)
 					x = u - 0.449871
-					y = Math.abs(v) + 0.386595
+					y = abs(v) + 0.386595
 					q = (x*x) + y*(0.19600*y-0.25472*x)
-					break unless q > 0.27597 and (q > 0.27846 or (v*v) > (-4*Math.log(u)*u*u))
+					break unless q > 0.27597 and (q > 0.27846 or (v*v) > (-4*log(u)*u*u))
 				return mean + ssig*v/u
 			dice: dice = (n, faces) -> # a 2d8 is dice(2,8)
 				$( die(faces) for _ in [0...n] by 1 )
@@ -2489,7 +2548,7 @@ $.plugin
 					if target.test @[i]
 						return i
 				return -1
-			else Array::indexOf.apply @, arguments
+			else Array.prototype.indexOf.apply @, arguments
 	}
 $.plugin
 	provides: "symbol"
@@ -3035,7 +3094,7 @@ $.plugin
 	isType = (T, o) ->
 		if not o? then T in [o,"null","undefined"]
 		else (o.constructor? and (o.constructor is T or o.constructor.name is T)) or
-			Object::toString.apply(o) is "[object #{T}]" or
+			Object.prototype.toString.apply(o) is "[object #{T}]" or
 			isType T, o.__proto__ # recursive
 	inherit = (parent, objs...) ->
 		return unless objs.length > 0
@@ -3080,7 +3139,7 @@ $.plugin
 				if cache[name]?.is.call obj, obj
 					return cache[name]
 		register "unknown",   base
-		register "object",    is: (o) -> typeof o is "object" and (o.constructor?.name in [undefined, "Object"])
+		register "object",    is: (o) -> o? and (typeof o is "object") and (o.constructor?.name in [undefined, "Object"])
 		register "array",     is: Array.isArray or (o) -> isType Array, o
 		register "buffer",    is: $.global.Buffer.isBuffer or -> false
 		register "error",     is: (o) -> isType 'Error', o
@@ -3107,7 +3166,7 @@ $.plugin
 		undefined: { array:     -> [] }
 		array:     { array: (o) -> o }
 		number:    { array: (o) -> $.extend new Array(o), length: 0 }
-		arguments: { array: (o) -> Array::slice.apply o }
+		arguments: { array: (o) -> Array.prototype.slice.apply o }
 	maxHash = Math.pow(2,32)
 	_type.register "bling",
 		is:     (o) -> o and isType $, o
@@ -3115,6 +3174,10 @@ $.plugin
 		hash:   (o) -> o.map($.hash).reduce (a,x) -> ((a*a)+x) % maxHash
 		string: (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
 		repr:   (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
+	_type.in = (types..., obj) ->
+		for type in types
+			return true if $.is type, obj
+		return false
 	$:
 		inherit: inherit
 		extend: extend
@@ -3130,7 +3193,7 @@ $.plugin
 			return true
 		as: _type.as
 		isDefined: (o) -> o?
-		isSimple: (o) -> _type(o) in ["string", "number", "bool"]
+		isSimple: (o) -> _type.in "string", "number", "bool", o
 		isEmpty: (o) -> o in ["", null, undefined] \
 			or o.length is 0 or (typeof o is "object" and Object.keys(o).length is 0)
 	defineProperty: (name, opts) -> @each -> $.defineProperty @, name, opts

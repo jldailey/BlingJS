@@ -3785,29 +3785,6 @@
       }
       return (ref1 = (ref2 = pt.matches) != null ? typeof ref2["else"] === "function" ? ref2["else"](pattern, obj, pt) : void 0 : void 0) != null ? ref1 : IsEqual(pattern, obj, pt);
     };
-    specialPatterns = {
-      $any: function() {
-        return true;
-      },
-      $type: function(p, o, t) {
-        return $.is(p.$type, o);
-      },
-      $class: function(p, o, t) {
-        return $.isType(p.$class, o);
-      },
-      $lt: function(p, o, t) {
-        return o < p.$lt;
-      },
-      $gt: function(p, o, t) {
-        return o > p.$gt;
-      },
-      $lte: function(p, o, t) {
-        return o <= p.$lte;
-      },
-      $gte: function(p, o, t) {
-        return o >= p.$gte;
-      }
-    };
     matches.Any = {
       $any: true
     };

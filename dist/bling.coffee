@@ -1743,8 +1743,6 @@ $.plugin
 			for obj_type in list
 				matches[obj_type] = f
 		$.type.extend pt, { matches }
-<<<<<<< HEAD
-=======
 	specialPatterns = {
 		$any: -> true
 		$type:  (p, o, t) -> $.is p.$type, o
@@ -1754,7 +1752,6 @@ $.plugin
 		$lte:   (p, o, t) -> o <= p.$lte
 		$gte:   (p, o, t) -> o >= p.$gte
 	}
->>>>>>> c3fa51bde71098dd70bb4c771198ef343140bf19
 	matches = (pattern, obj, pt = $.type.lookup pattern) ->
 		if pt.name is 'object'
 			for k, f of specialPatterns
@@ -1765,16 +1762,6 @@ $.plugin
 			if $.is type, obj
 				return f pattern, obj, pt
 		return pt.matches?.else?(pattern, obj, pt) ? IsEqual pattern, obj, pt
-	specialPatterns = {
-		$any: -> true
-		$type:  (p, o, t) -> $.is p.$type, o
-		$class: (p, o, t) -> $.isType p.$class, o
-		$lt:    (p, o, t) -> o < p.$lt
-		$gt:    (p, o, t) -> o > p.$gt
-		$lte:   (p, o, t) -> o <= p.$lte
-		$gte:   (p, o, t) -> o >= p.$gte
-	}
-			
 	matches.Any = { $any: true }
 	matches.Type = (type) -> { $type: type }
 	matches.Class = (klass) -> { $class: klass }

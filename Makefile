@@ -44,6 +44,7 @@ site: test
 	@git show master:$(DIST)/bling.coffee > js/bling.coffee
 	@git show master:$(DIST)/bling.js > js/bling.js
 	@git show master:$(DIST)/bling.js.map > js/bling.js.map
+	@git show master:$(DIST)/min.bling.js.map > js/min.bling.js.map
 	@git show master:package.json > js/package.json
 	@git commit -am "make site" || true
 	@sleep 1

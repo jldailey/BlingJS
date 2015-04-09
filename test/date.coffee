@@ -7,7 +7,7 @@ describe "Date plugin:", ->
 		it "date to string", ->
 			assert.equal ($.as "string", new Date Date.UTC 1,2,3,4,5,6), "1901-03-03 04:05:06"
 		it "string to date", ->
-			assert.equal ($.as "date", "1901-03-03 04:05:06").toUTCString(), new Date(1,2,3,4,5,6).toUTCString()
+			assert.equal ($.as "date", "1901-03-03 04:05:06").toUTCString(), new Date(Date.UTC 1,2,3,4,5,6).toUTCString()
 		it "date to number", ->
 			assert.equal ($.as "number", new Date Date.UTC 1,2,3,4,5,6), -2172167694
 		it "number to date", ->

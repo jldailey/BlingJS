@@ -11,15 +11,15 @@ $.plugin
 
 	_By = (cmp) ->
 		(field) ->
-			valueOf = switch $.type field
-				when "string" then (o) -> o[field]
-				when "function" then field
+			valueOf = switch
+				when $.is "string", field then (o) -> o[field]
+				when $.is "function", field then field
 				else throw new Error ".maxBy first argument should be a string or function"
 			x = @first()
-			@skip(1).each ->
-				if cmp valueOf(@), valueOf(x)
-					x = @
-			return x
+			@skip(1).each (n) ->
+				if cmp valueOf(n), valueOf(x)
+					x = n
+			x
 
 	$:
 		# Get an array of sequential numbers.

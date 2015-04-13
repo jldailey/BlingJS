@@ -3,40 +3,35 @@ DIST=dist
 PLUGINS=plugins
 COFFEE=node_modules/.bin/coffee
 UGLIFY=node_modules/.bin/uglifyjs
+UGLIFY_OPTS?=--screw-ie8
 JLDOM=node_modules/jldom
 MOCHA=node_modules/.bin/mocha
-MOCHA_FMT=spec
+MOCHA_FMT?=dot
 MOCHA_OPTS=--compilers coffee:coffee-script/register --globals document,window,Bling,$$,_ -R ${MOCHA_FMT} -s 500 --bail
-WATCH="coffee watch.coffee"
 
 TEST_FILES=$(shell ls test/*.coffee | grep -v setup.coffee | sort -f )
-PASS_FILES=$(subst .coffee,.coffee.pass,$(shell ls test/*.coffee | grep -v setup.coffee | sort -f ))
 TIME_FILES=$(subst .coffee,.coffee.time,$(shell ls bench/*.coffee | grep -v setup.coffee | sort -f ))
 
+all: release report
 
-all: dist report
+release: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
-watch: dist
-	coffee watch.coffee -v -i -- '.coffee$$' -- make test
-
-dist: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
-
-test: dist $(PASS_FILES)
+test: $(DIST)/bling.js $(TEST_FILES)
 	@echo "All tests are passing."
 
-test/bling.coffee.pass: test/bling.coffee bling.coffee
-	# @echo Running $<
-	@$(MOCHA) $(MOCHA_OPTS) $< && touch $@
+test/bling.coffee: bling.coffee
+	# Testing $<
+	@$(MOCHA) $(MOCHA_OPTS) $@ && touch $@
 
-test/%.coffee.pass: test/%.coffee plugins/%.coffee bling.coffee
-	@echo Running $<
-	@$(MOCHA) $(MOCHA_OPTS) $< && touch $@
+test/%.coffee: plugins/%.coffee bling.coffee
+	# Testing $<
+	@$(MOCHA) $(MOCHA_OPTS) $@ && touch $@
 
 bench: dist $(TIME_FILES)
 	@echo "All benchmarks are complete."
 	@cat bench/*.time
 
-bench/%.coffee.time: bench/%.coffee plugins/%.coffee test/%.coffee.pass bench/setup.coffee bling.coffee Makefile
+bench/%.coffee.time: bench/%.coffee plugins/%.coffee bench/setup.coffee bling.coffee Makefile
 	@echo Running $<
 	@$(COFFEE) $< > $@
 
@@ -49,6 +44,7 @@ site: test
 	@git show master:$(DIST)/bling.coffee > js/bling.coffee
 	@git show master:$(DIST)/bling.js > js/bling.js
 	@git show master:$(DIST)/bling.js.map > js/bling.js.map
+	@git show master:$(DIST)/min.bling.js.map > js/min.bling.js.map
 	@git show master:package.json > js/package.json
 	@git commit -am "make site" || true
 	@sleep 1
@@ -58,7 +54,7 @@ site: test
 
 $(DIST)/min.%.js: $(DIST)/%.js $(UGLIFY)
 	@echo Minifying $< to $@...
-	$(UGLIFY) $< -c --source-map $@.map --source-map-url $(subst dist/,,$@).map -m -r '$,Bling,window,document' -o $@
+	$(UGLIFY) $< -c --source-map $@.map --source-map-url $(subst dist/,,$@).map -m -r '$,Bling,window,document' $(UGLIFY_OPTS) -o $@
 
 $(DIST)/%.js: $(DIST)/%.coffee $(COFFEE)
 	@echo Compiling $< to $@...
@@ -75,12 +71,8 @@ $(DIST)/bling.coffee: bling.coffee $(shell ls $(PLUGINS)/*.coffee | sort -f)
 report:
 	@cd $(DIST) && wc -c `ls *.coffee *.js *.gz | sort -n` | grep -v total
 
-clean-test:
-	rm -f test/pass test/*.pass
-	
-clean: clean-test
+clean:
 	rm -rf $(DIST)/*
-	rm -rf yuicompressor.zip yuicompressor.jar yuicompressor-$(YUI_VERSION)
 
 $(MOCHA):
 	npm install mocha
@@ -94,4 +86,4 @@ $(JLDOM):
 $(UGLIFY):
 	npm install uglifyjs
 
-.PHONY: all bling clean dist site test
+.PHONY: all bling clean release site test

@@ -16,3 +16,5 @@ bench
 plugins
 release.sh
 test
+bling.coffee
+dist/*.gz

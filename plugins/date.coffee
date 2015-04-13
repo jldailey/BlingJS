@@ -25,31 +25,31 @@ $.plugin
 	longDays = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
 
 	formats =
-		yyyy: Date::getUTCFullYear
+		yyyy: Date.prototype.getUTCFullYear
 		YY: fYY = -> String(@getUTCFullYear()).substr(2)
 		yy: fYY
 		mm: -> @getUTCMonth() + 1
-		dd: Date::getUTCDate
-		dw: Date::getUTCDay # day of the week, 1=monday
+		dd: Date.prototype.getUTCDate
+		dw: Date.prototype.getUTCDay # day of the week, 1=monday
 		dW: -> shortDays[parseInt(@getUTCDay(), 10) - 1]
 		DW: -> longDays[parseInt(@getUTCDay(), 10) - 1]
-		HH: Date::getUTCHours
-		MM: Date::getUTCMinutes
-		SS: Date::getUTCSeconds
-		MS: Date::getUTCMilliseconds
+		HH: Date.prototype.getUTCHours
+		MM: Date.prototype.getUTCMinutes
+		SS: Date.prototype.getUTCSeconds
+		MS: Date.prototype.getUTCMilliseconds
 	format_keys = Object.keys(formats).sort().reverse()
 
 	parsers =
-		YYYY: pYYYY =Date::setUTCFullYear
+		YYYY: pYYYY = Date.prototype.setUTCFullYear
 		yyyy: pYYYY
 		YY: pYY = (x) -> @setUTCFullYear (if x > 50 then 1900 else 2000) + x
 		yy: pYY
 		mm: (x) -> @setUTCMonth(x - 1)
-		dd: Date::setUTCDate
-		HH: Date::setUTCHours
-		MM: Date::setUTCMinutes
-		SS: Date::setUTCSeconds
-		MS: Date::setUTCMilliseconds
+		dd: Date.prototype.setUTCDate
+		HH: Date.prototype.setUTCHours
+		MM: Date.prototype.setUTCMinutes
+		SS: Date.prototype.setUTCSeconds
+		MS: Date.prototype.setUTCMilliseconds
 	parser_keys = Object.keys(parsers).sort().reverse()
 
 	floor = Math.floor
@@ -76,7 +76,7 @@ $.plugin
 			stamp: (date = new Date, unit = $.date.defaultUnit) ->
 				floor (date / units[unit])
 			unstamp: (stamp, unit = $.date.defaultUnit) ->
-				new Date floor(stamp * units[unit])
+				new Date floor stamp * units[unit]
 			convert: (stamp, from = $.date.defaultUnit, to = $.date.defaultUnit) ->
 				if $.is "date", stamp then stamp = $.date.stamp(stamp, from)
 				(floor stamp * units[from] / units[to])
@@ -104,12 +104,12 @@ $.plugin
 					i += 1
 				$.date.stamp date, to
 			addMilliseconds: adder("MS")
-			addSeconds: adder("SS")
-			addMinutes: adder("MM")
-			addHours: adder("HH")
-			addDays: adder("dd")
-			addMonths: adder("mm")
-			addYears: adder("yyyy")
+			addSeconds:      adder("SS")
+			addMinutes:      adder("MM")
+			addHours:        adder("HH")
+			addDays:         adder("dd")
+			addMonths:       adder("mm")
+			addYears:        adder("yyyy")
 			range: (from, to, interval=1, interval_unit="dd", stamp_unit = $.date.defaultUnit) ->
 				add = adder(interval_unit)
 				ret = [from]

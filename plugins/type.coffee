@@ -19,7 +19,7 @@ $.plugin
 	isType = (T, o) ->
 		if not o? then T in [o,"null","undefined"]
 		else (o.constructor? and (o.constructor is T or o.constructor.name is T)) or
-			Object::toString.apply(o) is "[object #{T}]" or
+			Object.prototype.toString.apply(o) is "[object #{T}]" or
 			isType T, o.__proto__ # recursive
 
 	# `inherit(parent, child)` is similar to extend, except it works by
@@ -74,6 +74,7 @@ $.plugin
 			cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
 			# * Fill-in the identity conversion (from name to name).
 			cache[name][name] = (o) -> o
+			# * Record capabilities for that $.type.with(name) finds this type.
 			for key of cache[name]
 				_with_insert key, cache[name]
 
@@ -108,9 +109,9 @@ $.plugin
 		# This implies that the 'simplest' checks should be registered
 		# first, and conceptually more specialized checks would get added
 		# as time goes on (so specialized type matches are preferred).
-		register "object",    is: (o) -> typeof o is "object" and (o.constructor?.name in [undefined, "Object"])
+		register "object",    is: (o) -> o? and (typeof o is "object") and (o.constructor?.name in [undefined, "Object"])
 		register "array",     is: Array.isArray or (o) -> isType Array, o
-		register "buffer",    is: Buffer.isBuffer or -> false
+		register "buffer",    is: $.global.Buffer.isBuffer or -> false
 		register "error",     is: (o) -> isType 'Error', o
 		register "regexp",    is: (o) -> isType 'RegExp', o
 		register "string",    is: (o) -> typeof o is "string" # or isType String, o
@@ -167,7 +168,7 @@ $.plugin
 		# Numbers create a new array of that capacity (but zero length).
 		number:    { array: (o) -> $.extend new Array(o), length: 0 }
 		# Arguments get sliced into to a real array.
-		arguments: { array: (o) -> Array::slice.apply o }
+		arguments: { array: (o) -> Array.prototype.slice.apply o }
 
 	# Now, we register "bling", and all the things we know how to do
 	# with it:
@@ -183,6 +184,10 @@ $.plugin
 		string: (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).string(x)).join(", ") + "])"
 		repr:   (o) -> $.symbol + "([" + o.map((x) -> $.type.lookup(x).repr(x)).join(", ") + "])"
 
+	_type.in = (types..., obj) ->
+		for type in types
+			return true if $.is type, obj
+		return false
 	$:
 		# __$.inherit(parent, child)__ makes _parent_ become the
 		# immediate *__proto__* of _child_.
@@ -210,7 +215,7 @@ $.plugin
 		# `$.as("number", "1234")` attempt to convert types.
 		as: _type.as
 		isDefined: (o) -> o?
-		isSimple: (o) -> _type(o) in ["string", "number", "bool"]
+		isSimple: (o) -> _type.in "string", "number", "bool", o
 		isEmpty: (o) -> o in ["", null, undefined] \
 			or o.length is 0 or (typeof o is "object" and Object.keys(o).length is 0)
 	defineProperty: (name, opts) -> @each -> $.defineProperty @, name, opts

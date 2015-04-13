@@ -95,6 +95,7 @@ $.plugin
 		return ret
 
 	Promise.compose = Promise.parallel = (promises...) ->
+		promises = $(promises).flatten()
 		# always an extra one for setup, so an empty list is finished immediately
 		p = $.Progress(1 + promises.length)
 		$(promises).select('wait').call (err) ->
@@ -115,14 +116,13 @@ $.plugin
 		p
 
 	Promise.wrapCall = (f, args...) ->
-		try p = $.Promise()
-		finally # the last argument to f will be a callback that finishes the promise
-			args.push (err, result) -> if err then p.reject(err) else p.resolve(result)
-			$.immediate -> f args...
+		try return p = $.Promise()
+		finally f args..., (e, r) ->
+			if e then p.reject(e) else p.resolve(r)
 
 	Progress = (max = 1.0) ->
 		cur = 0.0
-		return $.inherit {
+		return ret = $.inherit {
 			# .progress() - returns current progress
 			# .progress(cur) - sets progress
 			# .progress(cur, max) - set progress and goal
@@ -133,23 +133,22 @@ $.plugin
 				max = (args[1] ? max) if args.length > 1
 				item = if args.length > 2 then args[2] else cur
 				if cur >= max
-					@__proto__.__proto__.resolve(item)
-				@emit 'progress', cur, max, item
+					ret.__proto__.__proto__.resolve(item)
+				ret.emit 'progress', cur, max, item
 				@
 			resolve: (delta, item = delta) ->
 				unless isFinite(delta) then delta = 1
-				@progress cur + delta, max, item
-			finish: (delta, item) -> @resolve delta, item
-
+				ret.progress cur + delta, max, item
+			finish: (delta, item) -> ret.resolve delta, item
 			include: (promise) ->
 				if $.is 'promise', promise
-					@progress cur, max + 1
-					promise.wait (err) =>
-						if err then @reject err
-						else @resolve 1
-				return @
+					ret.progress cur, max + 1
+					promise.wait (err, data) ->
+						if err then ret.reject err
+						else ret.resolve data
+				@
 
-			inspect: -> "{Progress[#{@promiseId}] #{cur}/#{max}}"
+			inspect: -> "{Progress[#{ret.promiseId}] #{cur}/#{max}}"
 		}, Promise()
 
 	# Helper for wrapping an XHR object in a Promise
@@ -161,6 +160,18 @@ $.plugin
 					p.resolve xhr.responseText
 				else
 					p.resolve "#{@status} #{@statusText}"
+
+	# process a series of functions that return promises
+	Promise.series = (series...) ->
+		series = $(series).flatten()
+		run = (i) -> ->
+			if i >= series.length
+				return
+			series[i] = series[i]().wait (err, result) ->
+				p.resolve series[i] = [ err, result ]
+				$.immediate run i + 1
+		try return p = $.Progress(series.length)
+		finally $.immediate run 0
 
 	$.depend 'dom', ->
 		Promise.image = (src) ->

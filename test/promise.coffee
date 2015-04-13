@@ -40,6 +40,11 @@ describe "$.Promise()", ->
 				$.delay 200, ->
 					assert.equal pass, true
 					done()
+		describe "can resolve with another promise", ->
+			a = $.Promise()
+			b = $.Promise()
+			a.resolve b
+
 	describe "reject", ->
 		it "passes errors to queued callbacks", (done) ->
 			$.Promise().wait((err, data) ->
@@ -97,6 +102,13 @@ describe "$.Promise()", ->
 			a.resolve()
 			b.resolve()
 			assert pass
+		it "accepts an array", ->
+			pass = false
+			a = $.Promise()
+			c = $.Promise.compose([a]).wait -> pass = true
+			a.resolve()
+			assert pass
+
 	describe ".collect()", ->
 		it "exists", ->
 			assert 'collect' of $.Promise

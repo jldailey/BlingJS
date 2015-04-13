@@ -186,64 +186,58 @@
         if (fin == null) {
           fin = $.identity;
         }
-        try {
-          return this;
-        } finally {
-          ret = $();
-          todo = this.length;
-          if (!(todo > 0)) {
-            fin.apply(ret, ret);
-          } else {
-            done = 0;
-            finish_one = function(index) {
-              return function() {
-                ret[index] = arguments;
-                if (++done >= todo) {
-                  fin.apply(ret, ret);
-                } else {
-                  next(done);
-                }
-                return null;
-              };
+        ret = $();
+        todo = this.length;
+        if (!(todo > 0)) {
+          fin.apply(ret, ret);
+        } else {
+          done = 0;
+          finish_one = function(index) {
+            return function() {
+              ret[index] = arguments;
+              if (++done >= todo) {
+                fin.apply(ret, ret);
+              } else {
+                next(done);
+              }
+              return null;
             };
-            (next = (function(_this) {
-              return function(i) {
-                return $.immediate(function() {
-                  return _this[i](finish_one(i));
-                });
-              };
-            })(this))(0);
-          }
+          };
+          (next = (function(_this) {
+            return function(i) {
+              return $.immediate(function() {
+                return _this[i](finish_one(i));
+              });
+            };
+          })(this))(0);
         }
+        return this;
       },
       parallel: function(fin) {
         var aa, done, finish_one, i, ref, ret, todo;
         if (fin == null) {
           fin = $.identity;
         }
-        try {
-          return this;
-        } finally {
-          ret = $();
-          todo = this.length;
-          if (!(todo > 0)) {
-            fin.apply(ret, ret);
-          } else {
-            done = 0;
-            finish_one = function(index) {
-              return function() {
-                ret[index] = arguments;
-                if (++done >= todo) {
-                  fin.apply(ret, ret);
-                }
-                return null;
-              };
+        ret = $();
+        todo = this.length;
+        if (!(todo > 0)) {
+          fin.apply(ret, ret);
+        } else {
+          done = 0;
+          finish_one = function(index) {
+            return function() {
+              ret[index] = arguments;
+              if (++done >= todo) {
+                fin.apply(ret, ret);
+              }
+              return null;
             };
-            for (i = aa = 0, ref = todo; aa < ref; i = aa += 1) {
-              this[i](finish_one(i));
-            }
+          };
+          for (i = aa = 0, ref = todo; aa < ref; i = aa += 1) {
+            this[i](finish_one(i));
           }
         }
+        return this;
       }
     };
   });
@@ -447,15 +441,13 @@
       object: {
         clone: function(o) {
           var k, ret, v;
-          try {
-            return ret = Object.create(o.__proto__);
-          } finally {
-            for (k in o) {
-              if (!hasProp.call(o, k)) continue;
-              v = o[k];
-              ret[k] = $.type.lookup(v).clone(v);
-            }
+          ret = Object.create(o.__proto__);
+          for (k in o) {
+            if (!hasProp.call(o, k)) continue;
+            v = o[k];
+            ret[k] = $.type.lookup(v).clone(v);
           }
+          return ret;
         }
       }
     });
@@ -529,11 +521,11 @@
             this.size = 0;
             return this;
           },
-          forEach: function(cb, t) {
+          forEach: function(cb, c) {
             var k, v;
             for (k in data) {
               v = data[k];
-              cb.call(t, k, v);
+              cb.call(c, k, v);
             }
             return this;
           }
@@ -549,9 +541,9 @@
 
     })());
     signs = [-1, 1];
-    Math.sign || (Math.sign = function(n) {
+    Math.sign = function(n) {
       return signs[0 + (n >= 0)];
-    });
+    };
     (base3 = String.prototype).trimLeft || (base3.trimLeft = function() {
       return this.replace(/^\s+/, "");
     });
@@ -2967,10 +2959,9 @@
         return context.each(function() {
           var c;
           c = _get(this, '__alive__', selector, e);
-          try {
-            return context.unbind(e, c[f]);
-          } finally {
-            delete c[f];
+          if (c && c[f]) {
+            context.unbind(e, c[f]);
+            return delete c[f];
           }
         });
       },
@@ -4353,17 +4344,15 @@
     Promise.wrapCall = function() {
       var args, f, p;
       f = arguments[0], args = 2 <= arguments.length ? slice.call(arguments, 1) : [];
-      try {
-        return p = $.Promise();
-      } finally {
-        f.apply(null, slice.call(args).concat([function(e, r) {
-          if (e) {
-            return p.reject(e);
-          } else {
-            return p.resolve(r);
-          }
-        }]));
-      }
+      p = $.Promise();
+      f.apply(null, slice.call(args).concat([function(e, r) {
+        if (e) {
+          return p.reject(e);
+        } else {
+          return p.resolve(r);
+        }
+      }]));
+      return p;
     };
     Progress = function(max) {
       var cur, ret;
@@ -4421,19 +4410,17 @@
     };
     Promise.xhr = function(xhr) {
       var p;
-      try {
-        return p = $.Promise();
-      } finally {
-        xhr.onreadystatechange = function() {
-          if (this.readyState === this.DONE) {
-            if (this.status === 200) {
-              return p.resolve(xhr.responseText);
-            } else {
-              return p.resolve(this.status + " " + this.statusText);
-            }
+      p = $.Promise();
+      xhr.onreadystatechange = function() {
+        if (this.readyState === this.DONE) {
+          if (this.status === 200) {
+            return p.resolve(xhr.responseText);
+          } else {
+            return p.resolve(this.status + " " + this.statusText);
           }
-        };
-      }
+        }
+      };
+      return p;
     };
     Promise.series = function() {
       var p, run, series;
@@ -4450,28 +4437,24 @@
           });
         };
       };
-      try {
-        return p = $.Progress(series.length);
-      } finally {
-        $.immediate(run(0));
-      }
+      p = $.Progress(series.length);
+      $.immediate(run(0));
+      return p;
     };
     $.depend('dom', function() {
       return Promise.image = function(src) {
         var image, p;
-        try {
-          return p = $.Promise();
-        } finally {
-          $.extend(image = new Image(), {
-            onerror: function(e) {
-              return p.resolve(e);
-            },
-            onload: function() {
-              return p.resolve(image);
-            },
-            src: src
-          });
-        }
+        p = $.Promise();
+        $.extend(image = new Image(), {
+          onerror: function(e) {
+            return p.resolve(e);
+          },
+          onload: function() {
+            return p.resolve(image);
+          },
+          src: src
+        });
+        return p;
       };
     });
     $.depend('type', function() {
@@ -4860,7 +4843,7 @@
     provides: "render",
     depends: "promise"
   }, function() {
-    var consume_forever, finalize, log, object_handlers, reduce, register, render;
+    var aka, array_finalize, array_reduce, consume_forever, finalize, log, object_handlers, reduce, register, render;
     log = $.logger("[render]");
     consume_forever = function(promise, opts, p) {
       if (p == null) {
@@ -4900,15 +4883,60 @@
       return object_handlers[t] = f;
     };
     render.reduce = reduce = function(o, opts) {
-      var aa, finish_q, fn, has_promises, i, len1, m, n, p, q, ref, t, x;
-      switch (t = $.type(o)) {
-        case "string":
-        case "html":
-          return o;
-        case "null":
-        case "undefined":
+      var t;
+      return (t = $.type.lookup(o)).reduce(o, t, opts);
+    };
+    $.type.extend({
+      unknown: {
+        reduce: function(o, t, opts) {
+          return "[ cant reduce type: " + t + " ]";
+        }
+      },
+      string: {
+        reduce: $.identity
+      },
+      html: {
+        reduce: $.identity
+      },
+      "null": {
+        reduce: function(o, t, opts) {
           return t;
-        case "promise":
+        }
+      },
+      undefined: {
+        reduce: function(o, t, opts) {
+          return t;
+        }
+      },
+      number: {
+        reduce: function(o, t, opts) {
+          return String(o);
+        }
+      },
+      "function": {
+        reduce: function(o, t, opts) {
+          switch (f.length) {
+            case 0:
+            case 1:
+              return reduce(f(opts));
+            default:
+              return $.Promise.wrap(f, opts);
+          }
+        }
+      },
+      object: {
+        reduce: function(o, t, opts) {
+          var ref;
+          if ((t = (ref = o.t) != null ? ref : o.type) in object_handlers) {
+            return object_handlers[t].call(o, o, opts);
+          } else {
+            return "[ no handler for object type: '" + t + "' " + (JSON.stringify(o).substr(0, 20)) + "... ]";
+          }
+        }
+      },
+      promise: {
+        reduce: function(o, t, opts) {
+          var finish_q, q;
           q = $.Promise();
           o.wait(finish_q = function(err, result) {
             var r;
@@ -4922,12 +4950,14 @@
             }
           });
           return q;
-        case "number":
-          return String(o);
-        case "array":
-        case "bling":
+        }
+      },
+      array: {
+        reduce: array_reduce = function(o, t, opts) {
+          var aa, fn, has_promises, i, len1, m, n, p, q, x;
           p = $.Progress(m = 1);
           q = $.Promise();
+          n = [];
           p.wait(function(err) {
             if (err) {
               return q.reject(err);
@@ -4935,7 +4965,6 @@
               return q.resolve(finalize(n, opts));
             }
           });
-          n = [];
           has_promises = false;
           fn = function(x, i) {
             var finish_p, y;
@@ -4967,37 +4996,36 @@
           } else {
             return finalize(n);
           }
-          break;
-        case "function":
-          switch (f.length) {
-            case 0:
-            case 1:
-              return reduce(f(opts));
-            default:
-              return $.Promise.wrap(f, opts);
-          }
-          break;
-        case "object":
-          if ((t = (ref = o.t) != null ? ref : o.type) in object_handlers) {
-            return object_handlers[t].call(o, o, opts);
-          } else {
-            return "[ no handler for object type: '" + t + "' " + (JSON.stringify(o).substr(0, 20)) + "... ]";
-          }
-          break;
-        default:
-          return "[ cant reduce type: " + t + " ]";
+        }
+      },
+      bling: {
+        reduce: array_reduce
       }
-    };
+    });
     finalize = function(o, opts) {
-      var t, x;
-      switch (t = $.type(o)) {
-        case "string":
-        case "html":
-          return o;
-        case "number":
+      var t;
+      return (t = $.type.lookup(o)).finalize(o, t, opts);
+    };
+    $.type.extend({
+      unknown: {
+        finalize: function(o, t, opts) {
+          return "[ cant finalize type: " + t + " ]";
+        }
+      },
+      string: {
+        finalize: $.identity
+      },
+      html: {
+        finalize: $.identity
+      },
+      number: {
+        finalize: function(o, t, opts) {
           return String(o);
-        case "array":
-        case "bling":
+        }
+      },
+      array: {
+        finalize: array_finalize = function(o, t, opts) {
+          var x;
           return ((function() {
             var aa, len1, results;
             results = [];
@@ -5007,12 +5035,24 @@
             }
             return results;
           })()).join('');
-        case "null":
-        case "undefined":
-          return t;
-        default:
-          return "[ cant finalize type: " + t + " ]";
+        }
+      },
+      bling: {
+        finalize: array_finalize
+      },
+      "null": {
+        finalize: function() {
+          return "null";
+        }
+      },
+      undefined: {
+        finalize: function() {
+          return "undefined";
+        }
       }
+    });
+    aka = function(name) {
+      return object_handlers[name];
     };
     register('link', function(o, opts) {
       var k;
@@ -5031,20 +5071,20 @@
         })(), ">", reduce(o.content, opts), "</a>"
       ];
     });
+    register('a', aka('link'));
     register('let', function(o, opts) {
-      var save;
+      var ret, save;
       save = opts[o.name];
       opts[o.name] = o.value;
-      try {
-        return reduce(o.content, opts);
-      } finally {
-        if (save === void 0) {
-          delete opts[o.name];
-        } else {
-          opts[o.name] = save;
-        }
+      ret = reduce(o.content, opts);
+      if (save === void 0) {
+        delete opts[o.name];
+      } else {
+        opts[o.name] = save;
       }
+      return ret;
     });
+    register('set', aka('let'));
     register('get', function(o, opts) {
       return reduce(opts[o.name], opts);
     });
@@ -5069,12 +5109,12 @@
             hi = array.length;
           }
           cmp = (function() {
-            switch ($.type(iterator)) {
-              case "string":
+            switch (true) {
+              case $.is("string", iterator):
                 return function(a, b) {
                   return a[iterator] < b[iterator];
                 };
-              case "function":
+              case $.is("function", iterator):
                 return function(a, b) {
                   return iterator(a) < iterator(b);
                 };
@@ -6650,9 +6690,7 @@
       });
       register("arguments", {
         is: function(o) {
-          try {
-            return 'callee' in o && 'length' in o;
-          } catch (_error) {}
+          return typeof o === "object" && 'callee' in o && 'length' in o;
         }
       });
       register("undefined", {

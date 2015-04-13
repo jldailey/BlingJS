@@ -119,7 +119,7 @@ $.plugin
 		register "bool",      is: (o) -> typeof o is "boolean" # or try String(o) in ["true","false"]
 		register "function",  is: (o) -> typeof o is "function"
 		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of o
-		register "arguments", is: (o) -> try 'callee' of o and 'length' of o
+		register "arguments", is: (o) -> typeof o is "object" and 'callee' of o and 'length' of o
 		# These checks for null and undefined are small exceptions to the
 		# simple-first idea, since they are precise and getting them out
 		# of the way early lets the above tests omit a safety check.

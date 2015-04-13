@@ -3,9 +3,9 @@ $.plugin
 , ->
 	$:
 		sortedIndex: (array, item, iterator, lo = 0, hi = array.length) ->
-			cmp = switch $.type iterator
-				when "string" then (a,b) -> a[iterator] < b[iterator]
-				when "function" then (a,b) -> iterator(a) < iterator(b)
+			cmp = switch true
+				when $.is "string", iterator then (a,b) -> a[iterator] < b[iterator]
+				when $.is "function", iterator then (a,b) -> iterator(a) < iterator(b)
 				else (a,b) -> a < b
 			while lo < hi
 				mid = (hi + lo)>>>1

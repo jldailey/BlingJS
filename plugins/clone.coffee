@@ -10,8 +10,9 @@ $.plugin {
 		array:   clone: (a) -> a.concat []
 		bling:   clone: (b) -> b.concat []
 		object:  clone: (o) ->
-			try return ret = Object.create(o.__proto__)
-			finally for own k,v of o then ret[k] = $.type.lookup(v).clone(v)
+			ret = Object.create(o.__proto__)
+			for own k,v of o then ret[k] = $.type.lookup(v).clone(v)
+			return ret
 	}
 	# TODO: if dom enabled, invoke the cloneNode code here
 

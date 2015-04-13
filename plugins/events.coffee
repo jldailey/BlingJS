@@ -172,8 +172,9 @@ $.plugin
 			context = @
 			context.each ->
 				c = _get(@,'__alive__',selector,e) # Find the saved reference to h
-				try context.unbind e, c[f] # Unbind h from everything in the context
-				finally delete c[f] # Remove the saved reference to f so we don't leak it.
+				if c and c[f]
+					context.unbind e, c[f] # Unbind h from everything in the context
+					delete c[f] # Remove the saved reference to f so we don't leak it.
 
 		# __.click([f])__ triggers the 'click' event but also sets a
 		# default clickable appearance.

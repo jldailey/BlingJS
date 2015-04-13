@@ -116,9 +116,10 @@ $.plugin
 		p
 
 	Promise.wrapCall = (f, args...) ->
-		try return p = $.Promise()
-		finally f args..., (e, r) ->
+		p = $.Promise()
+		f args..., (e, r) ->
 			if e then p.reject(e) else p.resolve(r)
+		return p
 
 	Progress = (max = 1.0) ->
 		cur = 0.0
@@ -153,13 +154,14 @@ $.plugin
 
 	# Helper for wrapping an XHR object in a Promise
 	Promise.xhr = (xhr) ->
-		try p = $.Promise()
-		finally xhr.onreadystatechange = ->
+		p = $.Promise()
+		xhr.onreadystatechange = ->
 			if @readyState is @DONE
 				if @status is 200
 					p.resolve xhr.responseText
 				else
 					p.resolve "#{@status} #{@statusText}"
+		return p
 
 	# process a series of functions that return promises
 	Promise.series = (series...) ->
@@ -170,16 +172,18 @@ $.plugin
 			series[i] = series[i]().wait (err, result) ->
 				p.resolve series[i] = [ err, result ]
 				$.immediate run i + 1
-		try return p = $.Progress(series.length)
-		finally $.immediate run 0
+		p = $.Progress(series.length)
+		$.immediate run 0
+		return p
 
 	$.depend 'dom', ->
 		Promise.image = (src) ->
-			try p = $.Promise()
-			finally $.extend image = new Image(),
+			p = $.Promise()
+			$.extend image = new Image(),
 				onerror: (e) -> p.resolve e
 				onload: -> p.resolve image
 				src: src
+			p
 
 	$.depend 'type', ->
 		$.type.register 'promise', is: (o) ->

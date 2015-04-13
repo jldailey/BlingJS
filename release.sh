@@ -4,12 +4,15 @@ if [ -z "$2" ]; then
 	exit 0
 fi
 
-echo Making new release: $2 from current release: $1... && \
+OLD=`cat VERSION`
+NEW=$1
+echo Making new release: $NEW from current release: $OLD... && \
 	echo Patching package.json && \
-	sed -i.bak -e "s/$1/$2/" package.json && \
+	sed -i.bak -e "s/$OLD/$NEW/" package.json && \
 	rm package.json.bak && \
+	echo $NEW > VERSION &&
 	echo Committing package.json && \
-	git commit package.json -m "v$2" &> /dev/null && \
+	git commit package.json VERSION -m "v$NEW" &> /dev/null && \
 	echo "Buiding site branch..." && \
 	make site && \
 	echo "Pushing to github..." && \

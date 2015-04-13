@@ -75,36 +75,34 @@ $.plugin
 , ->
 	return {
 		series: (fin = $.identity) ->
-			try return @
-			finally
-				ret = $()
-				todo = @length
-				unless todo > 0
-					fin.apply ret, ret
-				else
-					done = 0
-					finish_one = (index) -> -> # create a callback to finish an ordered element
-						ret[index] = arguments # typically capture [err, result]; but by convention only
-						if ++done >= todo then fin.apply ret, ret # if we are done, call the final callback
-						else next done
-						null
-					do next = (i=0) => $.immediate => @[i] finish_one i
+			ret = $()
+			todo = @length
+			unless todo > 0
+				fin.apply ret, ret
+			else
+				done = 0
+				finish_one = (index) -> -> # create a callback to finish an ordered element
+					ret[index] = arguments # typically capture [err, result]; but by convention only
+					if ++done >= todo then fin.apply ret, ret # if we are done, call the final callback
+					else next done
+					null
+				do next = (i=0) => $.immediate => @[i] finish_one i
+			@
 		parallel: (fin = $.identity) ->
-			try return @
-			finally
-				ret = $()
-				todo = @length
-				unless todo > 0
-					fin.apply ret, ret
-				else
-					done = 0
-					finish_one = (index) -> -> # see the comments in .series: collate the output
-						ret[index] = arguments
-						if ++done >= todo
-							fin.apply ret, ret
-						null
-					for i in [0...todo] by 1
-						@[i] finish_one i
+			ret = $()
+			todo = @length
+			unless todo > 0
+				fin.apply ret, ret
+			else
+				done = 0
+				finish_one = (index) -> -> # see the comments in .series: collate the output
+					ret[index] = arguments
+					if ++done >= todo
+						fin.apply ret, ret
+					null
+				for i in [0...todo] by 1
+					@[i] finish_one i
+			@
 	}
 $.plugin
 	provides: "cache, Cache"
@@ -201,8 +199,9 @@ $.plugin {
 		array:   clone: (a) -> a.concat []
 		bling:   clone: (b) -> b.concat []
 		object:  clone: (o) ->
-			try return ret = Object.create(o.__proto__)
-			finally for own k,v of o then ret[k] = $.type.lookup(v).clone(v)
+			ret = Object.create(o.__proto__)
+			for own k,v of o then ret[k] = $.type.lookup(v).clone(v)
+			return ret
 	}
 	return { $: { clone: (o) -> $.type.lookup(o).clone(o) } }
 $.plugin
@@ -231,14 +230,14 @@ $.plugin
 					data = Object.create null
 					@size = 0
 					@
-				forEach: (cb, t) ->
-					cb.call(t,k,v) for k,v of data
+				forEach: (cb, c) ->
+					cb.call(c,k,v) for k,v of data
 					@
 			}
 			for item in iterable ? []
 				@set item...
 	signs = [-1, 1]
-	Math.sign or= (n) -> signs[0 + (n >= 0)]
+	Math.sign = (n) -> signs[0 + (n >= 0)]
 	String.prototype.trimLeft or= -> @replace(/^\s+/, "")
 	String.prototype.split or= (sep) ->
 		a = []; i = 0
@@ -1349,8 +1348,9 @@ $.plugin
 			context = @
 			context.each ->
 				c = _get(@,'__alive__',selector,e) # Find the saved reference to h
-				try context.unbind e, c[f] # Unbind h from everything in the context
-				finally delete c[f] # Remove the saved reference to f so we don't leak it.
+				if c and c[f]
+					context.unbind e, c[f] # Unbind h from everything in the context
+					delete c[f] # Remove the saved reference to f so we don't leak it.
 		click: (f = {}) ->
 			if @css("cursor") in ["auto",""]
 				@css "cursor", "pointer"
@@ -1959,9 +1959,10 @@ $.plugin
 		q.resolve(1)
 		p
 	Promise.wrapCall = (f, args...) ->
-		try return p = $.Promise()
-		finally f args..., (e, r) ->
+		p = $.Promise()
+		f args..., (e, r) ->
 			if e then p.reject(e) else p.resolve(r)
+		return p
 	Progress = (max = 1.0) ->
 		cur = 0.0
 		return ret = $.inherit {
@@ -1988,13 +1989,14 @@ $.plugin
 			inspect: -> "{Progress[#{ret.promiseId}] #{cur}/#{max}}"
 		}, Promise()
 	Promise.xhr = (xhr) ->
-		try p = $.Promise()
-		finally xhr.onreadystatechange = ->
+		p = $.Promise()
+		xhr.onreadystatechange = ->
 			if @readyState is @DONE
 				if @status is 200
 					p.resolve xhr.responseText
 				else
 					p.resolve "#{@status} #{@statusText}"
+		return p
 	Promise.series = (series...) ->
 		series = $(series).flatten()
 		run = (i) -> ->
@@ -2003,15 +2005,17 @@ $.plugin
 			series[i] = series[i]().wait (err, result) ->
 				p.resolve series[i] = [ err, result ]
 				$.immediate run i + 1
-		try return p = $.Progress(series.length)
-		finally $.immediate run 0
+		p = $.Progress(series.length)
+		$.immediate run 0
+		return p
 	$.depend 'dom', ->
 		Promise.image = (src) ->
-			try p = $.Promise()
-			finally $.extend image = new Image(),
+			p = $.Promise()
+			$.extend image = new Image(),
 				onerror: (e) -> p.resolve e
 				onload: -> p.resolve image
 				src: src
+			p
 	$.depend 'type', ->
 		$.type.register 'promise', is: (o) ->
 			try return (typeof o is 'object')	and 'promiseId' of o and 'then' of o
@@ -2237,68 +2241,81 @@ $.plugin
 	}
 	render.register = register = (t, f) -> object_handlers[t] = f
 	render.reduce = reduce = (o, opts) -> # all objects become either arrays, promises, or strings
-		switch t = $.type o
-			when "string","html" then o
-			when "null","undefined" then t
-			when "promise"
-				q = $.Promise()
-				o.wait finish_q = (err, result) ->
-					return q.reject(err) if err
-					if $.is 'promise', r = reduce result, opts
-						r.wait finish_q
-					else
-						q.resolve r
-				q
-			when "number" then String(o)
-			when "array", "bling"
-				p = $.Progress m = 1 # always start with one step (creation)
-				q = $.Promise() # use a summary promise for public view
-				p.wait (err) ->
-					if err then q.reject(err) else q.resolve(finalize n, opts)
-				n = []
-				has_promises = false
-				for x, i in o then do (x,i) ->
-					n[i] = y = reduce x, opts # recurse here
-					if $.is 'promise', y
-						has_promises = true
-						p.progress null, ++m
-						y.wait finish_p = (err, result) -> # recursive promise trampoline
-							return p.reject(err) if err
-							rp = reduce result, opts
-							if $.is 'promise', rp
-								rp.wait finish_p
-							else
-								p.resolve n[i] = rp
-				p.resolve(1) # creation is complete
-				if has_promises then q
-				else finalize n
-			when "function" then switch f.length
+		(t = $.type.lookup o).reduce(o, t, opts)
+	$.type.extend
+		unknown:   reduce: (o, t, opts) -> "[ cant reduce type: #{t} ]"
+		string:    reduce: $.identity
+		html:      reduce: $.identity
+		null:      reduce: (o, t, opts) -> t
+		undefined: reduce: (o, t, opts) -> t
+		number:    reduce: (o, t, opts) -> String o
+		function:  reduce: (o, t, opts) ->
+			switch f.length
 				when 0,1 then reduce f(opts)
 				else $.Promise.wrap f, opts
-			when "object"
-				if (t = o.t ? o.type) of object_handlers
-					object_handlers[t].call o, o, opts
-				else "[ no handler for object type: '#{t}' #{JSON.stringify(o).substr 0,20}... ]"
-			else "[ cant reduce type: #{t} ]"
+		object: reduce: (o, t, opts) ->
+			if (t = o.t ? o.type) of object_handlers
+				object_handlers[t].call o, o, opts
+			else "[ no handler for object type: '#{t}' #{JSON.stringify(o).substr 0,20}... ]"
+		promise: reduce: (o, t, opts) ->
+			q = $.Promise()
+			o.wait finish_q = (err, result) ->
+				return q.reject(err) if err
+				if $.is 'promise', r = reduce result, opts
+					r.wait finish_q
+				else
+					q.resolve r
+			q
+		array: reduce: array_reduce = (o, t, opts) ->
+			p = $.Progress m = 1 # always start with one bit of work to do (creation)
+			q = $.Promise() # use a summary promise for public view
+			n = []
+			p.wait (err) ->
+				if err then q.reject(err) else q.resolve(finalize n, opts)
+			has_promises = false
+			for x, i in o then do (x,i) ->
+				n[i] = y = reduce x, opts # recurse here
+				if $.is 'promise', y
+					has_promises = true
+					p.progress null, ++m
+					y.wait finish_p = (err, result) -> # recursive promise trampoline
+						return p.reject(err) if err
+						rp = reduce result, opts
+						if $.is 'promise', rp
+							rp.wait finish_p
+						else
+							p.resolve n[i] = rp
+			p.resolve(1) # creation is complete
+			if has_promises then q
+			else finalize n
+		bling: reduce: array_reduce
 	finalize = (o, opts) ->
-		return switch t = $.type o
-			when "string","html" then o
-			when "number" then String(o)
-			when "array","bling" then (finalize(x, opts) for x in o).join ''
-			when "null","undefined" then t
-			else "[ cant finalize type: #{t} ]"
+		(t = $.type.lookup o).finalize(o, t, opts)
+	$.type.extend
+		unknown:   finalize: (o, t, opts) -> "[ cant finalize type: #{t} ]"
+		string:    finalize: $.identity
+		html:      finalize: $.identity
+		number:    finalize: (o, t, opts) -> String o
+		array:     finalize: array_finalize = (o, t, opts) -> (finalize(x, opts) for x in o).join ''
+		bling:     finalize: array_finalize
+		null:      finalize: -> "null"
+		undefined: finalize: -> "undefined"
+	
+	aka = (name) -> object_handlers[name]
 	register 'link', (o, opts) -> [
 		"<a"
 			[" #{k}='",o[k],"'"] for k in ["href","name","target"] when k of o
 		">",reduce(o.content,opts),"</a>"
 	]
+	register 'a', aka 'link'
 	register 'let', (o, opts) ->
 		save = opts[o.name]
 		opts[o.name] = o.value
-		try return reduce o.content, opts
-		finally
-			if save is undefined then delete opts[o.name]
-			else opts[o.name] = save
+		ret = reduce o.content, opts
+		if save is undefined then delete opts[o.name]
+		else opts[o.name] = save
+		return ret
+	register 'set', aka 'let'
 	register 'get', (o, opts) -> reduce opts[o.name], opts
 	return $: { render }
 $.plugin
@@ -2306,9 +2323,9 @@ $.plugin
 , ->
 	$:
 		sortedIndex: (array, item, iterator, lo = 0, hi = array.length) ->
-			cmp = switch $.type iterator
-				when "string" then (a,b) -> a[iterator] < b[iterator]
-				when "function" then (a,b) -> iterator(a) < iterator(b)
+			cmp = switch true
+				when $.is "string", iterator then (a,b) -> a[iterator] < b[iterator]
+				when $.is "function", iterator then (a,b) -> iterator(a) < iterator(b)
 				else (a,b) -> a < b
 			while lo < hi
 				mid = (hi + lo)>>>1
@@ -2330,7 +2347,7 @@ $.plugin
 	provides: "StateMachine"
 	depends: "type"
 , ->
-	$: StateMachine: class StateMachine
+	$: StateMachine: class StateMachine # see plugins/synth for a complete usage example
 		constructor: (stateTable) ->
 			@debug = false
 			@reset()
@@ -2576,7 +2593,7 @@ $.plugin
 	depends: "StateMachine, type"
 , ->
 	class SynthMachine extends $.StateMachine
-		basic =
+		basic = # a common template included in lots of the state machine rules
 			"#": @GO 2
 			".": @GO 3, true
 			"[": @GO 4
@@ -3149,7 +3166,7 @@ $.plugin
 		register "bool",      is: (o) -> typeof o is "boolean" # or try String(o) in ["true","false"]
 		register "function",  is: (o) -> typeof o is "function"
 		register "global",    is: (o) -> typeof o is "object" and 'setInterval' of o
-		register "arguments", is: (o) -> try 'callee' of o and 'length' of o
+		register "arguments", is: (o) -> typeof o is "object" and 'callee' of o and 'length' of o
 		register "undefined", is: (x) -> x is undefined
 		register "null",      is: (x) -> x is null
 		return extend ((o) -> lookup(o).name),

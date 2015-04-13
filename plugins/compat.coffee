@@ -30,15 +30,15 @@ $.plugin
 					data = Object.create null
 					@size = 0
 					@
-				forEach: (cb, t) ->
-					cb.call(t,k,v) for k,v of data
+				forEach: (cb, c) ->
+					cb.call(c,k,v) for k,v of data
 					@
 			}
 			for item in iterable ? []
 				@set item...
 
 	signs = [-1, 1]
-	Math.sign or= (n) -> signs[0 + (n >= 0)]
+	Math.sign = (n) -> signs[0 + (n >= 0)]
 
 	# Make sure we have String functions: `trimLeft`, and `split`.
 	String.prototype.trimLeft or= -> @replace(/^\s+/, "")

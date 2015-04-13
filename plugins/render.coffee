@@ -26,25 +26,25 @@ $.plugin
 	render.register = register = (t, f) -> object_handlers[t] = f
 
 	render.reduce = reduce = (o, opts) -> # all objects become either arrays, promises, or strings
-		(t = $.type.lookup o).reduce(o, t)
+		(t = $.type.lookup o).reduce(o, t, opts)
 	$.type.extend
-		unknown:   reduce: (o, t) -> "[ cant reduce type: #{t} ]"
+		unknown:   reduce: (o, t, opts) -> "[ cant reduce type: #{t} ]"
 		string:    reduce: $.identity
 		html:      reduce: $.identity
-		null:      reduce: (o, t) -> t
-		undefined: reduce: (o, t) -> t
-		number:    reduce: String(o)
-		function:  reduce: (o, t) ->
+		null:      reduce: (o, t, opts) -> t
+		undefined: reduce: (o, t, opts) -> t
+		number:    reduce: (o, t, opts) -> String o
+		function:  reduce: (o, t, opts) ->
 			# upon review after an interval... this seems fishy.
 			switch f.length
 				when 0,1 then reduce f(opts)
 				else $.Promise.wrap f, opts
-		object: reduce: (o, t) ->
+		object: reduce: (o, t, opts) ->
 			# if there's a "t" or "type" property, try to use a registered handler
 			if (t = o.t ? o.type) of object_handlers
 				object_handlers[t].call o, o, opts
 			else "[ no handler for object type: '#{t}' #{JSON.stringify(o).substr 0,20}... ]"
-		promise: reduce: (o, t) ->
+		promise: reduce: (o, t, opts) ->
 			# recursively wait on all promises,
 			# only finished when a non-promise value is produced.
 			q = $.Promise()
@@ -55,13 +55,13 @@ $.plugin
 				else
 					q.resolve r
 			q
-		array: reduce: array_reduce = (o, t) ->
+		array: reduce: array_reduce = (o, t, opts) ->
 			p = $.Progress m = 1 # always start with one bit of work to do (creation)
 			# more steps will be added later during the recursion
 			q = $.Promise() # use a summary promise for public view
+			n = []
 			p.wait (err) ->
 				if err then q.reject(err) else q.resolve(finalize n, opts)
-			n = []
 			has_promises = false
 			for x, i in o then do (x,i) ->
 				n[i] = y = reduce x, opts # recurse here
@@ -82,13 +82,13 @@ $.plugin
 
 	# what to do once all the promises have been waited for and replaced with their results
 	finalize = (o, opts) ->
-		(t = $.type.lookup o).finalize(o, opts, t)
+		(t = $.type.lookup o).finalize(o, t, opts)
 	$.type.extend
-		unknown:   finalize: (o, opts, t) -> "[ cant finalize type: #{t} ]"
+		unknown:   finalize: (o, t, opts) -> "[ cant finalize type: #{t} ]"
 		string:    finalize: $.identity
 		html:      finalize: $.identity
-		number:    finalize: (o, opts) -> String o
-		array:     finalize: array_finalize = (o, opts) -> (finalize(x, opts) for x in o).join ''
+		number:    finalize: (o, t, opts) -> String o
+		array:     finalize: array_finalize = (o, t, opts) -> (finalize(x, opts) for x in o).join ''
 		bling:     finalize: array_finalize
 		null:      finalize: -> "null"
 		undefined: finalize: -> "undefined"

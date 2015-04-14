@@ -49,7 +49,7 @@ extend = (a, b...) ->
 
 # So, the Bling constructor should not be called as `new Bling`,
 # rather it should be used python style: `Bling(stuff)`.
-class Bling # extends (new Array)
+class Bling extends Array
 	"Bling:nomunge"
 	constructor: (args...) ->
 		# If there was only one argument,
@@ -68,10 +68,6 @@ class Bling # extends (new Array)
 			return Bling.init(b)
 		return b
 $ = Bling
-# We specify an inheritance similar to `class Bling extends (new Array)`,
-# if such a thing were supported by the syntax directly.
-$:: = []
-$::constructor = $
 $.global = do -> @
 
 # $.plugin( [ opts ], func )

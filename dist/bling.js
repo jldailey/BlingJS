@@ -2,9 +2,9 @@
 (function() {
   var $, Bling, extend,
     slice = [].slice,
+    extend1 = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty,
-    indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; },
-    extend1 = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+    indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
   Object.keys || (Object.keys = function(o) {
     var k, results;
@@ -39,8 +39,10 @@
     return a;
   };
 
-  Bling = (function() {
+  Bling = (function(superClass) {
     "Bling:nomunge";
+    extend1(Bling, superClass);
+
     function Bling() {
       var args, b, i;
       args = 1 <= arguments.length ? slice.call(arguments, 0) : [];
@@ -63,13 +65,9 @@
 
     return Bling;
 
-  })();
+  })(Array);
 
   $ = Bling;
-
-  $.prototype = [];
-
-  $.prototype.constructor = $;
 
   $.global = (function() {
     return this;

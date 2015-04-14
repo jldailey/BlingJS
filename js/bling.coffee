@@ -4,7 +4,7 @@ extend = (a, b...) ->
 	for obj in b when obj
 		a[k] = v for k,v of obj # when v?
 	a
-class Bling # extends (new Array)
+class Bling extends Array
 	"Bling:nomunge"
 	constructor: (args...) ->
 		if args.length is 1
@@ -18,8 +18,6 @@ class Bling # extends (new Array)
 			return Bling.init(b)
 		return b
 $ = Bling
-$:: = []
-$::constructor = $
 $.global = do -> @
 $.plugin = (opts, constructor) ->
 	if not constructor

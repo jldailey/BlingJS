@@ -1730,7 +1730,7 @@
     provides: "debug, debugStack",
     depends: "core"
   }, function() {
-    var explodeStack;
+    var explodeStack, protoChain;
     explodeStack = function(stack, node_modules) {
       var err, files, fs, lines, lines_cache, message, nl;
       nl = /(?:\r\n|\r|\n)/;
@@ -1788,6 +1788,12 @@
       });
       return message + "\n" + $.weave(files, lines).filter(null, false).join("\n");
     };
+    protoChain = function(obj, arr) {
+      if (!(obj && obj.constructor)) {
+        return arr;
+      }
+      return protoChain(obj.constructor.__super__, arr.push(obj.constructor));
+    };
     return {
       $: {
         debugStack: function(error, node_modules) {
@@ -1806,6 +1812,9 @@
             }
           })();
           return explodeStack(stack, node_modules);
+        },
+        protoChain: function(o) {
+          return protoChain(o, $());
         }
       }
     };

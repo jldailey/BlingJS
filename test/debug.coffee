@@ -10,3 +10,10 @@ describe "$.debugStack", ->
 			# assert.equal list.length, 94, lines
 			# always pass for now, hard to find a truly stable stack to test
 			done()
+
+describe "$.protoChain", ->
+	it "returns a string describing the prototype chain", ->
+		class A
+		class B extends A
+		class C extends B
+		assert.deepEqual [C, B, A], $.protoChain(new C())

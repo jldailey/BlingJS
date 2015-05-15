@@ -1,6 +1,6 @@
 $.plugin
 	provides: "render"
-	depends: "promise"
+	depends: "promise, type"
 , ->
 
 	log = $.logger "[render]"

@@ -4848,7 +4848,7 @@
 
   $.plugin({
     provides: "render",
-    depends: "promise"
+    depends: "promise, type"
   }, function() {
     var aka, array_finalize, array_reduce, consume_forever, finalize, log, object_handlers, reduce, register, render;
     log = $.logger("[render]");

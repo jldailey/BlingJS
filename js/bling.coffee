@@ -2223,7 +2223,7 @@ $.plugin
 				$(8,4,4,4,12).map(-> $.random.string @,'',uuidAlphabet).join '-'
 $.plugin
 	provides: "render"
-	depends: "promise"
+	depends: "promise, type"
 , ->
 	log = $.logger "[render]"
 	consume_forever = (promise, opts, p = $.Promise()) ->

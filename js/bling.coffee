@@ -1408,7 +1408,7 @@ $.plugin
 	provides: "hash"
 	depends: "type"
 , ->
-	maxHash = Math.pow(2,32)
+	maxHash = 0xFFFFFFFF
 	array_hash = (d) -> (o) -> d + $($.hash(x) for x in o).reduce(((a,x) -> ((a*a)+(x|0))%maxHash), 1)
 	$.type.extend
 		unknown:   { hash: (o) -> $.checksum $.toString o }
@@ -3138,13 +3138,15 @@ $.plugin
 			if (i = a.indexOf type) is -1
 				a.push type
 		register = (name, data) ->
-			unless 'is' of data
-				throw new Error("$.type.register given a second argument without an 'is' function")
+			data.is or= -> false
+			if name of cache
+				_extend name, data
 			order.unshift name if not (name of cache)
 			cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
 			cache[name][name] = (o) -> o
 			for key of cache[name]
 				_with_insert key, cache[name]
+			null
 		_extend = (name, data) ->
 			if typeof name is "string"
 				cache[name] or= register name, {}
@@ -3153,14 +3155,16 @@ $.plugin
 					_with_insert method, cache[name]
 			else if typeof name is "object"
 				(_extend k, name[k]) for k of name
+			null
 		lookup = (obj) ->
 			for name in order
-				if cache[name]?.is.call obj, obj
+				if cache[name].is.call obj, obj
 					return cache[name]
+			null
 		register "unknown",   base
 		register "object",    is: (o) -> o? and (typeof o is "object") and (o.constructor?.name in [undefined, "Object"])
 		register "array",     is: Array.isArray or (o) -> isType Array, o
-		register "buffer",    is: $.global.Buffer.isBuffer or -> false
+		register "buffer",    is: $.global.Buffer.isBuffer or -> false # this way of referencing Buffer is so browserify does not include a Buffer shim just for this check
 		register "error",     is: (o) -> isType 'Error', o
 		register "regexp",    is: (o) -> isType 'RegExp', o
 		register "string",    is: (o) -> typeof o is "string" # or isType String, o
@@ -3186,7 +3190,7 @@ $.plugin
 		array:     { array: (o) -> o }
 		number:    { array: (o) -> $.extend new Array(o), length: 0 }
 		arguments: { array: (o) -> Array.prototype.slice.apply o }
-	maxHash = Math.pow(2,32)
+	maxHash = 0xFFFFFFFF
 	_type.register "bling",
 		is:     (o) -> o and isType $, o
 		array:  (o) -> (o and o.toArray()) or []

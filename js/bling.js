@@ -3132,7 +3132,7 @@
     depends: "type"
   }, function() {
     var array_hash, maxHash;
-    maxHash = Math.pow(2, 32);
+    maxHash = 0xFFFFFFFF;
     array_hash = function(d) {
       return function(o) {
         var x;
@@ -6599,9 +6599,12 @@
         }
       };
       register = function(name, data) {
-        var key, results;
-        if (!('is' in data)) {
-          throw new Error("$.type.register given a second argument without an 'is' function");
+        var key;
+        data.is || (data.is = function() {
+          return false;
+        });
+        if (name in cache) {
+          _extend(name, data);
         }
         if (!(name in cache)) {
           order.unshift(name);
@@ -6610,38 +6613,35 @@
         cache[name][name] = function(o) {
           return o;
         };
-        results = [];
         for (key in cache[name]) {
-          results.push(_with_insert(key, cache[name]));
+          _with_insert(key, cache[name]);
         }
-        return results;
+        return null;
       };
       _extend = function(name, data) {
-        var k, method, results, results1;
+        var k, method;
         if (typeof name === "string") {
           cache[name] || (cache[name] = register(name, {}));
           cache[name] = extend(cache[name], data);
-          results = [];
           for (method in data) {
-            results.push(_with_insert(method, cache[name]));
+            _with_insert(method, cache[name]);
           }
-          return results;
         } else if (typeof name === "object") {
-          results1 = [];
           for (k in name) {
-            results1.push(_extend(k, name[k]));
+            _extend(k, name[k]);
           }
-          return results1;
         }
+        return null;
       };
       lookup = function(obj) {
-        var aa, len1, name, ref;
+        var aa, len1, name;
         for (aa = 0, len1 = order.length; aa < len1; aa++) {
           name = order[aa];
-          if ((ref = cache[name]) != null ? ref.is.call(obj, obj) : void 0) {
+          if (cache[name].is.call(obj, obj)) {
             return cache[name];
           }
         }
+        return null;
       };
       register("unknown", base);
       register("object", {
@@ -6768,7 +6768,7 @@
         }
       }
     });
-    maxHash = Math.pow(2, 32);
+    maxHash = 0xFFFFFFFF;
     _type.register("bling", {
       is: function(o) {
         return o && isType($, o);

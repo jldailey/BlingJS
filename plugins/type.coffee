@@ -66,17 +66,21 @@ $.plugin
 
 		# When adding a new type to the regisry:
 		register = (name, data) ->
-			unless 'is' of data
-				throw new Error("$.type.register given a second argument without an 'is' function")
+			# * Force every type to define .is(); so lookup() can skip the check later.
+			data.is or= -> false
+			# * If the type was previously registered, extend the existing definition.
+			if name of cache
+				_extend name, data
 			# * Put the type check in order (if it isn't already).
 			order.unshift name if not (name of cache)
 			# * inherit from the base type and store in the cache.
 			cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
 			# * Fill-in the identity conversion (from name to name).
 			cache[name][name] = (o) -> o
-			# * Record capabilities for that $.type.with(name) finds this type.
+			# * Record capabilities so that $.type.with(name) finds this type.
 			for key of cache[name]
 				_with_insert key, cache[name]
+			null
 
 		# Later, plugins can `extend` previously registered types with new
 		# functionality.
@@ -95,12 +99,14 @@ $.plugin
 			# extensions.
 			else if typeof name is "object"
 				(_extend k, name[k]) for k of name
+			null
 
 		# To classify an object, simply check every match in order.
 		lookup = (obj) ->
 			for name in order
-				if cache[name]?.is.call obj, obj
+				if cache[name].is.call obj, obj
 					return cache[name]
+			null
 
 		# Now, register all the built-in types. These checks are
 		# executed in _reverse order_, so the first listed here, `"unknown"`,
@@ -111,7 +117,7 @@ $.plugin
 		# as time goes on (so specialized type matches are preferred).
 		register "object",    is: (o) -> o? and (typeof o is "object") and (o.constructor?.name in [undefined, "Object"])
 		register "array",     is: Array.isArray or (o) -> isType Array, o
-		register "buffer",    is: $.global.Buffer.isBuffer or -> false
+		register "buffer",    is: $.global.Buffer.isBuffer or -> false # this way of referencing Buffer is so browserify does not include a Buffer shim just for this check
 		register "error",     is: (o) -> isType 'Error', o
 		register "regexp",    is: (o) -> isType 'RegExp', o
 		register "string",    is: (o) -> typeof o is "string" # or isType String, o
@@ -138,12 +144,10 @@ $.plugin
 			# e.g. $.type.with('compact') == a list of all `compact`-able types
 			with: (f) -> _with_cache[f] ? []
 
-		# Example: Calling $.type directly will get you the simple name of the
-		# best match.
+		# Example: Calling $.type directly will get you the simple name of the best match.
 		# > `type([]) == "array"`
 
-		# If you want to know everything, you can use lookup
-		# directly.
+		# If you want to know everything, you can use lookup directly.
 		# > `type.lookup([]).name == "array"`
 
 		# Later, once other systems have extended the base type, the
@@ -158,7 +162,7 @@ $.plugin
 		unknown:   { array: (o) -> [o] }
 		# But where we do know better, we can provide more meaningful
 		# conversions. Later, in the DOM plugin, we will extend
-		# this further to know how to convert "html", "node", etc.
+		# this further to know how to convert "html", "nodelist", etc.
 
 		# Null and undefined values convert to an empty array.
 		null:      { array:     -> [] }
@@ -172,7 +176,7 @@ $.plugin
 
 	# Now, we register "bling", and all the things we know how to do
 	# with it:
-	maxHash = Math.pow(2,32)
+	maxHash = 0xFFFFFFFF
 	_type.register "bling",
 		# Add the type test so: `$.type($()) == "bling"`.
 		is:     (o) -> o and isType $, o

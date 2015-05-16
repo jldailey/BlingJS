@@ -6604,19 +6604,17 @@
           return false;
         });
         if (name in cache) {
-          _extend(name, data);
+          return _extend(name, data);
         }
         if (!(name in cache)) {
           order.unshift(name);
         }
         cache[data.name = name] = base !== data ? inherit(base, data) : data;
-        cache[name][name] = function(o) {
-          return o;
-        };
+        cache[name][name] = $.identity;
         for (key in cache[name]) {
           _with_insert(key, cache[name]);
         }
-        return null;
+        return cache[name];
       };
       _extend = function(name, data) {
         var k, method;

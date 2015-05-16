@@ -5,7 +5,7 @@ $.plugin
 	provides: "hash"
 	depends: "type"
 , ->
-	maxHash = Math.pow(2,32)
+	maxHash = 0xFFFFFFFF
 	array_hash = (d) -> (o) -> d + $($.hash(x) for x in o).reduce(((a,x) -> ((a*a)+(x|0))%maxHash), 1)
 	$.type.extend
 		unknown:   { hash: (o) -> $.checksum $.toString o }

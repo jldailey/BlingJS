@@ -3140,13 +3140,13 @@ $.plugin
 		register = (name, data) ->
 			data.is or= -> false
 			if name of cache
-				_extend name, data
+				return _extend name, data
 			order.unshift name if not (name of cache)
 			cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
-			cache[name][name] = (o) -> o
+			cache[name][name] = $.identity
 			for key of cache[name]
 				_with_insert key, cache[name]
-			null
+			cache[name]
 		_extend = (name, data) ->
 			if typeof name is "string"
 				cache[name] or= register name, {}

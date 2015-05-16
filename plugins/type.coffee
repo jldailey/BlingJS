@@ -70,17 +70,17 @@ $.plugin
 			data.is or= -> false
 			# * If the type was previously registered, extend the existing definition.
 			if name of cache
-				_extend name, data
+				return _extend name, data
 			# * Put the type check in order (if it isn't already).
 			order.unshift name if not (name of cache)
 			# * inherit from the base type and store in the cache.
 			cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
 			# * Fill-in the identity conversion (from name to name).
-			cache[name][name] = (o) -> o
+			cache[name][name] = $.identity
 			# * Record capabilities so that $.type.with(name) finds this type.
 			for key of cache[name]
 				_with_insert key, cache[name]
-			null
+			cache[name]
 
 		# Later, plugins can `extend` previously registered types with new
 		# functionality.

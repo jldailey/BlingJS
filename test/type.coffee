@@ -16,6 +16,24 @@ describe "Type plugin:", ->
 			it "'object'",    -> assert.equal $.type({}), "object"
 			it "'object'",    -> assert.equal $.type(Object.create(null)), "object"
 			it "'error'",     -> assert.equal $.type(new Error()), "error"
+		describe "$.type.register", ->
+			it "is how you register new types", ->
+				$.type.register "unit-test", is: (o) -> o and o.isUnitTest
+				assert.equal $.type({isUnitTest:true}), "unit-test"
+				assert.equal $.type({isUnitTest:false}), "object"
+		describe "$.type.extend", ->
+			it "is how you extend types", ->
+				$.type.register "unit-test", is: (o) -> o and o.isUnitTest
+				$.type.extend "unit-test", array: (o) -> [1,2,3]
+				assert "array" of $.type.lookup({isUnitTest: true})
+				assert.deepEqual $({isUnitTest: true}), [1,2,3]
+			it "can happen out-of-order with $.type.register", ->
+				$.type.register "test-unit", is: (o) -> o and o.isTestUnit
+				$.type.extend "test-unit", array: (o) -> [3,2,1]
+				assert.equal $.type({isTestUnit:true}), "test-unit"
+				assert.equal $.type({isTestUnit:false}), "object"
+				assert "array" of $.type.lookup({isTestUnit: true})
+				assert.deepEqual $({isTestUnit: true}), [3,2,1]
 
 	describe "$.is()", ->
 		describe "should identify", ->

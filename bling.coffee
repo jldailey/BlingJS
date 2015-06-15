@@ -1,6 +1,6 @@
-# License: MIT. Author: Jesse Dailey <jesse.dailey@gmail.com>
+# License: MIT. Author: Jesse Dailey <jesse.dailey@fastmail.com>
 
-# Philoshopy
+# Philosophy
 # ----------
 # 1. Always work on _sets_.
 #    If you always write code to handle sets, you usually handle the scalar case for free.

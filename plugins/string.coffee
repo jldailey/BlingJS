@@ -7,7 +7,7 @@ $.plugin
 , ->
 	safer = (f) -> (a...) ->
 		try return f(a...)
-		catch err then return "[Error: #{err.message}]"
+		catch err then return "[toString Error: #{err.message}]"
 	escape_single_quotes = (s) -> s.replace(/([^\\]{1})'/g,"$1\\'")
 	$.type.extend
 		# First, extend the base type with a default `string` function
@@ -71,7 +71,7 @@ $.plugin
 					try
 						$.type.lookup(x).string(x)
 					catch err
-						"[Error: #{err.message}]"
+						"[$.toString Error: #{err.message}]"
 
 			# __$.toRepr(x)__ returns a a code-like view of an object, using the
 			# type system's "repr" method.

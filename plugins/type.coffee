@@ -16,10 +16,11 @@ $.plugin
 	# `isType(T, obj)` is a simple boolean test to see if any
 	# object is of type `T`; respecting prototype chains,
 	# constructors, and anything else we can think of that matters.
+	__toString = Object.prototype.toString
 	isType = (T, o) ->
 		if not o? then T in [o,"null","undefined"]
 		else (o.constructor? and (o.constructor is T or o.constructor.name is T)) or
-			Object.prototype.toString.apply(o) is "[object #{T}]" or
+			__toString.apply(o) is "[object #{T}]" or
 			isType T, o.__proto__ # recursive
 
 	# `inherit(parent, child)` is similar to extend, except it works by
@@ -73,14 +74,14 @@ $.plugin
 				return _extend name, data
 			# * Put the type check in order (if it isn't already).
 			order.unshift name if not (name of cache)
-			# * inherit from the base type and store in the cache.
+			# * Inherit from the base type and store in the cache.
 			cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
 			# * Fill-in the identity conversion (from name to name).
-			cache[name][name] = $.identity
+			cache[name][name] = (o) -> o
 			# * Record capabilities so that $.type.with(name) finds this type.
 			for key of cache[name]
 				_with_insert key, cache[name]
-			cache[name]
+			return cache[name]
 
 		# Later, plugins can `extend` previously registered types with new
 		# functionality.

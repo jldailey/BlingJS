@@ -2401,7 +2401,7 @@ $.plugin
 , ->
 	safer = (f) -> (a...) ->
 		try return f(a...)
-		catch err then return "[Error: #{err.message}]"
+		catch err then return "[toString Error: #{err.message}]"
 	escape_single_quotes = (s) -> s.replace(/([^\\]{1})'/g,"$1\\'")
 	$.type.extend
 		unknown:
@@ -2458,7 +2458,7 @@ $.plugin
 					try
 						$.type.lookup(x).string(x)
 					catch err
-						"[Error: #{err.message}]"
+						"[$.toString Error: #{err.message}]"
 			toRepr: (x) -> $.type.lookup(x).repr(x)
 			px: (x, delta=0) -> x? and (parseInt(x,10)+(parseInt(delta)|0))+"px"
 			capitalize: (name) ->
@@ -3110,10 +3110,11 @@ $.plugin
 	provides: "type,is,inherit,extend,defineProperty,isType,are,as,isSimple,isDefined,isEmpty"
 	depends: "compat"
 , ->
+	__toString = Object.prototype.toString
 	isType = (T, o) ->
 		if not o? then T in [o,"null","undefined"]
 		else (o.constructor? and (o.constructor is T or o.constructor.name is T)) or
-			Object.prototype.toString.apply(o) is "[object #{T}]" or
+			__toString.apply(o) is "[object #{T}]" or
 			isType T, o.__proto__ # recursive
 	inherit = (parent, objs...) ->
 		return unless objs.length > 0
@@ -3143,10 +3144,10 @@ $.plugin
 				return _extend name, data
 			order.unshift name if not (name of cache)
 			cache[data.name = name] = if (base isnt data) then (inherit base, data) else data
-			cache[name][name] = $.identity
+			cache[name][name] = (o) -> o
 			for key of cache[name]
 				_with_insert key, cache[name]
-			cache[name]
+			return cache[name]
 		_extend = (name, data) ->
 			if typeof name is "string"
 				cache[name] or= register name, {}

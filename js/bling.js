@@ -5269,7 +5269,7 @@
           return f.apply(null, a);
         } catch (_error) {
           err = _error;
-          return "[Error: " + err.message + "]";
+          return "[toString Error: " + err.message + "]";
         }
       };
     };
@@ -5412,7 +5412,7 @@
               return $.type.lookup(x).string(x);
             } catch (_error) {
               err = _error;
-              return "[Error: " + err.message + "]";
+              return "[$.toString Error: " + err.message + "]";
             }
           }
         },
@@ -6552,12 +6552,13 @@
     provides: "type,is,inherit,extend,defineProperty,isType,are,as,isSimple,isDefined,isEmpty",
     depends: "compat"
   }, function() {
-    var _type, inherit, isType, maxHash;
+    var __toString, _type, inherit, isType, maxHash;
+    __toString = Object.prototype.toString;
     isType = function(T, o) {
       if (o == null) {
         return T === o || T === "null" || T === "undefined";
       } else {
-        return ((o.constructor != null) && (o.constructor === T || o.constructor.name === T)) || Object.prototype.toString.apply(o) === ("[object " + T + "]") || isType(T, o.__proto__);
+        return ((o.constructor != null) && (o.constructor === T || o.constructor.name === T)) || __toString.apply(o) === ("[object " + T + "]") || isType(T, o.__proto__);
       }
     };
     inherit = function() {
@@ -6610,7 +6611,9 @@
           order.unshift(name);
         }
         cache[data.name = name] = base !== data ? inherit(base, data) : data;
-        cache[name][name] = $.identity;
+        cache[name][name] = function(o) {
+          return o;
+        };
         for (key in cache[name]) {
           _with_insert(key, cache[name]);
         }

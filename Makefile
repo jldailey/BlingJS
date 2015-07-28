@@ -16,7 +16,7 @@ all: release report
 
 release: $(DIST)/bling.js $(DIST)/min.bling.js $(DIST)/min.bling.js.gz
 
-test: $(DIST)/bling.js $(TEST_FILES)
+test: $(JLDOM) $(MOCHA) $(DIST)/bling.js $(TEST_FILES)
 	@echo "All tests are passing."
 
 test/bling.coffee: bling.coffee

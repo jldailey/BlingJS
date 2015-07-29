@@ -3937,9 +3937,15 @@
       },
       avg: mean,
       sum: function() {
-        return this.filter(isFinite).filter(null, false).reduce((function(a) {
-          return a + this;
-        }), 0);
+        var aa, len1, n, x;
+        n = 0;
+        for (aa = 0, len1 = this.length; aa < len1; aa++) {
+          x = this[aa];
+          if ((x != null) && isFinite(x)) {
+            n += x;
+          }
+        }
+        return n;
       },
       product: function() {
         return this.filter(isFinite).reduce(function(a) {

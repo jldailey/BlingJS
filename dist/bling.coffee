@@ -1804,7 +1804,10 @@ $.plugin
 	minBy: _By (a,b) -> a < b
 	mean: mean = -> if not @length then 0 else @sum() / @length
 	avg: mean
-	sum: -> @filter( isFinite ).filter(null, false).reduce(((a) -> a + @), 0)
+	sum: ->
+		n = 0
+		n += x for x in @ when x? and isFinite(x)
+		n
 	product: -> @filter( isFinite ).reduce (a) -> a * @
 	squares: -> @pow(2)
 	pow: (n) -> @map -> Math.pow @, n

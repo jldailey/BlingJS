@@ -50,7 +50,10 @@ $.plugin
 	mean: mean = -> if not @length then 0 else @sum() / @length
 	avg: mean
 	# Get the sum of the set.
-	sum: -> @filter( isFinite ).filter(null, false).reduce(((a) -> a + @), 0)
+	sum: ->
+		n = 0
+		n += x for x in @ when x? and isFinite(x)
+		n
 	# Get the product of all items in the set.
 	product: -> @filter( isFinite ).reduce (a) -> a * @
 	# Get a new set with every item squared.

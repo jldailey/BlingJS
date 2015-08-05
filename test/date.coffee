@@ -72,3 +72,7 @@ describe "Date plugin:", ->
 					.unstamp() \
 					.select("getUTCDate").call() \
 					.ints().sum(), 35 # == 1 + 4 + 7 + 10 + 13 (every 3 days from Jan 1 1970 for 2 weeks)
+		describe ".add*()", ->
+			it ".addMinutes()", ->
+				stamp = $.date.stamp()
+				assert.equal $.date.addMinutes(stamp, -2), $.date.addSeconds(stamp, -120)

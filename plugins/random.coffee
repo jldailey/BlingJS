@@ -58,7 +58,9 @@ $.plugin
 				if weights?
 					# force the weights to sum to 1.0
 					w = $(weights)
-					w = w.scale(1.0/w.sum())
+					sum_w = 1.0/w.sum()
+					if sum_w isnt 1
+						w = w.scale(sum_w)
 					# sort all the items by their weight (desc order)
 					i = 0
 					sorted = $(arr).map((x) -> {v: x, w: w[i++] }).sortBy (x) -> -x.w

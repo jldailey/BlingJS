@@ -2200,7 +2200,9 @@ $.plugin
 			element: (arr, weights) ->
 				if weights?
 					w = $(weights)
-					w = w.scale(1.0/w.sum())
+					sum_w = 1.0/w.sum()
+					if sum_w isnt 1
+						w = w.scale(sum_w)
 					i = 0
 					sorted = $(arr).map((x) -> {v: x, w: w[i++] }).sortBy (x) -> -x.w
 					r = $.random.real(0.00001,.999999) # never exactly 0.0 or 1.0

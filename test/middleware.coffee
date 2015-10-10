@@ -49,3 +49,13 @@ describe "Middleware plugin:", ->
 				m.unuse f
 				m.invoke false
 				assert.equal true, pass
+		describe "::catch(f)", ->
+			it "registers an error handler", ->
+				m = $.middleware()
+				pass = false
+				m.use (next) ->
+					throw new Error "thrown"
+				m.catch (err) ->
+					pass = true
+				m.invoke()
+				assert.equal true, pass

@@ -4088,17 +4088,6 @@
     provides: 'middleware',
     depends: 'type'
   }, function() {
-    $.type.register('middleware', {
-      is: function(o) {
-        var err;
-        try {
-          return $.are('function', o.use, o.unuse, o.invoke);
-        } catch (_error) {
-          err = _error;
-          return false;
-        }
-      }
-    });
     return {
       $: {
         middleware: function(s) {
@@ -4108,6 +4097,10 @@
           }
           e = $();
           return {
+            "catch": function(f) {
+              e.push(f);
+              return this;
+            },
             use: function(f) {
               s.push(f);
               return this;
@@ -4135,9 +4128,6 @@
                 };
               })(this)))();
               return this;
-            },
-            "catch": function(f) {
-              return e.push(f);
             }
           };
         }

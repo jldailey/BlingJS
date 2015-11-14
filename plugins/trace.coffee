@@ -6,7 +6,7 @@
 # deep walk as labels).
 $.plugin
 	provides: "trace"
-	depends: "function,type"
+	depends: "function,type,logger"
 , ->
 	# This is perhaps the cleanest use of the type system so far...
 	$.type.extend

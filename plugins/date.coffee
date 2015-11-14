@@ -37,6 +37,8 @@ $.plugin
 		MM: Date.prototype.getUTCMinutes
 		SS: Date.prototype.getUTCSeconds
 		MS: Date.prototype.getUTCMilliseconds
+		_MS: ->
+			$.padLeft Date.prototype.getUTCMilliseconds.apply(@), 3, "0"
 	format_keys = Object.keys(formats).sort().reverse()
 
 	parsers =
@@ -49,6 +51,7 @@ $.plugin
 		HH: Date.prototype.setUTCHours
 		MM: Date.prototype.setUTCMinutes
 		SS: Date.prototype.setUTCSeconds
+		_MS: (s) -> @setUTCMilliseconds parseInt s, 10
 		MS: Date.prototype.setUTCMilliseconds
 	parser_keys = Object.keys(parsers).sort().reverse()
 

@@ -1,6 +1,6 @@
 $.plugin
 	provides: "cache, Cache"
-	depends: "core, sortBy"
+	depends: "core, sortBy, logger"
 , ->
 
 	class EffCache

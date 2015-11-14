@@ -18,25 +18,9 @@ $.plugin
 	index = (i, o) ->
 		i += o.length while i < 0
 		Math.min i, o.length
-
-	baseTime = 0
+	
 	return {
 		$:
-			log: $.extend((a...) ->
-				prefix = "+#{$.padLeft String($.now - baseTime), $.log.prefixSize, '0'}:"
-				if baseTime is 0 or prefix.length > $.log.prefixSize + 2
-					prefix = $.date.format(baseTime = $.now, "dd/mm/YY HH:MM:SS:", "ms")
-				if a.length and $.is "string", a[0]
-					a[0] = "#{prefix} #{a[0]}"
-				else
-					a.unshift prefix
-				$.log.out a...
-				return a[a.length-1] if a.length
-			, {
-				out: -> console.log.apply console, arguments
-				prefixSize: 5
-			})
-			logger: (prefix) -> (m...) -> m.unshift(prefix); $.log m...
 			assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 			coalesce: (a...) -> $(a).coalesce()
 			keysOf: (o, own=false) ->
@@ -94,6 +78,7 @@ $.plugin
 			(a = f.call @[x], a, @[x]) for x in [i...n] by 1
 			# Return the accumulation.
 			return a
+
 		# Get a new set with every item from _this_ and from _other_. `strict` refers to whether
 		# to use == or === for comparison.
 		union: (other, strict = true) ->
@@ -114,11 +99,11 @@ $.plugin
 			false
 		# Get an integer count of items in _this_.
 		count: (item, strict = true) ->
-			$(1 for t in @ \
-				when (item is undefined) \
+			n = 0
+			++n for t in @ when (item is undefined) \
 				or (strict and t is item) \
 				or (not strict and `t == item`)
-			).sum()
+			n
 		# Get the first non-null item in _this_.
 		coalesce: ->
 			for i in @

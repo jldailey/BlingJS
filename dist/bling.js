@@ -242,7 +242,7 @@
 
   $.plugin({
     provides: "cache, Cache",
-    depends: "core, sortBy"
+    depends: "core, sortBy, logger"
   }, function() {
     var EffCache;
     EffCache = (function() {
@@ -656,7 +656,7 @@
     provides: "core,eq,each,map,filterMap,tap,replaceWith,reduce,union,intersect,distinct," + "contains,count,coalesce,swap,shuffle,select,or,zap,clean,take,skip,first,last,slice," + "push,filter,matches,weave,fold,flatten,call,apply,log,toArray,clear,indexWhere",
     depends: "string,type"
   }, function() {
-    var baseTime, index;
+    var index;
     $.defineProperty($, "now", {
       get: function() {
         return +(new Date);
@@ -668,39 +668,8 @@
       }
       return Math.min(i, o.length);
     };
-    baseTime = 0;
     return {
       $: {
-        log: $.extend(function() {
-          var a, prefix, ref;
-          a = 1 <= arguments.length ? slice.call(arguments, 0) : [];
-          prefix = "+" + ($.padLeft(String($.now - baseTime), $.log.prefixSize, '0')) + ":";
-          if (baseTime === 0 || prefix.length > $.log.prefixSize + 2) {
-            prefix = $.date.format(baseTime = $.now, "dd/mm/YY HH:MM:SS:", "ms");
-          }
-          if (a.length && $.is("string", a[0])) {
-            a[0] = prefix + " " + a[0];
-          } else {
-            a.unshift(prefix);
-          }
-          (ref = $.log).out.apply(ref, a);
-          if (a.length) {
-            return a[a.length - 1];
-          }
-        }, {
-          out: function() {
-            return console.log.apply(console, arguments);
-          },
-          prefixSize: 5
-        }),
-        logger: function(prefix) {
-          return function() {
-            var m;
-            m = 1 <= arguments.length ? slice.call(arguments, 0) : [];
-            m.unshift(prefix);
-            return $.log.apply($, m);
-          };
-        },
         assert: function(c, m) {
           if (m == null) {
             m = "";
@@ -889,21 +858,18 @@
         return false;
       },
       count: function(item, strict) {
-        var t;
+        var aa, len1, n, t;
         if (strict == null) {
           strict = true;
         }
-        return $((function() {
-          var aa, len1, results;
-          results = [];
-          for (aa = 0, len1 = this.length; aa < len1; aa++) {
-            t = this[aa];
-            if ((item === void 0) || (strict && t === item) || (!strict && t == item)) {
-              results.push(1);
-            }
+        n = 0;
+        for (aa = 0, len1 = this.length; aa < len1; aa++) {
+          t = this[aa];
+          if ((item === void 0) || (strict && t === item) || (!strict && t == item)) {
+            ++n;
           }
-          return results;
-        }).call(this)).sum();
+        }
+        return n;
       },
       coalesce: function() {
         var aa, i, len1;
@@ -1506,7 +1472,10 @@
       HH: Date.prototype.getUTCHours,
       MM: Date.prototype.getUTCMinutes,
       SS: Date.prototype.getUTCSeconds,
-      MS: Date.prototype.getUTCMilliseconds
+      MS: Date.prototype.getUTCMilliseconds,
+      _MS: function() {
+        return $.padLeft(Date.prototype.getUTCMilliseconds.apply(this), 3, "0");
+      }
     };
     format_keys = Object.keys(formats).sort().reverse();
     parsers = {
@@ -1523,6 +1492,9 @@
       HH: Date.prototype.setUTCHours,
       MM: Date.prototype.setUTCMinutes,
       SS: Date.prototype.setUTCSeconds,
+      _MS: function(s) {
+        return this.setUTCMilliseconds(parseInt(s, 10));
+      },
       MS: Date.prototype.setUTCMilliseconds
     };
     parser_keys = Object.keys(parsers).sort().reverse();
@@ -3664,6 +3636,47 @@
   });
 
   $.plugin({
+    provides: "log, logger",
+    depends: "bound"
+  }, function() {
+    var log;
+    log = function() {
+      var a, p;
+      a = 1 <= arguments.length ? slice.call(arguments, 0) : [];
+      if (a.length) {
+        if (p = typeof log.pre === "function" ? log.pre() : void 0) {
+          a.unshift(p);
+        }
+        log.out.apply(log, a);
+        return a[a.length - 1];
+      }
+    };
+    log.out = console.log.bind(console);
+    log.pre = null;
+    log.enableTimestamps = function() {
+      return log.pre = function() {
+        return $.date.format(+new Date(), "yyyy-mm-dd HH:MM:SS._MS", "ms");
+      };
+    };
+    log.disableTimestamps = function() {
+      return log.pre = null;
+    };
+    return {
+      $: {
+        log: log,
+        logger: function(prefix) {
+          return function() {
+            var a;
+            a = 1 <= arguments.length ? slice.call(arguments, 0) : [];
+            a.unshift(prefix);
+            return log.apply(null, a);
+          };
+        }
+      }
+    };
+  });
+
+  $.plugin({
     provides: "matches",
     depends: "function,core,string"
   }, function() {
@@ -4859,7 +4872,7 @@
 
   $.plugin({
     provides: "render",
-    depends: "promise, type"
+    depends: "promise, type, logger"
   }, function() {
     var aka, array_finalize, array_reduce, consume_forever, finalize, log, object_handlers, reduce, register, render;
     log = $.logger("[render]");
@@ -5172,91 +5185,73 @@
 
   $.plugin({
     provides: "StateMachine",
-    depends: "type"
+    depends: "type, logger"
   }, function() {
-    var StateMachine;
+    var StateMachine, _callAll, log;
+    _callAll = function(f, c, arg) {
+      while ($.is('function', f)) {
+        f = f.call(c, arg);
+      }
+      if ($.is('number', f)) {
+        return c.state = f;
+      }
+    };
+    log = $.logger("[StateMachine]");
     return {
       $: {
         StateMachine: StateMachine = (function() {
           var go;
 
-          function StateMachine(stateTable) {
-            this.debug = false;
-            this.reset();
-            this.table = stateTable;
-            Object.defineProperty(this, "modeline", {
-              get: function() {
-                return this.table[this._mode];
-              }
-            });
-            Object.defineProperty(this, "mode", {
+          function StateMachine(table1) {
+            var state;
+            this.table = table1;
+            state = null;
+            $.defineProperty(this, "state", {
               set: function(m) {
-                var ret;
-                this._lastMode = this._mode;
-                this._mode = m;
-                if (this._mode !== this._lastMode && (this.modeline != null) && 'enter' in this.modeline) {
-                  ret = this.modeline['enter'].call(this);
-                  while ($.is("function", ret)) {
-                    ret = ret.call(this);
-                  }
+                if (m !== state && m in this.table) {
+                  _callAll(this.table[state = m].enter, this);
+                } else if (m === null) {
+                  state = null;
                 }
-                return m;
+                return state;
               },
               get: function() {
-                return this._mode;
+                return state;
               }
             });
           }
 
-          StateMachine.prototype.reset = function() {
-            this._mode = null;
-            return this._lastMode = null;
-          };
-
-          StateMachine.prototype.GO = go = function(m, enter) {
-            if (enter == null) {
-              enter = false;
+          StateMachine.prototype.goto = go = function(m, reset) {
+            if (reset == null) {
+              reset = false;
             }
             return function() {
-              if (enter) {
-                this._mode = null;
+              if (reset) {
+                this.state = null;
               }
-              return this.mode = m;
+              return this.state = m;
             };
           };
 
-          StateMachine.GO = go;
+          StateMachine.goto = go;
 
           StateMachine.prototype.tick = function(c) {
-            var ret, row;
-            row = this.modeline;
+            var ref, row;
+            row = this.table[this.state];
             if (row == null) {
-              ret = null;
-            } else if (c in row) {
-              ret = row[c];
-            } else if ('def' in row) {
-              ret = row['def'];
+              return null;
             }
-            while ($.is("function", ret)) {
-              ret = ret.call(this, c);
-            }
-            return ret;
+            return _callAll((ref = row[c]) != null ? ref : row.def, this, c);
           };
 
           StateMachine.prototype.run = function(inputs) {
-            var aa, c, len1, ref, ret;
-            this.mode = 0;
+            var aa, c, len1;
+            this.state = 0;
             for (aa = 0, len1 = inputs.length; aa < len1; aa++) {
               c = inputs[aa];
-              ret = this.tick(c);
+              this.tick(c);
             }
-            if ($.is("function", (ref = this.modeline) != null ? ref.eof : void 0)) {
-              ret = this.modeline.eof.call(this);
-            }
-            while ($.is("function", ret)) {
-              ret = ret.call(this);
-            }
-            this.reset();
+            _callAll(this.table[this.state].eof, this);
             return this;
           };
 
@@ -5726,25 +5721,47 @@
     provides: "synth",
     depends: "StateMachine, type"
   }, function() {
-    var SynthMachine;
+    var SynthMachine, machine;
     SynthMachine = (function(superClass) {
-      var basic;
+      var common;
 
       extend1(SynthMachine, superClass);
 
-      basic = {
-        "#": SynthMachine.GO(2),
-        ".": SynthMachine.GO(3, true),
-        "[": SynthMachine.GO(4),
-        '"': SynthMachine.GO(6),
-        "'": SynthMachine.GO(7),
-        " ": SynthMachine.GO(8),
-        "\t": SynthMachine.GO(8),
-        "\n": SynthMachine.GO(8),
-        "\r": SynthMachine.GO(8),
-        ",": SynthMachine.GO(10),
-        "+": SynthMachine.GO(11),
-        eof: SynthMachine.GO(13)
+      common = {
+        "#": function() {
+          return 2;
+        },
+        ".": SynthMachine.goto(3, true),
+        "[": function() {
+          return 4;
+        },
+        '"': function() {
+          return 6;
+        },
+        "'": function() {
+          return 7;
+        },
+        " ": function() {
+          return 8;
+        },
+        "\t": function() {
+          return 8;
+        },
+        "\n": function() {
+          return 8;
+        },
+        "\r": function() {
+          return 8;
+        },
+        ",": function() {
+          return 10;
+        },
+        "+": function() {
+          return 11;
+        },
+        eof: function() {
+          return 13;
+        }
       };
 
       SynthMachine.STATE_TABLE = [
@@ -5752,80 +5769,98 @@
           enter: function() {
             this.tag = this.id = this.cls = this.attr = this.val = this.text = "";
             this.attrs = {};
-            return this.GO(1);
+            return 1;
           }
         }, $.extend({
           def: function(c) {
-            return this.tag += c;
+            this.tag += c;
+            return 1;
           }
-        }, basic), $.extend({
+        }, common), $.extend({
           def: function(c) {
-            return this.id += c;
+            this.id += c;
+            return 2;
           }
-        }, basic), $.extend({
+        }, common), $.extend({
           enter: function() {
             if (this.cls.length > 0) {
-              return this.cls += " ";
+              this.cls += " ";
             }
+            return 3;
           },
           def: function(c) {
-            return this.cls += c;
+            this.cls += c;
+            return 3;
           }
-        }, basic), {
-          "=": SynthMachine.GO(5),
+        }, common), {
+          "=": function() {
+            return 5;
+          },
           "]": function() {
             this.attrs[this.attr] = this.val;
             this.attr = this.val = "";
-            return this.GO(1);
+            return 1;
           },
           def: function(c) {
-            return this.attr += c;
+            this.attr += c;
+            return 4;
           },
-          eof: SynthMachine.GO(12)
+          eof: function() {
+            return 12;
+          }
         }, {
           "]": function() {
             this.attrs[this.attr] = this.val;
             this.attr = this.val = "";
-            return this.GO(1);
+            return 1;
           },
           def: function(c) {
-            return this.val += c;
+            this.val += c;
+            return 5;
           },
-          eof: SynthMachine.GO(12)
+          eof: function() {
+            return 12;
+          }
         }, {
-          '"': SynthMachine.GO(8),
-          def: function(c) {
-            return this.text += c;
+          '"': function() {
+            return 8;
           },
-          eof: SynthMachine.GO(12)
+          def: function(c) {
+            this.text += c;
+            return 6;
+          },
+          eof: function() {
+            return 12;
+          }
         }, {
-          "'": SynthMachine.GO(8),
-          def: function(c) {
-            return this.text += c;
+          "'": function() {
+            return 8;
           },
-          eof: SynthMachine.GO(12)
+          def: function(c) {
+            this.text += c;
+            return 7;
+          },
+          eof: function() {
+            return 12;
+          }
         }, {
           enter: function() {
-            if (this.tag) {
-              this.emitNode();
-            }
-            if (this.text) {
-              this.emitText();
-            }
-            return this.GO(0);
+            this.emitNode();
+            this.emitText();
+            return 0;
           }
         }, {}, {
           enter: function() {
             this.emitNode();
             this.cursor = null;
-            return this.GO(0);
+            return 0;
           }
         }, {
           enter: function() {
             var ref;
             this.emitNode();
             this.cursor = (ref = this.cursor) != null ? ref.parentNode : void 0;
-            return this.GO(0);
+            return 0;
           }
         }, {
           enter: function() {
@@ -5833,20 +5868,23 @@
           }
         }, {
           enter: function() {
-            if (this.tag) {
-              this.emitNode();
-            }
-            if (this.text) {
-              return this.emitText();
-            }
+            this.emitNode();
+            this.emitText();
+            return 0;
           }
         }
       ];
 
       function SynthMachine() {
         SynthMachine.__super__.constructor.call(this, SynthMachine.STATE_TABLE);
-        this.fragment = this.cursor = document.createDocumentFragment();
+        this.reset();
       }
+
+      SynthMachine.prototype.reset = function() {
+        this.fragment = this.cursor = document.createDocumentFragment();
+        this.tag = this.id = this.cls = this.attr = this.val = this.text = "";
+        return this.attrs = {};
+      };
 
       SynthMachine.prototype.emitNode = function() {
         var k, node;
@@ -5867,23 +5905,26 @@
       };
 
       SynthMachine.prototype.emitText = function() {
-        this.cursor.appendChild($.type.lookup("<html>").node(this.text));
-        return this.text = "";
+        var ref;
+        if (((ref = this.text) != null ? ref.length : void 0) > 0) {
+          this.cursor.appendChild($.type.lookup("<html>").node(this.text));
+          return this.text = "";
+        }
       };
 
       return SynthMachine;
 
     })($.StateMachine);
+    machine = new SynthMachine();
     return {
       $: {
         synth: function(expr) {
-          var s;
-          s = new SynthMachine();
-          s.run(expr);
-          if (s.fragment.childNodes.length === 1) {
-            return $(s.fragment.childNodes[0]);
+          machine.reset();
+          machine.run(expr);
+          if (machine.fragment.childNodes.length === 1) {
+            return $(machine.fragment.childNodes[0]);
           } else {
-            return $(s.fragment);
+            return $(machine.fragment);
           }
         }
       }
@@ -6297,7 +6338,7 @@
 
   $.plugin({
     provides: "trace",
-    depends: "function,type"
+    depends: "function,type,logger"
   }, function() {
     var time;
     $.type.extend({

@@ -12,11 +12,11 @@ describe ".StateMachine", ->
 					{
 						enter: ->
 							@output = "<<"
-							@GO 1
+							1
 					}
 					{
 						def: (c) -> @output += c.toUpperCase()
-						eof: @GO 2
+						eof: -> 2
 					}
 					{
 						enter: -> @output += ">>"

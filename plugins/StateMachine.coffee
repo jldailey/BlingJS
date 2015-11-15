@@ -1,56 +1,45 @@
 $.plugin
 	provides: "StateMachine"
-	depends: "type"
+	depends: "type, logger"
 , ->
-	$: StateMachine: class StateMachine # see plugins/synth for a complete usage example
-		constructor: (stateTable) ->
-			@debug = false
-			@reset()
-			@table = stateTable
-			Object.defineProperty @, "modeline",
-				get: -> @table[@_mode]
-			Object.defineProperty @, "mode",
-				set: (m) ->
-					@_lastMode = @_mode
-					@_mode = m
-					if @_mode isnt @_lastMode and @modeline? and 'enter' of @modeline
-						ret = @modeline['enter'].call @
-						while $.is("function",ret)
-							ret = ret.call @
-					m
-				get: -> @_mode
+	_callAll = (f, c, arg) ->
+		while $.is 'function', f
+			f = f.call c, arg
+		if $.is 'number', f
+			c.state = f	
+	
+	log = $.logger "[StateMachine]"
 
-		reset: ->
-			@_mode = null
-			@_lastMode = null
+	$: StateMachine: class StateMachine # see plugins/synth for a complete usage example
+		constructor: (@table) ->
+			state = null
+			$.defineProperty @, "state",
+				set: (m) ->
+					if m isnt state and m of @table
+						_callAll @table[state = m].enter, @
+					else if m is null
+						state = null
+					state
+				get: -> state
 
 		# static and instance versions of a state-changer factory
-		GO: go = (m, enter=false) -> ->
-			if enter # force enter to trigger
-				@_mode = null
-			@mode = m
-		@GO: go
+		goto: go = (m, reset=false) -> ->
+			if reset # force enter: to trigger
+				@state = null
+			@state = m
+		@goto: go
 
 		tick: (c) ->
-			row = @modeline
-			if not row?
-				ret = null
-			else if c of row
-				ret = row[c]
-			else if 'def' of row
-				ret = row['def']
-			while $.is "function",ret
-				ret = ret.call @, c
-			ret
+			row = @table[@state]
+			return null unless row?
+			_callAll (row[c] ? row.def), @, c
 
 		run: (inputs) ->
-			@mode = 0
-			for c in inputs
-				ret = @tick(c)
-			if $.is "function",@modeline?.eof
-				ret = @modeline.eof.call @
-			while $.is "function",ret
-				ret = ret.call @
-			@reset()
-			return @
+			# run the enter: rule for state 0
+			@state = 0
+			# run all the inputs through the machine
+			@tick(c) for c in inputs
+			# run the eof: rule for the final state
+			_callAll @table[@state].eof, @
+			@
 

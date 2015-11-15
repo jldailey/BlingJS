@@ -3,89 +3,94 @@ $.plugin
 	depends: "StateMachine, type"
 , ->
 	class SynthMachine extends $.StateMachine
-		basic = # a common template included in lots of the state machine rules
-			"#": @GO 2
-			".": @GO 3, true
-			"[": @GO 4
-			'"': @GO 6
-			"'": @GO 7
-			" ": @GO 8
-			"\t": @GO 8
-			"\n": @GO 8
-			"\r": @GO 8
-			",": @GO 10
-			"+": @GO 11
-			eof: @GO 13
+		common = # a common template included in lots of the state machine rules
+			"#":  -> 2
+			".":  @goto 3, true
+			"[":  -> 4
+			'"':  -> 6
+			"'":  -> 7
+			" ":  -> 8
+			"\t": -> 8
+			"\n": -> 8
+			"\r": -> 8
+			",":  -> 10
+			"+":  -> 11
+			eof:  -> 13
 
 		@STATE_TABLE = [
 			{ # 0: START
 				enter: ->
 					@tag = @id = @cls = @attr = @val = @text = ""
 					@attrs = {}
-					@GO 1
+					1
 			},
 			$.extend({ # 1: read a tag name
-				def: (c) -> @tag += c
-			}, basic),
+				def: (c) -> @tag += c; 1
+			}, common),
 			$.extend({ # 2: read an #id
-				def: (c) -> @id += c
-			}, basic),
+				def: (c) -> @id += c; 2
+			}, common),
 			$.extend({ # 3: read a .class name
-				enter: -> @cls += " " if @cls.length > 0
-				def: (c) -> @cls += c
-			}, basic),
+				enter: -> @cls += " " if @cls.length > 0; 3
+				def: (c) -> @cls += c; 3
+			}, common),
 			{ # 4: read an attribute name (left-side)
-				"=": @GO 5
-				"]": -> @attrs[@attr] = @val; @attr = @val = ""; @GO 1
-				def: (c) -> @attr += c
-				eof: @GO 12
+				"=": -> 5
+				"]": -> @attrs[@attr] = @val; @attr = @val = ""; 1
+				def: (c) -> @attr += c; 4
+				eof: -> 12
 			},
 			{ # 5: read an attribute value (right-side)
-				"]": -> @attrs[@attr] = @val; @attr = @val = ""; @GO 1
-				def: (c) -> @val += c
-				eof: @GO 12
+				"]": -> @attrs[@attr] = @val; @attr = @val = ""; 1
+				def: (c) -> @val += c; 5
+				eof: -> 12
 			},
 			{ # 6: read double-quoted text
-				'"': @GO 8
-				def: (c) -> @text += c
-				eof: @GO 12
+				'"': -> 8
+				def: (c) -> @text += c; 6
+				eof: -> 12
 			},
 			{ # 7: read single-quoted text
-				"'": @GO 8
-				def: (c) -> @text += c
-				eof: @GO 12
+				"'": -> 8
+				def: (c) -> @text += c; 7
+				eof: -> 12
 			},
 			{ # 8: emit text and continue
 				enter: ->
-					@emitNode() if @tag
-					@emitText() if @text
-					@GO 0
+					@emitNode()
+					@emitText()
+					0
 			},
 			{}, # 9: empty
 			{ # 10: emit node and start a new tree
 				enter: ->
 					@emitNode()
 					@cursor = null
-					@GO 0
+					0
 			},
 			{ # 11: emit node and step sideways to create a sibling
 				enter: ->
 					@emitNode()
 					@cursor = @cursor?.parentNode
-					@GO 0
+					0
 			},
 			{ # 12: ERROR
 				enter: -> throw new Error "Error in synth expression: #{@input}"
 			},
 			{ # 13: FINALIZE
 				enter: ->
-					@emitNode() if @tag
-					@emitText() if @text
+					@emitNode()
+					@emitText()
+					0
 			}
 		]
 		constructor: ->
 			super(SynthMachine.STATE_TABLE)
+			@reset()
+		reset: ->
 			@fragment = @cursor = document.createDocumentFragment()
+			@tag = @id = @cls = @attr = @val = @text = ""
+			@attrs = {}
 		emitNode: ->
 			if @tag
 				node = document.createElement @tag
@@ -96,17 +101,20 @@ $.plugin
 				@cursor.appendChild node
 				@cursor = node
 		emitText: ->
-			@cursor.appendChild $.type.lookup("<html>").node(@text)
-			@text = ""
+			if @text?.length > 0
+				@cursor.appendChild $.type.lookup("<html>").node(@text)
+				@text = ""
 
+
+	machine = new SynthMachine()
 	return {
 		$:
 			synth: (expr) ->
 				# .synth(expr) - create DOM nodes to match a simple css expression
-				s = new SynthMachine()
-				s.run(expr)
-				if s.fragment.childNodes.length == 1
-					$(s.fragment.childNodes[0])
+				machine.reset()
+				machine.run(expr)
+				if machine.fragment.childNodes.length == 1
+					$(machine.fragment.childNodes[0])
 				else
-					$(s.fragment)
+					$(machine.fragment)
 	}

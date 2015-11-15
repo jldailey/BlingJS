@@ -104,7 +104,7 @@ $.plugin
 	}
 $.plugin
 	provides: "cache, Cache"
-	depends: "core, sortBy"
+	depends: "core, sortBy, logger"
 , ->
 	class EffCache
 		log = $.logger "[LRU]"
@@ -302,24 +302,9 @@ $.plugin
 	index = (i, o) ->
 		i += o.length while i < 0
 		Math.min i, o.length
-	baseTime = 0
+	
 	return {
 		$:
-			log: $.extend((a...) ->
-				prefix = "+#{$.padLeft String($.now - baseTime), $.log.prefixSize, '0'}:"
-				if baseTime is 0 or prefix.length > $.log.prefixSize + 2
-					prefix = $.date.format(baseTime = $.now, "dd/mm/YY HH:MM:SS:", "ms")
-				if a.length and $.is "string", a[0]
-					a[0] = "#{prefix} #{a[0]}"
-				else
-					a.unshift prefix
-				$.log.out a...
-				return a[a.length-1] if a.length
-			, {
-				out: -> console.log.apply console, arguments
-				prefixSize: 5
-			})
-			logger: (prefix) -> (m...) -> m.unshift(prefix); $.log m...
 			assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 			coalesce: (a...) -> $(a).coalesce()
 			keysOf: (o, own=false) ->
@@ -372,11 +357,11 @@ $.plugin
 				return true
 			false
 		count: (item, strict = true) ->
-			$(1 for t in @ \
-				when (item is undefined) \
+			n = 0
+			++n for t in @ when (item is undefined) \
 				or (strict and t is item) \
 				or (not strict and `t == item`)
-			).sum()
+			n
 		coalesce: ->
 			for i in @
 				if $.type.in 'array','bling', i then i = $(i).coalesce()
@@ -401,7 +386,8 @@ $.plugin
 			selectOne = (p) ->
 				switch type = $.type p
 					when 'regexp' then selectMany.call @, p
-					when 'string'
+					when 'string','number'
+						p = String(p)
 						if p is "*" then @flatten()
 						else if (i = p.indexOf '.') > -1 then @select(p.substr 0,i).select(p.substr i+1)
 						else @map(getter p)
@@ -652,6 +638,8 @@ $.plugin
 		MM: Date.prototype.getUTCMinutes
 		SS: Date.prototype.getUTCSeconds
 		MS: Date.prototype.getUTCMilliseconds
+		_MS: ->
+			$.padLeft Date.prototype.getUTCMilliseconds.apply(@), 3, "0"
 	format_keys = Object.keys(formats).sort().reverse()
 	parsers =
 		YYYY: pYYYY = Date.prototype.setUTCFullYear
@@ -663,6 +651,7 @@ $.plugin
 		HH: Date.prototype.setUTCHours
 		MM: Date.prototype.setUTCMinutes
 		SS: Date.prototype.setUTCSeconds
+		_MS: (s) -> @setUTCMilliseconds parseInt s, 10
 		MS: Date.prototype.setUTCMilliseconds
 	parser_keys = Object.keys(parsers).sort().reverse()
 	floor = Math.floor
@@ -1694,6 +1683,26 @@ $.plugin
 			lazy_load "script", { src: src }
 		style: (src) ->
 			lazy_load "link", { href: src, rel: "stylesheet" }
+$.plugin {
+	provides: "log, logger"
+	depends: "bound"
+}, ->
+	log = (a...) ->
+		if a.length
+			if p = log.pre?()
+				a.unshift p
+			log.out a...
+			return a[a.length-1]
+	log.out = console.log.bind console
+	log.pre = null
+	log.enableTimestamps = ->
+		log.pre = -> $.date.format(+new Date(), "yyyy-mm-dd HH:MM:SS._MS", "ms")
+	log.disableTimestamps = ->
+		log.pre = null
+	return $: {
+		log: log
+		logger: (prefix) -> (a...) -> a.unshift prefix; log a...
+	}
 $.plugin
 	provides: "matches"
 	depends: "function,core,string"
@@ -1804,7 +1813,10 @@ $.plugin
 	minBy: _By (a,b) -> a < b
 	mean: mean = -> if not @length then 0 else @sum() / @length
 	avg: mean
-	sum: -> @filter( isFinite ).filter(null, false).reduce(((a) -> a + @), 0)
+	sum: ->
+		n = 0
+		n += x for x in @ when x? and isFinite(x)
+		n
 	product: -> @filter( isFinite ).reduce (a) -> a * @
 	squares: -> @pow(2)
 	pow: (n) -> @map -> Math.pow @, n
@@ -2196,7 +2208,9 @@ $.plugin
 			element: (arr, weights) ->
 				if weights?
 					w = $(weights)
-					w = w.scale(1.0/w.sum())
+					sum_w = 1.0/w.sum()
+					if sum_w isnt 1
+						w = w.scale(sum_w)
 					i = 0
 					sorted = $(arr).map((x) -> {v: x, w: w[i++] }).sortBy (x) -> -x.w
 					r = $.random.real(0.00001,.999999) # never exactly 0.0 or 1.0
@@ -2223,7 +2237,7 @@ $.plugin
 				$(8,4,4,4,12).map(-> $.random.string @,'',uuidAlphabet).join '-'
 $.plugin
 	provides: "render"
-	depends: "promise, type"
+	depends: "promise, type, logger"
 , ->
 	log = $.logger "[render]"
 	consume_forever = (promise, opts, p = $.Promise()) ->
@@ -2347,54 +2361,40 @@ $.plugin
 		@
 $.plugin
 	provides: "StateMachine"
-	depends: "type"
+	depends: "type, logger"
 , ->
+	_callAll = (f, c, arg) ->
+		while $.is 'function', f
+			f = f.call c, arg
+		if $.is 'number', f
+			c.state = f	
+	
+	log = $.logger "[StateMachine]"
 	$: StateMachine: class StateMachine # see plugins/synth for a complete usage example
-		constructor: (stateTable) ->
-			@debug = false
-			@reset()
-			@table = stateTable
-			Object.defineProperty @, "modeline",
-				get: -> @table[@_mode]
-			Object.defineProperty @, "mode",
+		constructor: (@table) ->
+			state = null
+			$.defineProperty @, "state",
 				set: (m) ->
-					@_lastMode = @_mode
-					@_mode = m
-					if @_mode isnt @_lastMode and @modeline? and 'enter' of @modeline
-						ret = @modeline['enter'].call @
-						while $.is("function",ret)
-							ret = ret.call @
-					m
-				get: -> @_mode
-		reset: ->
-			@_mode = null
-			@_lastMode = null
-		GO: go = (m, enter=false) -> ->
-			if enter # force enter to trigger
-				@_mode = null
-			@mode = m
-		@GO: go
+					if m isnt state and m of @table
+						_callAll @table[state = m].enter, @
+					else if m is null
+						state = null
+					state
+				get: -> state
+		goto: go = (m, reset=false) -> ->
+			if reset # force enter: to trigger
+				@state = null
+			@state = m
+		@goto: go
 		tick: (c) ->
-			row = @modeline
-			if not row?
-				ret = null
-			else if c of row
-				ret = row[c]
-			else if 'def' of row
-				ret = row['def']
-			while $.is "function",ret
-				ret = ret.call @, c
-			ret
+			row = @table[@state]
+			return null unless row?
+			_callAll (row[c] ? row.def), @, c
 		run: (inputs) ->
-			@mode = 0
-			for c in inputs
-				ret = @tick(c)
-			if $.is "function",@modeline?.eof
-				ret = @modeline.eof.call @
-			while $.is "function",ret
-				ret = ret.call @
-			@reset()
-			return @
+			@state = 0
+			@tick(c) for c in inputs
+			_callAll @table[@state].eof, @
+			@
 $.plugin
 	provides: "string"
 	depends: "type"
@@ -2595,88 +2595,93 @@ $.plugin
 	depends: "StateMachine, type"
 , ->
 	class SynthMachine extends $.StateMachine
-		basic = # a common template included in lots of the state machine rules
-			"#": @GO 2
-			".": @GO 3, true
-			"[": @GO 4
-			'"': @GO 6
-			"'": @GO 7
-			" ": @GO 8
-			"\t": @GO 8
-			"\n": @GO 8
-			"\r": @GO 8
-			",": @GO 10
-			"+": @GO 11
-			eof: @GO 13
+		common = # a common template included in lots of the state machine rules
+			"#":  -> 2
+			".":  @goto 3, true
+			"[":  -> 4
+			'"':  -> 6
+			"'":  -> 7
+			" ":  -> 8
+			"\t": -> 8
+			"\n": -> 8
+			"\r": -> 8
+			",":  -> 10
+			"+":  -> 11
+			eof:  -> 13
 		@STATE_TABLE = [
 			{ # 0: START
 				enter: ->
 					@tag = @id = @cls = @attr = @val = @text = ""
 					@attrs = {}
-					@GO 1
+					1
 			},
 			$.extend({ # 1: read a tag name
-				def: (c) -> @tag += c
-			}, basic),
+				def: (c) -> @tag += c; 1
+			}, common),
 			$.extend({ # 2: read an #id
-				def: (c) -> @id += c
-			}, basic),
+				def: (c) -> @id += c; 2
+			}, common),
 			$.extend({ # 3: read a .class name
-				enter: -> @cls += " " if @cls.length > 0
-				def: (c) -> @cls += c
-			}, basic),
+				enter: -> @cls += " " if @cls.length > 0; 3
+				def: (c) -> @cls += c; 3
+			}, common),
 			{ # 4: read an attribute name (left-side)
-				"=": @GO 5
-				"]": -> @attrs[@attr] = @val; @attr = @val = ""; @GO 1
-				def: (c) -> @attr += c
-				eof: @GO 12
+				"=": -> 5
+				"]": -> @attrs[@attr] = @val; @attr = @val = ""; 1
+				def: (c) -> @attr += c; 4
+				eof: -> 12
 			},
 			{ # 5: read an attribute value (right-side)
-				"]": -> @attrs[@attr] = @val; @attr = @val = ""; @GO 1
-				def: (c) -> @val += c
-				eof: @GO 12
+				"]": -> @attrs[@attr] = @val; @attr = @val = ""; 1
+				def: (c) -> @val += c; 5
+				eof: -> 12
 			},
 			{ # 6: read double-quoted text
-				'"': @GO 8
-				def: (c) -> @text += c
-				eof: @GO 12
+				'"': -> 8
+				def: (c) -> @text += c; 6
+				eof: -> 12
 			},
 			{ # 7: read single-quoted text
-				"'": @GO 8
-				def: (c) -> @text += c
-				eof: @GO 12
+				"'": -> 8
+				def: (c) -> @text += c; 7
+				eof: -> 12
 			},
 			{ # 8: emit text and continue
 				enter: ->
-					@emitNode() if @tag
-					@emitText() if @text
-					@GO 0
+					@emitNode()
+					@emitText()
+					0
 			},
 			{}, # 9: empty
 			{ # 10: emit node and start a new tree
 				enter: ->
 					@emitNode()
 					@cursor = null
-					@GO 0
+					0
 			},
 			{ # 11: emit node and step sideways to create a sibling
 				enter: ->
 					@emitNode()
 					@cursor = @cursor?.parentNode
-					@GO 0
+					0
 			},
 			{ # 12: ERROR
 				enter: -> throw new Error "Error in synth expression: #{@input}"
 			},
 			{ # 13: FINALIZE
 				enter: ->
-					@emitNode() if @tag
-					@emitText() if @text
+					@emitNode()
+					@emitText()
+					0
 			}
 		]
 		constructor: ->
 			super(SynthMachine.STATE_TABLE)
+			@reset()
+		reset: ->
 			@fragment = @cursor = document.createDocumentFragment()
+			@tag = @id = @cls = @attr = @val = @text = ""
+			@attrs = {}
 		emitNode: ->
 			if @tag
 				node = document.createElement @tag
@@ -2687,17 +2692,19 @@ $.plugin
 				@cursor.appendChild node
 				@cursor = node
 		emitText: ->
-			@cursor.appendChild $.type.lookup("<html>").node(@text)
-			@text = ""
+			if @text?.length > 0
+				@cursor.appendChild $.type.lookup("<html>").node(@text)
+				@text = ""
+	machine = new SynthMachine()
 	return {
 		$:
 			synth: (expr) ->
-				s = new SynthMachine()
-				s.run(expr)
-				if s.fragment.childNodes.length == 1
-					$(s.fragment.childNodes[0])
+				machine.reset()
+				machine.run(expr)
+				if machine.fragment.childNodes.length == 1
+					$(machine.fragment.childNodes[0])
 				else
-					$(s.fragment)
+					$(machine.fragment)
 	}
 $.plugin
 	depends: "StateMachine, function"
@@ -2939,7 +2946,7 @@ $.plugin
 			parse: (x) -> unpackOne(x)?[0]
 $.plugin
 	provides: "trace"
-	depends: "function,type"
+	depends: "function,type,logger"
 , ->
 	$.type.extend
 		unknown:  { trace: $.identity }

@@ -1,6 +1,6 @@
 $.plugin
 	provides: "synth"
-	depends: "StateMachine, type"
+	depends: "StateMachine, type, dom"
 , ->
 	class SynthMachine extends $.StateMachine
 		common = # a common template included in lots of the state machine rules

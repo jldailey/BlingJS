@@ -6,8 +6,6 @@ describe "Middleware plugin:", ->
 			m = $.middleware()
 			assert.equal 'function', $.type m.use
 			assert.equal 'function', $.type m.invoke
-		it "registers with the type system", ->
-			assert.equal 'middleware', $.type $.middleware()
 		describe "::use(f)", ->
 			it "adds a middleware to the chain", ->
 				m = $.middleware()
@@ -48,4 +46,14 @@ describe "Middleware plugin:", ->
 					next()
 				m.unuse f
 				m.invoke false
+				assert.equal true, pass
+		describe "::catch(f)", ->
+			it "registers an error handler", ->
+				m = $.middleware()
+				pass = false
+				m.use (next) ->
+					throw new Error "thrown"
+				m.catch (err) ->
+					pass = true
+				m.invoke()
 				assert.equal true, pass

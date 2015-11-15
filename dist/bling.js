@@ -4107,24 +4107,19 @@
     provides: 'middleware',
     depends: 'type'
   }, function() {
-    $.type.register('middleware', {
-      is: function(o) {
-        var err;
-        try {
-          return $.are('function', o.use, o.unuse, o.invoke);
-        } catch (_error) {
-          err = _error;
-          return false;
-        }
-      }
-    });
     return {
       $: {
         middleware: function(s) {
+          var e;
           if (s == null) {
             s = [];
           }
+          e = $();
           return {
+            "catch": function(f) {
+              e.push(f);
+              return this;
+            },
             use: function(f) {
               s.push(f);
               return this;
@@ -4137,14 +4132,20 @@
               return this;
             },
             invoke: function() {
-              var a, i, n;
+              var a, i, next;
               a = 1 <= arguments.length ? slice.call(arguments, 0) : [];
               i = -1;
-              (n = (function() {
-                try {
-                  return s[++i].apply(s, slice.call(a).concat([n]));
-                } catch (_error) {}
-              }))();
+              (next = ((function(_this) {
+                return function() {
+                  var _e;
+                  try {
+                    return s[++i].apply(s, slice.call(a).concat([next]));
+                  } catch (_error) {
+                    _e = _error;
+                    return e.call(_e);
+                  }
+                };
+              })(this)))();
               return this;
             }
           };

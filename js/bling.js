@@ -5720,7 +5720,7 @@
 
   $.plugin({
     provides: "synth",
-    depends: "StateMachine, type"
+    depends: "StateMachine, type, dom"
   }, function() {
     var SynthMachine, machine;
     SynthMachine = (function(superClass) {

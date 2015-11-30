@@ -35,22 +35,21 @@ bench/%.coffee.time: bench/%.coffee plugins/%.coffee bench/setup.coffee bling.co
 	@echo Running $<
 	@$(COFFEE) $< > $@
 
-site: test
+site: dist/bling.js test
 	@git stash save &> /dev/null
 	@git checkout site
 	@sleep 1
-	@cp $(DIST)/*.js js
-	@cp $(DIST)/*.js.gz js
-	@git show master:$(DIST)/bling.coffee > js/bling.coffee
-	@git show master:$(DIST)/bling.js > js/bling.js
-	@git show master:$(DIST)/bling.js.map > js/bling.js.map
-	@git show master:$(DIST)/min.bling.js.map > js/min.bling.js.map
-	@git show master:package.json > js/package.json
+	@git show master:dist/bling.coffee > js/bling.coffee
+	@git show master:dist/bling.js > js/bling.coffee
+	@git show master:dist/bling.js.map > js/bling.coffee
+	@(cd js && ../node_modules/.bin/uglifyjs bling.js -c --source-map bling.min.js.map --in-source-map bling.js.map  -m -r '$,Bling,window,document' --screw-ie8 -o bling.min.js)
+	@(cd js && gzip -f9c bling.min.js > bling.min.js.gz)
+	@git add -f js/bling* js/package.json
 	@git commit -am "make site" || true
 	@sleep 1
-	@git checkout master
+	@echo git checkout master
 	@sleep 1
-	@git stash pop || true
+	@echo git stash pop || true
 
 $(DIST)/min.%.js: $(DIST)/%.js $(UGLIFY)
 	@echo Minifying $< to $@...

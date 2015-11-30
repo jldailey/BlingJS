@@ -90,37 +90,40 @@ $.plugin = (opts, constructor) ->
 	if not constructor
 		constructor = opts
 		opts = {}
+	
+	_t = @
 
 	# If this plugin depends on anything, then defer.
 	if "depends" of opts
-		return @depends opts.depends, =>
+		return _t.depends opts.depends, ->
 			# Pass along any { provides: } option.
-			@plugin { provides: opts.provides }, constructor
+			_t.plugin { provides: opts.provides }, constructor
 	try
 		# We call the plugin constructor and expect that it returns an
 		# object full of keys to extend either Bling or it's prototype.
-		if typeof (plugin = constructor?.call @,@) is "object"
+		if typeof (plugin = constructor?.call _t,_t) is "object"
 			# If the plugin has a `$` key, extend the root with static items.
-			extend @, plugin?.$
+			extend @, plugin.$
 			# What remains extends the Bling prototype.
 			delete plugin.$
-			extend @prototype, plugin
+			extend _t.prototype, plugin
 			# Add static wrappers for anything that doesn't have one.
-			for key of plugin then do (key) =>
-				@[key] or= (a...) => (@prototype[key].apply $(a[0]), a[1...])
+			for key of plugin then do (key) ->
+				_t[key] or= (a...) -> (_t.prototype[key].apply $(a[0]), a[1...])
 			# Honor the { provides: } option.
-			if opts.provides? then @provide opts.provides
+			if opts.provides? then _t.provide opts.provides
 	catch error
-		console.log "failed to load plugin: #{@name} #{error.message}: #{error.stack}"
+		console.error "plugin failed '#{_t.name}':", ($.debugStack ? $.identity ? (x) -> x) error.stack
 	@
 
 # Dependency
 # ----------
 # $.depends, $.provide, represent dependencies between functions.
 
-# Example: `$.depends "tag", -> $.log "hello"`
-# This example will not log "hello" until `provide("tag")` is
-# called.
+# Example: `$.depends "foo", -> $.log "hello"`
+# This example will not log "hello" until `$.provide("foo")` is called.
+# Any arguments given to the call to provide, will be passed to
+# every dependent.
 extend $, do ->
 	waiting = []
 	complete = {}
@@ -130,26 +133,23 @@ extend $, do ->
 		(if (typeof n) is "string" then n.split commasep else n)
 		.filter not_complete
 
-	depend = (needs, func) ->
+	depends: (needs, func) ->
 		if (needs = incomplete needs).length is 0 then func()
-		else
-			waiting.push (need) ->
-				(needs.splice i, 1) if (i = needs.indexOf need) > -1
-				return (needs.length is 0 and func)
+		else waiting.push (need) ->
+			(needs.splice i, 1) if (i = needs.indexOf need) > -1
+			return (needs.length is 0 and func)
 		func
-
-	depend: depend
-	depends: depend # alias
 	provide: (needs, data) ->
-		caught = null
+		caught = []
 		for need in incomplete needs
-			complete[need] = i = 0
-			while i < waiting.length
-				if (ready = waiting[i] need)
-					waiting.splice i,1
-					try ready data
-					catch err then caught = err
-					i = 0 # start over in case a nested dependency removed stuff 'behind' i
-				else i++
-		if caught then throw caught
+			complete[need] = i = -1
+			while ++i < waiting.length # use `while` instead of `for` so we can re-start `i`
+				if (f = waiting[i] need) # the waiting functions will release their handler when all needs are met
+					waiting.splice i,1 # each waiting function releases exactly once.
+					try f data # if the released function fails, dont let it stop iteration
+					catch err then caught.push(err) # save the error for later, and we will report at the end
+					i = -1 # start over in case a nested `provide` released stuff behind the current `i`
+		if caught.length > 0
+			f = $.debugStack ? $.identity ? (x) -> x.stack
+			caught.map(f).forEach(console.error.bind console)
 		data

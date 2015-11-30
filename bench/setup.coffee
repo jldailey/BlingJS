@@ -1,5 +1,5 @@
 module.exports = [
-	require '../dist/min.bling.js'
+	require '../dist/bling.js'
 	require 'assert'
 	require 'fs'
 ]
@@ -17,6 +17,6 @@ $.bench = (label, func) ->
 	ms = "#{elapsed/n}ms"
 	ns = $.units.convertTo("ns", ms)
 	ns = $.commaize parseInt(ns, 10)
-	ms = $.commaize parseFloat(ms).toFixed(4)
+	ms = $.commaize parseFloat parseFloat(ms).toFixed(4)
 	console.log "[#{label}] #{ns}ns (#{ms}ms) per operation"
 

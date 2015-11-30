@@ -176,16 +176,16 @@ $.plugin
 		$.immediate run 0
 		return p
 
-	$.depend 'dom', ->
+	$.depends 'dom', ->
 		Promise.image = (src) ->
 			p = $.Promise()
 			$.extend image = new Image(),
-				onerror: (e) -> p.resolve e
+				onerror: (e) -> p.reject e
 				onload: -> p.resolve image
 				src: src
 			p
 
-	$.depend 'type', ->
+	$.depends 'type', ->
 		$.type.register 'promise', is: (o) ->
 			try return (typeof o is 'object')	and 'promiseId' of o and 'then' of o
 			catch err then return false

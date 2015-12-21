@@ -3,7 +3,7 @@ $.plugin
 	depends: "type, logger"
 , ->
 	_callAll = (f, c, arg) ->
-		while $.is 'function', f
+		while (typeof f) is "function"
 			f = f.call c, arg
 		if $.is 'number', f
 			c.state = f	

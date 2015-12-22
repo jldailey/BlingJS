@@ -45,7 +45,7 @@ $.plugin
 		ret = $.inherit {
 			promiseId: $.random.string 6
 			wait: (timeout, cb) -> # .wait([timeout], callback) ->
-				if $.is 'function', timeout
+				if $.is "function", timeout
 					[cb, timeout] = [timeout, Infinity]
 				if err isnt NoValue
 					$.immediate -> consume_one cb, err, null

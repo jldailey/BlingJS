@@ -19,7 +19,7 @@ $.plugin
 
 	# specify the comparison behavior data
 	behaviors = {
-		'function': [
+		"function": [
 			['array', 'bling', Contains]
 			['object', ContainsValue]
 		]

@@ -45,7 +45,7 @@ $.plugin
 						unref: -> b.select('unref').call()
 						ref: -> b.select('ref').call()
 					}
-				when $.is 'function', f
+				when $.is "function", f
 					timeoutQueue.add f, parseInt(n,10)
 					{
 						cancel: -> timeoutQueue.cancel(f)

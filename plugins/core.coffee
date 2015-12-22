@@ -349,7 +349,7 @@ $.plugin
 		# Apply every function in _this_ to _context_ with _args_.
 		apply: (context, args) ->
 			@filterMap ->
-				if $.is 'function', @ then @apply(context, args)
+				if $.is "function", @ then @apply(context, args)
 				else null
 
 		# Log one line for each item in _this_.

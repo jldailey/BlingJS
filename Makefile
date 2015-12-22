@@ -6,6 +6,13 @@ JLDOM=node_modules/jldom
 MOCHA=node_modules/.bin/mocha
 MOCHA_FMT?=dot
 MOCHA_OPTS=--compilers coffee:coffee-script/register --globals document,window,Bling,$$,_ -R ${MOCHA_FMT} -s 500 --bail
+GPP=gpp
+GPP_OPTS=-U '' '' '(' ',' ')' '(' ')' '\#' '' \
+	-M '\#' '\n' ' ' ' ' '\n' '(' ')' \
+	+c '\# ' '\n' \
+	+c '\#\#\#' '\#\#\#' \
+	+s '"' '"' "\\" \
+	+s "'" "'" "\\" -n
 
 TEST_FILES=$(shell ls test/*.coffee | grep -v setup.coffee | sort -f )
 TIME_FILES=$(subst .coffee,.coffee.time,$(shell ls bench/*.coffee | grep -v setup.coffee | sort -f ))
@@ -57,7 +64,7 @@ dist/bling.js: dist/bling.coffee $(COFFEE)
 dist/bling.coffee: bling.coffee $(shell ls plugins/*.coffee | sort -f)
 	@echo Packing plugins into $@...
 	@mkdir -p dist
-	@cat $^ | sed -E 's/^	*#.*$$//g' | grep -v '^ *$$' > $@
+	@cat $^ | sed -E 's/^	*# .*$$//g' | grep -v '^ *$$' | $(GPP) $(GPP_OPTS) > $@
 
 clean:
 	rm -rf dist/*

@@ -1,4 +1,3 @@
-# JAVA=/usr/lib/jvm/java-6-sun/bin/java
 COFFEE=node_modules/.bin/coffee
 UGLIFY=node_modules/.bin/uglifyjs
 UGLIFY_OPTS?=--screw-ie8

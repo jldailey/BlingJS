@@ -4,7 +4,7 @@
 	"description": "The kitchen sink library.",
 	"version": "0.8.27",
 	"homepage": "http://blingjs.com",
-	"main": "./dist/min.bling.js",
+	"main": "./dist/bling.js",
 	"repository": {
 		"type": "git",
 		"url": "git://github.com/jldailey/BlingJS.git"

@@ -39,16 +39,15 @@ bench/%.coffee.time: bench/%.coffee plugins/%.coffee bench/setup.coffee bling.co
 	@echo Running $<
 	@$(COFFEE) $< > $@
 
-site: dist/bling.js test
+site: dist/bling.js test $(UGLIFY)
 	@git stash save &> /dev/null
 	@git checkout site
 	@sleep 1
+	@cp dist/bling* js/
 	@git show master:package.json > js/package.json
-	@git show master:dist/bling.coffee > js/bling.coffee
-	@git show master:dist/bling.js > js/bling.coffee
-	@git show master:dist/bling.js.map > js/bling.coffee
-	@(cd js && ../node_modules/.bin/uglifyjs bling.js -c --source-map bling.min.js.map --in-source-map bling.js.map  -m -r '$,Bling,window,document' --screw-ie8 -o bling.min.js)
-	@(cd js && gzip -f9c bling.min.js > bling.min.js.gz)
+	@(cd js \
+		&& ../$(UGLIFY) bling.js -c --source-map bling.min.js.map --in-source-map bling.js.map  -m -r '$,Bling,window,document' --screw-ie8 -o bling.min.js \
+		&& (gzip -f9c bling.min.js > bling.min.js.gz))
 	@git add -f js/bling* js/package.json
 	@git commit -am "make site" || true
 	@sleep 1

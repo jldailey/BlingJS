@@ -36,7 +36,6 @@ describe "watchProperty", ->
 				assert.equal v, 1
 				done()
 			o.a.pop()
-
 		it "shift", (done) ->
 			o = { a: [1, 2, 3] }
 			$.watchProperty o, 'a', (op, k, v) ->
@@ -53,6 +52,15 @@ describe "watchProperty", ->
 				assert.equal v, -1 
 				done()
 			o.a.unshift -1
+		it "nested arrays", (done) ->
+			o = { a: [[1, 2], [[3], 4]] }
+			$.watchProperty o, 'a.1', (op, k, v) ->
+				assert.equal op, 'change'
+				assert.equal k, "a.1.0"
+				assert.equal v, 5
+				done()
+			o.a[1][0] = 5
+
 		describe "splice", ->
 			it "(1,1,42)", (done) ->
 				o = { a: [1, 2, 3, 4] }

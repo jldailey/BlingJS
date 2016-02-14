@@ -15,13 +15,12 @@ $.plugin
 			first = key.substr 0,i
 			return watchProperty obj[first], (key.substr i+1), cb, MAKE_KEY(prefix, first)
 		if $.is 'array', obj[key]
-			return watchArray obj[key], cb, MAKE_KEY(prefix, key)
+			watchArray obj[key], cb, MAKE_KEY(prefix, key)
 		prop = Object.getOwnPropertyDescriptor(obj, key)
 		$.defineProperty obj, key,
 			get: get = (prop.get ? -> prop.value)
 			set: $.compose ($.partial cb, OP_CHANGE, MAKE_KEY(prefix, key)), \
 				(prop.set or (prop.writable and (v) -> prop.value = v) or get)
-
 
 	watchArray = (arr, cb, prefix="") ->
 		pcb = (op, key, value) ->

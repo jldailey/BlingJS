@@ -51,9 +51,9 @@ site: dist/bling.js test $(UGLIFY)
 	@git add -f js/bling* js/package.json
 	@git commit -am "make site" || true
 	@sleep 1
-	@echo git checkout master
+	@git checkout master
 	@sleep 1
-	@echo git stash pop || true
+	@git stash pop || true
 
 dist/bling.js: dist/bling.coffee $(COFFEE)
 	@echo Compiling $< to $@...

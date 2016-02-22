@@ -6089,7 +6089,7 @@
             var a;
             a = arguments;
             clearTimeout(timeout);
-            return setTimeout(((function(_this) {
+            return timeout = setTimeout(((function(_this) {
               return function() {
                 return f.apply(_this, a);
               };

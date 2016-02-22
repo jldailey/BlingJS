@@ -21,7 +21,7 @@ $.plugin
 			->
 				a = arguments
 				clearTimeout timeout
-				setTimeout (=>
+				timeout = setTimeout (=>
 					f.apply @, a
 				), ms
 

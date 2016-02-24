@@ -52,10 +52,9 @@ extend = (a, b...) ->
 class Bling extends Array
 	"Bling:nomunge"
 	constructor: (args...) ->
-		# If there was only one argument,
-		if args.length is 1
+		if args.length is 1 # If there was only one argument,
 			# Classify the type to get a type-instance.
-			# Then convert to an array-like
+			# Then convert to something array-like
 			args = $.type.lookup(args[0]).array(args[0])
 		b = $.inherit Bling, args
 		# Firefox clobbers the length when you change the inheritance chain on an array, so we patch it up here

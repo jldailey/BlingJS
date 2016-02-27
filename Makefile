@@ -84,6 +84,6 @@ $(JLDOM):
 	npm install jldom
 
 $(UGLIFY):
-	npm install uglifyjs
+	npm install uglify-js
 
 .PHONY: all bling clean release site test

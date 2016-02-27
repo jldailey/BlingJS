@@ -15,7 +15,7 @@
 #   cache: object (default: new object)
 # If opts is a function, that becomes opts
 $.plugin
-	depends: 'function,hash'
+	depends: "function,hash"
 	provides: 'memoize'
 , ->
 	plainCache = ->
@@ -29,7 +29,7 @@ $.plugin
 	$:
 		# __$.memoize(f)__ returns a new function that caches function calls to f, based on hashing the arguments.
 		memoize: (opts) ->
-			if $.is 'function', opts
+			if $.is "function", opts
 				opts = f: opts
 			if not $.is 'object', opts
 				throw new Error "Argument Error: memoize requires either a function or object as first argument"

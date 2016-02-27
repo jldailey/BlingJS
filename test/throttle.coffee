@@ -13,10 +13,10 @@ describe "Throttle plugin:", ->
 	describe ".debounce(ms, f)", ->
 		it "returns a new f that will not run twice within ms", (done) ->
 			count = 0
-			g = $.debounce 500, -> count += 1
-			i = $.interval 25, g
-			$.delay 600, ->
+			g = $.debounce 50, -> count += 1
+			i = $.interval 5, g
+			$.delay 500, ->
 				i.cancel()
-				assert.equal count, 1
-				done()
-			done()
+				$.delay 60, ->
+					assert.equal count, 1
+					done()

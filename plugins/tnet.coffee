@@ -1,6 +1,6 @@
 $.plugin
 	provides: 'TNET'
-	depends: 'type, string, function'
+	depends: "type, string, function"
 , -> # TnetStrings plugin
 	Types =
 		"number":

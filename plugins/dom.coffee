@@ -267,7 +267,7 @@ if $.global.document?
 					else if $.is "array", v
 						for i in [0...n = Math.max v.length, nn = setters.length] by 1
 							setters[i%nn](key, v[i%n], "")
-					else if $.is 'function', v
+					else if $.is "function", v
 						values = @select("style.#{key}") \
 							.weave(@map $.computeCSSProperty key) \
 							.fold($.coalesce) \

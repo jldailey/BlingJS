@@ -13,10 +13,22 @@ describe "Throttle plugin:", ->
 	describe ".debounce(ms, f)", ->
 		it "returns a new f that will not run twice within ms", (done) ->
 			count = 0
-			g = $.debounce 50, -> count += 1
+			g = $.debounce 30, -> count += 1
 			i = $.interval 5, g
-			$.delay 500, ->
+			$.delay 300, ->
 				i.cancel()
-				$.delay 60, ->
-					assert.equal count, 1
+				checkpoint = 0
+				$.delay 50, ->
+					assert.equal checkpoint+1, count
+					done()
+	describe ".rate_limit(ms, f)", ->
+		it "works like throttle with an auto-flush at the end", (done) ->
+			count = 0
+			g = $.rate_limit 30, -> count += 1
+			i = $.interval 5, g
+			$.delay 300, ->
+				i.cancel()
+				checkpoint = count
+				$.delay 50, -> # one extra gets added after the interval stopped
+					assert.equal checkpoint+1, count
 					done()

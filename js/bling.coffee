@@ -7,7 +7,7 @@ extend = (a, b...) ->
 class Bling extends Array
 	"Bling:nomunge"
 	constructor: (args...) ->
-		if args.length is 1
+		if args.length is 1 
 			args = $.type.lookup(args[0]).array(args[0])
 		b = $.inherit Bling, args
 		if args.length is 0 and args[0] isnt undefined
@@ -2811,23 +2811,42 @@ $.plugin
 	provides: "throttle"
 	depends: "core"
 , ->
+	defer = (f, ctx, args, ms, to) ->
+		clearTimeout to
+		to = setTimeout (=>
+			f.apply ctx, args
+		), ms
+		return to
+	throttle = (f, ctx, args, ms, last) ->
+		if (dt = $.now - last) > ms
+			last += dt
+			f.apply ctx, args
+		return last
 	$:
 		throttle: (ms, f) ->
 			last = 0
-			(a...) ->
-				gap = $.now - last
-				if gap > ms
-					last += gap
-					return f.apply @,a
+			->
+				last = throttle f, @, arguments, ms, last
 				null
 		debounce: (ms, f) ->
 			timeout = null
 			->
 				a = arguments
-				clearTimeout timeout
-				timeout = setTimeout (=>
-					f.apply @, a
-				), ms
+				timeout = defer f, @, arguments, ms, timeout
+				null
+		rate_limit: (ms, f) ->
+			"""
+			rate_limit is a combination of throttle and debounce.
+			 what we want from a stream throttle is to fire at most every _ms_ and
+			 then fire one last time after a gap of _ms_ at the end.
+			"""
+			last = 0
+			timeout = null
+			->
+				a = arguments
+				timeout = defer f, @, arguments, ms, timeout
+				last = throttle f, @, arguments, ms, last
+				null
 $.plugin
 	provides: 'TNET'
 	depends: "type, string, function"
@@ -2934,11 +2953,14 @@ $.plugin
 	unpackOne = (data) ->
 		return data unless data?
 		if (i = data.indexOf ":") > 0
-			x = i+1+parseInt data[0...i], 10
-			return [
-				Symbols[data[x]]?.unpack(data[i+1...x]),
-				data[x+1...]
-			]
+			di = parseInt data[0...i], 10 
+			if isFinite(di) and $.is 'number', di 
+				if i < (x = i + 1 + di) < data.length
+					if sym = Symbols[data[x]]
+						return [
+							sym.unpack(data[i+1...x]),
+							data[x+1...]
+						]
 		return undefined
 	packOne = (x, forceType) ->
 		if forceType?
@@ -2956,7 +2978,11 @@ $.plugin
 			Types: Types
 			registerClass: register
 			stringify: packOne
-			parse: (x) -> unpackOne(x)?[0]
+			parse: (x) -> $.TNET.parseOne(x)?[0]
+			parseOne: (x) -> 
+				if Buffer.isBuffer x
+					x = x.toString()
+				unpackOne(x)
 $.plugin
 	provides: "trace"
 	depends: "function,type,logger"

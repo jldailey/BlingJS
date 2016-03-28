@@ -6066,19 +6066,31 @@
     provides: "throttle",
     depends: "core"
   }, function() {
+    var defer, throttle;
+    defer = function(f, ctx, args, ms, to) {
+      clearTimeout(to);
+      to = setTimeout(((function(_this) {
+        return function() {
+          return f.apply(ctx, args);
+        };
+      })(this)), ms);
+      return to;
+    };
+    throttle = function(f, ctx, args, ms, last) {
+      var dt;
+      if ((dt = $.now - last) > ms) {
+        last += dt;
+        f.apply(ctx, args);
+      }
+      return last;
+    };
     return {
       $: {
         throttle: function(ms, f) {
           var last;
           last = 0;
           return function() {
-            var a, gap;
-            a = 1 <= arguments.length ? slice.call(arguments, 0) : [];
-            gap = $.now - last;
-            if (gap > ms) {
-              last += gap;
-              return f.apply(this, a);
-            }
+            last = throttle(f, this, arguments, ms, last);
             return null;
           };
         },
@@ -6088,12 +6100,21 @@
           return function() {
             var a;
             a = arguments;
-            clearTimeout(timeout);
-            return timeout = setTimeout(((function(_this) {
-              return function() {
-                return f.apply(_this, a);
-              };
-            })(this)), ms);
+            timeout = defer(f, this, arguments, ms, timeout);
+            return null;
+          };
+        },
+        rate_limit: function(ms, f) {
+          "rate_limit is a combination of throttle and debounce.\n what we want from a stream throttle is to fire at most every _ms_ and\n then fire one last time after a gap of _ms_ at the end.";
+          var last, timeout;
+          last = 0;
+          timeout = null;
+          return function() {
+            var a;
+            a = arguments;
+            timeout = defer(f, this, arguments, ms, timeout);
+            last = throttle(f, this, arguments, ms, last);
+            return null;
           };
         }
       }
@@ -6294,13 +6315,19 @@
       return results;
     })();
     unpackOne = function(data) {
-      var i, ref, x;
+      var di, i, ref, sym, x;
       if (data == null) {
         return data;
       }
       if ((i = data.indexOf(":")) > 0) {
-        x = i + 1 + parseInt(data.slice(0, i), 10);
-        return [(ref = Symbols[data[x]]) != null ? ref.unpack(data.slice(i + 1, x)) : void 0, data.slice(x + 1)];
+        di = parseInt(data.slice(0, i), 10);
+        if (isFinite(di) && $.is('number', di)) {
+          if ((i < (ref = (x = i + 1 + di)) && ref < data.length)) {
+            if (sym = Symbols[data[x]]) {
+              return [sym.unpack(data.slice(i + 1, x)), data.slice(x + 1)];
+            }
+          }
+        }
       }
       return void 0;
     };
@@ -6328,7 +6355,13 @@
           stringify: packOne,
           parse: function(x) {
             var ref;
-            return (ref = unpackOne(x)) != null ? ref[0] : void 0;
+            return (ref = $.TNET.parseOne(x)) != null ? ref[0] : void 0;
+          },
+          parseOne: function(x) {
+            if (Buffer.isBuffer(x)) {
+              x = x.toString();
+            }
+            return unpackOne(x);
           }
         }
       }

@@ -39,17 +39,21 @@ describe "watchProperty", ->
 		it "shift", (done) ->
 			o = { a: [1, 2, 3] }
 			$.watchProperty o, 'a', (op, k, v) ->
-				assert.equal op, 'delete'
-				assert.equal k, "a.0"
-				assert.equal v, 1
+				assert.deepEqual {op, k, v}, {
+					op: 'delete'
+					k: 'a.0'
+					v: 1
+				}
 				done()
 			o.a.shift()
 		it "unshift", (done) ->
 			o = { a: [1, 2, 3] }
 			$.watchProperty o, 'a', (op, k, v) ->
-				assert.equal op, 'insert'
-				assert.equal k, "a.0"
-				assert.equal v, -1 
+				assert.deepEqual {op, k, v}, {
+					op: 'insert'
+					k: "a.0"
+					v: -1
+				}
 				done()
 			o.a.unshift -1
 		it "nested arrays", (done) ->

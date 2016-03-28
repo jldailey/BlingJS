@@ -30,6 +30,21 @@ describe "$.TNET", ->
 				got = $.TNET.parse("6:^f.*o$/")
 				assert $.is 'regexp', got
 				assert.equal got.toString(), expect.toString()
+		it "can parse a Buffer:", ->
+			str = $.TNET.stringify { magic: "token" }
+			buf = new Buffer(str)
+			assert.deepEqual $.TNET.parse(buf), { magic: "token" }
+	
+	describe ".parseOne()", ->
+		it "returns the left-overs", ->
+			data = $.TNET.stringify( a: 'b' ) + $.TNET.stringify( b: 'c' )
+			[value, data] = $.TNET.parseOne(data)
+			assert.deepEqual value, { a: 'b' }
+			assert.equal data, $.TNET.stringify b: 'c'
+			[value, data] = $.TNET.parseOne(data)
+			assert.deepEqual value, { b: 'c' }
+			assert.equal data, ''
+
 	describe ".stringify()", ->
 		describe "supports type:", ->
 			it "numbers", ->

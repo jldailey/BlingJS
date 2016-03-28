@@ -108,11 +108,14 @@ $.plugin
 	unpackOne = (data) ->
 		return data unless data?
 		if (i = data.indexOf ":") > 0
-			x = i+1+parseInt data[0...i], 10
-			return [
-				Symbols[data[x]]?.unpack(data[i+1...x]),
-				data[x+1...]
-			]
+			di = parseInt data[0...i], 10 # read a number
+			if isFinite(di) and $.is 'number', di # rules out NaN, Infinity, etc
+				if i < (x = i + 1 + di) < data.length
+					if sym = Symbols[data[x]]
+						return [
+							sym.unpack(data[i+1...x]),
+							data[x+1...]
+						]
 		return undefined
 
 	packOne = (x, forceType) ->
@@ -132,4 +135,8 @@ $.plugin
 			Types: Types
 			registerClass: register
 			stringify: packOne
-			parse: (x) -> unpackOne(x)?[0]
+			parse: (x) -> $.TNET.parseOne(x)?[0]
+			parseOne: (x) -> # returns [value, leftOver] so you can continue reading a sequence
+				if Buffer.isBuffer x
+					x = x.toString()
+				unpackOne(x)

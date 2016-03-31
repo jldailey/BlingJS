@@ -3300,6 +3300,10 @@ $.plugin
 		makeUnitRegex()
 		fill()
 	init = ->
+		$.type.register "units",
+			is: (x) -> typeof x is "string" and UNIT_RE.test(x)
+			number: (x) -> parseFloat(x)
+			string: (x) -> "'#{x}'"
 		set 'pc', 'pt', -> 12
 		set 'in', 'pt', -> 72
 		set 'in', 'px', -> 96
@@ -3376,10 +3380,6 @@ $.plugin
 		unless isFinite(c) and isFinite(f)
 			return number
 		"#{f * c}#{unit}"
-	$.type.register "units",
-		is: (x) -> typeof x is "string" and UNIT_RE.test(x)
-		number: (x) -> parseFloat(x)
-		string: (x) -> "'#{x}'"
 	{
 		$:
 			units:

@@ -6981,6 +6981,17 @@
       return fill();
     };
     init = function() {
+      $.type.register("units", {
+        is: function(x) {
+          return typeof x === "string" && UNIT_RE.test(x);
+        },
+        number: function(x) {
+          return parseFloat(x);
+        },
+        string: function(x) {
+          return "'" + x + "'";
+        }
+      });
       set('pc', 'pt', function() {
         return 12;
       });
@@ -7156,17 +7167,6 @@
       }
       return "" + (f * c) + unit;
     };
-    $.type.register("units", {
-      is: function(x) {
-        return typeof x === "string" && UNIT_RE.test(x);
-      },
-      number: function(x) {
-        return parseFloat(x);
-      },
-      string: function(x) {
-        return "'" + x + "'";
-      }
-    });
     return {
       $: {
         units: {

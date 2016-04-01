@@ -9,6 +9,7 @@ $.plugin
 		try return f(a...)
 		catch err then return "[toString Error: #{err.message}]"
 	escape_single_quotes = (s) -> s.replace(/([^\\]{1})'/g,"$1\\'")
+	strip_ansi_codes = (s) -> s.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g,'')
 	$.type.extend
 		# First, extend the base type with a default `string` function
 		unknown:
@@ -129,7 +130,7 @@ $.plugin
 				name
 
 			# Add decorative commas to long numbers (or currencies)
-			commaize: (num, comma=',',dot='.',currency='') ->
+			commaize: (num, comma=',',dot='.',currency='') -> # TODO: support ansi codes here
 				if $.is('number', num) and isFinite(num)
 					s = String(num)
 					sign = if (num < 0) then "-" else ""
@@ -143,17 +144,17 @@ $.plugin
 
 			# Fill the left side of a string to make it a fixed width.
 			padLeft: (s, n, c = " ") ->
-				while s.length < n
-					s = c + s
-				s
+				dn = n - strip_ansi_codes(s).length
+				return if dn > 0 then $.zeros(dn, c).join('') + s
+				else s
 
 			# Fill the right side of a string to make it a fixed width.
 			padRight: (s, n, c = " ") ->
-				while s.length < n
-					s = s + c
-				s
+				dn = n - strip_ansi_codes(s).length
+				return if dn > 0 then s + $.zeros(dn, c).join ''
+				else s
 
-			stringTruncate: (s, n, c='...',sep=' ') ->
+			stringTruncate: (s, n, c='...',sep=' ') -> # TODO: support ansi codes here
 				return s if s.length <= n
 				return c if c.length >= n
 				s = s.split(sep) # split into words.
@@ -164,7 +165,6 @@ $.plugin
 					if n >= 0
 						r.push x
 				r.join(sep) + c
-
 
 			# __$.stringCount(s,x)__ counts the number of occurences of `x` in `s`.
 			stringCount: (s, x, i = 0, n = 0) ->

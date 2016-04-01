@@ -2416,6 +2416,7 @@ $.plugin
 		try return f(a...)
 		catch err then return "[toString Error: #{err.message}]"
 	escape_single_quotes = (s) -> s.replace(/([^\\]{1})'/g,"$1\\'")
+	strip_ansi_codes = (s) -> s.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g,'')
 	$.type.extend
 		unknown:
 			string: safer (o) -> o.toString?() ? String(o)
@@ -2504,7 +2505,7 @@ $.plugin
 				while (i = name?.indexOf('-')) > -1
 					name = $.stringSplice(name, i, i+2, name[i+1].toUpperCase())
 				name
-			commaize: (num, comma=',',dot='.',currency='') ->
+			commaize: (num, comma=',',dot='.',currency='') -> 
 				if $.is('number', num) and isFinite(num)
 					s = String(num)
 					sign = if (num < 0) then "-" else ""
@@ -2516,14 +2517,14 @@ $.plugin
 					return String num
 				else return undefined
 			padLeft: (s, n, c = " ") ->
-				while s.length < n
-					s = c + s
-				s
+				dn = n - strip_ansi_codes(s).length
+				return if dn > 0 then $.zeros(dn, c).join('') + s
+				else s
 			padRight: (s, n, c = " ") ->
-				while s.length < n
-					s = s + c
-				s
-			stringTruncate: (s, n, c='...',sep=' ') ->
+				dn = n - strip_ansi_codes(s).length
+				return if dn > 0 then s + $.zeros(dn, c).join ''
+				else s
+			stringTruncate: (s, n, c='...',sep=' ') -> 
 				return s if s.length <= n
 				return c if c.length >= n
 				s = s.split(sep) 

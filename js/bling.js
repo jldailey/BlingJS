@@ -5265,7 +5265,7 @@
     provides: "string",
     depends: "type"
   }, function() {
-    var escape_single_quotes, safer, slugize;
+    var escape_single_quotes, safer, slugize, strip_ansi_codes;
     safer = function(f) {
       return function() {
         var a, err, error1;
@@ -5280,6 +5280,9 @@
     };
     escape_single_quotes = function(s) {
       return s.replace(/([^\\]{1})'/g, "$1\\'");
+    };
+    strip_ansi_codes = function(s) {
+      return s.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
     };
     $.type.extend({
       unknown: {
@@ -5515,22 +5518,28 @@
           }
         },
         padLeft: function(s, n, c) {
+          var dn;
           if (c == null) {
             c = " ";
           }
-          while (s.length < n) {
-            s = c + s;
+          dn = n - strip_ansi_codes(s).length;
+          if (dn > 0) {
+            return $.zeros(dn, c).join('') + s;
+          } else {
+            return s;
           }
-          return s;
         },
         padRight: function(s, n, c) {
+          var dn;
           if (c == null) {
             c = " ";
           }
-          while (s.length < n) {
-            s = s + c;
+          dn = n - strip_ansi_codes(s).length;
+          if (dn > 0) {
+            return s + $.zeros(dn, c).join('');
+          } else {
+            return s;
           }
-          return s;
         },
         stringTruncate: function(s, n, c, sep) {
           var r, x;

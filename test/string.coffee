@@ -35,6 +35,8 @@ describe "String plugin:", ->
 			assert.equal $.padLeft("foo", 3), "foo"
 		it "can pad with non-default character", ->
 			assert.equal $.padLeft("foo", 5, "X"), "XXfoo"
+		it "does not crash when given non-strings", ->
+			assert.equal $.padLeft(5, 5), "    5"
 	describe ".padRight()", ->
 		it "adds padding when needed", -> assert.equal $.padRight("foo", 5), "foo  "
 		it "doesnt when not", -> assert.equal $.padRight("foo", 2), "foo"

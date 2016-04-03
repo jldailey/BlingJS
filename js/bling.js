@@ -5282,7 +5282,7 @@
       return s.replace(/([^\\]{1})'/g, "$1\\'");
     };
     strip_ansi_codes = function(s) {
-      return s.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+      return String(s).replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
     };
     $.type.extend({
       unknown: {

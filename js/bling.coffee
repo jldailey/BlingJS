@@ -2416,7 +2416,7 @@ $.plugin
 		try return f(a...)
 		catch err then return "[toString Error: #{err.message}]"
 	escape_single_quotes = (s) -> s.replace(/([^\\]{1})'/g,"$1\\'")
-	strip_ansi_codes = (s) -> s.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g,'')
+	strip_ansi_codes = (s) -> String(s).replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g,'')
 	$.type.extend
 		unknown:
 			string: safer (o) -> o.toString?() ? String(o)

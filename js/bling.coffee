@@ -339,6 +339,8 @@ $.plugin
 			for i in [0...array.length] by 1
 				@[i] = array[i]
 		reduce: (f, a) ->
+			if (typeof a) is 'function'
+				[f, a] = [a, f]
 			i = 0; n = @length
 			a = @[i++] if not a?
 			(a = f.call @[x], a, @[x]) for x in [i...n] by 1

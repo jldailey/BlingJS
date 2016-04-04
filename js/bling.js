@@ -787,13 +787,16 @@
         return results;
       },
       reduce: function(f, a) {
-        var aa, i, n, ref, ref1, x;
+        var aa, i, n, ref, ref1, ref2, x;
+        if ((typeof a) === 'function') {
+          ref = [a, f], f = ref[0], a = ref[1];
+        }
         i = 0;
         n = this.length;
         if (a == null) {
           a = this[i++];
         }
-        for (x = aa = ref = i, ref1 = n; aa < ref1; x = aa += 1) {
+        for (x = aa = ref1 = i, ref2 = n; aa < ref2; x = aa += 1) {
           a = f.call(this[x], a, this[x]);
         }
         return a;

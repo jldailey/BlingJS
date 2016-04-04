@@ -44,6 +44,10 @@ describe "$.TNET", ->
 			[value, data] = $.TNET.parseOne(data)
 			assert.deepEqual value, { b: 'c' }
 			assert.equal data, ''
+		it "returns [ undefined, data ] when there is nothing parseable", ->
+			[value, _data] = $.TNET.parseOne "not a thing"
+			assert.equal value, undefined
+			assert.equal _data, "not a thing"
 
 	describe ".stringify()", ->
 		describe "supports type:", ->

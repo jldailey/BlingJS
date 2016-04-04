@@ -101,22 +101,22 @@ $.plugin
 	register = (klass) ->
 		class_index[klass] or= classes.push klass
 
-	Symbols = {} # Reverse lookup table, for use during unpacking
+	reverseLookup = {} # Reverse lookup table, for use during unpacking
 	do -> for t,v of Types
-		Symbols[v.symbol] = v
+		reverseLookup[v.symbol] = v
 
 	unpackOne = (data) ->
-		return data unless data?
-		if (i = data.indexOf ":") > 0
-			di = parseInt data[0...i], 10 # read a number
-			if isFinite(di) and $.is 'number', di # rules out NaN, Infinity, etc
-				if i < (x = i + 1 + di) < data.length
-					if sym = Symbols[data[x]]
-						return [
-							sym.unpack(data[i+1...x]),
-							data[x+1...]
-						]
-		return undefined
+		if data
+			if (i = data.indexOf ":") > 0
+				di = parseInt data[0...i], 10 # read a number
+				if isFinite(di) and $.is 'number', di # rules out NaN, Infinity, etc
+					if i < (x = i + 1 + di) < data.length
+						if sym = reverseLookup[data[x]]
+							return [
+								sym.unpack(data[i+1...x]),
+								data[x+1...]
+							]
+		return [ undefined, data ]
 
 	packOne = (x, forceType) ->
 		if forceType?
@@ -135,7 +135,7 @@ $.plugin
 			Types: Types
 			registerClass: register
 			stringify: packOne
-			parse: (x) -> $.TNET.parseOne(x)?[0]
+			parse: (x) -> Bling.TNET.parseOne(x)?[0]
 			parseOne: (x) -> # returns [value, leftOver] so you can continue reading a sequence
 				if Buffer.isBuffer x
 					x = x.toString()

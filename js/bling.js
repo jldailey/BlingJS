@@ -3654,13 +3654,20 @@
     };
     log.out = console.log.bind(console);
     log.pre = null;
-    log.enableTimestamps = function() {
-      return log.pre = function() {
-        return $.date.format(+new Date(), "yyyy-mm-dd HH:MM:SS._MS", "ms");
-      };
+    log.enableTimestamps = function(level) {
+      if (level == null) {
+        level = 2;
+      }
+      return log.pre = [
+        null, function() {
+          return String(+new Date());
+        }, function() {
+          return $.date.format(+new Date(), "yyyy-mm-dd HH:MM:SS._MS", "ms");
+        }
+      ][level];
     };
     log.disableTimestamps = function() {
-      return log.pre = null;
+      return log.enableTimestamps(0);
     };
     return {
       $: {
@@ -6137,7 +6144,7 @@
     provides: 'TNET',
     depends: "type, string, function"
   }, function() {
-    var Symbols, Types, class_index, classes, makeFunction, packOne, register, unpackOne;
+    var Types, class_index, classes, makeFunction, packOne, register, reverseLookup, unpackOne;
     Types = {
       "number": {
         symbol: "#",
@@ -6316,32 +6323,31 @@
     register = function(klass) {
       return class_index[klass] || (class_index[klass] = classes.push(klass));
     };
-    Symbols = {};
+    reverseLookup = {};
     (function() {
       var results, t, v;
       results = [];
       for (t in Types) {
         v = Types[t];
-        results.push(Symbols[v.symbol] = v);
+        results.push(reverseLookup[v.symbol] = v);
       }
       return results;
     })();
     unpackOne = function(data) {
       var di, i, ref, sym, x;
-      if (data == null) {
-        return data;
-      }
-      if ((i = data.indexOf(":")) > 0) {
-        di = parseInt(data.slice(0, i), 10);
-        if (isFinite(di) && $.is('number', di)) {
-          if ((i < (ref = (x = i + 1 + di)) && ref < data.length)) {
-            if (sym = Symbols[data[x]]) {
-              return [sym.unpack(data.slice(i + 1, x)), data.slice(x + 1)];
+      if (data) {
+        if ((i = data.indexOf(":")) > 0) {
+          di = parseInt(data.slice(0, i), 10);
+          if (isFinite(di) && $.is('number', di)) {
+            if ((i < (ref = (x = i + 1 + di)) && ref < data.length)) {
+              if (sym = reverseLookup[data[x]]) {
+                return [sym.unpack(data.slice(i + 1, x)), data.slice(x + 1)];
+              }
             }
           }
         }
       }
-      return void 0;
+      return [void 0, data];
     };
     packOne = function(x, forceType) {
       var data, ref, ref1, ref2, t, tx;
@@ -6367,7 +6373,7 @@
           stringify: packOne,
           parse: function(x) {
             var ref;
-            return (ref = $.TNET.parseOne(x)) != null ? ref[0] : void 0;
+            return (ref = Bling.TNET.parseOne(x)) != null ? ref[0] : void 0;
           },
           parseOne: function(x) {
             if (Buffer.isBuffer(x)) {
@@ -7383,12 +7389,11 @@
         };
       };
       (rebindAll = function() {
-        var aa, i, ref, results;
-        results = [];
+        var aa, i, ref;
         for (i = aa = 0, ref = arr.length; aa < ref; i = aa += 1) {
-          results.push(watchProperty(arr, i, pcb));
+          watchProperty(arr, i, pcb);
         }
-        return results;
+        return null;
       })();
       _watch('push', function(item) {
         var i;
@@ -7405,7 +7410,7 @@
       });
       _watch('shift', function() {
         rebindAll();
-        return pcb(OP_DELETE, 0, 1);
+        return pcb(OP_DELETE, this.length, 1);
       });
       _watch('splice', function(i, n, v) {
         if (v !== void 0) {

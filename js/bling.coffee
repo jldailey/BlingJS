@@ -1705,10 +1705,13 @@ $.plugin {
 			return a[a.length-1]
 	log.out = console.log.bind console
 	log.pre = null
-	log.enableTimestamps = ->
-		log.pre = -> $.date.format(+new Date(), "yyyy-mm-dd HH:MM:SS._MS", "ms")
-	log.disableTimestamps = ->
-		log.pre = null
+	log.enableTimestamps = (level=2) ->
+		log.pre = ([
+			null
+			-> String(+new Date())
+			-> $.date.format(+new Date(), "yyyy-mm-dd HH:MM:SS._MS", "ms")
+		])[level]
+	log.disableTimestamps = -> log.enableTimestamps(0)
 	return $: {
 		log: log
 		logger: (prefix) -> (a...) -> a.unshift prefix; log a...
@@ -2950,21 +2953,21 @@ $.plugin
 	class_index = {}
 	register = (klass) ->
 		class_index[klass] or= classes.push klass
-	Symbols = {} 
+	reverseLookup = {} 
 	do -> for t,v of Types
-		Symbols[v.symbol] = v
+		reverseLookup[v.symbol] = v
 	unpackOne = (data) ->
-		return data unless data?
-		if (i = data.indexOf ":") > 0
-			di = parseInt data[0...i], 10 
-			if isFinite(di) and $.is 'number', di 
-				if i < (x = i + 1 + di) < data.length
-					if sym = Symbols[data[x]]
-						return [
-							sym.unpack(data[i+1...x]),
-							data[x+1...]
-						]
-		return undefined
+		if data
+			if (i = data.indexOf ":") > 0
+				di = parseInt data[0...i], 10 
+				if isFinite(di) and $.is 'number', di 
+					if i < (x = i + 1 + di) < data.length
+						if sym = reverseLookup[data[x]]
+							return [
+								sym.unpack(data[i+1...x]),
+								data[x+1...]
+							]
+		return [ undefined, data ]
 	packOne = (x, forceType) ->
 		if forceType?
 			tx = forceType
@@ -2981,7 +2984,7 @@ $.plugin
 			Types: Types
 			registerClass: register
 			stringify: packOne
-			parse: (x) -> $.TNET.parseOne(x)?[0]
+			parse: (x) -> Bling.TNET.parseOne(x)?[0]
 			parseOne: (x) -> 
 				if Buffer.isBuffer x
 					x = x.toString()
@@ -3494,6 +3497,7 @@ $.plugin
 		do rebindAll = ->
 			for i in [0...arr.length] by 1
 				watchProperty arr, i, pcb
+			null
 		
 		_watch 'push', (item) ->
 			i = @length - 1
@@ -3506,7 +3510,7 @@ $.plugin
 			pcb OP_DELETE, @length, 1
 		_watch 'shift', ->
 			rebindAll()
-			pcb OP_DELETE, 0, 1
+			pcb OP_DELETE, @length, 1
 		_watch 'splice', (i, n, v) ->
 			if v isnt undefined
 				i += 1

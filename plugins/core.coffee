@@ -71,6 +71,8 @@ $.plugin
 		# Reduce _this_ to a single value, accumulating in _a_.
 		# Example: `(a,x) -> a+x` == `(a) -> a+@`.
 		reduce: (f, a) ->
+			if (typeof a) is 'function'
+				[f, a] = [a, f]
 			i = 0; n = @length
 			# Init the accumulation.
 			a = @[i++] if not a?

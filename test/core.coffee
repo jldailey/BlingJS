@@ -80,6 +80,8 @@ describe "Core plugin:", ->
 	describe ".reduce()", ->
 		it "applies a combiner to accumulate a single result", ->
 			assert.equal $([1,2,3,4]).reduce( (a,x) -> a + x ), 10
+		it "accepts arguments in either order", ->
+			assert.equal 16, $([1,2,3]).reduce 10, (a,x) -> a + x
 
 	describe ".union()", ->
 		it "combines two sets, eliminating duplicates", ->

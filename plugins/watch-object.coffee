@@ -34,6 +34,7 @@ $.plugin
 		do rebindAll = ->
 			for i in [0...arr.length] by 1
 				watchProperty arr, i, pcb
+			null
 		
 		_watch 'push', (item) ->
 			i = @length - 1
@@ -46,7 +47,7 @@ $.plugin
 			pcb OP_DELETE, @length, 1
 		_watch 'shift', ->
 			rebindAll()
-			pcb OP_DELETE, 0, 1
+			pcb OP_DELETE, @length, 1
 		_watch 'splice', (i, n, v) ->
 			if v isnt undefined
 				i += 1

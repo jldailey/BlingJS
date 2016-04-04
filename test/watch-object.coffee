@@ -42,21 +42,25 @@ describe "watchProperty", ->
 			expected = [
 				{ op: 'change', k: 'a.0', v: 2 }
 				{ op: 'change', k: 'a.1', v: 3 }
-				{ op: 'delete', k: 'a.2', v: 3 }
+				{ op: 'delete', k: 'a.2', v: 1 }
 			]
 			$.watchProperty o, 'a', (op, k, v) -> changes.push { op, k, v }
-			assert.deepEqual changes, expected
 			o.a.shift()
+			assert.deepEqual changes, expected
+			done()
 		it "unshift", (done) ->
 			o = { a: [1, 2, 3] }
-			$.watchProperty o, 'a', (op, k, v) ->
-				assert.deepEqual {op, k, v}, {
-					op: 'insert'
-					k: "a.0"
-					v: -1
-				}
-				done()
+			changes = []
+			expected = [
+				{ op: 'change', k: "a.2", v: 2 }
+				{ op: 'change', k: "a.1", v: 1 }
+				{ op: 'change', k: "a.0", v: -1 }
+				{ op: 'insert', k: "a.0", v: -1 }
+			]
+			$.watchProperty o, 'a', (op, k, v) -> changes.push { op, k, v }
 			o.a.unshift -1
+			assert.deepEqual changes, expected
+			done()
 		it "nested arrays", (done) ->
 			o = { a: [[1, 2], [[3], 4]] }
 			$.watchProperty o, 'a.1', (op, k, v) ->

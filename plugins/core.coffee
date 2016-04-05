@@ -1,16 +1,15 @@
+# Core Plugin
+# -----------
+# The functional basis for all other modules.
 $.plugin
+	# Provides all the basic stuff you are familiar with from jQuery and underscore: each, map, etc.
 	provides: "core,eq,each,map,filterMap,tap,replaceWith,reduce,union,intersect,distinct," +
 		"contains,count,coalesce,swap,shuffle,select,or,zap,clean,take,skip,first,last,slice," +
 		"push,filter,matches,weave,fold,flatten,call,apply,log,toArray,clear,indexWhere"
 	depends: "string,type"
 , ->
-	# Core Plugin
-	# -----------
-	# The functional basis for all other modules.  Provides all the
-	# basic stuff that you are familiar with from jQuery: 'each', 'map',
-	# etc.
 
-	# $.now: the current timestamp
+	# Expose the current time in milliseconds.
 	$.defineProperty $, "now",
 		get: -> +new Date
 
@@ -21,6 +20,7 @@ $.plugin
 	
 	return {
 		$:
+			# `$.assert(boolean, message)`
 			assert: (c, m="") -> if not c then throw new Error("assertion failed: #{m}")
 			coalesce: (a...) -> $(a).coalesce()
 			keysOf: (o, own=false) ->
@@ -43,16 +43,21 @@ $.plugin
 			(b[i++] = f.call t,t) for t in @
 			return b
 
+		# Returns true if f(x) is true for every x in this.
 		every: (f) ->
 			for x in @ when not f.call x,x
 				return false
 			return true
 
+		# Returns true if f(x) is true for at least one x in this.
 		some: (f) ->
 			for x in @ when f.call x,x
 				return true
 			return false
 
+		# Filter and map at the same time. Omit items by returning null.
+		# Combining these two common operations avoids an intermediate array.
+		# e.g. `$(1,2,3).filterMap( (i) -> if (i%2) is 1 then 'odd' else null ) == $("odd", "odd")`
 		filterMap: (f) ->
 			b = $()
 			for t in @
@@ -61,15 +66,28 @@ $.plugin
 					b.push v
 			b
 
-		# Chainable way to apply some arbitrary function
+		# Chainable way to apply some arbitrary function to this set.
+		# e.g. ```
+		# # Simple chaining:
+		# $(items).tap($.log).reverse().tap($.log)
+		# # Advanced use of partials:
+		# $(items).tap($.partial $.log, "prefix:")
+		# ```
 		tap: (f) -> f.call @, @
 
+		# Replace the contents of the current array with the contents of some other array.
 		replaceWith: (array) ->
-			for i in [0...array.length] by 1
-				@[i] = array[i]
+			@clear()
+			@push x for x in array
+			@
 
 		# Reduce _this_ to a single value, accumulating in _a_.
-		# Example: `(a,x) -> a+x` == `(a) -> a+@`.
+		# e.g. ```
+		# $(items).reduce(0, (a, x) -> a + x) == $(items).sum()
+		# $(items).reduce({}, (a, x) -> a[x] = 1)
+		# # You can pass arguments either order:
+		# $(items).reduce reducer, {}
+		# ```
 		reduce: (f, a) ->
 			if (typeof a) is 'function'
 				[f, a] = [a, f]

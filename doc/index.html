@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width">
+		<title>BlingJS Documentation</title>
+		<script type="text/javascript" src="../dist/bling.js"></script>
+		<style type="text/css">
+			pre {
+				padding-left: 10px;
+			}
+			code {
+				padding: 2px 4px;
+				background-color: #eaeaea;
+				border-radius: 2px;
+			}
+			li {
+				padding-top: 4px;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>BlingJS</h1>
+		<p>The kitchen sink library.</p>
+		<a name="basics"/>
+		<h2>Basics</h2>
+		<p>From the browser,</p>
+		<pre>&lt;script src=".../bling.js"&gt;</pre>
+		<p>or from Node,
+		<pre>$ = require('bling')</pre>
+		<p>By default, we take over the global variable <code>$</code>. If you don't want this:</p>
+		<pre>$ = Bling.noConflict()</pre>
+		<caption>This will restore <code>$</code> to whatever it was before, and the global
+		<code>Bling</code> will remain.</caption>
+		<a name="plugins"/>
+		<h3>Plugins</h3>
+		<p>Everything attached to <code>$</code> is built from plugins, so the only truly core
+		functionality is for creating plugins and managing abstract dependencies.</p>
+		<pre>$.plugin { provides: "answer" }, -&gt; { $: { answer: 42  } }</pre>
+		<pre>$.answer === 42</pre>
+		<caption>This is the simplest possible plugin.</caption>
+		<p>There are many <a href="#plugin-list">plugins</a>.
+		<a name="depends"/>
+		<h3>Abstract Dependence</h3>
+		<p>The <code>provides:</code> and <code>depends:</code> functionality seen above is provided by
+		a pair of top-level functions that allow you to model any abstract set of dependencies as a set
+		of tags (short strings).</p>
+		<pre>$.depends "some string", someFunction</pre>
+		<pre>$.provide "some string"</pre>
+		<caption>Once <code>"some string"</code> gets provided, <code>someFunction</code> is
+		called.</caption>
+		<p>Data can also be passed with the <code>$.provide</code> call.</p>
+		<pre>$.depends "tag", (data) -&gt; console.log data</pre>
+		<pre>$.provide "tag", 42</pre>
+		<caption>This will log, "42".</caption>
+		<h5>Dependencies are not just callbacks or listeners</h5>
+		<p>They only fire the one time, when they are first provided. Additional calls to
+		<code>$.provide("tag")</code> for the same <code>"tag"</code> will be ignored.</p>
+		<p>Calls to <code>$.depend("tag", func)</code> after <code>"tag"</code> has already been provided,
+		will call <code>func</code> immediately.
+
+		<a name="plugin-list">
+		<h3>List of Functions - grouped by plugin</h3>
+			<label>Core Plugin - <a
+			href="https://github.com/jldailey/BlingJS/blob/master/plugins/core.coffee">core.coffee</a></label>
+			<ol>
+				<li><code>$.now</code> - the current time in ms.
+				<li><code>$.assert(cond, message)</code> - assert that cond is true.
+				<li><code>$.coalesce(items...)</code> - return the first non-null item.
+				<li><code>$.keysOf(obj, own=false)</code> - shim for Object.keys(), <code>own=true</code>
+				adds hasOwnProperty.
+				<li><code>$.valuesOf(obj, own=false)</code> - complement to <code>$.keysOf()</code>
+				<li><code>$(items).eq(i)</code> - return a new set with just the <code>i</code>-th item.
+				<li><code>$(items).each(f)</code> - call f(item) for every item in this.
+				<li><code>$(items).map(f)</code> - return a new set containing f(item) for every item.
+				<li><code>$(items).every(f)</code> - true if f(item) is true for every item.
+				<li><code>$(items).some(f)</code> - true if f(item) is true at least one item.
+				<li><code>$(items).filterMap(f)</code> - like <code>$(items).map()</code> except omits
+					<code>null</code> from the result. e.g.
+					<pre>$(1,2,3).filterMap((x) -&gt; if (x%2) then x else null) == $(1, 3)</pre>
+				<li><code>$(items).tap(f)</code> - call f(this) and continue chaining, e.g.
+					<pre>$(items).tap($.log).hide()</pre>
+				<li><code>$(items).reduce(f)</code> - Collect <code>a</code> from <code>f(a, item)</code> for every item. The <code>a</code> and <code>f</code> arguments can be given in any order.
+					<pre>$(items).sum() == $(items).reduce 0, (a, x) -&gt; a + x</pre>
+					<pre>$(items).product() == $(items).reduce 1, (a, x) -&gt; a * x</pre>
+				<li><code>$(items).union(other, strict=true)</code> - Combine the two sets, eliminates duplicates.
+				<li><code>$(items).intersect(other, strict=true)</code> - Return a new set with any overlapping items.
+				<li><code>$(items).distinct(strict=true)</code> - Return a new set without any duplicates.
+				<li><code>$(items).contains(item, strict=true)</code> - Return true if the item is in this set.
+				<li><code>$(items).count(item, strict=true)</code> - The number of times item appears in this set.
+				<li><code>$(items).coalesce()</code> - Return the first non-null item (descends recursively into nested arrays and blings).
+				<li><code>$(items).or(value)</code> - Replace any false-y items with <code>value</code>.
+				<li><code>$(items).swap(i,j)</code> - Swap the <code>i</code>-th and <code>j</code>-th item.
+				<li><code>$(items).shuffle()</code> - Randomize the order, in-place.
+				<li><code>$(items).select(property)</code> - Collect values from sets of objects. e.g.
+					<pre>$(items).select('x') == $(items).map (item) -&gt; return item.x </pre>
+					<p>You can also pass complex nested keys, descending into objects, arrays, etc.</p>
+					<pre>$(items).select('someArray.2.someProperty')</pre>
+					<p>Selecting functions will automatically bind those functions to the site they were selected from.</p>
+					<pre>$(streams).select('write').call(data, "utf8")</pre>
+				<li><code>$(items).zap(property, value)</code> - Assign <code>value</code> to <code>property</code> on every item in this.
+					Supports the same complex, and nested, properties that <code>$(items).select(...)</code> does.
+					<pre>$(items).zap('childNodes.2.style.display','none') # Hide every 3rd child</pre>
+				<li><code>$(items).take(n)</code> - Return the first <code>n</code> items from this.
+				<li><code>$(items).skip(n)</code> - Return everything except the first <code>n</code> items from this.
+				<li><code>$(items).first(n=1)</code> - Return the first item (or the first n items if asked).
+				<li><code>$(items).last(n=1)</code> - Return the last [n] item[s].
+				<li><code>$(items).slice(start,end)</code> - Like Array.slice() except supports negative indices, e.g.
+					<pre>$(items).slice(0, -2) == $(items).slice(0, items.length - 2)</pre>
+				<li><code>$(items).extend(others)</code> - Append all the other items to this set (allows duplicates).
+				<li><code>$(items).push(item)</code> - Append item and return this (allows chaining), e.g.
+					<pre>$(items).push(1).push(2).reverse()</pre>
+				<li><code>$(items).filter(func, limit=Infinity, positive=true)</code> - Select a new set where <code>f(item) is true</code>.
+					<p>For example, passing <code>positive=false</code> inverts the meaning of the filter.
+				<li><code>$(items).matches(expr)</code> - Filter the set to contain only items that:
+					<ol>
+						<li> If expr is a string, then items must be DOM nodes that match that string as a CSS selector.
+						<li> If expr is a regexp, then items must be strings that match that regexp.
+					</ol>
+				</li>
+				<li><code>$(items).weave(other)</code> - Interleave the items from the two sets.
+					<pre>$(1,1,1).weave($(2,2,2)) == $(2,1,2,1,2,1)</pre>
+				<li><code>$(items).fold(f)</code> - Stride over this set calling <code>f(a,b)</code> for each pair of items.
+					<pre>$(1,2,3,4).fold( (a,b) -&gt; a + b ) == $(3, 7)</pre> 
+					<caption>This is a complement to <code>$(items).weave()</code> and they can often be used together.</caption>
+				<li><code>$(items).flatten()</code> - Flatten out any nested arrays.
+					<pre>$( [1,2], [3,4] ).flatten() == $(1,2,3,4)</pre>
+				<li><code>$(items).call(args...)</code> - Call every function in this set with <code>args...</code>.
+				<li><code>$(items).apply(context, args...)</code> - Apply every function in this set.
+				<li><code>$(items).log(prefix)</code> - Log this set to the global <code>$.log</code>.
+				<li><code>$(items).toArray()</code> - Un-bling this set of items, returning back to a simple Array.
+				<li><code>$(items).clear()</code> - Remove all items from this.
+				<li><code>$(items).indexWhere(f)</code> - Return the first index where <code>f(item)</code> is true
+			</ol>
+	</body>
+</html>

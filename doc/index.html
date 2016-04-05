@@ -61,8 +61,8 @@
 
 		<a name="plugin-list">
 		<h3>List of Functions - grouped by plugin</h3>
-			<label>Core Plugin - <a
-			href="https://github.com/jldailey/BlingJS/blob/master/plugins/core.coffee">core.coffee</a></label>
+			<h4>Core Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/core.coffee">Source</a>
+			</h4>
 			<ol>
 				<li><code>$.now</code> - the current time in ms.
 				<li><code>$.assert(cond, message)</code> - assert that cond is true.
@@ -132,5 +132,154 @@
 				<li><code>$(items).clear()</code> - Remove all items from this.
 				<li><code>$(items).indexWhere(f)</code> - Return the first index where <code>f(item)</code> is true
 			</ol>
+			<h4>EventEmitter Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/EventEmitter.coffee">Source</a>
+			</h4>
+			<p>This provides the same basic interface as EventEmitter API in NodeJS. It becomes available
+			on all Bling objects, as well as a base class to use in inheritance, as well as a global
+			instance through which you can communicate.
+			<ol>
+				<li><code>.on('event', handler)</code>
+				<li><code>.emit('event', args...)</code>
+				<li><code>.addListener</code> - synonym for <code>.on</code>
+				<li><code>.removeListener('event', [handler])</code>
+				<li><code>.removeAllListeners('event')</code>
+				<li><code>.listeners</code> - a copy of the set of listeners (modifying it is not equivalent
+				to calling <code>.on(...)</code>)
+				<li><code>class MyClass extends $.EventEmitter then constructor: -> super @</code>
+				<li><code>$.EventEmitter.apply(object)</code>
+			</ol>
+			<p>Every Bling instance is an EventEmitter automatically.</p>
+			<pre>$(items).on('data', $.log).emit('data')</pre>
+			<p>$.EventEmitter is an instance of it's type.</p>
+			<pre>$.EventEmitter.on('data', $.log).emit('data')</pre>
+
+			<h4>Async Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/async.coffee">Source</a>
+			</h4>
+			<ol>
+				<li><code>$(funcs).series(done)</code> - Call each function with a single argument, a
+				callback function. It can be very helpful to use <code>$.partial()</code> here, to produce
+				functions that only need the single callback as argument.
+				<li><code>$(funcs).parallel(done)</code> - Similar to <code>series</code>, except start all
+				the funcs at the same time. Each function still gets only the single callback.
+			</ol>
+
+			<h4>Cache Plugin - <a
+			href="https://github.com/jldailey/BlingJS/blob/master/plugins/cache.coffee">Source</a>
+			</h4>
+			<p>Similar to EventEmitter, this provides <code>$.Cache</code> that is both an instance and a
+			type. The cache supports TTLs and fixed capacities.
+			<ol>
+				<li><code>cache = new $.Cache(capacity, ttl)</code> - Create a new cache object.
+				<li><code>cache.has(key)</code>
+				<li><code>cache.del(key)</code>
+				<li><code>cache.set(k, v, [ttl])</code>
+				<li><code>cache.get(k)</code>
+				<li><code>cache.clear()</code>
+			</ol>
+			<p><code>capacity</code> and <code>ttl</code> can both be <code>Infinity</code>.
+
+			<h4>Compatibility Plugin - <a
+			href="https://github.com/jldailey/BlingJS/blob/master/plugins/compat.coffee">Source</a>
+			</h4>
+			<p>This plugin provides all the various shims to make a minimal effort to unify the various
+			platforms</p>
+			<label>Shims</label>
+			<ol>
+				<li><code>$.global</code> - Same as 'window' in the browser, and 'global' in NodeJS.
+				<li><code>$.global.Buffer</code> - If not defined, just add <code>Buffer.isBuffer -> false</code>
+				<li><code>$.global.Map</code> - Fully functional shim for ES5 Map.
+				<li><code>Math.sign(x)</code> - 1 if positive or 0, -1 otherwise
+				<li><code>String::trimLeft</code>
+				<li><code>String::split</code>
+				<li><code>String::lastIndexOf</code>
+				<li><code>Array::join(sep)</code>
+				<li><code>Event::preventAll()</code>
+				<li><code>Element::matchesSelector</code>
+			</ol>
+
+			<h4>Config Plugin - <a
+			href="https://github.com/jldailey/BlingJS/blob/master/plugins/config.coffee">Source</a>
+			</h4>
+			<p>Read text files into <code>process.env</code> to manage configuration.</p>
+			<ol>
+				<li><code>$.config.get(name, default)</code> - Get a value from process.env, with a default.
+				<li><code>$.config.set(name, value)</code>
+				<li><code>$.config.parse(data)</code> - Parse '.env' style data into key/value pairs.
+				<li><code>$.config.watch(name, cb)</code> - Call cb(prev, new) when the named value changes.
+			</ol>
+
+			<h4>Date Plugin - <a
+			href="https://github.com/jldailey/BlingJS/blob/master/plugins/date.coffee">Source</a>
+			</h4>
+			<p>All date formats work with <code>$.date.parse()</code> and
+			<code>$.date.dateFormat</code></p>
+			<blockquote>
+			<table>
+				<tr><th>Date Format<th>Description
+				<tr><td>yyyy<td>Year (4)
+				<tr><td>YY (or yy)<td>Year (2)
+				<tr><td>mm<td>Month (2)
+				<tr><td>dd<td>Day of Month (2)
+				<tr><td>dw<td>Day of week (1=monday)
+				<tr><td>dW<td>Day of Week (Mon,Tue,etc)
+				<tr><td>DW<td>Day of Week (Monday,Tuesday,etc)
+				<tr><td>HH<td>Hour
+				<tr><td>MM<td>Minutes
+				<tr><td>SS<td>Seconds
+				<tr><td>MS<td>Milliseconds
+				<tr><td>_MS<td>MS (left padded with 0)
+			</table>
+			</blockquote>
+
+			<p>Functions</p>
+
+			<ol>
+				<li><code>$.date.defaultUnit = "s"</code> - default units for timestamps if not specified.
+				<li><code>$.date.defaultFormat = "yyyy-mm-dd HH:MM:SS"</code>
+				<li><code>$.date.stamp([date],[unit])</code> - get an integer timestamp
+				<li><code>$.date.unstamp(ts,[unit])</code> - convert to date object
+				<li><code>$.date.convert(ts,fromUnit,toUnit)</code> - convert between time units
+				<li><code>$.date.midnight(ts, [unit])</code> - truncate the ts to the nearest midnight
+				<li><code>$.date.format(ts, [format], [unit])</code> - see format table above
+				<li><code>$.date.parse(str, [format], [unit])</code> - see format table above
+			</ol>
+
+			<h4>Debug Plugin - <a
+			href="https://github.com/jldailey/BlingJS/blob/master/plugins/debug.coffee">Source</a>
+			</h4>
+			<p>Useful debugging functions.</p>
+			<ol>
+				<li><code>$.debugStack(err)</code> - return a stack trace that includes code snippets.
+				<li><code>$.protoChain(obj)</code> - return a list of all the objects in the __proto__ chain
+				of an object.
+			</ol>
+
+			<h4>Delay Plugin - <a
+			href="https://github.com/jldailey/BlingJS/blob/master/plugins/delay.coffee">Source</a>
+			</h4>
+			<p>The builtins <code>setTimeout</code> and <code>setInterval</code> have two problems in my
+			opinion, the more serious being that events which get scheduled near each other in time end up
+			having an undefined execution order, even if they have a well-defined prior schedule.
+
+			<p>This plugin guarantees proper order or execution, and adds the ability to pause and resume
+			intervals.
+
+			<ol>
+				<li><code>$.delay(ms, f)</code> - returns <code>{ cancel: -> }</code>
+				<li><code>$.interval(ms, f)</code> - returns <code>{ cancel: -> pause: -> resume: ->
+				}</code>
+				<li><code>$.immediate(f)</code> - calls setImmediate or process.nextTick or
+				setTimeout(f, 0)
+			</ol>
+
+			<h4>Diff Plugin - <a
+			href="https://github.com/jldailey/BlingJS/blob/master/plugins/diff.coffee">Source</a>
+			</h4>
+
+			<ol>
+				<li><code>$.stringDistance(a, b)</code> - the minimum edit distance between two strings.
+				<li><code>$.stringDiff(a, b)</code> - the list of changes to transform a into b.
+			</ol>
+
 	</body>
 </html>

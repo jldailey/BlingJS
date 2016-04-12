@@ -779,12 +779,13 @@
         return f.call(this, this);
       },
       replaceWith: function(array) {
-        var aa, i, ref, results;
-        results = [];
-        for (i = aa = 0, ref = array.length; aa < ref; i = aa += 1) {
-          results.push(this[i] = array[i]);
+        var aa, len1, x;
+        this.clear();
+        for (aa = 0, len1 = array.length; aa < len1; aa++) {
+          x = array[aa];
+          this.push(x);
         }
-        return results;
+        return this;
       },
       reduce: function(f, a) {
         var aa, i, n, ref, ref1, ref2, x;
@@ -6261,16 +6262,16 @@
       "function": {
         symbol: ")",
         pack: function(f) {
-          var args, body, name, name_re, ref, s;
+          var args, body, name, name_re, parts, s;
           s = f.toString().replace(/(?:\n|\r)+\s*/g, ' ');
           name = "";
           name_re = /function\s*(\w+)\(.*/g;
           if (name_re.test(s)) {
             name = s.replace(name_re, "$1");
           }
-          ref = s.replace(/function\s*\w*\(/, '').replace(/\/\*.*\*\//g, '').replace(/}$/, '').split(/\) {/), args = ref[0], body = ref[1];
-          args = args.split(/, */);
-          body = body.replace(/^\s+/, '').replace(/\s*$/, '');
+          parts = s.replace(/function\s*\w*\(/, '').replace(/\/\*.*\*\//g, '').replace(/}$/, '').split(/\) {/);
+          args = parts[0].split(/, */);
+          body = parts.slice(1).join(') {').replace(/^\s+/, '').replace(/\s*$/, '');
           return $(name, args, body).map(packOne).join('');
         },
         unpack: function(s) {

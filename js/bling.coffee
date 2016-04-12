@@ -336,8 +336,9 @@ $.plugin
 			b
 		tap: (f) -> f.call @, @
 		replaceWith: (array) ->
-			for i in [0...array.length] by 1
-				@[i] = array[i]
+			@clear()
+			@push x for x in array
+			@
 		reduce: (f, a) ->
 			if (typeof a) is 'function'
 				[f, a] = [a, f]
@@ -2915,12 +2916,14 @@ $.plugin
 				name_re = /function\s*(\w+)\(.*/g
 				if name_re.test s
 					name = s.replace name_re, "$1"
-				[args, body] = s.replace(/function\s*\w*\(/,'')
+				parts = s.replace(/function\s*\w*\(/,'')
 					.replace(/\/\*.*\*\//g,'')
 					.replace(/}$/,'')
 					.split(/\) {/)
-				args = args.split /, */
-				body = body.replace(/^\s+/,'').replace(/\s*$/,'')
+				args = parts[0].split /, */
+				body = parts.slice(1).join(') {')
+					.replace(/^\s+/,'')
+					.replace(/\s*$/,'')
 				return $( name, args, body ).map(packOne).join ''
 			unpack: (s) ->
 				[name, rest] = unpackOne(s)

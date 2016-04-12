@@ -60,12 +60,14 @@ $.plugin
 				name_re = /function\s*(\w+)\(.*/g
 				if name_re.test s
 					name = s.replace name_re, "$1"
-				[args, body] = s.replace(/function\s*\w*\(/,'')
+				parts = s.replace(/function\s*\w*\(/,'')
 					.replace(/\/\*.*\*\//g,'')
 					.replace(/}$/,'')
 					.split(/\) {/)
-				args = args.split /, */
-				body = body.replace(/^\s+/,'').replace(/\s*$/,'')
+				args = parts[0].split /, */
+				body = parts.slice(1).join(') {')
+					.replace(/^\s+/,'')
+					.replace(/\s*$/,'')
 				return $( name, args, body ).map(packOne).join ''
 			unpack: (s) ->
 				[name, rest] = unpackOne(s)

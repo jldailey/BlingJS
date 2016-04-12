@@ -65,7 +65,7 @@ describe "Core plugin:", ->
 		it "does not create a new Bling", ->
 			d = $(1,2,3,4)
 			e = d.replaceWith([5,6,7])
-			assert.deepEqual d, [5,6,7,4]
+			assert.deepEqual d, [5,6,7]
 
 	describe ".coalesce()", ->
 		it "returns the first non-null item", ->

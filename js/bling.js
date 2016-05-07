@@ -4723,159 +4723,134 @@
     provides: 'random',
     depends: 'type'
   }, function() {
-    var englishAlphabet, uuidAlphabet;
+    var abs, die, element, englishAlphabet, floor, integer, log, max_int, next, random, real, s, string, uuidAlphabet;
     englishAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
     uuidAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    floor = Math.floor, abs = Math.abs, log = Math.log;
+    max_int = 0xFFFFFFFF;
+    s = new Uint32Array(2);
+    next = function() {
+      var result, s0, s1;
+      s0 = s[0];
+      s1 = s[1];
+      result = (s0 + s1) % max_int;
+      s1 ^= s0;
+      s[0] = (s0 << 27) | (s0 >>> 5) ^ s1 ^ (s1 << 7);
+      s[1] = (s1 << 18) | (s1 >>> 14);
+      return result;
+    };
+    random = function() {
+      return next() / max_int;
+    };
+    $.defineProperty(random, 'seed', {
+      set: function(n) {
+        s[0] = n;
+        s[1] = 1;
+        next();
+        next();
+        next();
+        return n;
+      }
+    });
+    random.seed = $.now;
     return {
       $: {
-        random: (function() {
-          var MT, a, b, coin, dice, die, gaussian, generate_numbers, index, init_generator, integer, next, real, string;
-          MT = new Array(624);
-          index = 0;
-          init_generator = function(seed) {
-            var aa, i, results;
-            index = 0;
-            MT[0] = seed;
-            results = [];
-            for (i = aa = 1; aa <= 623; i = ++aa) {
-              results.push(MT[i] = 0xFFFFFFFF & (1812433253 * (MT[i - 1] ^ (MT[i - 1] >>> 30)) + i));
+        random: $.extend(random, {
+          real: real = function(min, max) {
+            var ref, ref1;
+            if (min == null) {
+              ref = [0, 1.0], min = ref[0], max = ref[1];
             }
-            return results;
-          };
-          generate_numbers = function() {
-            var aa, i, results, y;
-            results = [];
-            for (i = aa = 0; aa <= 623; i = ++aa) {
-              y = ((MT[i] & 0x80000000) >>> 31) + (0x7FFFFFFF & MT[(i + 1) % 624]);
-              MT[i] = MT[(i + 397) % 624] ^ (y >>> 1);
-              if ((y % 2) === 1) {
-                results.push(MT[i] = MT[i] ^ 2567483615);
-              } else {
-                results.push(void 0);
-              }
+            if (max == null) {
+              ref1 = [0, min], min = ref1[0], max = ref1[1];
             }
-            return results;
-          };
-          a = Math.pow(2, 31);
-          b = a * 2;
-          next = function() {
-            var y;
-            if (index === 0) {
-              generate_numbers();
+            return (random() * (max - min)) + min;
+          },
+          integer: integer = function(min, max) {
+            return floor(real(min, max));
+          },
+          string: string = function(len, prefix, alphabet) {
+            if (prefix == null) {
+              prefix = "";
             }
-            y = MT[index] ^ (y >>> 11) ^ ((y << 7) && 2636928640) ^ ((y << 15) && 4022730752) ^ (y >>> 18);
-            index = (index + 1) % 624;
-            return (y + a) / b;
-          };
-          $.defineProperty(next, "seed", {
-            set: function(v) {
-              return init_generator(v);
+            if (alphabet == null) {
+              alphabet = englishAlphabet;
             }
-          });
-          next.seed = +new Date();
-          return $.extend(next, {
-            real: real = function(min, max) {
-              var ref, ref1;
-              if (min == null) {
-                ref = [0, 1.0], min = ref[0], max = ref[1];
-              }
-              if (max == null) {
-                ref1 = [0, min], min = ref1[0], max = ref1[1];
-              }
-              return ($.random() * (max - min)) + min;
-            },
-            integer: integer = function(min, max) {
-              return Math.floor($.random.real(min, max));
-            },
-            string: string = function(len, prefix, alphabet) {
-              if (prefix == null) {
-                prefix = "";
-              }
-              if (alphabet == null) {
-                alphabet = englishAlphabet;
-              }
-              while (prefix.length < len) {
-                prefix += $.random.element(alphabet);
-              }
-              return prefix;
-            },
-            coin: coin = function(balance) {
-              if (balance == null) {
-                balance = .5;
-              }
-              return $.random() <= balance;
-            },
-            element: function(arr, weights) {
-              var aa, i, item, len1, r, sorted, sum, sum_w, w;
-              if (weights != null) {
-                w = $(weights);
-                sum_w = 1.0 / w.sum();
-                if (sum_w !== 1) {
-                  w = w.scale(sum_w);
-                }
-                i = 0;
-                sorted = $(arr).map(function(x) {
-                  return {
-                    v: x,
-                    w: w[i++]
-                  };
-                }).sortBy(function(x) {
-                  return -x.w;
-                });
-                r = $.random.real(0.00001, .999999);
-                sum = 0;
-                for (aa = 0, len1 = sorted.length; aa < len1; aa++) {
-                  item = sorted[aa];
-                  if ((sum += item.w) >= r) {
-                    return item.v;
-                  }
+            while (prefix.length < len) {
+              prefix += element(alphabet);
+            }
+            return prefix;
+          },
+          coin: function(balance) {
+            if (balance == null) {
+              balance = .5;
+            }
+            return random() <= balance;
+          },
+          element: element = function(arr, weights) {
+            var aa, i, item, len1, r, sorted, sum, w;
+            if (weights != null) {
+              w = $(weights);
+              w = w.scale(1.0 / w.sum());
+              i = 0;
+              sorted = $(arr).map(function(x) {
+                return {
+                  v: x,
+                  w: w[i++]
+                };
+              }).sortBy(function(x) {
+                return -x.w;
+              });
+              r = random();
+              sum = 0;
+              for (aa = 0, len1 = sorted.length; aa < len1; aa++) {
+                item = sorted[aa];
+                if ((sum += item.w) >= r) {
+                  return item.v;
                 }
               }
-              return arr[$.random.integer(0, arr.length)];
-            },
-            gaussian: gaussian = function(mean, ssig) {
-              var abs, log, q, u, v, x, y;
-              if (mean == null) {
-                mean = 0.5;
-              }
-              if (ssig == null) {
-                ssig = 0.12;
-              }
-              log = Math.log;
-              abs = Math.abs;
-              while (true) {
-                u = $.random();
-                v = 1.7156 * ($.random() - 0.5);
-                x = u - 0.449871;
-                y = abs(v) + 0.386595;
-                q = (x * x) + y * (0.19600 * y - 0.25472 * x);
-                if (!(q > 0.27597 && (q > 0.27846 || (v * v) > (-4 * log(u) * u * u)))) {
-                  break;
-                }
-              }
-              return mean + ssig * v / u;
-            },
-            dice: dice = function(n, faces) {
-              var _;
-              return $((function() {
-                var aa, ref, results;
-                results = [];
-                for (_ = aa = 0, ref = n; aa < ref; _ = aa += 1) {
-                  results.push(die(faces));
-                }
-                return results;
-              })());
-            },
-            die: die = function(faces) {
-              return $.random.integer(1, faces + 1);
-            },
-            uuid: function() {
-              return $(8, 4, 4, 4, 12).map(function() {
-                return $.random.string(this, '', uuidAlphabet);
-              }).join('-');
             }
-          });
-        })()
+            return arr[integer(0, arr.length)];
+          },
+          gaussian: function(mean, ssig) {
+            var q, u, v, x, y;
+            if (mean == null) {
+              mean = 0.5;
+            }
+            if (ssig == null) {
+              ssig = 0.12;
+            }
+            while (true) {
+              u = random();
+              v = 1.7156 * (random() - 0.5);
+              x = u - 0.449871;
+              y = abs(v) + 0.386595;
+              q = (x * x) + y * (0.19600 * y - 0.25472 * x);
+              if (!(q > 0.27597 && (q > 0.27846 || (v * v) > (-4 * log(u) * u * u)))) {
+                break;
+              }
+            }
+            return mean + ssig * v / u;
+          },
+          die: die = function(faces) {
+            return integer(1, faces + 1);
+          },
+          dice: function(n, faces) {
+            return $((function() {
+              var aa, ref, results;
+              results = [];
+              for (aa = 0, ref = n; aa < ref; aa += 1) {
+                results.push(die(faces));
+              }
+              return results;
+            })());
+          },
+          uuid: function() {
+            return $(8, 4, 4, 4, 12).map(function() {
+              return string(this, '', uuidAlphabet);
+            }).join('-');
+          }
+        })
       }
     };
   });

@@ -187,7 +187,10 @@ $.plugin
 
 	$.depends 'type', ->
 		$.type.register 'promise', is: (o) ->
-			try return (typeof o is 'object')	and 'promiseId' of o and 'then' of o
-			catch err then return false
+			return o? \
+				and ('object' is typeof o) \
+				and 'then' of o \
+				and 'function' is typeof o.then \
+				and o.then.length is 2
 
 	return $: { Promise, Progress }

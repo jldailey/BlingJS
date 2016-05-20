@@ -9,24 +9,30 @@
 		<style type="text/css">
 			pre {
 				font-family: 'Inconsolata', monospace;
-				background: #ffc;
+				background: #ffd;
 				border-radius: 2px;
 				padding: 6px 6px;
 				margin: 2px 4px;
 			}
 			code {
 				font-family: 'Inconsolata', monospace;
-				color: white;
-				background: #333;
+				color: black;
+				background: #aaa;
 				border-radius: 2px;
-				padding: 2px 4px;
+				padding: 3px 5px;
 			}
 			li {
 				padding-top: 4px;
 			}
+			table {
+				width: 100%;
+			}
 			table tr td {
 				border-top: 1px dashed black;
 				margin: 0;
+			}
+			table tr td:first-child {
+				padding: 3px 4px;
 			}
 			table tr td:first-child + td {
 				padding-top: 4px;
@@ -47,7 +53,7 @@
 			$(document).ready(function() {
 				$("see").each(function() {
 					text = this.textContent
-					$(this).replace("<a href='#"+text+"'>see: "+text+"</a>")
+					$(this).replace("<span>see: <a href='#"+text+"'>"+text+"<"+"/a><"+"/span>")
 				})
 			})
 		</script>
@@ -78,9 +84,9 @@ functionality is for creating plugins and managing abstract dependencies.</p>
 <p>The <code>provides:</code> and <code>depends:</code> functionality seen above is provided by
 a pair of top-level functions that allow you to model any abstract set of dependencies as a set
 of tags (short strings).</p>
-<pre>$.depends "some string", someFunction</pre>
-<pre>$.provide "some string"</pre>
-<p>Once <code>"some string"</code> gets provided, <code>someFunction</code> is
+<pre>$.depends "label", someFunction</pre>
+<pre>$.provide "label"</pre>
+<p>Once the <code>"label"</code> is provided, <code>someFunction</code> is
 called.</p>
 <p>Data can also be passed with the <code>$.provide</code> call.</p>
 <pre>$.depends "tag", (data) -&gt; console.log data</pre>
@@ -225,11 +231,11 @@ Supports the same complex, and nested, properties that <code>$(items).select(...
 <tr><td valign=top><li><code>.listeners</code><td> Get a copy of the listeners (modifying it has no effect).
 <a name="$.EventEmitter.apply(object)"></a>
 <tr><td valign=top><li><code>$.EventEmitter.apply(object)</code><td>Bless this object with the EventEmitter API.
+<tr><td valign=top><li><code>class MyClass extends $.EventEmitter</code><td>Requires <code>constructor: -> super @</code>, <see>$.EventEmitter.apply(object)</see>.
 </table>
-<tr><td valign=top><li><code>class MyClass extends $.EventEmitter then constructor: -> super @</code><td>
 <p>Every Bling instance is an EventEmitter automatically.</p>
 <pre>$(items).on('data', $.log).emit('data')</pre>
-<p>$.EventEmitter is an instance of it's type.</p>
+<p>$.EventEmitter is an instance of it's own type.</p>
 <pre>$.EventEmitter.on('data', $.log).emit('data')</pre>
 
 <h4>Async Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/async.coffee">Source</a> </h4>
@@ -398,18 +404,19 @@ setTimeout(f, 0)
 <table>
 <a name="$.identity"></a>
 <tr><td valign=top><li><code>$.identity</code><td>A static function that returns it's first argument; often useful as a stub or placeholder.
-<a name="$.not(f)"></a>
+<a name="$.not"></a>
 <tr><td valign=top><li><code>$.not(f)</code><td>A new function that inverts the return value of <code>f</code>.
-<a name="$.compose(f,g)"></a>
+<a name="$.compose"></a>
 <tr><td valign=top><li><code>$.compose(f,g)</code><td>Return a new function that calls <code>f(g(...))</code>.
-<a name="$.and(f,g)"></a>
+<a name="$.and"></a>
 <tr><td valign=top><li><code>$.and(f,g)</code><td>Return a new function equivalent to <code>f(...) and g(...)</code>.
-<a name="$.once(f)"></a>
+<a name="$.once"></a>
 <tr><td valign=top><li><code>$.once(f)</code><td>Return a new function that will only call <code>f</code> at-most once.
-<a name="$.cycle(functions...)"></a>
+<a name="$.cycle"></a>
 <tr><td valign=top><li><code>$.cycle(functions...)</code><td>Return a new function that calls each function in a cycle. e.g.
 <pre>g = $.cycle( (-> 1), (-> 2) )</pre>
 <pre>[ g(), g(), g(), g() ] == [ 1, 2, 1, 2 ]</pre>
+<a name="$.bound"></a>
 <tr><td valign=top><li><code>$.bound(context, f)</code><td>Return a new function whose context is fixed. Equivalent to <code>f.bind(context)</code> on platforms where <code>Function::bind</code> is defined.
 <a name="$.partial" />
 <tr><td valign=top><li><code>$.partial(f, arguments...)</code><td>Return a new function with the first few arguments to <code>f</code> pre-determined.
@@ -421,21 +428,27 @@ setTimeout(f, 0)
 <h4>Hash Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/hash.coffee">Source</a> </h4>
 
 <table>
+<a name="$.hash()"></a>
 <tr><td valign=top><li><code>$.hash(anything)</code><td>Returns an integer
+<a name="$::hash"></a>
 <tr><td valign=top><li><code>$(items).hash()</code><td>Same as <code>$.hash($(items))</code><td>
 </table>
-<p>Extending the <code>$.hash</code> system uses the <a href="#types"><code>$.type</code></a> system.
-<pre>$.type.extend "foo", hash: (o) -> return 1234</pre>
-<p>This will allow <code>$.hash()</code> to recognize and handle objects of type "foo".</p>
+<p>Extend the <code>$.hash</code> system with the <a href="#types"><code>$.type</code></a> system.
+<pre>$.type.extend "foo", hash: (o) -> return 1234 // allow hashing objects of type "foo"</pre>
+<p>For more about types, <see>$.type.extend</see> or <see>$.type.register</see>.</p>
 
 <h4>Hook Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/hook.coffee">Source</a> </h4>
 
-<p>Named lists of functions are used as pipelines to process values.
+<p>Lists of functions are used as pipelines to process values.
 
 <table>
+<a name="$.hook"></a>
 <tr><td valign=top><li><code>hook = $.hook()</code><td>Create a new (empty) hook.
+<a name="hook.append"></a>
 <tr><td valign=top><li><code>hook.append(f)</code><td>Add a function to the pipeline (at the end).
+<a name="hook.prepend"></a>
 <tr><td valign=top><li><code>hook.prepend(f)</code><td>Add a function to the pipeline (at the front).
+<a name="hook.call"></a>
 <tr><td valign=top><li><code>hook(args...)</code><td>Invoke the hook, something like calling <code>fn(...f3(f2(f1(args...))))</code><td>
 </table>
 
@@ -507,33 +520,204 @@ $(item).on 'keydown', (evt) ->
 
 <table>
 <tr><th>Pattern<th>Matches
-<tr><td valign=top>42<td>The value 42, an array, or a bling, containing 42.
+<tr><td valign=top><code>42</code><td>The value 42, an array, or a bling, containing 42.
 <pre>
 $.matches(42, $.range(0,50)) == true
 </pre>
-<tr><td valign=top>'value'<td>The string 'value', an array, or a bling, containing the string 'value'.
-<tr><td valign=top>/regexp/<td>Any string that matches the regexp, or any array, or bling, that contains a string that matches. e.g.
+<tr><td valign=top><code>'value'</code><td>The string 'value', an array, or a bling, containing the string 'value'.
+<tr><td valign=top><code>/regexp/</code><td>Any string that matches the regexp, or any array, or bling, that contains a string that matches. e.g.
 <pre>
 $.matches(/Wednesday/, fullDateString)      == true
 $.matches({ name: /^Fri/ }, [ ...days... ]) == true
 </pre>
-<tr><td valign=top>{ key: 'value' }<td>Match any object with this key/value pair (or inside an array matches).
-<tr><td valign=top>{ $any: true }<td>Matches anything (wildcard). Examples,
+<tr><td valign=top><code>{ key: 'value' }</code><td>Match any object with this key/value pair (or inside an array matches).
+<tr><td valign=top><code>{ $any: true }</code><td>Matches anything (except null, undefined, non-existent). Examples,
 <pre>
 $.matches({ $any: true }, { x: 1, y: 2 })         == true
 $.matches({ foo: { $any: true }}, { x: 1, y: 2 }) == false
 $.matches({ foo: { $any: true }}, { foo: "bar" }) == true
 </pre>
-<tr><td valign=top>{ $type: name }<td>Matches an object where <code>$.is(name, obj) == true</code>, <see>$.is</see>.
-<tr><td valign=top>{ $class: name }<td>Matches an object where <code>$.isType('EventEmitter', obj)</code>/
-<tr><td valign=top>{ $lt: &lt;N&gt; }<td>Matches any number &lt; &lt;N&gt;.
-<tr><td valign=top>{ $lte: &lt;N&gt;}<td>Matches any number &lt;= &lt;N&gt;.
-<tr><td valign=top>{ $gt: &lt;N&gt; }<td>Matches any number &gt; &lt;N&gt;.
-<tr><td valign=top>{ $gte: &lt;N&gt; }<td>Matches any number &gt;= &lt;N&gt;.
+<tr><td valign=top><code>{ $type: name }</code><td>Matches an object where <code>$.is(name, obj) == true</code>, <see>$.is</see>.
+<tr><td valign=top><code>{ $class: name }</code><td>Matches an object where <code>$.isType('EventEmitter', obj)</code>, <see>$.isType</see>
+<tr><td valign=top><code>{ $lt:  N }</code><td>Matches any number less than <code>N</code>.
+<tr><td valign=top><code>{ $lte: N }</code><td>Matches any number less than or equal to <code>N</code>.
+<tr><td valign=top><code>{ $gt:  N }</code><td>Matches any number greater than <code>N</code>.
+<tr><td valign=top><code>{ $gte: N }</code><td>Matches any number greater than or equal to <code>N</code>.
 </table>
 
 </table>
 
+<h4>Math Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/math.coffee">Source</a> </h4>
 
+<p>This adds a variety of math helpers (some general utilities and shims, but also some linear algebra).</p>
+
+<table>
+<tr><td valign=top><li><code>$.range([start=0], end, [step=1])</code><td>Generate an ordered set of numbers. e.g.
+<pre>
+$.range(10)     == $(0,1,2,3,4,5,6,7,8,9)
+$.range(10,0)   == $(10,9,8,7,6,5,4,3,2,1)
+$.range(0,10,2) == $(0,2,4,6,8)
+</pre>
+
+<tr><td valign=top><li><code>$.zeros(n)</code><td>Initialize a new bling full of zeros.
+<tr><td valign=top><li><code>$.ones(n)</code><td>Initialize a new bling full of ones.
+<tr><td valign=top><li><code>$.deg2rad(d)</code> and <code>$.rad2deg(r)</code><td>Convert between degrees and radians.
+<tr><td valign=top><li><code>$(items).floats()</code><td>Map <code>parseFloat</code> over the items and return the results.
+<tr><td valign=top><li><code>$(items).ints()</code><td>Map <code>parseInt(item, 10)</code> over the items and return the results.
+<tr><td valign=top><li><code>$(items).min()</code><td>Reduce the set to the smallest item (numerically).
+<tr><td valign=top><li><code>$(items).max()</code><td>Reduce the set to the largest item (numerically).
+<tr><td valign=top><li><code>$(items).minBy(keyMaker)</code> and <code>$::maxBy(keyMaker)</code><td>Reduce the set to the item with the smallest value according to <code>keyMaker</code>.
+<p>
+<code>keyMaker</code> can be:
+<li>a string (the name of a field to sort by).
+<pre>
+$( {a: 3}, {a: 1}, {a: 2} ).minBy('a') == { a: 1 }
+</pre>
+<li>an arbitrary function of the object.
+<pre>
+keyMaker = (obj) -> (1 ^ (obj.a % 2) ) * obj.a // odd values become 0
+$( {a: 3}, {a: 1}, {a: 2} ).minBy(keyMaker) == { a: 2 }
+</pre>
+<tr><td valign=top><li><code>$(items).mean()</code><td>Reduce a set of numbers to it's average value.
+<tr><td valign=top><li><code>$(items).sum()</code><td>Reduce a set of numbers to their sum.
+<tr><td valign=top><li><code>$(items).product()</code><td>Reduce a set of numbers to their product.
+<tr><td valign=top><li><code>$(items).squares()</code><td>Return a new set with every number squared. <see>$(items).pow(n)</see>
+<tr><td valign=top><li><code>$(items).pow(n)</code><td>Return a new set with every number raised to the power <code>n</code>.
+<tr><td valign=top><li><code>$(items).magnitude()</code><td>Treat the set of items as a vector, and compute it's magnitude (the sqrt of the sum of squares).
+<tr><td valign=top><li><code>$(items).normalize()</code><td>Scale this vector so that it's magnitude <code>== 1</code>.
+<tr><td valign=top><li><code>$(items).scale(n)</code><td>Return a new set with every number multiplied by <code>n</code>.
+<tr><td valign=top><li><code>$(items).add(n)</code> or <code>$(items).plus(n)</code><td>Return a new set with <code>n</code> added to every number.
+<tr><td valign=top><li><code>$(items).sub(n)</code> or <code>$(items).minus(b)</code><td>Return a new set with <code>n</code> subtracted from every number.
+<tr><td valign=top><li><code>$(items).dot(other)</code><td>Compute the dot product of two vectors.
+<tr><td valign=top><li><code>$(items).cross(other)</code><td>Compute the cross product of two vectors.
+<tr><td valign=top><li><code>$(items).angle(other)</code><td>Compute the angle (theta) between two vectors.
+</table>
+
+
+<h4>Memoize Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/memoize.coffee">Source</a> </h4>
+
+<p>This adds a function wrapper for caching expensive function calls. Only use this for truly costly functions, the memoization pays the cost of hashing the function's arguments.
+
+<table>
+<tr><td valign=top><li><code>$.memoize([opts or func])</code><td>Option values include:
+
+<table>
+	<tr><th>Key<th>Type<th>Meaning
+	<tr><td><code>async:</code><td>boolean<td>If <code>true</code>, the wrapped function is assumed to accept a callback as it's last argument. Default: false.
+	<tr><td><code>hash:</code><td>function<td>The function to use to hash the arguments. Default: <code>$.hash</code>, <see>$.hash()</see>.
+	<tr><td><code>cache:</code><td>object<td>Any object that supports the minimal <code>Map</code> interface: <code>get, set, has</code>.
+	<tr><td><code>f:</code><td>function<td>The function to be wrapped (the only required argument).
+</table>
+
+<p>If only the function is passed (and not an option object), all other values get their defaults.</p>
+
+</table>
+
+<h4>Middleware Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/middleware.coffee">Source</a> </h4>
+
+<p>This creates a usabe middleware system (similar to what runs an Express stack).
+
+<p>Example:
+<pre>
+app = $.middleware()
+app.use (a, b, next) ->
+	console.log(a + b)
+	next()
+app.use (a, b, next) ->
+	console.log(a * b)
+	next()
+
+app.catch (err) ->
+	console.error "Error:", err
+
+app.invoke(10, 12) # logs "22" and then "120".
+</pre>
+
+<table>
+	<tr><th>Method<th>Meaning
+	<tr><td valign=top><li><code>app.use(func)</code></li><td>Adds a function to the chain of middleware. <code>func</code> will be given a continuation as it's last argument.
+	<tr><td valign=top><li><code>app.unuse(func)</code></li><td>Remove a function from this chain.
+	<tr><td valign=top><li><code>app.catch(handler)</code></li><td>Adds a function to the chain of error handlers. A (synchronous) error will call <code>func(err)</code>. Asynchronous errors are not catchable here.
+	<tr><td valign=top><li><code>app.invoke(arguments...)</code></li><td>Call all the functions in the middleware chain. Each call is like <code>func(arguments..., next)</code>.
+</table>
+
+<h4>Promises Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/promise.coffee">Source</a> </h4>
+
+<p>An opinionated (and now controversial) Promises implementation. Prior to the standardized Promises API, this was a thing. It is functionally equivalent (as capable as) the standard, but different in small ways.
+
+<table>
+	<tr><th>Promises</th>
+	<tr><td valign=top><li><code>.wait(func)</code></li><td>(non-standard) Wait on the result of a promise (either success or fail). Called as <code>func(err, result)</code>.
+	<tr><td valign=top><li><code>.then(func)</code></li><td>(standard) Wait for success only. Called as <code>func(result)</code>.
+	<tr><td valign=top><li><code>.finish</code> or <code>.resolve(result)</code></li><td> (<code>resolve</code> is standard). Will cause all (past and future) waiters to recieve <code>result</code>.
+	<tr><td valign=top><li><code>.fail</code> or <code>.reject(error)</code></li><td> (<code>reject</code> is standard). Will cause all (past and future) waiters to fail with <code>error</code>.
+	<tr><td valign=top><li><code>.reset()</code></li><td> (non-standard, level: blasphemy!) Reset a promise. Allows the same promise instance to <code>finish</code> or <code>fail</code> again.
+	<tr><td valign=top><li><code>.promiseId</code></li><td> (non-standard) A unique identifier for this promise instance. Useful when debugging complex dependencies between promises.
+	<tr><td valign=top><li><code>.handler</code></li><td> (non-standard) A function that can be used to <code>finish</code> or <code>fail</code> a Promise (useful for bridging into a callback-based world). e.g.
+<pre>
+p = $.Promise()
+db = getDatabase()
+db.update({...}, {...}, p.handler) # p will either fail or finish
+</pre>
+	<tr><td valign=top><li><code>Promise.collect(promises...)</code></li><td>Make a new Promise that only finishes if all promises finish, but fails if any one promise fails. The result value of the new promise is an array of the composed results.
+<pre>
+userCreated = $.Promise()
+emailSent = $.Promise()
+p = Promise.collect(userCreated, emailSent)
+p.then (result) ->
+	console.log "User created and email sent."
+	console.log "Results:", result # is an Array of results, in order
+p.catch (err) -> console.log "One of the promises failed.", err
+</pre>
+	<tr><td valign=top><li><code>Promse.compose(promises...)</code></li><td>Create a Progress object from multiple Promise objects. Any Promise failure rejects the Progress object.
+	<tr><td colspan=2>&nbsp;
+	<tr><th>Progress</th>
+	<tr><td colspan=2 align=left valign=top><span>A <code>Progress</code> object is a special type of progress that is finished in increments.
+<pre>
+p = $.Progress(3)
+p.then -> console.log "All done!"
+p.finish 1 # p emits 'progress', [1, 3]
+p.finish 1 # p emits 'progress', [2, 3]
+p.finish 1 # p emits 'progress', [3, 3]
+# All done!
+</pre>
+	<tr><td valign=top><li><code>p.progress()</code></li><td>Get the current progress amount.
+	<tr><td valign=top><li><code>p.progress(cur)</code></li><td>Set the current progress amount.
+	<tr><td valign=top><li><code>p.progress(cur, max)</code></li><td>Set the current and the goal amounts.
+	<tr><td valign=top><li><code>p.progress(null, max)</code></li><td>Set just the goal amount, don't change progress amount.
+	<tr><td valign=top><li><code>p.on('progress', cb)</code></li><td>Notify <code>cb(cur, max)</code> when either current or goal amounts change.
+	<tr><td valign=top><li><code>p.include(promise)</code></li><td>Add a promise to the goal amount. Can pass Progress or Promise object here.
+
+</table>
+
+<h4>PubSub Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/pubsub.coffee">Source</a> </h4>
+
+<p>A flexible implementation of the publish/subscribe API.
+<pre>
+hub = $.Hub() # create a new Hub
+hub.subscribe 'my channel', (msg) -> console.log msg
+hub.publish 'my channel', 'Hello Hub!'
+</pre>
+<p><code>$</code> is a global <code>Hub</code> for everyone to share.
+<pre>
+$.subscribe 'my channel', (msg) -> console.log msg
+$.publish 'my channel', 'Hello world!'
+</pre>
+
+<table>
+	<tr><td valign=top><li><code>hub = $.Hub()</code></li><td>Create a new <code>Hub</code>.
+	<tr><td valign=top><li><code>hub.subscribe(channel, listener)</code></li><td>Subscribe to all messages on a channel.
+<pre>
+# listener can do fancy filtering:
+listener = -> # do whatever...
+listener.patternObject = { $gt: 10 } # Anything supported by $.matches
+hub.subscribe(channel, listener)
+# listener will only get called when messages match the patternObject
+</pre>
+<p><see>$.matches</see> for what you can match with patterns.
+	<tr><td valign=top><li><code>hub.publish(channel, message)</code></li><td>
+	<tr><td valign=top><li><code>hub</code></li><td>Create a new <code>Hub</code>.
+</table>
+	
 </body>
 </html>

@@ -6,7 +6,7 @@ describe "Index/Query plugin:", ->
 		it "creates a private index", ->
 			$([{a:1,b:2}, {a:2,b:3}]).index keyMaker
 		it "cannot query until index has been built", ->
-			assert.equal $([1,2,3]).query(a:1), null
+			assert.deepEqual $([1,2,3]).query(a:1), []
 		it "can .query() after indexing", ->
 			a = $([{a:1,b:'b'},{a:2},{a:3}]).index keyMaker
 			assert.equal a.query(a:1).b, 'b'

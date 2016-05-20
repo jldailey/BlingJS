@@ -23,4 +23,13 @@ $.plugin
 	sortedInsert: (item, iterator) ->
 		@splice ($.sortedIndex @, item, iterator), 0, item
 		@
+	groupBy: (key) ->
+		groups = {}
+		switch $.type key
+			when 'array','bling'
+				for x in @
+					c = (x[k] for k in key).join ","
+					(groups[c] or= $()).push x
+			else for x in @ then (groups[x[key]] or= $()).push x
+		return $.valuesOf groups
 

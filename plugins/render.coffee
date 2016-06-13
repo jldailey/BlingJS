@@ -3,8 +3,10 @@ $.plugin
 	depends: "promise, type, logger"
 , ->
 
+	# Log all messages from this module with a [render] prefix.
 	log = $.logger "[render]"
 
+	# If a promise yields another promise, consume that instead.
 	consume_forever = (promise, opts, p = $.Promise()) ->
 		unless $.is "promise", promise
 			return $.Promise().resolve(reduce promise, opts)
@@ -16,13 +18,19 @@ $.plugin
 			else p.resolve(r)
 		p
 
+	# Render by reducing the given object with options,
+	# then waiting on any and all Promises to resolve.
 	render = (o, opts = {}) ->
 		consume_forever r = (reduce [ o ], opts), opts
-
+	
+	# Keep a registry of type codes to handler functions.
+	# The type code "text" is included by default, as an example.
+	# Type codes come from either the "t" or "type" property of an object.
 	object_handlers = {
 		text: (o, opts) -> reduce o[opts.lang ? "EN"], opts
 	}
-	# Objects are handled based on their "t" or "type" property.
+	
+	# Associate a type code with a handler function.
 	render.register = register = (t, f) -> object_handlers[t] = f
 
 	render.reduce = reduce = (o, opts) -> # all objects become either arrays, promises, or strings

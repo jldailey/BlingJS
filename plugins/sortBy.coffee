@@ -2,10 +2,10 @@ $.plugin
 	provides: "sortBy,sortedIndex,sortedInsert"
 , ->
 	$:
-		sortedIndex: (array, item, iterator, lo = 0, hi = array.length) ->
+		sortedIndex: (array, item, sorter, lo = 0, hi = array.length) ->
 			cmp = switch true
-				when $.is "string", iterator then (a,b) -> a[iterator] < b[iterator]
-				when $.is "function", iterator then (a,b) -> iterator(a) < iterator(b)
+				when $.is "string", sorter then (a,b) -> a[sorter] < b[sorter]
+				when $.is "function", sorter then (a,b) -> sorter(a) < sorter(b)
 				else (a,b) -> a < b
 			while lo < hi
 				mid = (hi + lo)>>>1
@@ -14,22 +14,22 @@ $.plugin
 				else
 					hi = mid
 			return lo
-	sortBy: (iterator) ->
+	sortBy: (sorter) ->
 		a = $()
 		for item in @
-			n = $.sortedIndex a, item, iterator
+			n = $.sortedIndex a, item, sorter
 			a.splice n, 0, item
 		a
-	sortedInsert: (item, iterator) ->
-		@splice ($.sortedIndex @, item, iterator), 0, item
+	sortedInsert: (item, sorter) ->
+		@splice ($.sortedIndex @, item, sorter), 0, item
 		@
-	groupBy: (key) ->
+	groupBy: (sorter) ->
 		groups = {}
-		switch $.type key
+		switch $.type sorter
 			when 'array','bling'
 				for x in @
 					c = (x[k] for k in key).join ","
 					(groups[c] or= $()).push x
-			else for x in @ then (groups[x[key]] or= $()).push x
+			when 'string' for x in @ then (groups[x[key]] or= $()).push x
 		return $.valuesOf groups
 

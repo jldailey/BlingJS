@@ -23,27 +23,38 @@
 			}
 			li {
 				padding-top: 4px;
+				margin-left: 20px;
 			}
 			table {
 				width: 100%;
 			}
 			table tr td {
-				border-top: 1px dashed black;
 				margin: 0;
 			}
 			table tr td:first-child {
 				padding: 3px 4px;
+				float: left;
 			}
 			table tr td:first-child + td {
 				padding-top: 4px;
+				float: left;
+				clear: left;
+				margin-left: 50px;
+			}
+			blockquote table td {
+				float: none !important;
+			}
+			blockquote table {
+				width: auto;
 			}
 			table tr {
 				margin: 0;
 				padding: 0;
 			}
-			h4 {
-				border-bottom: 1px solid black;
-				padding-left: 0px;
+			h4, .plugin-name {
+				padding: 6px 0px 4px 6px;
+				border-radius: 4px;
+				background-color: rgba(190,200,150,1);
 			}
 			h4:before {
 				content: "* "
@@ -69,7 +80,7 @@
 <pre>$ = require('bling')</pre>
 <p>By default, we take over the global variable <code>$</code>. If you don't want this:</p>
 <pre>$ = Bling.noConflict()</pre>
-<p>This will restore <code>$</code> to whatever it was before, and the global
+<p>This will restore <code>$</code> to whatever it was before, and only the global
 <code>Bling</code> will remain.</p>
 <a name="plugins"/>
 <h3>Plugins</h3>
@@ -641,7 +652,7 @@ app.invoke(10, 12) # logs "22" and then "120".
 	<tr><td valign=top><li><code>app.invoke(arguments...)</code></li><td>Call all the functions in the middleware chain. Each call is like <code>func(arguments..., next)</code>.
 </table>
 
-<h4>Promises Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/promise.coffee">Source</a> </h4>
+<h4>Promises Plugin - <a id="$.Promise" href="https://github.com/jldailey/BlingJS/blob/master/plugins/promise.coffee">Source</a> </h4>
 
 <p>An opinionated (and now controversial) Promises implementation. Prior to the standardized Promises API, this was a thing. It is functionally equivalent (as capable as) the standard, but different in small ways.
 
@@ -672,7 +683,7 @@ p.catch (err) -> console.log "One of the promises failed.", err
 	<tr><td valign=top><li><code>Promse.compose(promises...)</code></li><td>Create a Progress object from multiple Promise objects. Any Promise failure rejects the Progress object.
 	<tr><td colspan=2>&nbsp;
 	<tr><th>Progress</th>
-	<tr><td colspan=2 align=left valign=top><span>A <code>Progress</code> object is a special type of progress that is finished in increments.
+	<tr><td colspan=2 align=left valign=top><span>A <code>Progress</code> object is a special type of Promise that is finished in increments.
 <pre>
 p = $.Progress(3)
 p.then -> console.log "All done!"
@@ -706,18 +717,110 @@ $.publish 'my channel', 'Hello world!'
 
 <table>
 	<tr><td valign=top><li><code>hub = $.Hub()</code></li><td>Create a new <code>Hub</code>.
-	<tr><td valign=top><li><code>hub.subscribe(channel, listener)</code></li><td>Subscribe to all messages on a channel.
+	<tr><td valign=top><li><code>hub.subscribe(channel, listener)</code></li><td>Subscribe to messages on a channel.
 <pre>
-# listener can do fancy filtering:
+# listeners can do fancy filtering:
 listener = -> # do whatever...
-listener.patternObject = { $gt: 10 } # Anything supported by $.matches
+listener.patternObject = { $gt: 10 } # Can use any patternObject supported by $.matches
 hub.subscribe(channel, listener)
 # listener will only get called when messages match the patternObject
 </pre>
 <p><see>$.matches</see> for what you can match with patterns.
-	<tr><td valign=top><li><code>hub.publish(channel, message)</code></li><td>
-	<tr><td valign=top><li><code>hub</code></li><td>Create a new <code>Hub</code>.
+	<tr><td valign=top><li><code>hub.unsubscribe(channel, [listener])</code></li><td>Unsubscribe to messages on a channel. If not given, unsubscribe all listeners.
+	<tr><td valign=top><li><code>hub.publish(channel, message)</code></li><td>Notify listeners on a given channel.
 </table>
-	
+
+<h4>Random Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/random.coffee">Source</a> </h4>
+
+<p>Provide a seed-able random number generator of high quality.
+
+<table>
+	<tr><td valign=top><li><code>$.random()</code></li><td>Generate a random real number in (0..1)
+	<tr><td valign=top><li><code>$.random.seed = integer;</code></li><td>(write-only) Set the seed for the psuedo-random sequence.
+	<tr><td valign=top><li><code>$.random.real(min=0, max=1)</code></li><td>Return the next real number in (min...max)
+	<tr><td valign=top><li><code>$.random.integer(min=0, max=1)</code></li><td>Return the next integer in (min...max)
+	<tr><td valign=top><li><code>$.random.string(len, prefix="", alphabet=englishAlphabet)</code></li><td>Return the next random string. e.g. <pre>$.random.string(10, "id-") == "id-1234567"</pre>
+	<tr><td valign=top><li><code>$.random.coin(balance=0.5)</code></li><td>Flip a coin. Return a boolean.
+	<tr><td valign=top><li><code>$.random.element(array, weights=null)</code></li><td>Return a random elemnt of <code>array</code>. If provided, <code>weights</code> should have the same number of elements as <code>array</code>.
+	<tr><td valign=top><li><code>$.random.gaussian(mean=0.5, stdev=0.12)</code></li><td>Return the next real number drawn from a guassian distribution. The default values of <code>mean</code> and <code>stdev</code> provide samples that are almost entirely in <code>(0..1)</code>, centered on <code>0.5</code>.
+	<tr><td valign=top><li><code>$.random.die(faces)</code></li><td>Roll one die, return an integer. e.g. <code>$.random.die(6)</code> is equivalent to a "1d6", aka a 6-sided die.
+	<tr><td valign=top><li><code>$.random.dice(n, faces)</code></li><td>Roll several dice, return an array of integers. <code>$.random.dice(2,6)</code> is equivalent to "2d6".
+	<tr><td valign=top><li><code>$.random.uuid()</code></li><td>Generate a UUID of the form: x8-x4-x4-x4-x12.
+</table>
+
+<h4>Render Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/render.coffee">Source</a></h4>
+
+<p>Provide a system for asynchronously rendering tree-like structures into a string.
+<p>Handlers are invoked based on the object's <code>"type"</code> or <code>"t"</code> property.
+
+<table>
+	<a id='$.render.register'></a>
+	<tr><td valign=top><li><code>$.render.register(type, handler)</code></li><td>Register a new handler. e.g.
+<pre>
+$.render.register("custom", -> "Hello World");
+$.render({ type: "custom" }).then $.log # "Hello World"
+</pre>
+<p>If your handler wants to recurse into some of it's children, call <code>$.render.reduce(child)</code>.
+<pre>
+$.render.register("user", (user) -> user.name)
+$.render.register("custom", (obj) -> "Hello, #{$.render.reduce obj.user}")
+$.render({ type: "custom", user: { type: "user", name: "Joe" } }).then $.log # "Hello, Joe"
+</pre>
+<p>Or, return an array of items, which will be further reduced, e.g. with "user" the same as before:
+<pre>
+$.render.register("custom", (obj) -> [ "Hello, ", user ])
+$.render({ type: "custom", user: { type: "user", name: "Joe" } }).then $.log # "Hello, Joe"
+</pre>
+<p>If your handler needs to do asynchronous work, return a Promise. <see>$.Promise</see>.
+	<tr><td valign=top><li><code>$.render(stuff)</code></li><td>Return a Promise<String> that contains the final result.
+	<p>Accepts any object, or array of objects.
+	<p>Uses the "t" or "type" property to look up a handler, <see>$.render.register</see>.
+	<tr><td valign=top><li>Builtin type codes:
+<blockquote>
+<table>
+<tr><th>Type Code<th>Example
+<tr><td valign=top>"text"<td>Renders multi-lingual text.
+<pre>
+opts = { lang: "EN" }
+$.render( { type: "text", EN: "Hello", FR: "Bonjour" }, opts )
+</pre>
+<tr><td valign=top>"let" or "set"<td>Assigns a scoped variable inside the <code>opts</code> object (for use by "get").
+<tr><td valign=top>"get"<td>Get the value of a scoped variable from the <code>opts</code> object.
+<pre>
+opts = { lang: "EN", someKey: "defaultValue" }
+$.render( [
+	{ type: "set"
+	  name: "someKey", value: "magicValue",
+	  content: { type: "text", EN: { type: "get", name: "someKey" } } },
+	{ type: "get", name: "someKey" }
+], opts )
+.then $.log # "magicValue"
+</pre>
+<tr><td valign=top>"link"<td>Renders an anchor tag, e.g.
+<pre>
+$.render( { type: "link", href: "index.html" } )
+.then $.log # "&lt;a href='index.html'>&lt;/a>"
+</pre>
+<p>Included as an example, only supports "href", "name", and "target" right now.
+</table>
+</blockquote>
+</table>
+
+<h4>Sorting Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/sortBy.coffee">Source</a></h4>
+
+<p>Throughout this plugin, "sorter" is a special argument that controls sorting behavior.
+It can be of type "string", or "function".
+<p>If "sorter" is a string, the items are sorted based on the value of the named property, e.g.
+<pre>$.sortedIndex(array, items, "id") # sorts array by the "id" property.</pre>
+
+<p>If "sorter" is a function, the items are sorted based on the result of <code>sorter(item)</code>, e.g.
+<pre>$.sortedIndex(array, item, (obj) -> $.now - obj.creation_date) # sorts the items by age.</pre>
+<table>
+	<tr><td valign=top><li><code>$.sortedIndex(array, item, sorter)</code></li><td>Return the index where the item should be, if you were about to splice it in.
+	<tr><td valign=top><li><code>$(array).sortedInsert(item, sorter)</code></li><td>Insert a single item into array, in sorted order.
+	<tr><td valign=top><li><code>$(array).sortBy(sorter)</code></li><td>Return a new set of items, in sorted order.
+	<tr><td valign=top><li><code>$(array).groupBy(key)</code></li><td>Return a set of sets, one set in the output for each distinct value of the given key. <code>"key"</code> is also allowed to be an array of property names.
+</table>
+
 </body>
 </html>

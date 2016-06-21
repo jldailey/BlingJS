@@ -114,133 +114,133 @@ will call <code>func</code> immediately.
 <h4>Core Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/core.coffee">Source</a>
 </h4>
 <table>
-<a name="$.now"></a>
+<a name="$.now" />
 <tr><td valign=top><li><code>$.now</code><td>The current time in ms.
-<a name="$.assert(cond, message)"></a>
+<a name="$.assert(cond, message)" />
 <tr><td valign=top><li><code>$.assert(cond, message)</code><td>Assert that cond is true.
-<a name="$.coalesce(items...)"></a>
+<a name="$.coalesce(items...)" />
 <tr><td valign=top><li><code>$.coalesce(items...)</code><td>Return the first non-null item.
-<a name="$.keysOf(obj, own=false)"></a>
+<a name="$.keysOf(obj, own=false)" />
 <tr><td valign=top><li><code>$.keysOf(obj, own=false)</code><td>Shim for <code>Object.keys()</code> -- <code>own=true</code> adds <code>hasOwnProperty</code>.
-<a name="$.valuesOf(obj, own=false)"></a>
+<a name="$.valuesOf(obj, own=false)" />
 <tr><td valign=top><li><code>$.valuesOf(obj, own=false)</code><td>Complement to <code>$.keysOf()</code><td>
-<a name="$::eq"></a>
+<a name="$::eq" />
 <tr><td valign=top><li><code>$(items).eq(i)</code><td>Return a new set with just the <code>i</code>-th item.
-<a name="$::each"></a>
+<a name="$::each" />
 <tr><td valign=top><li><code>$(items).each(f)</code><td>Call <code>f(item)</code> for every item in this.
-<a name="$::map"></a>
+<a name="$::map" />
 <tr><td valign=top><li><code>$(items).map(f)</code><td>Return a new set containing f(item) for every item.
-<a name="$::every"></a>
+<a name="$::every" />
 <tr><td valign=top><li><code>$(items).every(f)</code><td>True if <code>f(item)</code> is true for every item.
-<a name="$::some"></a>
+<a name="$::some" />
 <tr><td valign=top><li><code>$(items).some(f)</code><td>True if <code>f(item)</code> is true at least one item.
-<a name="$::filterMap"></a>
+<a name="$::filterMap" />
 <tr><td valign=top><li><code>$(items).filterMap(f)</code><td>Like <code>$(items).map()</code> except omits <code>null</code> from the result. e.g.
 <pre>$(1,2,3).filterMap((x) -&gt; if (x%2) then x else null) == $(1, 3)</pre>
-<a name="$::tap"></a>
+<a name="$::tap" />
 <tr><td valign=top><li><code>$(items).tap(f)</code><td>Call <code>f(this)</code> and continue chaining, e.g.
 <pre>$(items).tap($.log).hide()</pre>
-<a name="$::reduce"></a>
+<a name="$::reduce" />
 <tr><td valign=top><li><code>$(items).reduce(f)</code><td> Collect <code>a</code> from <code>f(a, item)</code> for every item. The <code>a</code> and <code>f</code> arguments can be given in any order.
 <pre>$(items).sum() == $(items).reduce 0, (a, x) -&gt; a + x</pre>
 <pre>$(items).product() == $(items).reduce 1, (a, x) -&gt; a * x</pre>
-<a name="$::union"></a>
+<a name="$::union" />
 <tr><td valign=top><li><code>$(items).union(other, strict=true)</code><td> Combine the two sets, eliminates duplicates.
-<a name="$::intersect"></a>
+<a name="$::intersect" />
 <tr><td valign=top><li><code>$(items).intersect(other, strict=true)</code><td> Return a new set with any overlapping items.
-<a name="$::distinct"></a>
+<a name="$::distinct" />
 <tr><td valign=top><li><code>$(items).distinct(strict=true)</code><td> Return a new set without any duplicates.
-<a name="$::contains"></a>
+<a name="$::contains" />
 <tr><td valign=top><li><code>$(items).contains(item, strict=true)</code><td> Return true if the item is in this set.
-<a name="$::count"></a>
+<a name="$::count" />
 <tr><td valign=top><li><code>$(items).count(item, strict=true)</code><td> The number of times item appears in this set.
-<a name="$::coalesce"></a>
+<a name="$::coalesce" />
 <tr><td valign=top><li><code>$(items).coalesce()</code><td> Return the first non-null item (descends recursively into nested arrays and blings).
-<a name="$::or"></a>
+<a name="$::or" />
 <tr><td valign=top><li><code>$(items).or(value)</code><td> Replace any false-y items with <code>value</code>.
-<a name="$::swap"></a>
+<a name="$::swap" />
 <tr><td valign=top><li><code>$(items).swap(i,j)</code><td> Swap the <code>i</code>-th and <code>j</code>-th item.
-<a name="$::shuffle"></a>
+<a name="$::shuffle" />
 <tr><td valign=top><li><code>$(items).shuffle()</code><td> Randomize the order, in-place.
-<a name="$::select"></a>
+<a name="$::select" />
 <tr><td valign=top><li><code>$(items).select(property)</code><td> Collect values from sets of objects. e.g.
 <pre>$(items).select('x') == $(items).map (item) -&gt; return item.x </pre>
 <p>You can also pass complex nested keys, descending into objects, arrays, etc.</p>
 <pre>$(items).select('someArray.2.someProperty')</pre>
 <p>Selecting functions will automatically bind those functions to the site they were selected from.</p>
 <pre>$(streams).select('write').call(data, "utf8")</pre>
-<a name="$::zap"></a>
+<a name="$::zap" />
 <tr><td valign=top><li><code>$(items).zap(property, value)</code><td> Assign <code>value</code> to <code>property</code> on every item in this.
 Supports the same complex, and nested, properties that <code>$(items).select(...)</code> does.
 <pre>$(items).zap('childNodes.2.style.display','none') # Hide every 3rd child</pre>
-<a name="$::take"></a>
+<a name="$::take" />
 <tr><td valign=top><li><code>$(items).take(n)</code><td> Return the first <code>n</code> items from this.
-<a name="$::skip"></a>
+<a name="$::skip" />
 <tr><td valign=top><li><code>$(items).skip(n)</code><td> Return everything except the first <code>n</code> items from this.
-<a name="$::first"></a>
+<a name="$::first" />
 <tr><td valign=top><li><code>$(items).first(n=1)</code><td> Return the first item (or the first n items if asked).
-<a name="$::last"></a>
+<a name="$::last" />
 <tr><td valign=top><li><code>$(items).last(n=1)</code><td> Return the last [n] item[s].
-<a name="$::slice"></a>
+<a name="$::slice" />
 <tr><td valign=top><li><code>$(items).slice(start,end)</code><td> Like Array.slice() except supports negative indices, e.g.
 <pre>$(items).slice(0, -2) == $(items).slice(0, items.length - 2)</pre>
-<a name="$::extend"></a>
+<a name="$::extend" />
 <tr><td valign=top><li><code>$(items).extend(others)</code><td> Append all the other items to this set (allows duplicates).
-<a name="$::push"></a>
+<a name="$::push" />
 <tr><td valign=top><li><code>$(items).push(item)</code><td> Append item and return this (allows chaining), e.g.
 <pre>$(items).push(1).push(2).reverse()</pre>
-<a name="$::filter"></a>
+<a name="$::filter" />
 <tr><td valign=top><li><code>$(items).filter(func, [limit], [match])</code><td> Select a new set where <code>f(item) === match</code>.
 <p><code>limit</code> defaults to <code>Infinity</code>.
 <p><code>match</code> defaults to <code>true</code>.
-<a name="$(items).matches(expr)"></a>
+<a name="$(items).matches(expr)" />
 <tr><td valign=top><li><code>$(items).matches(expr)</code><td> Filter the set to contain only items that:
 <table>
 <tr><td valign=top><li> If expr is a string, then items must be DOM nodes that match that string as a CSS selector.
 <tr><td valign=top><li> If expr is a regexp, then items must be strings that match that regexp.
 </table>
 </li>
-<a name="$(items).weave(other)"></a>
+<a name="$(items).weave(other)" />
 <tr><td valign=top><li><code>$(items).weave(other)</code><td> Interleave the items from the two sets.
 <pre>$(1,1,1).weave($(2,2,2)) == $(2,1,2,1,2,1)</pre>
-<a name="$(items).fold(f)"></a>
+<a name="$(items).fold(f)" />
 <tr><td valign=top><li><code>$(items).fold(f)</code><td> Stride over this set calling <code>f(a,b)</code> for each pair of items.
 <pre>$(1,2,3,4).fold( (a,b) -&gt; a + b ) == $(3, 7)</pre> 
 <p>This is a complement to <code>$(items).weave()</code> and they can often be used together.</p>
-<a name="$(items).flatten()"></a>
+<a name="$(items).flatten()" />
 <tr><td valign=top><li><code>$(items).flatten()</code><td> Flatten out any nested arrays.
 <pre>$( [1,2], [3,4] ).flatten() == $(1,2,3,4)</pre>
-<a name="$(items).call(args...)"></a>
+<a name="$(items).call(args...)" />
 <tr><td valign=top><li><code>$(items).call(args...)</code><td> Call every function in this set with <code>args...</code>.
-<a name="$(items).apply(context, args...)"></a>
+<a name="$(items).apply(context, args...)" />
 <tr><td valign=top><li><code>$(items).apply(context, args...)</code><td> Apply every function in this set.
-<a name="$(items).log(prefix)"></a>
+<a name="$(items).log(prefix)" />
 <tr><td valign=top><li><code>$(items).log(prefix)</code><td> Log this set to the global <code>$.log</code>.
-<a name="$(items).toArray()"></a>
+<a name="$(items).toArray()" />
 <tr><td valign=top><li><code>$(items).toArray()</code><td> Un-bling this set of items, returning back to a simple Array.
-<a name="$(items).clear()"></a>
+<a name="$(items).clear()" />
 <tr><td valign=top><li><code>$(items).clear()</code><td> Remove all items from this.
-<a name="$(items).indexWhere(f)"></a>
+<a name="$(items).indexWhere(f)" />
 <tr><td valign=top><li><code>$(items).indexWhere(f)</code><td> Return the first index where <code>f(item)</code> is true
 </table>
 
-<h4>EventEmitter Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/EventEmitter.coffee">Source</a> </h4>
+<h4>EventEmitter Plugin - <a id="plugins/EventEmitter" href="https://github.com/jldailey/BlingJS/blob/master/plugins/EventEmitter.coffee">Source</a> </h4>
 <p>This provides the same interface as EventEmitter API in NodeJS.
 <p>It becomes available on all Bling objects, as well as a base class to use in inheritance.
 <table>
-<a name=".addListener"></a>
+<a name=".addListener" />
 <tr><td valign=top><li><code>.addListener('event', handler)</code><td>Call <code>handler</code> every time <code>emit('event')</code> is called.
-<a name=".on"></a>
+<a name=".on" />
 <tr><td valign=top><li><code>.on('event', handler)</code><td>Synonym for <code>.addListener</code>
-<a name=".emit"></a>
+<a name=".emit" />
 <tr><td valign=top><li><code>.emit('event', args...)</code><td>Causes all listeners for 'event' to be called [with arguments].
-<a name=".removeListener"></a>
+<a name=".removeListener" />
 <tr><td valign=top><li><code>.removeListener('event', [handler])</code><td>Remove [all] listeners for this 'event'.
-<a name=".removeAllListeners"></a>
+<a name=".removeAllListeners" />
 <tr><td valign=top><li><code>.removeAllListeners('event')</code><td>Remove all listeners for this 'event' (unambiguously)
-<a name=".listeners"></a>
+<a name=".listeners" />
 <tr><td valign=top><li><code>.listeners</code><td> Get a copy of the listeners (modifying it has no effect).
-<a name="$.EventEmitter.apply(object)"></a>
+<a name="$.EventEmitter.apply(object)" />
 <tr><td valign=top><li><code>$.EventEmitter.apply(object)</code><td>Bless this object with the EventEmitter API.
 <tr><td valign=top><li><code>class MyClass extends $.EventEmitter</code><td>Requires <code>constructor: -> super @</code>, <see>$.EventEmitter.apply(object)</see>.
 </table>
@@ -249,81 +249,79 @@ Supports the same complex, and nested, properties that <code>$(items).select(...
 <p>$.EventEmitter is an instance of it's own type.</p>
 <pre>$.EventEmitter.on('data', $.log).emit('data')</pre>
 
-<h4>Async Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/async.coffee">Source</a> </h4>
+<h4>Async Plugin - <a id="plugins/async" href="https://github.com/jldailey/BlingJS/blob/master/plugins/async.coffee">Source</a> </h4>
 <table>
-<a name="$::series"></a>
+<a name="$::series" />
 <tr><td valign=top><li><code>$(funcs).series(done)</code><td> Call each function with a single argument, a
 callback function.
-<p>It can be very helpful to use <a href="#$.partial"><code>$.partial()</code></a> to prepare your functions so they only need the single callback as argument.
-<a name="$::parallel"></a>
+<p>It can be very helpful to use <a href="#$.partial"><code>$.partial()</code /> to prepare your functions so they only need the single callback as argument.
+<a name="$::parallel" />
 <tr><td valign=top><li><code>$(funcs).parallel(done)</code><td> Similar to <code>series</code>, except start all
 the funcs at the same time. Each function still gets only the single callback.
 </table>
 
-<h4>Cache Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/cache.coffee">Source</a> </h4>
+<h4>Cache Plugin - <a id="plugins/cache" href="https://github.com/jldailey/BlingJS/blob/master/plugins/cache.coffee">Source</a> </h4>
 <p>Provides <code>$.Cache</code> that is both an instance and a type. The cache supports TTLs and fixed capacities.
 <table>
-<a name="Cache::new"></a>
+<a name="Cache::new" />
 <tr><td valign=top><li><code>cache = new $.Cache(capacity, ttl)</code><td> Create a new cache object.
-<a name="Cache::has"></a>
+<a name="Cache::has" />
 <tr><td valign=top><li><code>cache.has(key)</code><td>
-<a name="Cache::del"></a>
+<a name="Cache::del" />
 <tr><td valign=top><li><code>cache.del(key)</code><td>
-<a name="Cache::set"></a>
+<a name="Cache::set" />
 <tr><td valign=top><li><code>cache.set(k, v, [ttl])</code><td>
-<a name="Cache::get"></a>
+<a name="Cache::get" />
 <tr><td valign=top><li><code>cache.get(k)</code><td>
-<a name="Cache::clear"></a>
+<a name="Cache::clear" />
 <tr><td valign=top><li><code>cache.clear()</code><td>
 </table>
 <p><code>capacity</code> and <code>ttl</code> can both be <code>Infinity</code>.
 
-<h4>Compatibility Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/compat.coffee">Source</a></h4>
+<h4>Compatibility Plugin - <a id="plugins/compat" href="https://github.com/jldailey/BlingJS/blob/master/plugins/compat.coffee">Source</a></h4>
 <p>This plugin makes a minimal effort to cover over inconsistencies between various platforms.</p>
 <table>
-<a name="$.global"></a>
+<a name="$.global" />
 <tr><td valign=top><li><code>$.global</code><td> Equals 'window' in the browser, and 'global' in NodeJS.
-<a name="$.global.Buffer"></a>
+<a name="$.global.Buffer" />
 <tr><td valign=top><li><code>$.global.Buffer</code><td> If not defined, just add <code>Buffer.isBuffer -> false</code><td>
-<a name="$.global.Map"></a>
+<a name="$.global.Map" />
 <tr><td valign=top><li><code>$.global.Map</code><td> Fully functional shim for ES5 Map.
-<a name="Math.sign"></a>
+<a name="Math.sign" />
 <tr><td valign=top><li><code>Math.sign(x)</code><td> 1 if positive <em>or 0</em>, -1 otherwise
-<a name="String::trimLeft"></a>
+<a name="String::trimLeft" />
 <tr><td valign=top><li><code>String::trimLeft</code><td>
-<a name="String::split"></a>
+<a name="String::split" />
 <tr><td valign=top><li><code>String::split</code><td>
-<a name="String::lastIndexOf"></a>
+<a name="String::lastIndexOf" />
 <tr><td valign=top><li><code>String::lastIndexOf</code><td>
-<a name="Array::join(sep)"></a>
+<a name="Array::join(sep)" />
 <tr><td valign=top><li><code>Array::join(sep)</code><td>
-<a name="Event::preventAll()"></a>
+<a name="Event::preventAll()" />
 <tr><td valign=top><li><code>Event::preventAll()</code><td>
-<a name="Element::matchesSelector"></a>
+<a name="Element::matchesSelector" />
 <tr><td valign=top><li><code>Element::matchesSelector</code><td>
 </table>
 
 </table>
 
 <a name="$.config" />
-<h4>Config Plugin - <a
-href="https://github.com/jldailey/BlingJS/blob/master/plugins/config.coffee">Source</a>
-</h4>
+<h4>Config Plugin - <a id="plugins/config" href="https://github.com/jldailey/BlingJS/blob/master/plugins/config.coffee">Source</a> </h4>
+
 <p>Read text files into <code>process.env</code> to manage configuration.</p>
 <table>
-<a name="$.config.get"></a>
+<a id="$.config.get" />
 <tr><td valign=top><li><code>$.config.get(name, default)</code><td> Get a value from process.env, with a default.
-<a name="$.config.set"></a>
+<a id="$.config.set" />
 <tr><td valign=top><li><code>$.config.set(name, value)</code><td>
-<a name="$.config.parse"></a>
+<a id="$.config.parse" />
 <tr><td valign=top><li><code>$.config.parse(data)</code><td> Parse '.env' style data into key/value pairs.
-<a name="$.config.watch"></a>
+<a id="$.config.watch" />
 <tr><td valign=top><li><code>$.config.watch(name, cb)</code><td> Call cb(prev, new) when the named value changes.
 </table>
 
 <a name="$.date" />
-<h4>Date Plugin - <a
-href="https://github.com/jldailey/BlingJS/blob/master/plugins/date.coffee">Source</a>
+<h4>Date Plugin - <a id="plugins/date" href="https://github.com/jldailey/BlingJS/blob/master/plugins/date.coffee">Source</a>
 </h4>
 <p>All date formats work with <code>$.date.parse()</code> and
 <code>$.date.dateFormat</code></p>
@@ -349,39 +347,36 @@ href="https://github.com/jldailey/BlingJS/blob/master/plugins/date.coffee">Sourc
 <p>Functions</p>
 
 <table>
-<a name="$.date.defaultUnit"></a>
+<a name="$.date.defaultUnit" />
 <tr><td valign=top><li><code>$.date.defaultUnit = "s"</code><td>Default units for timestamps if not specified.
-<a name="$.date.defaultFormat"></a>
+<a name="$.date.defaultFormat" />
 <tr><td valign=top><li><code>$.date.defaultFormat = "yyyy-mm-dd HH:MM:SS"</code><td>
-<a name="$.date.stamp"></a>
+<a name="$.date.stamp" />
 <tr><td valign=top><li><code>$.date.stamp([date],[unit])</code><td>Get an integer timestamp
-<a name="$.date.unstamp"></a>
+<a name="$.date.unstamp" />
 <tr><td valign=top><li><code>$.date.unstamp(ts,[unit])</code><td>Convert to date object
-<a name="$.date.convert"></a>
+<a name="$.date.convert" />
 <tr><td valign=top><li><code>$.date.convert(ts,fromUnit,toUnit)</code><td>Convert between time units
-<a name="$.date.midnight"></a>
+<a name="$.date.midnight" />
 <tr><td valign=top><li><code>$.date.midnight(ts, [unit])</code><td>Truncate the ts to the nearest midnight
-<a name="$.date.format"></a>
+<a name="$.date.format" />
 <tr><td valign=top><li><code>$.date.format(ts, [format], [unit])</code><td>See format table above
-<a name="$.date.parse"></a>
+<a name="$.date.parse" />
 <tr><td valign=top><li><code>$.date.parse(str, [format], [unit])</code><td>See format table above
 </table>
 
-<h4>Debug Plugin - <a
-href="https://github.com/jldailey/BlingJS/blob/master/plugins/debug.coffee">Source</a>
-</h4>
+<h4>Debug Plugin - <a id="plugins/debug" href="https://github.com/jldailey/BlingJS/blob/master/plugins/debug.coffee">Source</a> </h4>
+
 <p>Useful debugging functions.</p>
 <table>
-<a name="$.debugStack"></a>
+<a name="$.debugStack" />
 <tr><td valign=top><li><code>$.debugStack(err)</code><td>Return a stack trace that includes code snippets.
-<a name="$.protoChain"></a>
+<a name="$.protoChain" />
 <tr><td valign=top><li><code>$.protoChain(obj)</code><td>Return a list of all the objects in the __proto__ chain
 of an object.
 </table>
 
-<h4>Delay Plugin - <a
-href="https://github.com/jldailey/BlingJS/blob/master/plugins/delay.coffee">Source</a>
-</h4>
+<h4>Delay Plugin - <a id="plugins/delay" href="https://github.com/jldailey/BlingJS/blob/master/plugins/delay.coffee">Source</a> </h4>
 <p>The builtins <code>setTimeout</code> and <code>setInterval</code> have two problems in my
 opinion, the more serious being that events which get scheduled near each other in time end up
 having an undefined execution order, even if they have a well-defined prior schedule.
@@ -390,44 +385,44 @@ having an undefined execution order, even if they have a well-defined prior sche
 intervals.
 
 <table>
-<a name="$.delay"></a>
+<a name="$.delay" />
 <tr><td valign=top><li><code>$.delay(ms, f)</code><td>Returns <code>{ cancel: -> }</code><td>
-<a name="$.interval"></a>
+<a name="$.interval" />
 <tr><td valign=top><li><code>$.interval(ms, f)</code><td>Returns <code>{ cancel: -> pause: -> resume: -> }</code><td>
-<a name="$.immediate"></a>
+<a name="$.immediate" />
 <tr><td valign=top><li><code>$.immediate(f)</code><td>Calls setImmediate or process.nextTick or
 setTimeout(f, 0)
 </table>
 
-<h4>Diff Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/diff.coffee">Source</a> </h4>
+<h4>Diff Plugin - <a id="plugins/diff" href="https://github.com/jldailey/BlingJS/blob/master/plugins/diff.coffee">Source</a> </h4>
 
 <table>
-<a name="$.stringDistance"></a>
+<a name="$.stringDistance" />
 <tr><td valign=top><li><code>$.stringDistance(a, b)</code><td>The minimum edit distance between two strings.
-<a name="$.stringDiff"></a>
+<a name="$.stringDiff" />
 <tr><td valign=top><li><code>$.stringDiff(a, b)</code><td>The list of changes to transform a into b.
 </table>
 
-<h4>Function Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/function.coffee">Source</a> </h4>
+<h4>Function Plugin - <a id="plugins/function" href="https://github.com/jldailey/BlingJS/blob/master/plugins/function.coffee">Source</a> </h4>
 
 <p>This plugin provides all sorts of reusable helper functions, as well as means for composing and preparing functions.
 
 <table>
-<a name="$.identity"></a>
+<a name="$.identity" />
 <tr><td valign=top><li><code>$.identity</code><td>A static function that returns it's first argument; often useful as a stub or placeholder.
-<a name="$.not"></a>
+<a name="$.not" />
 <tr><td valign=top><li><code>$.not(f)</code><td>A new function that inverts the return value of <code>f</code>.
-<a name="$.compose"></a>
+<a name="$.compose" />
 <tr><td valign=top><li><code>$.compose(f,g)</code><td>Return a new function that calls <code>f(g(...))</code>.
-<a name="$.and"></a>
+<a name="$.and" />
 <tr><td valign=top><li><code>$.and(f,g)</code><td>Return a new function equivalent to <code>f(...) and g(...)</code>.
-<a name="$.once"></a>
+<a name="$.once" />
 <tr><td valign=top><li><code>$.once(f)</code><td>Return a new function that will only call <code>f</code> at-most once.
-<a name="$.cycle"></a>
+<a name="$.cycle" />
 <tr><td valign=top><li><code>$.cycle(functions...)</code><td>Return a new function that calls each function in a cycle. e.g.
 <pre>g = $.cycle( (-> 1), (-> 2) )</pre>
 <pre>[ g(), g(), g(), g() ] == [ 1, 2, 1, 2 ]</pre>
-<a name="$.bound"></a>
+<a name="$.bound" />
 <tr><td valign=top><li><code>$.bound(context, f)</code><td>Return a new function whose context is fixed. Equivalent to <code>f.bind(context)</code> on platforms where <code>Function::bind</code> is defined.
 <a name="$.partial" />
 <tr><td valign=top><li><code>$.partial(f, arguments...)</code><td>Return a new function with the first few arguments to <code>f</code> pre-determined.
@@ -436,30 +431,30 @@ setTimeout(f, 0)
 <p><b>Mnemonic:</b> you are "partially" calling the function, and you get back a partially-called function.
 </table>
 
-<h4>Hash Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/hash.coffee">Source</a> </h4>
+<h4>Hash Plugin - <a id="plugins/hash" href="https://github.com/jldailey/BlingJS/blob/master/plugins/hash.coffee">Source</a> </h4>
 
 <table>
-<a name="$.hash()"></a>
+<a name="$.hash()" />
 <tr><td valign=top><li><code>$.hash(anything)</code><td>Returns an integer
-<a name="$::hash"></a>
+<a name="$::hash" />
 <tr><td valign=top><li><code>$(items).hash()</code><td>Same as <code>$.hash($(items))</code><td>
 </table>
-<p>Extend the <code>$.hash</code> system with the <a href="#types"><code>$.type</code></a> system.
+<p>Extend the <code>$.hash</code> system with the <a href="#types"><code>$.type</code /> system.
 <pre>$.type.extend "foo", hash: (o) -> return 1234 // allow hashing objects of type "foo"</pre>
 <p>For more about types, <see>$.type.extend</see> or <see>$.type.register</see>.</p>
 
-<h4>Hook Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/hook.coffee">Source</a> </h4>
+<h4>Hook Plugin - <a id="plugins/hook" href="https://github.com/jldailey/BlingJS/blob/master/plugins/hook.coffee">Source</a> </h4>
 
 <p>Lists of functions are used as pipelines to process values.
 
 <table>
-<a name="$.hook"></a>
+<a name="$.hook" />
 <tr><td valign=top><li><code>hook = $.hook()</code><td>Create a new (empty) hook.
-<a name="hook.append"></a>
+<a name="hook.append" />
 <tr><td valign=top><li><code>hook.append(f)</code><td>Add a function to the pipeline (at the end).
-<a name="hook.prepend"></a>
+<a name="hook.prepend" />
 <tr><td valign=top><li><code>hook.prepend(f)</code><td>Add a function to the pipeline (at the front).
-<a name="hook.call"></a>
+<a name="hook.call" />
 <tr><td valign=top><li><code>hook(args...)</code><td>Invoke the hook, something like calling <code>fn(...f3(f2(f1(args...))))</code><td>
 </table>
 
@@ -469,7 +464,7 @@ setTimeout(f, 0)
 <p>Later...
 <pre>$(1,2,3).magic == "marker"</pre>
 
-<h4>Index Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/index.coffee">Source</a> </h4>
+<h4>Index Plugin - <a id="plugins/index" href="https://github.com/jldailey/BlingJS/blob/master/plugins/index.coffee">Source</a> </h4>
 
 <p>Add the ability to index a set of objects, and then query against those indexes.
 
@@ -484,7 +479,7 @@ $(items).index (obj) -> obj.id # index objects by the id field
 $(items).query({ id: "a" }) # returns all items with { id: "a" }
 </pre>
 
-<h4>Dump Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/json.coffee">Source</a> </h4>
+<h4>Dump Plugin - <a id="plugins/json" href="https://github.com/jldailey/BlingJS/blob/master/plugins/json.coffee">Source</a> </h4>
 
 <p>Provides <code>$.toHTML</code> which acts like 'cfdump', and displays any JSON-like object as HTML.
 
@@ -492,7 +487,7 @@ $(items).query({ id: "a" }) # returns all items with { id: "a" }
 <tr><td valign=top><li><code>$.toHTML(obj)</code><td>Returns a string
 </table>
 
-<h4>Key Names Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/keyNames.coffee">Source</a> </h4>
+<h4>Key Names Plugin - <a id="plugins/keyNames" href="https://github.com/jldailey/BlingJS/blob/master/plugins/keyNames.coffee">Source</a> </h4>
 
 <p>Provides friendly mappings between keyboard codes and key names.
 
@@ -507,7 +502,7 @@ $(item).on 'keydown', (evt) ->
 		when "Esc" then ...
 </pre>
 
-<h4>Logging Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/log.coffee">Source</a> </h4>
+<h4>Logging Plugin - <a id="plugins/log" href="https://github.com/jldailey/BlingJS/blob/master/plugins/log.coffee">Source</a> </h4>
 
 <table>
 <tr><td valign=top><li><code>$.log(arguments...)</code><td>Log all the things (to stdout by default).
@@ -522,7 +517,7 @@ $(item).on 'keydown', (evt) ->
 <p>Applications that will be logging at high-volume should not set <code>verbosity=2</code>.
 </table>
 
-<h4>Matches Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/matches.coffee">Source</a> </h4>
+<h4>Matches Plugin - <a id="plugins/matches" href="https://github.com/jldailey/BlingJS/blob/master/plugins/matches.coffee">Source</a> </h4>
 
 <p>This defines <code>$.matches</code> which can match pattern objects against test objects.
 
@@ -558,7 +553,7 @@ $.matches({ foo: { $any: true }}, { foo: "bar" }) == true
 
 </table>
 
-<h4>Math Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/math.coffee">Source</a> </h4>
+<h4>Math Plugin - <a id="plugins/math" href="https://github.com/jldailey/BlingJS/blob/master/plugins/math.coffee">Source</a> </h4>
 
 <p>This adds a variety of math helpers (some general utilities and shims, but also some linear algebra).</p>
 
@@ -605,7 +600,7 @@ $( {a: 3}, {a: 1}, {a: 2} ).minBy(keyMaker) == { a: 2 }
 </table>
 
 
-<h4>Memoize Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/memoize.coffee">Source</a> </h4>
+<h4>Memoize Plugin - <a id="plugins/memoize" href="https://github.com/jldailey/BlingJS/blob/master/plugins/memoize.coffee">Source</a> </h4>
 
 <p>This adds a function wrapper for caching expensive function calls. Only use this for truly costly functions, the memoization pays the cost of hashing the function's arguments.
 
@@ -624,7 +619,7 @@ $( {a: 3}, {a: 1}, {a: 2} ).minBy(keyMaker) == { a: 2 }
 
 </table>
 
-<h4>Middleware Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/middleware.coffee">Source</a> </h4>
+<h4>Middleware Plugin - <a id="plugins/middleware" href="https://github.com/jldailey/BlingJS/blob/master/plugins/middleware.coffee">Source</a> </h4>
 
 <p>This creates a usabe middleware system (similar to what runs an Express stack).
 
@@ -652,7 +647,7 @@ app.invoke(10, 12) # logs "22" and then "120".
 	<tr><td valign=top><li><code>app.invoke(arguments...)</code></li><td>Call all the functions in the middleware chain. Each call is like <code>func(arguments..., next)</code>.
 </table>
 
-<h4>Promises Plugin - <a id="$.Promise" href="https://github.com/jldailey/BlingJS/blob/master/plugins/promise.coffee">Source</a> </h4>
+<h4>Promises Plugin - <a id="$.Promise" id="plugins/promise" href="https://github.com/jldailey/BlingJS/blob/master/plugins/promise.coffee">Source</a> </h4>
 
 <p>An opinionated (and now controversial) Promises implementation. Prior to the standardized Promises API, this was a thing. It is functionally equivalent (as capable as) the standard, but different in small ways.
 
@@ -701,7 +696,7 @@ p.finish 1 # p emits 'progress', [3, 3]
 
 </table>
 
-<h4>PubSub Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/pubsub.coffee">Source</a> </h4>
+<h4>PubSub Plugin - <a id="plugins/pubsub" href="https://github.com/jldailey/BlingJS/blob/master/plugins/pubsub.coffee">Source</a> </h4>
 
 <p>A flexible implementation of the publish/subscribe API.
 <pre>
@@ -730,7 +725,7 @@ hub.subscribe(channel, listener)
 	<tr><td valign=top><li><code>hub.publish(channel, message)</code></li><td>Notify listeners on a given channel.
 </table>
 
-<h4>Random Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/random.coffee">Source</a> </h4>
+<h4>Random Plugin - <a id="plugins/random" href="https://github.com/jldailey/BlingJS/blob/master/plugins/random.coffee">Source</a> </h4>
 
 <p>Provide a seed-able random number generator of high quality.
 
@@ -748,13 +743,13 @@ hub.subscribe(channel, listener)
 	<tr><td valign=top><li><code>$.random.uuid()</code></li><td>Generate a UUID of the form: x8-x4-x4-x4-x12.
 </table>
 
-<h4>Render Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/render.coffee">Source</a></h4>
+<h4>Render Plugin - <a id="plugins/render" href="https://github.com/jldailey/BlingJS/blob/master/plugins/render.coffee">Source</a></h4>
 
 <p>Provide a system for asynchronously rendering tree-like structures into a string.
 <p>Handlers are invoked based on the object's <code>"type"</code> or <code>"t"</code> property.
 
 <table>
-	<a id='$.render.register'></a>
+	<a id='$.render.register' />
 	<tr><td valign=top><li><code>$.render.register(type, handler)</code></li><td>Register a new handler. e.g.
 <pre>
 $.render.register("custom", -> "Hello World");
@@ -806,7 +801,7 @@ $.render( { type: "link", href: "index.html" } )
 </blockquote>
 </table>
 
-<h4>Sorting Plugin - <a href="https://github.com/jldailey/BlingJS/blob/master/plugins/sortBy.coffee">Source</a></h4>
+<h4>Sorting Plugin - <a id="plugins/sortBy" href="https://github.com/jldailey/BlingJS/blob/master/plugins/sortBy.coffee">Source</a></h4>
 
 <p>Throughout this plugin, "sorter" is a special argument that controls sorting behavior.
 It can be of type "string", or "function".
@@ -816,10 +811,45 @@ It can be of type "string", or "function".
 <p>If "sorter" is a function, the items are sorted based on the result of <code>sorter(item)</code>, e.g.
 <pre>$.sortedIndex(array, item, (obj) -> $.now - obj.creation_date) # sorts the items by age.</pre>
 <table>
-	<tr><td valign=top><li><code>$.sortedIndex(array, item, sorter)</code></li><td>Return the index where the item should be, if you were about to splice it in.
-	<tr><td valign=top><li><code>$(array).sortedInsert(item, sorter)</code></li><td>Insert a single item into array, in sorted order.
-	<tr><td valign=top><li><code>$(array).sortBy(sorter)</code></li><td>Return a new set of items, in sorted order.
-	<tr><td valign=top><li><code>$(array).groupBy(key)</code></li><td>Return a set of sets, one set in the output for each distinct value of the given key. <code>"key"</code> is also allowed to be an array of property names.
+	<tr><td valign=top><li><a id="$.sortedIndex" /><code>$.sortedIndex(array, item, sorter)</code></li><td>Return the index where the item should be, if you were about to splice it in.
+	<tr><td valign=top><li><a id="sortedInsert" /><code>$(array).sortedInsert(item, sorter)</code></li><td>Insert a single item into array, in sorted order.
+	<tr><td valign=top><li><a id="sortBy" /><code>$(array).sortBy(sorter)</code></li><td>Return a new set of items, in sorted order.
+	<tr><td valign=top><li><a id="groupBy" /><code>$(array).groupBy(key)</code></li><td>Return a set of sets, one set in the output for each distinct value of the given key. <code>"key"</code> is also allowed to be an array of property names.
+</table>
+
+<h4>String Plugin - <a id="plugins/string" href="https://github.com/jldailey/BlingJS/blob/master/plugins/string.coffee">Source</a></h4>
+
+<p>Provides some string helpers, but most of the plugin is dedicated to <code>$.toString</code>, which leverages the type system, <see>plugins/type</see>, to define modular conversions.
+
+<table>
+	<tr><td valign=top><li><a id="$.toString" /><code>$.toString(anything)</code></li><td>Convert anything to a string using <code>$.type.lookup(item).string</code>, <see>$.type.register</see> or <see>$.type.extend</see>, uses the "string" action from the type system.
+	<tr><td valign=top><li><a id="$.toRepr" /><code>$.toRepr(anything)</code></li><td>Tries to produce a string that is a parseable description of the object. e.g. <code>$.toRepr(->) == "function (){}"</code>, uses the "repr" action from the type system.
+	<tr><td valign=top><li><a id="$.px" /><code>$.px(number)</code></li><td>Attach a "px" unit-suffix to a number or a number-like string. Return a string.
+	<tr><td valign=top><li><a id="$.capitalize" /><code>$.capitalize(string)</code></li><td>Return a properly capitalized string, e.g. <code>$.capitalize("foo bar") == "Foo Bar"</code>.
+	<tr><td valign=top><li><a id="$.stubize" /><code>$.stubize(string)</code></li><td>Return a stub-ized string, suitable for use in a url, e.g. <code>$.stubize("foo bar") == "foo-bar"</code>.
+	<tr><td valign=top><li><a id="$.slugize" /><code>$.slugize(string)</code></li><td>Alias for <code>$.stubize</code>.
+	<tr><td valign=top><li><a id="$.dashize" /><code>$.dashize(string)</code></li><td>Replace non-whitespace characters with dashes.
+	<tr><td valign=top><li><a id="$.camelize" /><code>$.camelize(string)</code></li><td>Convert words to one camel-cased word, e.g. <code>$.camelize("foo bar") == "FooBar"</code>.
+	<tr><td valign=top><li><a id="$.commaize" /><code>$.commaize(number, [comma], [dot], [currency])</code></li><td>Add commas to a number, for display purposes.
+	<tr><td valign=top><li><a id="$.padLeft" /><code>$.padLeft(string, len, sep=' ')</code></li><td>Pad the left side of a string.
+	<tr><td valign=top><li><a id="$.padRight" /><code>$.padRight(string, len, sep=' ')</code></li><td>Pad the right side of a string.
+	<tr><td valign=top><li><a id="$.stringTruncate" /><code>$.stringTruncate(string, len, ellipsis='...')</code></li><td>Truncate a string, e.g. <code>$.stringTruncate("one two three", 8) == "one two..."</code>.
+	<tr><td valign=top><li><a id="$.stringCount" /><code>$.stringCount(string, item)</code></li><td>Return the number of times that <code>item</code> appears in <code>string</code>.
+	<tr><td valign=top><li><a id="$.stringSplice" /><code>$.stringSplice(string, i, j, input)</code></li><td>Replace characters from <code>i</code> to <code>j</code> with <code>in</code>.
+	<tr><td valign=top><li><a id="$.stringReverse" /><code>$.stringReverse(string)</code></li><td>Return a reversed string.
+	<tr><td valign=top><li><a id="$.checksum" /><code>$.checksum(string)</code></li><td>Compute a CRC32 checksum of the string.
+	<tr><td valign=top><li><a id="$.repeat" /><code>$.repeat(item, n)</code></li><td>Repeat the string, or if item isn't a string, return an array of items.
+	<tr><td valign=top><li><a id="$.stringBuilder" /><code>new $.stringBuilder()</code></li><td>
+	<blockquote>
+	<table>
+		<tr><td><code>.length</code><td>Return the current length of all chunks.
+		<tr><td><code>.append(str)</code><td>Append a chunk.
+		<tr><td><code>.prepend(str)</code><td>Prepend a chunk.
+		<tr><td><code>.clear()</code><td>Remove all chunks.
+		<tr><td><code>.toString()</code><td>Join and return all chunks.
+	</table>
+	</blockquote>
+	<tr><td valign=top><li><a id="indexOf" /><code>$(array).indexOf(target, offset=0)</code></li><td>Works like Array.indexOf, but also accepts a RegExp and will return the index of the first match.
 </table>
 
 </body>

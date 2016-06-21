@@ -3068,42 +3068,6 @@
   });
 
   $.plugin({
-    provides: "groupBy",
-    depends: "type"
-  }, function() {
-    return {
-      groupBy: function(key) {
-        var groups;
-        groups = {};
-        switch ($.type(key)) {
-          case 'array':
-          case 'bling':
-            this.each(function() {
-              var c, k;
-              c = ((function() {
-                var aa, len1, results;
-                results = [];
-                for (aa = 0, len1 = key.length; aa < len1; aa++) {
-                  k = key[aa];
-                  results.push(this[k]);
-                }
-                return results;
-              }).call(this)).join(",");
-              return (groups[c] || (groups[c] = $())).push(this);
-            });
-            break;
-          default:
-            this.each(function() {
-              var name1;
-              return (groups[name1 = this[key]] || (groups[name1] = $())).push(this);
-            });
-        }
-        return $.valuesOf(groups);
-      }
-    };
-  });
-
-  $.plugin({
     provides: "hash",
     depends: "type"
   }, function() {
@@ -3384,28 +3348,39 @@
   $.depends('hook', function() {
     return $.init.append(function(obj) {
       var keyMakers, map;
-      map = Object.create(null);
+      map = new Map();
       keyMakers = [];
       return $.inherit({
         index: function(keyFunc) {
+          var _map, aa, key, len1, x;
           if (keyMakers.indexOf(keyFunc) === -1) {
             keyMakers.push(keyFunc);
-            map[keyFunc] = Object.create(null);
+            map.set(keyFunc.toString(), new Map());
           }
-          return this.each(function(x) {
-            return map[keyFunc][keyFunc(x)] = x;
-          });
+          for (aa = 0, len1 = this.length; aa < len1; aa++) {
+            x = this[aa];
+            key = keyFunc(x);
+            _map = map.get(keyFunc.toString());
+            if (!_map.has(key)) {
+              _map.set(key, $());
+            }
+            _map.get(key).push(x);
+          }
+          return this;
         },
         query: function(criteria) {
-          var aa, key, keyMaker, len1;
+          var _map, aa, key, keyMaker, len1;
           for (aa = 0, len1 = keyMakers.length; aa < len1; aa++) {
             keyMaker = keyMakers[aa];
-            key = keyMaker(criteria);
-            if (key in map[keyMaker]) {
-              return map[keyMaker][key];
+            _map = map.get(keyMaker.toString());
+            if (_map.has(key = keyMaker(criteria))) {
+              return _map.get(key);
             }
           }
-          return null;
+          return $();
+        },
+        queryOne: function(criteria) {
+          return this.query(criteria)[0];
         }
       }, obj);
     });
@@ -4498,13 +4473,7 @@
     $.depends('type', function() {
       return $.type.register('promise', {
         is: function(o) {
-          var err, error1;
-          try {
-            return (typeof o === 'object') && 'promiseId' in o && 'then' in o;
-          } catch (error1) {
-            err = error1;
-            return false;
-          }
+          return (o != null) && ('object' === typeof o) && 'then' in o && 'function' === typeof o.then && o.then.length === 2;
         }
       });
     });
@@ -5116,7 +5085,7 @@
   }, function() {
     return {
       $: {
-        sortedIndex: function(array, item, iterator, lo, hi) {
+        sortedIndex: function(array, item, sorter, lo, hi) {
           var cmp, mid;
           if (lo == null) {
             lo = 0;
@@ -5126,13 +5095,13 @@
           }
           cmp = (function() {
             switch (true) {
-              case $.is("string", iterator):
+              case $.is("string", sorter):
                 return function(a, b) {
-                  return a[iterator] < b[iterator];
+                  return a[sorter] < b[sorter];
                 };
-              case $.is("function", iterator):
+              case $.is("function", sorter):
                 return function(a, b) {
-                  return iterator(a) < iterator(b);
+                  return sorter(a) < sorter(b);
                 };
               default:
                 return function(a, b) {
@@ -5151,19 +5120,52 @@
           return lo;
         }
       },
-      sortBy: function(iterator) {
+      sortBy: function(sorter) {
         var a, aa, item, len1, n;
         a = $();
         for (aa = 0, len1 = this.length; aa < len1; aa++) {
           item = this[aa];
-          n = $.sortedIndex(a, item, iterator);
+          n = $.sortedIndex(a, item, sorter);
           a.splice(n, 0, item);
         }
         return a;
       },
-      sortedInsert: function(item, iterator) {
-        this.splice($.sortedIndex(this, item, iterator), 0, item);
+      sortedInsert: function(item, sorter) {
+        this.splice($.sortedIndex(this, item, sorter), 0, item);
         return this;
+      },
+      groupBy: function(sorter) {
+        var aa, c, groups, k, len1, name1, x;
+        groups = {};
+        switch ($.type(sorter)) {
+          case 'array':
+          case 'bling':
+            for (aa = 0, len1 = this.length; aa < len1; aa++) {
+              x = this[aa];
+              c = ((function() {
+                var ab, len2, results;
+                results = [];
+                for (ab = 0, len2 = key.length; ab < len2; ab++) {
+                  k = key[ab];
+                  results.push(x[k]);
+                }
+                return results;
+              })()).join(",");
+              (groups[c] || (groups[c] = $())).push(x);
+            }
+            break;
+          case (function() {
+              var ab, len2, results;
+              results = [];
+              for (ab = 0, len2 = this.length; ab < len2; ab++) {
+                x = this[ab];
+                results.push('string');
+              }
+              return results;
+            }).call(this):
+            (groups[name1 = x[key]] || (groups[name1] = $())).push(x);
+        }
+        return $.valuesOf(groups);
       }
     };
   });

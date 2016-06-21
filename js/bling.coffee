@@ -1391,19 +1391,6 @@ $.plugin
 		partial: (f, a...) -> (b...) -> f a..., b...
 	partial: (a...) -> @map (f) -> $.partial f, a...
 $.plugin
-	provides: "groupBy"
-	depends: "type"
-, ->
-	groupBy: (key) ->
-		groups = {}
-		switch $.type key
-			when 'array','bling'
-				@each ->
-					c = (@[k] for k in key).join ","
-					(groups[c] or= $()).push @
-			else @each -> (groups[@[key]] or= $()).push @
-		return $.valuesOf groups
-$.plugin
 	provides: "hash"
 	depends: "type"
 , ->
@@ -1543,20 +1530,28 @@ $.plugin
 	}
 $.depends 'hook', ->
 	$.init.append (obj) ->
-		map = Object.create(null)
+		map = new Map()
 		keyMakers = []
 		$.inherit {
 			index: (keyFunc) ->
 				if keyMakers.indexOf(keyFunc) is -1
 					keyMakers.push keyFunc
-					map[keyFunc] = Object.create(null)
-				@each (x) ->
-					map[keyFunc][keyFunc(x)] = x
+					map.set(keyFunc.toString(), new Map())
+				for x in @
+					key = keyFunc x
+					_map = map.get keyFunc.toString()
+					unless _map.has key
+						_map.set key, $()
+					_map.get(key).push x
+				@
 			query: (criteria) ->
 				for keyMaker in keyMakers
-					key = keyMaker(criteria)
-					return map[keyMaker][key] if key of map[keyMaker]
-				null
+					_map = map.get keyMaker.toString()
+					if _map.has key = keyMaker criteria
+						return _map.get(key)
+				return $()
+			queryOne: (criteria) ->
+				return @query(criteria)[0]
 		}, obj
 $.plugin
 	provides: "toHTML"
@@ -2051,8 +2046,11 @@ $.plugin
 			p
 	$.depends 'type', ->
 		$.type.register 'promise', is: (o) ->
-			try return (typeof o is 'object')	and 'promiseId' of o and 'then' of o
-			catch err then return false
+			return o? \
+				and ('object' is typeof o) \
+				and 'then' of o \
+				and 'function' is typeof o.then \
+				and o.then.length is 2
 	return $: { Promise, Progress }
 $.plugin
 	provides: 'prompt,confirm',
@@ -2260,9 +2258,11 @@ $.plugin
 		p
 	render = (o, opts = {}) ->
 		consume_forever r = (reduce [ o ], opts), opts
+	
 	object_handlers = {
 		text: (o, opts) -> reduce o[opts.lang ? "EN"], opts
 	}
+	
 	render.register = register = (t, f) -> object_handlers[t] = f
 	render.reduce = reduce = (o, opts) -> 
 		(t = $.type.lookup o).reduce(o, t, opts)
@@ -2346,10 +2346,10 @@ $.plugin
 	provides: "sortBy,sortedIndex,sortedInsert"
 , ->
 	$:
-		sortedIndex: (array, item, iterator, lo = 0, hi = array.length) ->
+		sortedIndex: (array, item, sorter, lo = 0, hi = array.length) ->
 			cmp = switch true
-				when $.is "string", iterator then (a,b) -> a[iterator] < b[iterator]
-				when $.is "function", iterator then (a,b) -> iterator(a) < iterator(b)
+				when $.is "string", sorter then (a,b) -> a[sorter] < b[sorter]
+				when $.is "function", sorter then (a,b) -> sorter(a) < sorter(b)
 				else (a,b) -> a < b
 			while lo < hi
 				mid = (hi + lo)>>>1
@@ -2358,15 +2358,24 @@ $.plugin
 				else
 					hi = mid
 			return lo
-	sortBy: (iterator) ->
+	sortBy: (sorter) ->
 		a = $()
 		for item in @
-			n = $.sortedIndex a, item, iterator
+			n = $.sortedIndex a, item, sorter
 			a.splice n, 0, item
 		a
-	sortedInsert: (item, iterator) ->
-		@splice ($.sortedIndex @, item, iterator), 0, item
+	sortedInsert: (item, sorter) ->
+		@splice ($.sortedIndex @, item, sorter), 0, item
 		@
+	groupBy: (sorter) ->
+		groups = {}
+		switch $.type sorter
+			when 'array','bling'
+				for x in @
+					c = (x[k] for k in key).join ","
+					(groups[c] or= $()).push x
+			when 'string' for x in @ then (groups[x[key]] or= $()).push x
+		return $.valuesOf groups
 $.plugin
 	provides: "StateMachine"
 	depends: "type, logger"

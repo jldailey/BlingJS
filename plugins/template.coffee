@@ -89,19 +89,15 @@ $.plugin
 					value = "missing value: #{key}"
 				# format the value according to the format options
 				# currently supports 'd', 'f', and 's'
-				switch type
-					when 'd'
-						output[j++] = "" + parseInt(value, 10)
-					when 'f'
-						output[j++] = parseFloat(value).toFixed(fixed)
+				output[j++] = switch type
+					when 'd' then "" + parseInt(value, 10)
+					when 'f' then parseFloat(value).toFixed(fixed)
 					# output unsupported formats like %s strings
+					when 's' then "" + value
 					# TODO: add support for more formats
-					when 's'
-						output[j++] = "" + value
-					else
-						output[j++] = "" + value
+					else "" + value
 				if pad > 0
-					output[j] = String.PadLeft output[j], pad
+					output[j] = $.padLeft output[j], pad
 				output[j++] = rest
 			output.join ""
 

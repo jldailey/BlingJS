@@ -852,5 +852,133 @@ It can be of type "string", or "function".
 	<tr><td valign=top><li><a id="indexOf" /><code>$(array).indexOf(target, offset=0)</code></li><td>Works like Array.indexOf, but also accepts a RegExp and will return the index of the first match.
 </table>
 
+<h4>StateMachine Plugin - <a id="plugins/StateMachine" href="https://github.com/jldailey/BlingJS/blob/master/plugins/StateMachine.coffee">Source</a></h4>
+
+<p>Provides the base class for creating finite state machines that process input strings.</p>
+
+<table>
+	<tr><td valign=top><li><a id="$.StateMachine" /><code>class $.StateMachine</code><td>The base class to be inherited from, e.g.
+<pre>
+class MyMachine extends $.StateMachine
+  constructor: ->
+    super [ # State Table
+      # State 0, on enter, set started, goto state 1
+      { enter: -> @started = true; return 1 }
+      # State 1, on eof, unset started, goto state 0
+      { eof:   -> @started = false; return 0 }
+    ]
+</pre>
+<p>This is a simple machine that starts and then stops, on any input.</p>
+<p>Here is an example of an echo machine</p>
+<pre>
+class EchoMachine extends $.StateMachine
+  constructor: ->
+    super [ # State Table
+      # State 0, by default, echo, stay in state 0
+      { def: (c) -> echo c; return 0 }
+    ]
+</pre>
+<see>plugins/synth</see> for a complete working example.
+<p>Each <i>State</i> in the <i>State Table</i> is of the following form:
+<pre>
+{
+	enter: &lt;new state&gt;
+	&lt;char&gt;: &lt;new state&gt;
+	def: &lt;new state&gt;
+	eof: &lt;new state&gt;
+}
+</pre>
+<p>Where <code>&lt;new state&gt;</code> is either a state index (an integer), or a function <code>f</code> such that <code>f(input_char)</code> returns a <code>&lt;new state&gt;</code> (recursive).</p>
+<blockquote>
+	<table>
+		<tr><th>Key<th>When Applied
+		<tr><td><code>&lt;char&gt;</code><td>Triggered when <code>&lt;char&gt;</code> is consumed from the input.
+		<tr><td><code>enter:</code><td>Triggered when the state is entered for the first time, before any input has been read. If it changes the current state, then no input is consumed.
+		<tr><td><code>eof:</code><td>Triggered when the end of the input string is reached while in this state. While the return value does change the final state, no further actions will be taken.
+		<tr><td><code>def:</code><td>Triggered when an input character was consumed that did not match any <code>&lt;char&gt;</code> blocks
+	</table>
+</blockquote>
+
+</table>
+
+<h4>Synth Plugin - <a id="plugins/synth" href="https://github.com/jldailey/BlingJS/blob/master/plugins/synth.coffee">Source</a></h4>
+
+<p>Generate DOM fragments based on CSS strings.
+<p>More precisely, generate the smallest set of nodes that will match a format string in a language very similar to CSS.
+<table>
+	<tr><td valign=top><li><a id="$.synth" /><code>$.synth(expr)</code><td>Generate a DOM fragment. <code>expr</code> is a CSS expression that supports the following components:
+		<table cellpadding=2>
+			<tr><td><b>Selectors</b>
+			<tr><td>(whitespace)<td>Continue the expression, with current node as the new parent node.<br>Any number of continuous whitespace characters (including newlines and tabs) are collapsed as if it was a single space.
+			<tr><td><code>.</code><td>Set a class name, e.g. <code>$.synth("div.hidden").select('className') == [ 'hidden' ]</code>.
+			<tr><td><code>#</code><td>Set an id, e.g. <code>$.synth("div#unique").select('id') == [ 'unique' ]</code>.
+			<tr><td><code>[key=val]</code><td>Set any attribute, e.g. <code>$.synth("table[cellspacing=0]").attr('cellspacing') == [ '0' ]</code>.
+			<tr><td><code>"</code> or <code>'</code><td>(non-standard) Add a text node as a child, e.g.  <code>$.synth("span 'Hello'").toString() == "&lt;span&gt;Hello&lt;/span&gt;"</code>
+			<tr><td><code>+</code><td>Create an adjacent node, e.g. <code>assert.equal $.synth("table tr td + td").find('td').select('parentNode')...</code>.
+			<br>This selector can also be thought of as the universal close-tag; it will close the current parent node and continue, e.g. unlike in CSS you can use it multiple times <code>$.synth("table tr td + + caption 'Caption'")</code> produces <code>&lt;table&gt;...&lt;/table&gt;&lt;caption&gt;Caption&lt;/caption&gt;</code>.
+			<tr><td><code>,</code><td>Read as "and also", this appends a new expression to the current parent node (or fragment).
+		</table>
+	<p>Any set of DOM nodes can be created if you are willing to manage more complex patterns, but they quickly become unreadable (even though they do work):
+<pre>
+$.synth("table
+	tr.row.odd
+		td.cell
+			span 'Some #{dynamic} data' + +
+		td.cell
+			span 'Two' + +
+	+
+	tr.row.even
+		td.cell
+			span 'Three' + +
+		td.cell
+			span 'Four' + +
+")
+</pre>
+	<p><code>$.synth</code> is powerful, but best used for generating smaller chunks of DOM nodes, due to pattern complexity.
+</table>
+
+<h4>Template Plugin - <a id="plugins/template" href="https://github.com/jldailey/BlingJS/blob/master/plugins/template.coffee">Source</a></h4>
+
+<p>Used for rendering string templates, with a default 'pythonic' style, and a pluggable system for using other template engines as well.
+<pre>
+$.template.render("Hello %(value)s!", { value: "World" }) # "Hello World!"
+</pre>
+<table>
+	<tr><td valign=top><li><a id="$.template.render" /><code>$.template.render(text, data)</code><td>Replace format-strings inside <code>text</code> with values from <code>data</code>. Return a string.
+	<tr><td valign=top><li><a id="$.template.register_engine" /><code>$.template.register_engine(name, render_func)</code><td>Use <code>render_func(text, data)</code> to render strings.
+	<tr><td valign=top><li><a id="$.template.engine" /><code>$.template.engine</code><td>Property (read-write). Select the currently active template engine by name. Default: "pythonic".
+	<tr><td valign=top><li><a id="$.template.engines" /><code>$.template.engines</code><td>Property (read-only). List all currently registered engines.
+</table>
+<h5>The "pythonic" templates</h5>
+<p>Basic patterns are of the form: <code>%(key)format</code>, e.g. <code>%(name)s</code> would be replaced by the value of <code>data.name</code>, formatted as a string.
+<blockquote>
+	<table>
+		<tr><th>Format
+		<tr><th>d<td>As an integer, e.g. <code>10</code>
+		<tr><th>f<td>As a floating-point number, accepts a width argument, e.g. <code>%(value).2f</code> is equivalent to <code>Number(value).toFixed(2)</code>.
+		<tr><th>s<td>As a string, equivalent to <code>String(value)</code>.
+	</table>
+</blockquote>
+
+<h4>Throttle Plugin - <a id="plugins/throttle" href="https://github.com/jldailey/BlingJS/blob/master/plugins/throttle.coffee">Source</a></h4>
+
+<p>Utility functions for rate limiting other functions in various ways.
+
+<table>
+	<tr><td valign=top><li><a id="$.throttle" /><code>$.throttle(ms, func)</code><td>Return a new function that will ignore calls that are made within an interval of <code>ms</code>.
+	<tr><td valign=top><li><a id="$.debounce" /><code>$.debounce(ms, func)</code><td>Return a new function that will group together many fast calls into a single call at the end.
+	<tr><td valign=top><li><a id="$.rate_limit" /><code>$.rate_limit(ms, func)</code><td>Return a new function that will throttle and debounce calls to func.
+</table>
+
+<h4>TNET Plugin - <a id="plugins/tnet" href="https://github.com/jldailey/BlingJS/blob/master/plugins/tnet.coffee">Source</a></h4>
+
+<p>TNET is a data format, meant to serialize arbitrary JavaScript objects. It can handle a wider variety of objects than can JSON, and is much easier to parse and verify.
+
+<table>
+	<tr><td valign=top><li><a id="$.TNET.stringify" /><code>$.TNET.stringify(stuff)</code><td>Produce a machine-readable string that describes <code>stuff</code>.
+	<tr><td valign=top><li><a id="$.TNET.parse" /><code>$.TNET.parse(string)</code><td>Parse the machine-readable string produced by <code>$.TNET.stringify</code>.
+	<tr><td valign=top><li><a id="$.TNET.parse" /><code>$.TNET.registerClass(constructor)</code><td>Register a custom class, must be registered on both sides of the serialization. Registration order does not matter.
+</table>
+
 </body>
 </html>

@@ -2798,17 +2798,13 @@ $.plugin
 				value = values[key]
 				if not value?
 					value = "missing value: #{key}"
-				switch type
-					when 'd'
-						output[j++] = "" + parseInt(value, 10)
-					when 'f'
-						output[j++] = parseFloat(value).toFixed(fixed)
-					when 's'
-						output[j++] = "" + value
-					else
-						output[j++] = "" + value
+				output[j++] = switch type
+					when 'd' then "" + parseInt(value, 10)
+					when 'f' then parseFloat(value).toFixed(fixed)
+					when 's' then "" + value
+					else "" + value
 				if pad > 0
-					output[j] = String.PadLeft output[j], pad
+					output[j] = $.padLeft output[j], pad
 				output[j++] = rest
 			output.join ""
 	return $: { template }

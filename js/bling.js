@@ -6031,21 +6031,20 @@
           if (value == null) {
             value = "missing value: " + key;
           }
-          switch (type) {
-            case 'd':
-              output[j++] = "" + parseInt(value, 10);
-              break;
-            case 'f':
-              output[j++] = parseFloat(value).toFixed(fixed);
-              break;
-            case 's':
-              output[j++] = "" + value;
-              break;
-            default:
-              output[j++] = "" + value;
-          }
+          output[j++] = (function() {
+            switch (type) {
+              case 'd':
+                return "" + parseInt(value, 10);
+              case 'f':
+                return parseFloat(value).toFixed(fixed);
+              case 's':
+                return "" + value;
+              default:
+                return "" + value;
+            }
+          })();
           if (pad > 0) {
-            output[j] = String.PadLeft(output[j], pad);
+            output[j] = $.padLeft(output[j], pad);
           }
           output[j++] = rest;
         }

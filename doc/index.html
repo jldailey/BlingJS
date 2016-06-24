@@ -173,6 +173,13 @@ will call <code>func</code> immediately.
 <tr><td valign=top><li><code>$(items).zap(property, value)</code><td> Assign <code>value</code> to <code>property</code> on every item in this.
 Supports the same complex, and nested, properties that <code>$(items).select(...)</code> does.
 <pre>$(items).zap('childNodes.2.style.display','none') # Hide every 3rd child</pre>
+<p>Also supports mapping dynamic values. If the value to be assigned is a function, it will be called by zap to create the final output, e.g.
+<pre>
+output = $(items).zap('nested.prop', func)
+# output[i].nested.prop gets computed by func( items[i].nested.prop )
+</pre>
+<p>If you want to avoid this functionality, wrap your function once before passing it in.
+<pre>$(items).zap('user.takeAction', -> takeActionFunction)</pre>
 <a name="$::take" />
 <tr><td valign=top><li><code>$(items).take(n)</code><td> Return the first <code>n</code> items from this.
 <a name="$::skip" />
@@ -323,8 +330,9 @@ the funcs at the same time. Each function still gets only the single callback.
 <a name="$.date" />
 <h4>Date Plugin - <a id="plugins/date" href="https://github.com/jldailey/BlingJS/blob/master/plugins/date.coffee">Source</a>
 </h4>
-<p>All date formats work with <code>$.date.parse()</code> and
-<code>$.date.dateFormat</code></p>
+<p>This group of functions is meant for handling user-facing dates, it's focus is on reading, manipulating, and displaying dates. The central representation of a date is a (timestamp, unit) pair.
+<p>Unless otherwise specified, all optional <code>[unit]</code> and <code>[format]</code> arguments get their value from <code>$.date.defaultUnit</code> and <code>$.date.defaultFormat</code>, respectively.
+<p>The following formats work in both directions, with <code>$.date.parse()</code> and <code>$.date.format()</code>.
 
 <blockquote>
 <table>
@@ -352,17 +360,17 @@ the funcs at the same time. Each function still gets only the single callback.
 <a name="$.date.defaultFormat" />
 <tr><td valign=top><li><code>$.date.defaultFormat = "yyyy-mm-dd HH:MM:SS"</code><td>
 <a name="$.date.stamp" />
-<tr><td valign=top><li><code>$.date.stamp([date],[unit])</code><td>Get an integer timestamp
+<tr><td valign=top><li><code>$.date.stamp([date],[unit])</code><td>Get an integer timestamp of the current [or given] date.
 <a name="$.date.unstamp" />
-<tr><td valign=top><li><code>$.date.unstamp(ts,[unit])</code><td>Convert to date object
+<tr><td valign=top><li><code>$.date.unstamp(ts,[unit])</code><td>Convert a timestamp to a Date object
 <a name="$.date.convert" />
-<tr><td valign=top><li><code>$.date.convert(ts,fromUnit,toUnit)</code><td>Convert between time units
+<tr><td valign=top><li><code>$.date.convert(ts,fromUnit,toUnit)</code><td>Convert a timestamp between time units, e.g. "ms" to "days".
 <a name="$.date.midnight" />
-<tr><td valign=top><li><code>$.date.midnight(ts, [unit])</code><td>Truncate the ts to the nearest midnight
+<tr><td valign=top><li><code>$.date.midnight(ts, [unit])</code><td>Truncate the timestamp to the previous midnight.
 <a name="$.date.format" />
-<tr><td valign=top><li><code>$.date.format(ts, [format], [unit])</code><td>See format table above
+<tr><td valign=top><li><code>$.date.format(ts, [format], [unit])</code><td>Format a timestamp using the format table above.
 <a name="$.date.parse" />
-<tr><td valign=top><li><code>$.date.parse(str, [format], [unit])</code><td>See format table above
+<tr><td valign=top><li><code>$.date.parse(str, [format], [unit])</code><td>Parse a string into a timestamp, using the format table above.
 </table>
 
 <h4>Debug Plugin - <a id="plugins/debug" href="https://github.com/jldailey/BlingJS/blob/master/plugins/debug.coffee">Source</a> </h4>
@@ -979,6 +987,157 @@ $.template.render("Hello %(value)s!", { value: "World" }) # "Hello World!"
 	<tr><td valign=top><li><a id="$.TNET.parse" /><code>$.TNET.parse(string)</code><td>Parse the machine-readable string produced by <code>$.TNET.stringify</code>.
 	<tr><td valign=top><li><a id="$.TNET.parse" /><code>$.TNET.registerClass(constructor)</code><td>Register a custom class, must be registered on both sides of the serialization. Registration order does not matter.
 </table>
+
+<h4>Transform Plugin - <a id="plugins/transform" href="https://github.com/jldailey/BlingJS/blob/master/plugins/transform.coffee">Source</a></h4>
+
+<p>Provides accelerated animation of CSS properties (only available when running in a browser context).
+
+<table>
+	<tr><td valign=top><li><a id="$.duration" /><code>$.duration(speed)</code><td>Given a supported speed description, return a number in milliseconds.
+	<blockquote>
+		<table>
+			<tr><th>Speed<th>Milliseconds
+			<tr><td>"slow"<td>700ms
+			<tr><td>"medium"<td>500ms
+			<tr><td>"normal"<td>300ms
+			<tr><td>"fast"<td>100ms
+			<tr><td>"instant"<td>0ms
+			<tr><td>"now"<td>0ms
+			<tr><td>&lt;n&gt;<td>&lt;n&gt;ms
+		</table>
+	</blockquote>
+	<p><b>Easing strings</b>: "ease", "linear", "ease-in", "ease-out", "ease-in-out", "step-start", "step-end", "steps(number[, start | end ])", "cubic-bezier(number, number, number, number)"
+	<tr><td valign=top><li><a id="$.transform" /><code>$(items).transform(desired_css, speed, easing, cb)</code><td>Uses <code>speed</code> and <code>easing</code> to animate from the current state to the <code>desired_css</code>.
+<pre>
+	$("li").transform({ "margin-left": "-1000px" }, "fast", "linear")
+</pre>
+</table>
+<blockquote>
+	<table>
+		<tr><th>Alias<th>Transform
+		<tr><td valign=top><a id="$.hide" /><code>$(items).hide(cb)</code><td><code>$(items).transform({ display: "none" }, "instant").trigger("hide")</code>.
+		<tr><td valign=top><a id="$.show" /><code>$(items).show(cb)</code><td><code>$(items).transform({ display: &lt;prior-display&gt; or "" }, "instant").trigger("show")</code>.
+		<tr><td valign=top><a id="$.toggle" /><code>$(items).toggle(cb)</code><td>Cycle between calling <code>.show</code> or <code>.hide</code> as appropriate.
+		<tr><td valign=top><a id="$.fadeIn" /><code>$(items).fadeIn(speed, cb)</code><td><code>$(items).transform({ opacity: 1.0, transform3d: [0, 0, 0]})</code>.
+		<tr><td valign=top><a id="$.fadeOut" /><code>$(items).fadeOut(speed, cb, x=0, y=0)</code><td><code>$(items).transform({ opacity: 0.0, transform3d: [0, 0, 0]})</code>.
+		<tr><td valign=top><a id="$.fadeLeft" /><code>$(items).fadeLeft(speed, cb)</code><td><code>$(items).transform({ opacity: 0.0, transform3d: [-width, 0, 0]})</code>.
+		<tr><td valign=top><a id="$.fadeRight" /><code>$(items).fadeRight(cb)</code><td><code>$(items).transform({ opacity: 0.0, transform3d: [+width, 0, 0]})</code>.
+		<tr><td valign=top><a id="$.fadeUp" /><code>$(items).fadeUp(cb)</code><td><code>$(items).transform({ opacity: 0.0, transform3d: [0, -height, 0]})</code>.
+		<tr><td valign=top><a id="$.fadeDown" /><code>$(items).fadeDown(cb)</code><td><code>$(items).transform({ opacity: 0.0, transform3d: [0, +height, 0]})</code>.
+	</table>
+</blockquote>
+
+<h4>Type Plugin - <a id="plugins/type" href="https://github.com/jldailey/BlingJS/blob/master/plugins/type.coffee">Source</a></h4>
+
+<p>A very central plugin, used by many others, provides an abstract system for recognizing and extending types without modifying their prototypes.
+<h5>Basic usage</h5>
+<pre>
+actAsUnknown = (stuff) ->
+  switch $.type(stuff)
+    when "string" then actAsString(stuff)
+    when "array", "bling" then actAsArray(stuff)
+    when "function" then actAsUnknown( stuff() )
+</pre>
+<h5>The "is" function</h5>
+<p>The first (and only required) handler for each type is a "recognizer" function that returns true when shown an instance of that type.
+<p>This recognizer function is called the <code>"is"</code> function.
+<pre>
+$.type.register "my-type", {
+	is: (o) -> (o != null) and ("object" is typeof o) and o.isMyType is true
+}
+</pre>
+
+<p>Many things can be accomplished then by extending the registered type, e.g.
+<pre>
+# tell the type system how to convert "my-type" objects to string
+$.type.extend "my-type", { string: (o) -> "--MYTYPE--" }
+# then take advantage
+o = { isMyType: true }
+$.toString o # "--MYTYPE--"
+$.log "Hi,", o # "Hi, --MYTYPE--"
+</pre>
+
+<p>The <b>Basic Usage</b> example from above could be accomplished in a modular way by registering a type extension on other types.
+<pre>
+$.type.extend {
+	string:    { example: actAsString },
+	array:     { example: actAsArray },
+	bling:     { example: actAsBling },
+	function:  { example: actAsFunction },
+}
+actOnUnknown = (stuff) -> $.type.lookup(stuff).example(stuff)
+</pre>
+<p>The benefit to doing it this way, is that some other module can extend <code>actOnUnknown</code> without modifying it's code, by using <code>$.type.extend "my-type", { example: ... }</code>.
+
+<blockquote>
+	<table>
+		<tr><th>Type extension<th>Effect
+		<tr><td valign=top>"is"<td>The recognizer function for this type. Used internally by <code>$.type.lookup(obj)</code>.
+		<tr><td valign=top>"matches"<td>Used to determine if an object "matches" another object, as a pattern. <see>plugins/matches</see>. e.g.
+<pre>
+$.type.extend "my-type", { matches: { "my-type": -> true } }
+o = { isMyType: true }
+k = { isMyType: true }
+$.matches(o, k) # true
+</pre>
+		<tr><td valign=top>"array"<td>Used to convert items of this type to an array. Used primarily by the Bling constructor.
+		<tr><td valign=top>"string"<td>Convert items of this type to a string, generally a friendly string. <see>plugins/string</see>.
+		<tr><td valign=top>"repr"<td>Convert items of this type to a generally machine-readable string. <see>plugins/string</see>.
+		<tr><td valign=top>"clone"<td>Create a clone of items of this type. <see>plugins/clone</see>.
+		<tr><td valign=top>"date"<td>Convert items of this type to a Date object. <see>plugins/date</see>.
+		<tr><td valign=top>"node"<td>Convert items of this type to a DOM node. <see>plugins/dom</see>.
+		<tr><td valign=top>"number"<td>Convert items of this type to a number. <see>plugins/math</see>.
+		<tr><td valign=top>"reduce"<td>Phase 1 of the render process. <see>plugins/render</see>.
+		<tr><td valign=top>"finalize"<td>Phase 2 of the render process. <see>plugins/render</see>.
+	</table>
+</blockquote>
+
+<h4>Units Plugin - <a id="plugins/units" href="https://github.com/jldailey/BlingJS/blob/master/plugins/units.coffee">Source</a></h4>
+
+<p>A plugin for dealing with "units strings", i.e. strings with a mixture of number and units, e.g. "12ms", or "120ft".
+<p>This plugin defines a system for using and converting these kinds of unit-strings.
+<p>There are lots of units and conversions loaded initially, and this causes a startup delay.  So, <b>to use this plugin, you must initialize it</b>.
+<pre>
+$.units.enable() # takes about 100ms
+</pre>
+
+<table>
+	<tr><td valign=top><li><a id="$.units.enable" /><code>$.units.enable()</code><td>Load all the default unit definitions and their conversions.
+	<tr><td valign=top><li><a id="$.units.get" /><code>$.units.get(fromUnit, toUnit)</code><td>Return the conversion factor, e.g. <code>$.unit.get("days", "s") == 86400</code>.
+	<tr><td valign=top><li><a id="$.units.set" /><code>$.units.set(fromUnit, toUnit, factor)</code><td>Set a direct conversion factor, e.g. <code>$.unit.set("widget", "flam", 17)</code>.
+	<tr><td valign=top><li><a id="$.units.convertTo" /><code>$.units.convertTo(unit, number)</code><td>Convert the number to the unit, e.g. <code>$.unit.convertTo("cm", "6ft") == "182.8710758914965cm"</code>.
+</table>
+
+<h4>Url Plugin - <a id="plugins/url" href="https://github.com/jldailey/BlingJS/blob/master/plugins/url.coffee">Source</a></h4>
+
+<p>Parsing and building URLs.
+
+<table>
+	<tr><td valign=top><li><a id="$.URL.parse" /><code>$.URL.parse(str)</code><td>Parse a URL string into an object, e.g.
+<pre>
+$.URL.parse("https://user:pass@example.com/a/b?c=d#e") == {
+	protocol: "https"
+	username: "user"
+	password: "pass"
+	host: "example.com"
+	path: "/a/b"
+	query: "c=d"
+	hash: "e"
+}
+</pre>
+	<tr><td valign=top><li><a id="$.URL.stringify" /><code>$.URL.stringify(obj)</code><td>Compile an object (like the one above), into a URL string.
+</table>
+
+<h4>Watch Property Plugin - <a id="plugins/watch-object" href="https://github.com/jldailey/BlingJS/blob/master/plugins/watch-object.coffee">Source</a></h4>
+
+<p><i>Experimental</i>. Watch an object and get notified when and how it changes. Theoretically useful as the base primitive in a reactive system.
+<pre>
+obj = { a: 10, b: [ 1, 2, 3 ] }
+$.watchProperty obj, "a", $.log
+$.watchProperty obj, "b", $.log
+obj.a = 12 # logs 'change', 'a', 12
+obj.b.push 4 # logs 'insert', 'b.3', 4
+</pre>
 
 </body>
 </html>

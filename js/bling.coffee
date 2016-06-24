@@ -648,8 +648,7 @@ $.plugin
 		MM: Date.prototype.getUTCMinutes
 		SS: Date.prototype.getUTCSeconds
 		MS: Date.prototype.getUTCMilliseconds
-		_MS: ->
-			$.padLeft Date.prototype.getUTCMilliseconds.apply(@), 3, "0"
+		_MS: -> $.padLeft Date.prototype.getUTCMilliseconds.apply(@), 3, "0"
 	format_keys = Object.keys(formats).sort().reverse()
 	parsers =
 		YYYY: pYYYY = Date.prototype.setUTCFullYear
